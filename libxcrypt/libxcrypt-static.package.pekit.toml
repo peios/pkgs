@@ -1,0 +1,14 @@
+# libxcrypt-static — the static archive (libcrypt.a) for statically linking
+# crypt(). Split out like glibc-static (and Fedora's libxcrypt-static); Debian
+# instead bundles it into libcrypt-dev. The archive is --strip-debug'd at build
+# time (symtab kept so it still links; DWARF discarded — archive members have no
+# build-id to index, matching the debuginfo policy).
+
+[package]
+description = "Modern password hashing library - static library"
+
+[dependencies]
+libxcrypt-devel = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,25 @@
+# libstdc++ — the GNU Standard C++ Library (libstdc++.so.6): std::string, the
+# containers, <iostream>, <algorithm>, plus the C++ ABI runtime (libsupc++ folded
+# in). The C++ counterpart to glibc. Headers live in libstdc++-devel; the static
+# archives in libstdc++-static.
+#
+# A glob source ("so.6*") maps to a DIRECTORY; an exact source to a FULL path.
+
+[package]
+description = "GNU Standard C++ Library (libstdc++.so.6)"
+
+[dependencies]
+# libstdc++ links libgcc_s (the unwinder) + glibc. libgcc is built from this same
+# GCC source, so pin its upstream version (revision omitted -> any revision of
+# that gcc, §2.2.8). glibc floor as everywhere.
+libgcc = "{{version}}"
+glibc  = ">= 2.43"
+
+[files]
+# SONAME symlink (libstdc++.so.6) + the real object (libstdc++.so.6.0.NN). The
+# unversioned dev .so symlink is libstdc++-devel's.
+":usr/lib/x86_64-linux-peios/libstdc++.so.6*" = "usr/lib/x86_64-linux-peios"
+# The glob above also catches the gdb pretty-printer (libstdc++.so.6.0.NN-gdb.py).
+# It auto-loads from the lib dir but needs the python printer modules, which phase
+# 1 doesn't ship — so drop it (version-agnostic glob).
+exclude = [":usr/lib/x86_64-linux-peios/*-gdb.py"]

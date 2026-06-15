@@ -1,0 +1,3 @@
+# pekit build artifacts: per-recipe staging trees + the published-package pool
+out/
+pkgsOut/

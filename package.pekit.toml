@@ -1,0 +1,21 @@
+# Workspace-shared package config.
+#
+# This is NOT a package on its own — it has no format/[files], so it never
+# validates standalone. It is a defaults layer merged UNDER every member's
+# package definition (detected only because workspace.pekit.toml sits
+# beside it).
+#
+# Merge precedence, lowest to highest:
+#
+#   this root  <  the package's source  <  the member's own recipe
+#
+# So these are fallbacks: a member, or its upstream source, overrides
+# anything set here; the root only supplies what neither does — like the
+# publish target, which upstreams don't know about.
+#
+# [[publish.<type>]] — where built packages are published. An array of
+# typed targets. `localdir` copies the .peipkg into a local repo directory
+# (path is relative to this workspace root).
+#   future targets, e.g.:  [[publish.r2]] \n bucket = "..." \n remote = "..."
+[[publish.localdir]]
+path = "pkgsOut"

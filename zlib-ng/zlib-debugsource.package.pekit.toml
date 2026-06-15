@@ -1,0 +1,14 @@
+# zlib-debugsource — the zlib-ng source files referenced by the debug info, under
+# /usr/src/debug/zlib-ng, so gdb/debuginfod can show source lines. The build's
+# post-install step rewrites the DWARF comp_dir to point here (debugedit) and
+# stages exactly the referenced sources. Shared by both ABIs (one source tree).
+# Pairs with zlib-debuginfo; depends on it (source without symbols is useless).
+
+[package]
+description = "Compression library - debug sources"
+
+[dependencies]
+zlib-debuginfo = "{{version}}"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,15 @@
+# libgomp — GCC's OpenMP runtime (libgomp.so.1), linked into code compiled with
+# -fopenmp (lots of scientific/media software). The dev .so symlink, static
+# archive, and libgomp.spec driver fragment are deferred to milestone 2.
+#
+# A glob source ("so.1*") maps to a DIRECTORY.
+
+[package]
+description = "GCC OpenMP runtime library (libgomp.so.1)"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+# SONAME symlink (libgomp.so.1) + real object (libgomp.so.1.N.N).
+":usr/lib/x86_64-linux-peios/libgomp.so.1*" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,13 @@
+# glibc-doc — the GNU C Library reference manual (info pages). Arch-independent
+# text, so this overrides the base architecture to noarch.
+#
+# The `dir` info-index file is deliberately NOT shipped: it's a shared system
+# file rebuilt by install-info, so shipping it would collide with every other
+# doc package. Globbing libc.info* takes the manual but leaves `dir` alone.
+
+[package]
+description  = "GNU C Library - reference manual"
+architecture = "noarch"
+
+[files]
+":usr/share/info/libc.info*" = "usr/share/info"

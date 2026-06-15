@@ -1,0 +1,9 @@
+# live-boot — live-medium boot support (kernel cmdline fragment + the
+# root-mount script used during early boot).
+#
+# BUILDLESS package: nothing is compiled or fetched. The payload is the
+# files shipped in this recipe's own src/ dir, mapped literally by
+# package.pekit.toml. There is no [build] and no [source] — outDir is kept
+# only because packaging writes the .peipkg under it.
+
+outDir = "out"

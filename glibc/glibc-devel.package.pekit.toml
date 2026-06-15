@@ -1,0 +1,29 @@
+# glibc-devel — headers and the link-time pieces needed to compile and link
+# against glibc. Inherits base metadata; pins the runtime it matches.
+
+[package]
+description = "GNU C Library - development headers and libraries"
+
+[dependencies]
+# The dev .so symlinks and the libc.so linker script resolve into glibc's
+# versioned libs + loader, and the headers must match the runtime's ABI. Pin to
+# the same upstream version; the operand omits the peios revision, so any
+# revision of that glibc satisfies it (§2.2.8 revision-omission rule).
+glibc = "{{version}}"
+
+[files]
+# Headers.
+":usr/include/**"                              = "usr/include"
+# Developer .so symlinks + the libc.so / libm.so linker scripts.
+":usr/lib/x86_64-linux-peios/*.so"             = "usr/lib/x86_64-linux-peios"
+# C runtime startup objects (crt1.o, crti.o, crtn.o, Scrt1.o, gcrt1.o, ...).
+":usr/lib/x86_64-linux-peios/*.o"              = "usr/lib/x86_64-linux-peios"
+# libc_nonshared.a is a static archive but is required for DYNAMIC linking too
+# (the libc.so linker script GROUPs it), so it lives here, not in glibc-static.
+":usr/lib/x86_64-linux-peios/libc_nonshared.a" = "usr/lib/x86_64-linux-peios/libc_nonshared.a"
+# The *.so glob above also matches glibc's runtime preload shims; drop them so
+# they stay owned by the glibc package (no double-claim / install conflict).
+exclude = [
+  ":usr/lib/x86_64-linux-peios/libmemusage.so",
+  ":usr/lib/x86_64-linux-peios/libpcprofile.so",
+]

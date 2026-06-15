@@ -1,0 +1,1 @@
+console=ttyS0 loglevel=7 panic=1 init=/usr/bin/sh

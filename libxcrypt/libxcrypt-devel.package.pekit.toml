@@ -1,0 +1,22 @@
+# libxcrypt-devel — headers, the unversioned dev symlink, pkg-config files, and
+# the section-3 API man pages: everything needed to compile and link against
+# libxcrypt. The dev symlink (libcrypt.so) points at the modern libcrypt.so.2,
+# so new code links the modern ABI. Static archive is split into libxcrypt-static.
+#
+# Both Fedora (libxcrypt-devel) and Debian (libcrypt-dev) put the man3 API pages
+# here; we follow suit (they're useless without the headers).
+
+[package]
+description = "Modern password hashing library - development files"
+
+[dependencies]
+libxcrypt = "{{version}}"
+
+[files]
+":usr/include/**"                            = "usr/include"
+# Unversioned dev symlink only (*.so) -> libcrypt.so; the versioned .so.N live in
+# the runtime/compat packages.
+":usr/lib/x86_64-linux-peios/*.so"           = "usr/lib/x86_64-linux-peios"
+# libcrypt.pc (symlink) + libxcrypt.pc (real).
+":usr/lib/x86_64-linux-peios/pkgconfig/**"   = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"                     = "usr/share/man/man3"

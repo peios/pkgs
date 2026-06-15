@@ -1,0 +1,19 @@
+# libxcrypt-compat — the legacy-ABI compatibility library (libcrypt.so.1), built
+# with --enable-obsolete-api. It is a drop-in replacement for glibc's old
+# libcrypt.so.1: it re-exports crypt@GLIBC_2.2.5 and the obsolete encrypt/setkey/
+# fcrypt functions, so foreign/old binaries linked against glibc's libcrypt run
+# unmodified. Opt-in — nothing in Peios itself needs it (our own software links
+# the modern libcrypt.so.2 from the libxcrypt package).
+#
+# Independent runtime (parallel SONAME), so it depends on glibc, not libxcrypt.
+
+[package]
+description = "Modern password hashing library - legacy ABI compatibility (libcrypt.so.1)"
+
+[dependencies]
+# Floor = the glibc we build & test against (Peios ships only 2.43); >= so a
+# future glibc still satisfies it (glibc is backward-compatible).
+glibc = ">= 2.43"
+
+[files]
+":usr/lib/x86_64-linux-peios/libcrypt.so.1*" = "usr/lib/x86_64-linux-peios"

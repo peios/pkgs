@@ -1,0 +1,12 @@
+# zlib-ng-static — the static archive (libz-ng.a) for statically linking the
+# native zlib-ng API. --strip-debug'd at build time (symtab kept, DWARF
+# discarded — archive members have no build-id to index).
+
+[package]
+description = "Compression library (zlib-ng native API) - static library"
+
+[dependencies]
+zlib-ng-devel = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libz-ng.a" = "usr/lib/x86_64-linux-peios/libz-ng.a"

@@ -1,0 +1,17 @@
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "FIGlet - display text as large ASCII-art banners"
+license      = "BSD-3-Clause"
+homepage     = "http://www.figlet.org/"
+
+# `make install DESTDIR=` already lays the final archive tree into the build
+# stage, so each entry is an identity glob: everything matched keeps its
+# staged path in the package. `**` is recursive, so new upstream fonts are
+# picked up automatically.
+[files]
+":usr/bin/**"            = "usr/bin"
+":usr/share/figlet/**"   = "usr/share/figlet"
+":usr/share/man/man6/**" = "usr/share/man/man6"

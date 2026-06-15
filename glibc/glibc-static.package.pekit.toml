@@ -1,0 +1,15 @@
+# glibc-static — static archive libraries (*.a) for static linking. Inherits
+# base metadata; depends on glibc-devel for the headers, crt objects, and
+# libc_nonshared.a that static linking also needs.
+
+[package]
+description = "GNU C Library - static libraries"
+
+[dependencies]
+glibc-devel = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"
+# libc_nonshared.a is needed for dynamic linking, so it lives in glibc-devel;
+# exclude it here to avoid double-claiming it.
+exclude = [":usr/lib/x86_64-linux-peios/libc_nonshared.a"]

@@ -1,0 +1,13 @@
+# zlib-static — the static archive (libz.a) for statically linking the compat
+# zlib API. Split out like glibc-static / Fedora's zlib-ng-compat-static. The
+# archive is --strip-debug'd at build time (symtab kept so it still links; DWARF
+# discarded — archive members have no build-id to index).
+
+[package]
+description = "Compression library (zlib API) - static library"
+
+[dependencies]
+zlib-devel = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libz.a" = "usr/lib/x86_64-linux-peios/libz.a"

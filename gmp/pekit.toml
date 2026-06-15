@@ -1,0 +1,76 @@
+# gmp — GNU Multiple Precision Arithmetic Library. First of the toolchain
+# bignums: gcc's cc1/cc1plus link libgmp for compile-time constant folding, and
+# it's a Tier-4 dependency of gnutls/nettle too. Ships libgmp (C) + libgmpxx (C++).
+#
+# Sourced from the GPG-signed release TARBALL: gmp's canonical VCS is Mercurial,
+# and the only git mirrors are stale/patched, so this uses pekit's url source —
+# download + extract, enumerating versions by parsing the ftp.gnu.org directory
+# index (file_regex keeps three-component .tar.xz releases; `versions` caps the line).
+#
+# Build deps come from the nix-shell (see _flake#gmp), e.g.:
+#   nix develop ./_flake#gmp -c pekit build --version 6.3.0
+
+outDir = "out"
+
+[source]
+# ftp.gnu.org mirrors gmp's signed releases (gmp itself is not GNU-VCS-hosted).
+url        = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
+extract    = true
+file_regex = '^gmp-\d+\.\d+\.\d+\.tar\.xz$'
+versions   = ">= 6.3"
+
+# Out-of-source build (configure from $SRC into $PEKIT_OUT, stage via DESTDIR) —
+# same shape as glibc. Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
+# gmp is a plain libtool lib, so --libdir is honoured directly (no gcc-style
+# multilib os-directory to fight).
+#   --enable-cxx : also build the C++ wrapper libgmpxx.so.4.
+#   --enable-fat : runtime CPU dispatch — ONE portable binary that selects the
+#     best routines at runtime, never tuned to the build host (same discipline as
+#     zlib-ng's runtime detection). Without it gmp tunes to the builder's CPU.
+#   CC="gcc -std=gnu17" : the shell's gcc 15 defaults to C23, where `()` means
+#     `(void)`; gmp 6.3.0's K&R-style configure probes then fail to compile
+#     ("too many arguments to function 'g'"). Pinning gnu17 restores the legacy
+#     `()`=unspecified semantics. Baked into CC (not CFLAGS) so gmp still layers
+#     on its own -O2/-fat tuning, which a user-set CFLAGS would suppress.
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" CC="gcc -std=gnu17" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED supersede).
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# Post-install debug pipeline (identical to glibc/zlib): debugedit scrubs build
+# paths (-> /usr/src/debug/gmp), split debug build-id-indexed, strip, stage the
+# referenced sources. Static *.a get --strip-debug (no build-id to index).
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  debugedit -b "$ROOT" -d /usr/src/debug/gmp -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/gmp/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/gmp/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""

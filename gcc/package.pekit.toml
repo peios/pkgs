@@ -1,0 +1,15 @@
+# Base package metadata shared by every gcc-runtime sub-package: libgcc,
+# libstdc++ (+ -devel/-static), libatomic, libgomp, libquadmath, and the
+# libgcc-debuginfo/-debugsource pair. Each <name>.package.pekit.toml inherits
+# these fields and overrides its own description, files, and dependencies.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+# The GCC runtime libraries are GPL-3.0-or-later WITH the GCC Runtime Library
+# Exception (SPDX: GCC-exception-3.1) — the exception is what lets GPL'd libgcc/
+# libstdc++ be linked into non-GPL programs. The libstdc++ headers carry it too.
+license      = "GPL-3.0-or-later WITH GCC-exception-3.1"
+homepage     = "https://gcc.gnu.org/"

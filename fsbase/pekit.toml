@@ -1,0 +1,13 @@
+# fsbase — base filesystem: the runtime mountpoint directories every Peios
+# system needs (dev, proc, run, sys, tmp, var).
+#
+# A pure-skeleton package: no source, no compilation. The "build" just mints
+# the empty directories into the stage; package.pekit.toml maps each as a
+# directory source, which packs as an empty-directory payload entry. These
+# are exactly PSD-009 §3.4's permitted directory-only roots (dev/proc/run/
+# sys/tmp) plus empty var/.
+
+outDir = "out"
+
+[build]
+command = "for d in dev proc run sys tmp var; do mkdir -p \"$PEKIT_OUT/$d\"; done"

@@ -1,0 +1,15 @@
+# libxcrypt — shared package metadata. Inherited by every
+# <name>.package.pekit.toml in this dir; each named file overrides `description`
+# and supplies its own `[files]` (and `[dependencies]`).
+#
+# License is a mix: the library overall is LGPL-2.1-or-later (COPYING.LIB), with
+# individual algorithm files under BSD-3/BSD-2/0BSD and public domain (see the
+# upstream LICENSING inventory). All are compiled into the shipped objects.
+
+format = "peipkg"
+
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND 0BSD AND LicenseRef-Public-Domain"
+homepage = "https://github.com/besser82/libxcrypt"

@@ -1,0 +1,17 @@
+# glibc-debugsource — the glibc source files referenced by the debug info, under
+# /usr/src/debug/glibc, so gdb/debuginfod can show source lines (not just
+# file:line). The build's post-install step rewrites the DWARF comp_dir to point
+# here (debugedit) and stages exactly the referenced sources.
+#
+# x86_64 (inherited): the referenced set includes arch-specific sysdeps sources.
+# Pairs with glibc-debuginfo (the symbols); depends on it since source without
+# symbols is useless.
+
+[package]
+description = "GNU C Library - debug sources"
+
+[dependencies]
+glibc-debuginfo = "{{version}}"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

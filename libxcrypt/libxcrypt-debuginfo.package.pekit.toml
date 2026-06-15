@@ -1,0 +1,17 @@
+# libxcrypt-debuginfo — separated debug symbols for BOTH shared libraries
+# (libcrypt.so.2 and the compat libcrypt.so.1), build-id-indexed under
+# /usr/lib/debug/.build-id/ where gdb/perf/debuginfod locate them by build-id.
+#
+# Static-archive (*.a) debug is NOT here — those are --strip-debug'd and
+# discarded at build time (archive members have no build-id to index).
+
+[package]
+description = "Modern password hashing library - debugging symbols"
+
+[dependencies]
+# Debug info is located by build-id regardless of which package shipped the
+# binary; pin the matching upstream build.
+libxcrypt = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

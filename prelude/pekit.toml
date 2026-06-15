@@ -1,0 +1,23 @@
+# prelude — Peios initramfs runtime (prelude PID 1 + seed-sd KACS helper).
+#
+# Delegate recipe: prelude is self-describing — from v0.0.2 on it commits
+# its own pekit files (build + package.pekit.toml) and .cargo/config.toml
+# (musl + static), so this recipe is just a pointer. pekit fetches the tag
+# matching --version and borrows the source's own build + package.
+#
+# Note: prelude's build needs a rustup toolchain with the musl target. Its
+# committed [env] points at a dev-machine rustup path; on a farm without
+# that layout, override just [env] here (per-section delegation) with the
+# farm's toolchain — the rest still delegates.
+
+outDir = "out"
+
+[source]
+git = "https://github.com/peios/prelude.git"
+rev = "v{{version}}"
+# prelude only carries its own pekit files from v0.0.2 on; v0.0.1
+# predates them, so a "*" sweep skips it instead of failing.
+versions = ">=0.0.2"
+# Local working copy for `--local` (compile the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+localpath = "../../prelude"

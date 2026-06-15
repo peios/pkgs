@@ -1,0 +1,16 @@
+# Workspace root marker.
+#
+# This file makes its directory a pekit workspace. Two effects:
+#
+#   1. Inheritance (always active). Any recipe beneath this directory walks
+#      up, finds this marker, and inherits the shared config in the sibling
+#      package.pekit.toml as a defaults layer. A package.pekit.toml without
+#      a workspace.pekit.toml beside it is never treated as shared defaults.
+#
+#   2. Fan-out. `pekit workspace <verb>` runs that verb across the members
+#      matched by `include` (e.g. `pekit workspace package -V '*'`).
+#
+# include: glob of member recipes. Each match that is a directory holding
+# its own pekit.toml is a member; everything else (loose files, the publish
+# output dir) is ignored.
+include = "./*"

@@ -1,0 +1,18 @@
+# glibc-debuginfo — separated debug symbols for the glibc binaries. The build's
+# post-install step splits DWARF out of each ELF into build-id-indexed files
+# under /usr/lib/debug/.build-id/, which gdb/perf/debuginfod locate by the
+# binary's build-id. x86_64 (inherited): DWARF is architecture-specific.
+#
+# Static-archive (*.a) debug is NOT here — those are --strip-debug'd and
+# discarded at build time (archive members have no build-id to index).
+
+[package]
+description = "GNU C Library - debugging symbols"
+
+[dependencies]
+# Symbols correspond to a specific glibc build (matched precisely by build-id at
+# debug time); pin the matching upstream version.
+glibc = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

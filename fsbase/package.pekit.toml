@@ -1,0 +1,16 @@
+format = "peipkg"
+
+[package]
+version      = "1.0.0-1"
+architecture = "noarch"
+description  = "Base filesystem - runtime mountpoint directories"
+
+# Each directory source packs as an empty-directory entry. Listed explicitly
+# (globs deliberately skip directories — they're for files).
+[files]
+":dev"  = "dev"
+":proc" = "proc"
+":run"  = "run"
+":sys"  = "sys"
+":tmp"  = "tmp"
+":var"  = "var"

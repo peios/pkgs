@@ -1,0 +1,17 @@
+# glibc-locales — locale source definitions, charmaps, and glibc's own message
+# catalogs. Arch-independent text/data, so this overrides the base architecture
+# to "noarch". No dependency on glibc: the data is standalone (a noarch package
+# can't hard-depend on an arch-specific one anyway, §4.1.3), and any arch's
+# localedef can compile it.
+#
+# NOTE: this ships the locale SOURCE, not a precompiled locale-archive — glibc's
+# `make install` produces no compiled locales. Functional locales beyond the
+# built-in C / C.UTF-8 require a separate localedef/compile step (future work).
+
+[package]
+description  = "GNU C Library - locale source definitions and charmaps"
+architecture = "noarch"
+
+[files]
+":usr/share/i18n/**"   = "usr/share/i18n"
+":usr/share/locale/**" = "usr/share/locale"

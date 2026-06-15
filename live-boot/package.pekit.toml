@@ -1,0 +1,16 @@
+format = "peipkg"
+
+[package]
+version      = "1.0.0-1"
+architecture = "noarch"
+description  = "Live-medium boot support: kernel cmdline fragment + root-mount script"
+
+# Literal sources: paths are relative to this recipe dir (no build stage to
+# reference). The keys point at the files you'll drop into src/.
+#
+# DESTINATIONS ARE PLACEHOLDERS — usr/share/live-boot/ is a safe, §3.4-valid
+# spot, but confirm where live-boot's files actually install (an initramfs
+# hook dir? boot/? somewhere mkirf scans?) and I'll set them.
+[files]
+"src/cmdline"       = "boot/cmdline"
+"src/mount-root.sh" = "boot/initramfs/hooks/mount-root.sh"

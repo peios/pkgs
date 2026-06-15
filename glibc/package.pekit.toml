@@ -1,0 +1,14 @@
+# Base package metadata, shared by every glibc sub-package (glibc, glibc-devel,
+# glibc-static, glibc-locales). Each <name>.package.pekit.toml inherits these
+# fields and overrides individual ones as needed — e.g. its own description, or
+# architecture = "noarch" for arch-independent locale data.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+# Library is LGPL-2.1-or-later; bundled programs (ldconfig, locale, ...) are
+# GPL-2.0-or-later. (Full tree also carries assorted permissive licenses.)
+license      = "LGPL-2.1-or-later AND GPL-2.0-or-later"
+homepage     = "https://www.gnu.org/software/libc/"

@@ -1,0 +1,94 @@
+# zlib-ng — Peios's zlib, shipped in BOTH ABIs from one source:
+#   compat  (-DZLIB_COMPAT=ON)  -> libz.so.1 / zlib.h / zlib.pc      (the system
+#           zlib; a drop-in classic-zlib replacement; packaged as `zlib`)
+#   native  (-DZLIB_COMPAT=OFF) -> libz-ng.so.2 / zlib-ng.h / zlib-ng.pc  (the
+#           zng_-prefixed native API; packaged as `zlib-ng`)
+#
+# Peios ships zlib-ng (not classic madler zlib) because it is faster
+# (runtime-dispatched SIMD) and compat mode is a drop-in. The one real cost —
+# zlib-ng's compressed output differs byte-for-byte from classic zlib (still
+# valid DEFLATE), tripping tests that assert exact bytes — is largely a one-time
+# fix the ecosystem already upstreamed when Fedora switched at F40, so building
+# from current upstream inherits it. If a consumer ever truly needs classic
+# zlib we can add a separate `zlib-legacy` package.
+#
+# The two modes are a configure-time switch (can't emit both from one build), so
+# this runs two CMake builds into one DESTDIR; their outputs have distinct names
+# (libz vs libz-ng, zlib.h vs zlib-ng.h, ...) so they never collide. One
+# debug-split pass then covers both. Build runs in a nix-shell providing the
+# toolchain (see _flake#zlib-ng), e.g.:
+#   nix develop ./_flake#zlib-ng -c pekit build --version 2.3.3
+
+outDir = "out"
+
+[source]
+git = "https://github.com/zlib-ng/zlib-ng.git"
+# Modern releases (2.0.0+, latest 2.3.3) tag as bare <major>.<minor>.<patch>.
+# Legacy tags (v1.2.x mirroring classic zlib, and the v2.0.0-RC* pre-releases)
+# carry a v prefix; pre-releases also carry -beta/-rc suffixes. tag_regex keeps
+# enumeration (`*`/--latest) to bare three-component stable tags, excluding both.
+rev = "{{version}}"
+tag_regex = '^\d+\.\d+\.\d+$'
+# Floor at the 2.2 line, where compat mode + runtime CPU detection are stable.
+# Package latest + future only; older builds on demand via `--version X`.
+versions = ">=2.2"
+
+# WITH_GZFILEOP => the gz* file API; WITH_RUNTIME_CPU_DETECTION (default) => ONE
+# portable binary that dispatches to SSE2/AVX2/etc. at runtime (never
+# -march=native, which would lock the build to the build host). RelWithDebInfo
+# (-O2 -g) so there's DWARF for the debug-split. Layout per PSD-009 §3.4:
+# usrmerge + arch files under /usr/lib/<triplet>.
+[build.main]
+command = """
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+# NOTE: BUILD_SHARED_LIBS is deliberately left UNDEFINED. zlib-ng builds BOTH a
+# shared and a static lib only when it's undefined; setting it ON yields
+# shared-only (no libz.a), OFF yields static-only. On Linux both come out named
+# libz/libz-ng (the MSVC "zlibstatic" naming never applies here).
+COMMON="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib/$TRIPLET -DWITH_GZFILEOP=ON -DWITH_RUNTIME_CPU_DETECTION=ON -DZLIB_ENABLE_TESTS=OFF -DBUILD_TESTING=OFF -DCMAKE_SKIP_INSTALL_RPATH=ON"
+
+# compat ABI -> libz.so.1 / zlib.h / zlib.pc / cmake/ZLIB
+cmake -S "$SRC" -B "$PEKIT_OUT/build-compat" $COMMON -DZLIB_COMPAT=ON
+cmake --build "$PEKIT_OUT/build-compat" -j"$(nproc)"
+DESTDIR="$PEKIT_OUT" cmake --install "$PEKIT_OUT/build-compat"
+
+# native ABI -> libz-ng.so.2 / zlib-ng.h / zlib-ng.pc / cmake/zlib-ng
+cmake -S "$SRC" -B "$PEKIT_OUT/build-native" $COMMON -DZLIB_COMPAT=OFF
+cmake --build "$PEKIT_OUT/build-native" -j"$(nproc)"
+DESTDIR="$PEKIT_OUT" cmake --install "$PEKIT_OUT/build-native"
+
+# Post-install debug pipeline (identical to glibc/libxcrypt): scrub build paths
+# from the DWARF (debugedit -> /usr/src/debug/zlib-ng), split debug out build-id
+# indexed (-> /usr/lib/debug/.build-id/), strip the binaries, stage the
+# referenced sources. Covers both libs. Static archives just get --strip-debug.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  debugedit -b "$ROOT" -d /usr/src/debug/zlib-ng -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/zlib-ng/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/zlib-ng/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$PEKIT_OUT/build-compat" "$PEKIT_OUT/build-native"
+"""
