@@ -1,0 +1,47 @@
+# kernel — the Peios kernel plus its in-tree userspace tooling, built from the
+# pkm source (a 40-package family: the kernel-* set plus perf/bpftool/cpupower/…
+# built from the kernel's tools/).
+#
+# Delegate recipe: pkm is self-describing — from v0.20.1-rc1 on it commits its
+# own pekit files (the build pipeline in pekit.toml, the package definitions in
+# packages.pekit/ with their shared base), so this recipe is just a pointer.
+# pekit fetches the tag matching --version and borrows the source's own build +
+# package definitions; a bare `pekit package` on this member builds the whole
+# family, the same way the gcc/glibc members fan a single source into many
+# packages. The workspace root's [[publish.localdir]] merges in underneath as
+# the publish target (root < source < member), so built .peipkgs land in
+# pkgsOut/ like everything else.
+#
+# Two things this source needs that a plain delegate (loregd, prelude) does not:
+#
+#   * The build container. Every stage is wrapped into `docker run … pkm-build`
+#     by the env.pekit.toml the pkm source carries — in delegate mode pekit
+#     searches the recipe dir first, then the fetched source, so the source's
+#     wrap applies here automatically (drop an env.pekit.toml beside this recipe
+#     only to override it; `--env=none` runs unwrapped). The pkm-build image
+#     must exist on the runner — the source builds it with build/build-image.sh.
+#
+#   * A TCB keyring, passed explicitly. build.kernel embeds the KACS built-in
+#     signing key from $PEKIT_KEYRING_TCB_PUB, so the packages carved from it
+#     (kernel, kernel-debuginfo) require `--keyring=<name>` at invocation —
+#     deliberately NOT baked in, to keep the signing anchor an explicit choice
+#     (dev key for the RC pool, production key for a release). `pekit workspace
+#     package … --keyring=<name>` resolves the keyring once at the workspace root
+#     and forwards it to every member, so a full-family sweep just needs the one
+#     flag. The other ~38 members (headers, devel, debug sources, every userspace
+#     tool) come from build.source / build.tools and need no keyring.
+
+outDir = "out"
+
+[source]
+git = "https://github.com/peios/pkm.git"
+rev = "v{{version}}"
+# pkm only carries its own pekit files from v0.20.1-rc1 on; earlier tags
+# (≤ v0.20.0-rc2) predate them, so a "*" sweep skips them instead of failing.
+# The floor is written with the prerelease (-rc1, not 0.20.1) deliberately: a
+# bare ">=0.20.1" cap would drop every prerelease — including the only tags that
+# ship today — so the prerelease suffix is what lets RC tags through the cap.
+versions = ">=0.20.1-rc1"
+# Local working copy for `--local` (build the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+localpath = "../../pkm"
