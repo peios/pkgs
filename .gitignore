@@ -1,3 +1,7 @@
 # pekit build artifacts: per-recipe staging trees + the published-package pool
 out/
 pkgsOut/
+
+# Keyring files are per-developer / environment-specific (hold or reference key
+# material) and are never committed.
+*.keyring.pekit.toml
