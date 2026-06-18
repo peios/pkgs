@@ -1,0 +1,46 @@
+# kernel-headers — the sanitized Linux UAPI (userspace API) headers that glibc
+# and every other userspace package compile against: <linux/*.h>, <asm/*.h>,
+# <asm-generic/*.h>, <mtd/*.h>, etc. Produced by the kernel's own
+# `make headers_install`, which runs the headers through unifdef to strip
+# kernel-internal (__KERNEL__) content, leaving only the stable userspace ABI.
+#
+# This is the Fedora `kernel-headers` / Debian `linux-libc-dev` package: the
+# libc API headers, deliberately DECOUPLED from the running kernel image (the
+# `kernel` package). Like those distros, the version here need not match the
+# booted kernel — userspace builds against a fixed UAPI floor.
+#
+# BOOTSTRAP NOTE (honest): these are sourced from VANILLA upstream Linux 6.16.x,
+# matching the kernel headers glibc was already built against (nix
+# linux-headers-6.16.7). Peios's own kernel (pkm = Linux base + PKM LSM) adds
+# KACS / new-syscall UAPI that is NOT yet reflected here. Migrating this package
+# to `make headers_install` from the pkm tree — and rebuilding glibc against it
+# so userland can name the new syscalls — is a tracked follow-up; it is an
+# ADDITIVE change (the base C ABI is identical), so vanilla is correct for the
+# toolchain bootstrap.
+#
+#   nix develop ./_flake#kernel-headers -c pekit build --version 6.16.7
+
+outDir = "out"
+
+[source]
+# kernel.org CDN. v6.x major-series subdirectory; file_regex keeps the 6.x.y
+# release tarballs (excludes -rc, testing/, and the .sign/.gz siblings).
+url        = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{version}}.tar.xz"
+extract    = true
+file_regex = '^linux-6\.\d+(\.\d+)?\.tar\.xz$'
+# Floor at the version glibc was built against; package this + newer on demand.
+versions   = ">= 6.16"
+
+# In-tree build (the kernel builds in its own source tree). `headers_install`
+# compiles the host tool scripts/unifdef, then copies+sanitizes the UAPI headers
+# into INSTALL_HDR_PATH/include. ARCH=x86 selects the x86 asm/ headers (the
+# kernel's arch name for x86_64 is "x86"). No debug pipeline — headers only.
+[build.main]
+command = """
+make headers_install ARCH=x86 INSTALL_HDR_PATH="$PEKIT_OUT/usr" -j"$(nproc)"
+
+# headers_install should emit only *.h, but scrub any stray non-header artifacts
+# (older trees left .install/..install.cmd markers) so the payload is pure ABI.
+find "$PEKIT_OUT/usr/include" -type f ! -name '*.h' -delete
+find "$PEKIT_OUT/usr/include" -type d -empty -delete
+"""

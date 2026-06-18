@@ -1,0 +1,22 @@
+# binutils-devel — headers (bfd.h, dis-asm.h, ctf-api.h, plugin-api.h, ...), the
+# dev .so symlinks, and the static archives, for building tools against libbfd /
+# libopcodes / libctf / libsframe.
+
+[package]
+description = "GNU binary utilities - development files"
+
+[dependencies]
+binutils = "{{version}}"
+
+[files]
+":usr/include/**"                                = "usr/include"
+# Dev .so symlinks (listed explicitly so the version-named runtime libs above are
+# not double-claimed by a lib*.so glob).
+":usr/lib/x86_64-linux-peios/libbfd.so"          = "usr/lib/x86_64-linux-peios/libbfd.so"
+":usr/lib/x86_64-linux-peios/libopcodes.so"      = "usr/lib/x86_64-linux-peios/libopcodes.so"
+":usr/lib/x86_64-linux-peios/libctf.so"          = "usr/lib/x86_64-linux-peios/libctf.so"
+":usr/lib/x86_64-linux-peios/libctf-nobfd.so"    = "usr/lib/x86_64-linux-peios/libctf-nobfd.so"
+":usr/lib/x86_64-linux-peios/libsframe.so"       = "usr/lib/x86_64-linux-peios/libsframe.so"
+":usr/lib/x86_64-linux-peios/libgprofng.so"      = "usr/lib/x86_64-linux-peios/libgprofng.so"
+# Static archives.
+":usr/lib/x86_64-linux-peios/*.a"                = "usr/lib/x86_64-linux-peios"

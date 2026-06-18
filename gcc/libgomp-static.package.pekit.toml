@@ -1,0 +1,11 @@
+# libgomp-static — the static archive for statically linking libgomp.
+# --strip-debug'd at build time (archive members carry no build-id to index).
+
+[package]
+description = "GCC OpenMP runtime - static library"
+
+[dependencies]
+"libgomp-devel" = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libgomp.a" = "usr/lib/x86_64-linux-peios/libgomp.a"

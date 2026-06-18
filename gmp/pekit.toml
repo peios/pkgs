@@ -27,16 +27,20 @@ versions   = ">= 6.3"
 #   --enable-fat : runtime CPU dispatch — ONE portable binary that selects the
 #     best routines at runtime, never tuned to the build host (same discipline as
 #     zlib-ng's runtime detection). Without it gmp tunes to the builder's CPU.
-#   CC="gcc -std=gnu17" : the shell's gcc 15 defaults to C23, where `()` means
+#   CC="gcc -std=gnu17 -g" : the shell's gcc 15 defaults to C23, where `()` means
 #     `(void)`; gmp 6.3.0's K&R-style configure probes then fail to compile
 #     ("too many arguments to function 'g'"). Pinning gnu17 restores the legacy
-#     `()`=unspecified semantics. Baked into CC (not CFLAGS) so gmp still layers
-#     on its own -O2/-fat tuning, which a user-set CFLAGS would suppress.
+#     `()`=unspecified semantics. -g is added because gmp's own default flags
+#     (-O2 -pedantic -fomit-frame-pointer) carry NO debug info, so without it the
+#     debug-split + debugsource come out empty. Both go in CC (not CFLAGS) so gmp
+#     still layers on its own -O2/-fat tuning, which a user-set CFLAGS suppresses.
+#   CXX="g++ -g" : same -g reasoning for the C++ wrapper libgmpxx (no C23 std
+#     issue on the C++ side, so just -g). Without it libgmpxx ships no DWARF.
 [build.main]
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+"$SRC/configure" CC="gcc -std=gnu17 -g" CXX="g++ -g" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
@@ -54,6 +58,10 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
     *.o) continue;;
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
+  # libtool gives libgmpxx an rpath to the install libdir (so it finds libgmp);
+  # that dir is in Peios's default loader search, so the rpath is redundant —
+  # strip it (Fedora/Debian policy: no rpath into standard dirs).
+  patchelf --remove-rpath "$f" 2>/dev/null || true
   debugedit -b "$ROOT" -d /usr/src/debug/gmp -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   if [ -n "$bid" ]; then

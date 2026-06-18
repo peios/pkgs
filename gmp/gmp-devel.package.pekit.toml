@@ -1,0 +1,16 @@
+# gmp-devel — headers, dev .so symlinks, and pkg-config files for building
+# against gmp/gmpxx. Static archives are gmp-static.
+
+[package]
+description = "GNU Multiple Precision Arithmetic Library - development files"
+
+[dependencies]
+gmp = "{{version}}"
+
+[files]
+":usr/include/gmp.h"                          = "usr/include/gmp.h"
+":usr/include/gmpxx.h"                         = "usr/include/gmpxx.h"
+":usr/lib/x86_64-linux-peios/libgmp.so"       = "usr/lib/x86_64-linux-peios/libgmp.so"
+":usr/lib/x86_64-linux-peios/libgmpxx.so"     = "usr/lib/x86_64-linux-peios/libgmpxx.so"
+# gmp.pc (+ gmpxx.pc) for pkg-config.
+":usr/lib/x86_64-linux-peios/pkgconfig/**"    = "usr/lib/x86_64-linux-peios/pkgconfig"

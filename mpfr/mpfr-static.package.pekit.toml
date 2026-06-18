@@ -1,0 +1,11 @@
+# mpfr-static — static archive. Static-linking mpfr also pulls in libgmp.a.
+
+[package]
+description = "GNU MPFR - static library"
+
+[dependencies]
+mpfr-devel = "{{version}}"
+gmp-static = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libmpfr.a" = "usr/lib/x86_64-linux-peios/libmpfr.a"

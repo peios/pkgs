@@ -1,0 +1,21 @@
+# gcc-debuginfo — separated debug symbols for the WHOLE gcc build: the compiler
+# binaries (cc1, cc1plus, gcc/g++ drivers, collect2, lto-wrapper, ...) AND the
+# runtime libraries (libgcc_s, libstdc++, libatomic, libgomp, libquadmath). The
+# debug-split is build-id-indexed (one /usr/lib/debug/.build-id/ tree), so it is
+# a SINGLE package and cannot be sliced per-binary. Attached to libgcc — the most
+# fundamental member, present wherever any of these is installed — so the debug
+# is reachable from a runtime-only install without pulling the compiler.
+#
+# Static-archive debug is NOT here: shipped *.a are --strip-debug'd at build time
+# (archive members have no build-id to index).
+
+[package]
+description = "GCC - debugging symbols"
+
+[dependencies]
+# Symbols match a specific build by build-id; pin the matching upstream gcc
+# version (any revision).
+libgcc = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,20 @@
+# gmp — runtime: the C library (libgmp.so.10) plus the C++ wrapper
+# (libgmpxx.so.4). Bundled together (Fedora model). The C++ wrapper links the C++
+# runtime, so this pulls libstdc++; the bare C library needs only glibc.
+#
+# A glob source ("so.10*") maps to a DIRECTORY.
+
+[package]
+description = "GNU Multiple Precision Arithmetic Library"
+
+[dependencies]
+glibc = ">= 2.43"
+# libgmpxx.so.4 links libstdc++.so.6 (DT_NEEDED); floor = the libstdc++ Peios
+# ships (ABI is forward-compatible, so any newer also satisfies it).
+"libstdc++" = ">= 16.1.0"
+
+[files]
+# SONAME symlink + real object for each lib. The dev .so symlinks are gmp-devel's,
+# the static .a are gmp-static's.
+":usr/lib/x86_64-linux-peios/libgmp.so.10*"  = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgmpxx.so.4*" = "usr/lib/x86_64-linux-peios"

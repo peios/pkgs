@@ -1,0 +1,11 @@
+# libquadmath-devel — the link-time .so symlink for building against libquadmath
+# (-lquadmath, __float128 math). The static archive is libquadmath-static.
+
+[package]
+description = "GCC __float128 math runtime - development files"
+
+[dependencies]
+libquadmath = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libquadmath.so" = "usr/lib/x86_64-linux-peios/libquadmath.so"

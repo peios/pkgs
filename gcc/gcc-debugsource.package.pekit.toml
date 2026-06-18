@@ -1,0 +1,14 @@
+# gcc-debugsource — the GCC sources referenced by the debug info, under
+# /usr/src/debug/gcc, so gdb/debuginfod can show source lines (not just
+# file:line) for both the compiler binaries and the runtime libs. The
+# debug-split rewrites the DWARF comp_dir here (debugedit) and stages exactly
+# the sources the shipped ELFs reference. Pairs with gcc-debuginfo.
+
+[package]
+description = "GCC - debug sources"
+
+[dependencies]
+gcc-debuginfo = "{{version}}"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

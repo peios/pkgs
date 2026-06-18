@@ -1,0 +1,11 @@
+# isl-static — static archive. Static-linking isl also pulls in libgmp.a.
+
+[package]
+description = "Integer Set Library - static library"
+
+[dependencies]
+isl-devel  = "{{version}}"
+gmp-static = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libisl.a" = "usr/lib/x86_64-linux-peios/libisl.a"

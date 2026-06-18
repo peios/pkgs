@@ -1,0 +1,14 @@
+# isl-devel — headers (include/isl/), dev .so symlink, pkg-config. isl's public
+# headers include gmp.h, so this also needs gmp-devel.
+
+[package]
+description = "Integer Set Library - development files"
+
+[dependencies]
+isl = "{{version}}"
+gmp-devel = ">= 6.3.0"
+
+[files]
+":usr/include/isl/**"                      = "usr/include/isl"
+":usr/lib/x86_64-linux-peios/libisl.so"    = "usr/lib/x86_64-linux-peios/libisl.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

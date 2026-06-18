@@ -1,0 +1,10 @@
+# Base metadata shared by the binutils sub-packages.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+# binutils (tools + libbfd/libopcodes/libctf/libsframe) is GPL-3.0-or-later.
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/binutils/"

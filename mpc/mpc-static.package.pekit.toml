@@ -1,0 +1,12 @@
+# mpc-static — static archive. Static-linking mpc pulls in libmpfr.a + libgmp.a.
+
+[package]
+description = "GNU MPC - static library"
+
+[dependencies]
+mpc-devel   = "{{version}}"
+mpfr-static = ">= 4.2.2"
+gmp-static  = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libmpc.a" = "usr/lib/x86_64-linux-peios/libmpc.a"

@@ -1,0 +1,113 @@
+# binutils — the GNU binary utilities: the assembler (as), linker (ld), and the
+# object tools (ar, nm, objcopy, objdump, ranlib, readelf, strip, strings, size,
+# addr2line, c++filt, gprof), plus the libraries libbfd / libopcodes / libctf.
+# The shipped gcc drives `as` and `ld`, so this is a hard prerequisite of the
+# milestone-2 compiler.
+#
+# Tarball source (the binutils-gdb git repo is huge and bundles gdb; the release
+# tarball is binutils-only and ships configure). Versions are 2- or 3-component.
+#
+#   nix develop ./_flake#binutils -c pekit build --version 2.46.1
+
+outDir = "out"
+
+[source]
+url        = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
+extract    = true
+file_regex = '^binutils-\d+\.\d+(\.\d+)?\.tar\.xz$'
+versions   = ">= 2.46"
+
+# Out-of-source build, Canadian cross (host=peios) — see the command's inline
+# comments for the cross setup. Layout per PSD-009 §3.4: arch libs under
+# /usr/lib/<triplet>.
+#   --enable-shared           : build libbfd/libopcodes/libctf as shared libs.
+#   --enable-plugins          : ld plugin API (gcc LTO needs the linker plugin).
+#   --enable-deterministic-archives : reproducible `ar` output by default.
+#   --with-system-zlib        : link Peios's system libz, don't bundle one.
+#   --disable-werror          : binutils warns on modern gcc.
+# PREREQUISITE: the Pass-1 cross toolchain + composed sysroot must exist:
+#   nix develop ./_flake#cross -c sh pkgs/gcc/_cross/build-cross.sh
+[build.main]
+command = """
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+
+# Pass 2 of the milestone-2 Canadian cross: build the SHIPPED binutils so it
+# RUNS on Peios (host=peios), using the Pass-1 nix->peios cross toolchain (from
+# pkgs/gcc/_cross/build-cross.sh) as the compiler. The cross tools + the composed
+# sysroot live beside the gcc recipe; PEKIT_OUT is <recipe>/out/<ver>/build/main,
+# so strip from "/out/" on to find the recipe root, then hop to ../gcc.
+GCC_DIR="${PEKIT_OUT%%/out/*}/../gcc"
+CROSS="$GCC_DIR/_cross/tools"
+SYSROOT="$GCC_DIR/_sysroot"
+[ -x "$CROSS/bin/$TRIPLET-gcc" ] || { echo "binutils: cross gcc missing at $CROSS — run pkgs/gcc/_cross/build-cross.sh" >&2; exit 1; }
+[ -f "$SYSROOT/usr/include/zlib.h" ] || { echo "binutils: sysroot missing zlib.h — recompose pkgs/gcc/sysroot.toml" >&2; exit 1; }
+export PATH="$CROSS/bin:$PATH"
+
+# The nix shell EXPORTS CC/CXX/AR/... pointing at nix's wrapped tools. binutils'
+# configure honours those env vars OVER its --host detection, so without this the
+# host binaries link against nix's glibc + loader (wrong interp). Unset them so
+# the Canadian cross resolves the prefixed cross tools ($TRIPLET-gcc, -ar, ...)
+# for host code; CC_FOR_BUILD still finds nix's gcc on PATH for build helpers.
+unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE
+
+# config.sub must accept the peios host/target triplet.
+sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
+
+cd "$PEKIT_OUT"
+# Canadian cross: configure auto-selects $TRIPLET-gcc for host code and the nix
+# gcc for build-time helpers (CC_FOR_BUILD).
+#   --with-sysroot=/        : the SHIPPED ld searches the real Peios root at run
+#       time (the build-time sysroot is baked into the cross gcc, not set here).
+#   --with-system-zlib      : link Peios's system libz (zlib-ng compat) from the
+#       sysroot, not a bundled copy (matches the binutils->zlib dependency).
+#   --without-debuginfod    : no elfutils/debuginfod in the sysroot yet.
+#   LDFLAGS=-Wl,--build-id  : vanilla cross ld emits no build-id notes, but the
+#       debug-split below indexes by build-id, so request them on every host ELF.
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu --host="$TRIPLET" --target="$TRIPLET" \
+  --prefix=/usr --libdir=/usr/lib/$TRIPLET \
+  --with-sysroot=/ \
+  --enable-shared --enable-plugins --enable-deterministic-archives \
+  --with-system-zlib --without-debuginfod --disable-nls --disable-werror \
+  LDFLAGS="-Wl,--build-id"
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# Post-install debug pipeline (same as the bignums) over the whole install tree —
+# binutils ships many ELF tools + libs, all want debuginfo. strip libtool's
+# redundant rpath + the stray ld-linux DT_NEEDED, scrub DWARF (-> /usr/src/debug/
+# binutils), split debug build-id-indexed, strip, stage sources. Static .a:
+# strip-debug.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/binutils -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/binutils/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/binutils/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""

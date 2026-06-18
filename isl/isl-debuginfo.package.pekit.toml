@@ -1,0 +1,10 @@
+# isl-debuginfo — separated debug symbols (build-id-indexed).
+
+[package]
+description = "Integer Set Library - debugging symbols"
+
+[dependencies]
+isl = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

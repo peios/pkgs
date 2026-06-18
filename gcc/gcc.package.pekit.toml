@@ -1,0 +1,46 @@
+# gcc — the GNU C compiler: the `gcc` driver, the startup objects (crt*.o), the
+# compiler-internal libraries (libgcc.a/libgcc_eh.a/libgcov.a), the fixed system
+# headers, the LTO/plugin machinery (collect2, lto-wrapper, plugin), the gcov
+# coverage tools, and the driver spec fragments. The C compiler CORE (cc1) is in
+# cpp; the C++ compiler (g++/cc1plus) is gcc-c++.
+#
+# A ":path/**" glob maps to a DIRECTORY; an exact-file source to a FULL path.
+
+[package]
+description = "Various compilers (C)"
+
+[dependencies]
+# cc1 lives in cpp; as/ld come from binutils; the startup objects + libgcc are
+# the compiler's own runtime; compiling C needs the libc + kernel headers.
+cpp             = "{{version}}"
+libgcc          = "{{version}}"
+binutils        = ">= 2.46"
+"glibc-devel"   = ">= 2.43"
+"kernel-headers" = ">= 6.16"
+
+[files]
+# Driver + coverage/archive wrappers. Exclude the C++ drivers (gcc-c++) and the
+# standalone preprocessor (cpp).
+":usr/bin/**" = "usr/bin"
+# gcc's internal tree (crt*.o, libgcc*.a, include/, include-fixed/, collect2,
+# lto-wrapper, plugin, install-tools, g++-mapper-server). cc1 -> cpp,
+# cc1plus -> gcc-c++.
+":usr/lib/x86_64-linux-peios/gcc/**" = "usr/lib/x86_64-linux-peios/gcc"
+# Driver spec fragments (libgomp.spec etc.) the gcc driver reads at link time.
+":usr/lib/x86_64-linux-peios/*.spec" = "usr/lib/x86_64-linux-peios"
+# The libgcc_s dev link + its as-needed link script (compiler link support; no
+# separate libgcc-devel — libgcc.a is internal, above).
+":usr/lib/x86_64-linux-peios/libgcc_s.so"          = "usr/lib/x86_64-linux-peios/libgcc_s.so"
+":usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so" = "usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so"
+# Docs + driver data.
+":usr/share/gcc-{{version}}/**" = "usr/share/gcc-{{version}}"
+
+exclude = [
+  # C++ drivers -> gcc-c++; standalone preprocessor -> cpp.
+  ":usr/bin/g++", ":usr/bin/c++",
+  ":usr/bin/x86_64-linux-peios-g++", ":usr/bin/x86_64-linux-peios-c++",
+  ":usr/bin/cpp",
+  # cc1 -> cpp; cc1plus -> gcc-c++.
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus",
+]

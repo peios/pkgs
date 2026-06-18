@@ -1,0 +1,11 @@
+# libitm-devel — the link-time .so symlink for building against libitm (-litm /
+# -fgnu-tm). The static archive is libitm-static.
+
+[package]
+description = "GCC transactional memory runtime - development files"
+
+[dependencies]
+libitm = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libitm.so" = "usr/lib/x86_64-linux-peios/libitm.so"

@@ -1,0 +1,23 @@
+# gcc-c++ — the GNU C++ compiler: the g++/c++ drivers and the C++ compiler core
+# (cc1plus). Builds on top of gcc (shares the driver internals, crt objects,
+# binutils) and needs the libstdc++ headers + link symlink to compile/link C++.
+#
+# An exact-file source maps to a FULL path.
+
+[package]
+description = "C++ support for GCC"
+
+[dependencies]
+gcc               = "{{version}}"
+# Compiling/linking C++ needs the standard-library headers + the libstdc++.so
+# dev symlink (which pulls libstdc++ runtime).
+"libstdc++-devel" = "{{version}}"
+
+[files]
+# The C++ drivers (g++ + the c++ alias, prefixed + unprefixed).
+":usr/bin/g++"                       = "usr/bin/g++"
+":usr/bin/c++"                       = "usr/bin/c++"
+":usr/bin/x86_64-linux-peios-g++"    = "usr/bin/x86_64-linux-peios-g++"
+":usr/bin/x86_64-linux-peios-c++"    = "usr/bin/x86_64-linux-peios-c++"
+# The C++ compiler core.
+":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus"

@@ -1,0 +1,12 @@
+# libatomic-devel — the link-time .so symlink + as-needed link script for
+# building against libatomic (-latomic). The static archive is libatomic-static.
+
+[package]
+description = "GCC atomic operations runtime - development files"
+
+[dependencies]
+libatomic = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libatomic.so"          = "usr/lib/x86_64-linux-peios/libatomic.so"
+":usr/lib/x86_64-linux-peios/libatomic_asneeded.so" = "usr/lib/x86_64-linux-peios/libatomic_asneeded.so"

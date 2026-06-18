@@ -1,0 +1,26 @@
+# cpp — the C preprocessor and C compiler core. Following the Fedora split, the
+# actual compiler proper for C (cc1, which also does standalone preprocessing via
+# `cpp` = cc1 -E) lives here, NOT in gcc; the gcc package depends on cpp. This
+# keeps the preprocessor installable for the (rare) consumers that want it
+# without the full driver, and gives gcc/gcc-c++ a shared cc1-owning base.
+#
+# An exact-file source maps to a FULL path; ":" is the default "main:" build.
+
+[package]
+description = "The C Preprocessor"
+
+[dependencies]
+# cc1 dynamically links the bignums (compile-time constant folding) + system zlib
+# + glibc. Decision 3: dynamic, resolved from the triplet libdir on Peios.
+glibc       = ">= 2.43"
+gmp         = ">= 6.3.0"
+mpfr        = ">= 4.2"
+"libmpc"    = ">= 1.3"
+isl         = ">= 0.27"
+zlib        = ">= 2.3.3"
+
+[files]
+# The standalone preprocessor driver.
+":usr/bin/cpp" = "usr/bin/cpp"
+# The C compiler core (also the preprocessor engine), in gcc's internal dir.
+":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1"

@@ -1,0 +1,35 @@
+# binutils — runtime: the tools (as, ld, ar, nm, objcopy, objdump, ranlib,
+# readelf, strip, ... + the gprofng profiler suite) and the shared libraries
+# (libbfd, libopcodes, libctf, libsframe, libgprofng). The shipped gcc drives
+# `as`/`ld` from here. Headers + static archives are binutils-devel.
+#
+# A glob source maps to a DIRECTORY; an exact-file source to a FULL path.
+
+[package]
+description = "GNU binary utilities (assembler, linker, object tools)"
+
+[dependencies]
+glibc = ">= 2.43"
+# libbfd links libz.so.1 (compressed debug sections).
+zlib = ">= 2.3.3"
+
+[files]
+# All the command-line tools.
+":usr/bin/**"                                          = "usr/bin"
+# Shared libraries: libbfd/libopcodes are version-named (libbfd-2.46.1.so, no
+# .so.N); libctf/libctf-nobfd/libsframe/libgprofng carry normal sonames. The
+# unversioned dev *.so symlinks and the static *.a are binutils-devel's.
+":usr/lib/x86_64-linux-peios/libbfd-*.so"              = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libopcodes-*.so"          = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libctf.so.*"              = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libctf-nobfd.so.*"        = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libsframe.so.*"           = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgprofng.so.*"          = "usr/lib/x86_64-linux-peios"
+# ld plugin dir + gprofng support files.
+":usr/lib/x86_64-linux-peios/bfd-plugins/**"           = "usr/lib/x86_64-linux-peios/bfd-plugins"
+":usr/lib/x86_64-linux-peios/gprofng/**"               = "usr/lib/x86_64-linux-peios/gprofng"
+# NOTE: binutils also installs ld's linker scripts + hardlinked tool copies under
+# usr/x86_64-pc-linux-gnu/ (the tooldir). That tree is NOT shipped: it's not a
+# PSD-009 §3.4.1 permitted top-level, the bin/ copies are hardlink duplicates of
+# /usr/bin, and ld carries its default linker scripts compiled in (verified: `ld
+# --verbose` emits the built-in script), so default linking needs no on-disk ones.

@@ -1,27 +1,22 @@
-# gcc — the GCC compiler RUNTIME libraries for Peios (phase 1 of the gcc work).
+# gcc — the GCC compiler for Peios (milestone 2: the self-hosting toolchain).
 #
-# Phase 1 ships ONLY what a compiled program loads at runtime:
-#   libgcc_s.so.1     low-level unwinder + soft-arithmetic helpers
-#   libstdc++.so.6    the GNU C++ standard library (libsupc++ folded in)
-#   libatomic.so.1    out-of-line atomics
-#   libgomp.so.1      OpenMP runtime
-#   libquadmath.so.0  __float128 quad-precision math
-# plus libstdc++'s headers + static archives (the one dev concession this phase).
+# Built as PASS 2 of a Canadian cross: host=target=x86_64-linux-peios, build=nix,
+# compiled by the Pass-1 nix->peios cross toolchain (pkgs/gcc/_cross). The result
+# RUNS on Peios. (A peios-host gcc links the standard /lib64 loader, which does
+# not exist on the NixOS build box, so its own stage binaries can't execute here
+# — hence the cross, not a 3-stage bootstrap. The real bootstrap happens later,
+# on Peios, once builds self-host.)
 #
-# The COMPILER itself (gcc/g++/cc1/cc1plus, libgcc.a, the crt*.o startup objects,
-# fixincludes, the libc headers it wraps) is MILESTONE 2. Those files are still
-# produced by this build but are simply not packaged — the package globs only the
-# runtime libdir, exactly the way glibc's build scratch never matches its install
-# globs. The GCC target triplet is likewise a milestone-2 concern: it only brands
-# the (unshipped) compiler's internal lib/gcc/<triplet>/ paths and driver name;
-# the runtime SONAMEs and their libdir are fixed by --libdir/--with-slibdir here.
+# This supersedes the phase-1 runtime-only recipe: it ships the COMPILER (gcc,
+# g++, cpp, cc1, cc1plus, crt*.o, libgcc.a, fixed headers, specs) AND rebuilds
+# the runtime libs (libgcc_s/libstdc++/libatomic/libgomp/libquadmath) with the
+# milestone-2 toolchain — see the <name>.package.pekit.toml split.
 #
-# Recipe-supplies path (like glibc): upstream ships no pekit files. GCC commits
-# its configure (no autogen), but a git checkout has no pre-generated parser
-# sources, so the build shell supplies flex/bison; the math prerequisites
-# (gmp/mpfr/mpc/isl) come from the shell too and link into cc1 only — see
-# _flake#gcc. Build deps are NOT declared here:
-#   nix develop ./_flake#gcc -c pekit build --version 16.1.0
+# PREREQUISITE: the Pass-1 cross toolchain + composed sysroot must exist:
+#   nix develop ./_flake#cross -c sh pkgs/gcc/_cross/build-cross.sh
+# Then build/package in the same #gcc shell as before:
+#   nix develop ./_flake#gcc -c pekit build   --version 16.1.0
+#   nix develop ./_flake#gcc -c pekit package --version 16.1.0
 
 outDir = "out"
 
@@ -38,93 +33,123 @@ tag_regex = '^releases/gcc-\d+\.\d+\.\d+$'
 # `--version X`; we package latest + future only.
 versions = ">=15"
 
-# Out-of-source build (GCC, like glibc, refuses to build in its own tree).
-# Layout per PSD-009 §3.4: usrmerge + arch files under /usr/lib/<triplet>.
-#   --libdir + --with-slibdir : force BOTH libstdc++.so.6 and libgcc_s.so.1 into
-#       the Peios triplet libdir. libgcc_s otherwise lands in a multilib "os
-#       directory" (.../lib64) — slibdir pins it next to the rest.
-#   --disable-multilib        : 64-bit only, no i386 runtime libs.
-#   --enable-languages=c,c++  : no fortran/objc/go/d => their runtimes (libgfortran,
-#       libobjc, ...) are never built, so they can't sneak into the install tree.
-#   --disable-libsanitizer    : phase-1 scope — libasan/ubsan/tsan/lsan are a
-#       dev/toolchain concern; also trims a large chunk of build time.
+# Out-of-source build (GCC refuses to build in its own tree). Layout per PSD-009
+# §3.4: usrmerge + ALL arch files under /usr/lib/<triplet>.
+#   --libdir=$LIBDIR          : puts gcc's internal tree at $LIBDIR/gcc/<t>/<v>/
+#       (crt*.o, libgcc.a, the runtime .so/.a/.spec, fixed headers).
+#   --libexecdir=$LIBDIR      : §3.4 has no /usr/libexec; this lands cc1/cc1plus/
+#       collect2/lto1 in $LIBDIR/gcc/<t>/<v>/ too (the driver still finds them).
+#   --with-slibdir=$LIBDIR    : libgcc_s.so.1/libstdc++.so.6 into the triplet dir
+#       (they otherwise go to the multilib os-dir ../lib64).
+#   --disable-multilib        : 64-bit only.
+#   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in.
+#   --disable-libsanitizer    : asan/ubsan/tsan deferred (large, dev-tooling).
 #   --enable-__cxa_atexit     : correct C++ static-dtor ordering (distro default).
-#   --disable-bootstrap       : see the BOOTSTRAP note below.
+#   --with-system-zlib        : link Peios's system libz (from sysroot), not a
+#       bundled copy.
+#   dynamic bignums (Decision 3): cc1 links libgmp/mpfr/mpc/isl as shared libs
+#       from the sysroot — point configure at the sysroot include + triplet lib.
 [build.main]
 command = """
 SRC="$(pwd)"
 TRIPLET=x86_64-linux-peios
 LIBDIR=/usr/lib/$TRIPLET
 
-# Memory-bounded parallelism: a GCC build's heaviest C++ TUs (insn-recog.cc,
-# gimple-match.cc) can each hit ~1-2 GB, so on a RAM-constrained host -j<cores>
-# OOMs partway through a long build. Cap at ~1 job per 1.5 GB, never above the
-# core count.
+# Canadian-cross setup. This recipe's dir is PEKIT_OUT up to "/out/"; the cross
+# toolchain + composed sysroot sit beside it (built by _cross/build-cross.sh).
+GCC_DIR="${PEKIT_OUT%%/out/*}"
+CROSS="$GCC_DIR/_cross/tools"
+SYSROOT="$GCC_DIR/_sysroot"
+[ -x "$CROSS/bin/$TRIPLET-gcc" ] || { echo "gcc: cross toolchain missing at $CROSS — run pkgs/gcc/_cross/build-cross.sh" >&2; exit 1; }
+[ -f "$SYSROOT/usr/include/gmp.h" ] || { echo "gcc: sysroot missing gmp.h — recompose pkgs/gcc/sysroot.toml (needs gmp/mpfr/mpc/isl-devel + zlib-devel + kernel-headers)" >&2; exit 1; }
+export PATH="$CROSS/bin:$PATH"
+
+# The nix shell exports the tool vars at nix's wrapped tools — both the host set
+# (CC/CXX/AR/...) AND the target set (CC_FOR_TARGET/CXX_FOR_TARGET/AS_FOR_TARGET/
+# ...). gcc's configure honours these over its --host/--target detection: the
+# host set would link the compiler against nix's glibc/loader, and the target set
+# (CC_FOR_TARGET=gcc) would build the target libgcc/libstdc++ with nix's gcc 15.2
+# instead of the cross gcc 16.1 — a fatal version skew (gcc-16 cpuinfo.h vs
+# gcc-15 cpuid.h). Unset both sets so the Canadian cross resolves the prefixed
+# cross tools for host AND target code (CC_FOR_BUILD still finds nix gcc on PATH).
+unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE \
+      CC_FOR_TARGET CXX_FOR_TARGET GCC_FOR_TARGET CPP_FOR_TARGET GCJ_FOR_TARGET \
+      AS_FOR_TARGET LD_FOR_TARGET AR_FOR_TARGET RANLIB_FOR_TARGET NM_FOR_TARGET \
+      STRIP_FOR_TARGET OBJCOPY_FOR_TARGET OBJDUMP_FOR_TARGET READELF_FOR_TARGET
+
+# The Canadian cross compiles a set of build-side helper tools (gcc/build/, the
+# gen* programs) with the nix g++ (CC_FOR_BUILD); they RUN on nix and need nix's
+# libstdc++.so.6 / libgcc_s.so.1 at run time. This shell strips rpaths, so put
+# nix's gcc lib dir on the loader path (NOT glibc — that segfaults foreign-glibc
+# binaries like /bin/sh; libstdc++/libgcc_s are safe, same as the #gmp shell).
+# `gcc` here is still nix's (the cross is x86_64-linux-peios-gcc). Bakes nothing
+# into the shipped peios binaries — those are bare-soname, built by the cross.
+export LD_LIBRARY_PATH="$(dirname "$(gcc -print-file-name=libstdc++.so.6)")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Memory-bounded parallelism: GCC's heaviest C++ TUs (insn-recog, gimple-match)
+# hit ~1-2 GB each; cap at ~1 job/1.5 GB, never above the core count.
 JOBS=$(nproc)
 MEMJOBS=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1500000 ))
 [ "$MEMJOBS" -lt "$JOBS" ] && JOBS=$MEMJOBS
 [ "$JOBS" -lt 1 ] && JOBS=1
 
-# BOOTSTRAP: --disable-bootstrap builds the compiler ONCE (with the shell's gcc),
-# then builds the runtime libs with it. A 3-stage --enable-bootstrap rebuilds the
-# compiler with itself (stage2==stage3 proves host-independence) — that guarantee
-# is what matters for the SHIPPED COMPILER (milestone 2), but for phase 1's
-# runtime libs the output is ABI-identical and functionally equivalent either
-# way, at ~3x the build time. So phase 1 skips it; milestone 2 will bootstrap.
+# Source patches (idempotent — Pass 1 already applied them to this shared tree):
+# config.sub learns peios; t-linux64/t-linux use the peios multiarch dirname.
+sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
+for tf in gcc/config/i386/t-linux64 gcc/config/i386/t-linux; do
+  if grep -q 'linux-gnu' "$SRC/$tf"; then
+    sed -i 's/x86_64-linux-gnu/x86_64-linux-peios/g; s/i386-linux-gnu/i386-linux-peios/g' "$SRC/$tf"
+  fi
+done
+
 mkdir -p "$PEKIT_OUT/build"
 cd "$PEKIT_OUT/build"
-# Guard configure so re-runs (e.g. iterating the post-install steps) stay
-# incremental instead of reconfiguring the whole tree.
+# Guard configure so re-runs stay incremental.
 if [ ! -f "$PEKIT_OUT/build/Makefile" ]; then
-  # nix has no /usr/include, so GCC's fixincludes (which checks the native system
-  # header dir exists) aborts with the default. Point it at the store glibc
-  # headers, discovered from the cc-wrapper so no store path is hardcoded
-  # (survives flake.lock bumps). This only satisfies fixincludes + bakes the
-  # (unshipped) compiler's default search; the target libs still get their
-  # headers via the wrapper's -isystem injection.
-  SYSHDR=$(printf '' | gcc -E -Wp,-v -xc - 2>&1 | grep -m1 -oE '/nix/store/[^ ]*glibc[^ ]*/include')
-  [ -n "$SYSHDR" ] || { echo "gcc: could not locate the system header dir" >&2; exit 1; }
-  "$SRC/configure" --prefix=/usr --libdir="$LIBDIR" --with-slibdir="$LIBDIR" --with-native-system-header-dir="$SYSHDR" --disable-multilib --enable-languages=c,c++ --enable-shared --enable-threads=posix --enable-__cxa_atexit --disable-libsanitizer --disable-werror --disable-bootstrap
+  # --with-sysroot=/ : the SHIPPED gcc searches the real Peios root at run time.
+  # --with-build-sysroot=$SYSROOT : during THIS build, the cross gcc finds the
+  #   peios glibc/headers in the composed sysroot (not in nix's /).
+  "$SRC/configure" \
+    --build=x86_64-pc-linux-gnu --host="$TRIPLET" --target="$TRIPLET" \
+    --prefix=/usr --libdir="$LIBDIR" --libexecdir="$LIBDIR" --with-slibdir="$LIBDIR" \
+    --with-sysroot=/ --with-build-sysroot="$SYSROOT" \
+    --disable-multilib --enable-languages=c,c++ \
+    --enable-shared --enable-threads=posix --enable-__cxa_atexit \
+    --disable-libsanitizer --disable-bootstrap --disable-werror \
+    --with-system-zlib \
+    --with-gmp-include="$SYSROOT/usr/include"  --with-gmp-lib="$SYSROOT$LIBDIR" \
+    --with-mpfr-include="$SYSROOT/usr/include" --with-mpfr-lib="$SYSROOT$LIBDIR" \
+    --with-mpc-include="$SYSROOT/usr/include"  --with-mpc-lib="$SYSROOT$LIBDIR" \
+    --with-isl-include="$SYSROOT/usr/include"  --with-isl-lib="$SYSROOT$LIBDIR" \
+    LDFLAGS="-Wl,--build-id -Wl,-rpath-link,$SYSROOT$LIBDIR" LDFLAGS_FOR_TARGET="-Wl,--build-id"
 fi
 make -j"$JOBS"
 make install DESTDIR="$PEKIT_OUT"
 
-# GCC installs the target runtime libs to $libdir/../lib64 (the x86_64 multilib
-# "os directory"), which overrides --libdir/--with-slibdir. Relocate them into the
-# Peios triplet libdir so they sit with the rest of the arch's libs and resolve on
-# a real Peios system — and so the debug-split below (scoped to the triplet dir)
-# actually processes them. They're position-independent (sonames only, no baked
-# install paths), so a move is safe. Phase 1 is runtime-only; milestone 2's
-# compiler will instead configure a proper multiarch os directory.
+# GCC may still drop the target runtime libs in the multilib os-dir
+# ($LIBDIR/../lib64); relocate into the triplet dir so they resolve on Peios and
+# the debug-split below (which walks the install tree) processes them.
 if [ -d "$PEKIT_OUT/usr/lib/lib64" ]; then
-  mv "$PEKIT_OUT/usr/lib/lib64/"* "$PEKIT_OUT$LIBDIR/"
-  rmdir "$PEKIT_OUT/usr/lib/lib64"
+  mv "$PEKIT_OUT/usr/lib/lib64/"* "$PEKIT_OUT$LIBDIR/" 2>/dev/null || true
+  rmdir "$PEKIT_OUT/usr/lib/lib64" 2>/dev/null || true
 fi
-# Drop libtool archives (*.la): they hardcode build paths and cause overlinking;
-# pkg-config + DT_NEEDED supersede them (every distro removes them).
+# Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED win).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
-# Post-install debug-split — SCOPED to the shipped runtime libs only. The triplet
-# dir also holds libs phase 1 does NOT ship (libitm/libssp/libcc1, their static
-# archives, the *_asneeded link scripts) and the gcc/ compiler-internal subtree;
-# splitting their debug would ship debuginfo + sources (e.g. libcpp) for nothing.
-# So iterate exactly the five shipped runtime SONAMEs (real ELF objects; the
-# *.so/*.so.N dev symlinks don't match the *.so.N.* globs). Mechanics are glibc's:
-# strip the build-time rpath/NEEDED artifacts LDFLAGS_FOR_TARGET left behind, scrub
-# the DWARF comp_dir (debugedit -> /usr/src/debug/gcc), split debug out build-id-
-# indexed, strip, then stage the referenced sources. Shipped static archives get
-# --strip-debug (members have no build-id to index).
+# Post-install debug pipeline over the WHOLE install tree (compiler binaries +
+# runtime libs). Same mechanics as binutils/glibc: strip any build-path rpath
+# the cross gcc baked (e.g. from --with-gmp-lib) + the stray ld-linux NEEDED,
+# scrub DWARF build paths (-> /usr/src/debug/gcc), split debug build-id-indexed,
+# strip, stage referenced sources. Static *.a get --strip-debug (no build-id).
 cd "$PEKIT_OUT"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
-for f in "usr/lib/$TRIPLET"/libgcc_s.so.1 "usr/lib/$TRIPLET"/libstdc++.so.6.* "usr/lib/$TRIPLET"/libatomic.so.1.* "usr/lib/$TRIPLET"/libgomp.so.1.* "usr/lib/$TRIPLET"/libquadmath.so.0.*; do
-  [ -f "$f" ] || continue
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
   readelf -h "$f" >/dev/null 2>&1 || continue
-  # Strip build-time artifacts LDFLAGS_FOR_TARGET left on the shipped libs so the
-  # build's configure test programs could run: the rpath-to-store-glibc, and a
-  # stray DT_NEEDED on the dynamic linker (it leaks onto the explicitly-linked
-  # libstdc++/libgcc_s). A shipped lib needs neither — its DT_NEEDED sonames
-  # resolve against Peios's glibc/loader at runtime.
   patchelf --remove-rpath "$f" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
   debugedit -b "$ROOT" -d /usr/src/debug/gcc -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
@@ -136,11 +161,7 @@ for f in "usr/lib/$TRIPLET"/libgcc_s.so.1 "usr/lib/$TRIPLET"/libstdc++.so.6.* "u
     objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
     chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
   fi
-  strip "$f"
-done
-# Shipped static archives (libstdc++-static): drop DWARF, keep the symtab.
-for a in "usr/lib/$TRIPLET"/libstdc++.a "usr/lib/$TRIPLET"/libstdc++exp.a "usr/lib/$TRIPLET"/libstdc++fs.a "usr/lib/$TRIPLET"/libsupc++.a; do
-  [ -f "$a" ] && strip --strip-debug "$a" 2>/dev/null || true
+  strip "$f" 2>/dev/null || true
 done
 tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   [ -n "$rel" ] || continue
@@ -151,7 +172,6 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 
-# The ~10 GB build tree under $PEKIT_OUT/build is intentionally LEFT in place
-# (like glibc's in-tree scratch): it never matches the usr/** package globs, and
-# keeping it makes recipe re-runs incremental. `pekit clean` removes it.
+# The build tree under $PEKIT_OUT/build is left in place (incremental re-runs);
+# it never matches the usr/** package globs. `pekit clean` removes it.
 """

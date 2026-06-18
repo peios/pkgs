@@ -1,0 +1,11 @@
+# binutils-debuginfo — separated debug symbols for the tools + libraries,
+# build-id-indexed.
+
+[package]
+description = "GNU binary utilities - debugging symbols"
+
+[dependencies]
+binutils = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
