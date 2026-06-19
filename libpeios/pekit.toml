@@ -1,0 +1,33 @@
+# libpeios — Peios's userspace C ABI library (KACS / KMES / LCS client): the
+# versioned shared object, the static archive, the public headers, and split
+# debug info.
+#
+# Delegate recipe: libpeios is self-describing — it commits its own pekit files
+# (the build pipeline in pekit.toml, the package definitions in packages.pekit/
+# with their shared base), so this recipe is just a pointer. pekit fetches the
+# tag matching --version and borrows the source's own build + package
+# definitions; a bare `pekit package` fans the single crate into the five
+# libpeios* packages (the same way the glibc member fans one source into many).
+# `rev = "v{{version}}"` is what lets the farm enumerate and track new releases
+# (--version=*).
+#
+# Note: libpeios's build needs a rustup stable toolchain (plus binutils +
+# debugedit for the debug split). Its committed [env] points at a dev-machine
+# rustup path; on a farm without that layout, override just [env] here
+# (per-section delegation) with the farm's toolchain — the rest still delegates.
+
+out_dir= "out"
+delegate = true
+
+[source.git]
+url = "https://github.com/peios/libpeios.git"
+ref = "v{{version}}"
+# libpeios has no release tags yet; the pekit files land in its first tagged
+# release (the crate sits at 0.1.0), so v0.1.0 is the floor. Nothing predates the
+# files to exclude — a "*" sweep simply finds nothing until that first tag.
+versions = ">=0.1.0"
+
+# Local working copy for `--local` (build the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+[source.local]
+path = "../../libpeios"
