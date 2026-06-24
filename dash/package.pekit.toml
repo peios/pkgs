@@ -1,0 +1,37 @@
+format = "peipkg"
+
+[package]
+name         = "dash"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "DASH - the Debian Almquist Shell, a small POSIX-compliant /bin/sh"
+license      = "BSD-3-Clause"
+homepage     = "http://gondor.apana.org.au/~herbert/dash/"
+
+# dash holds the `sh` role: the POSIX shell that scripts and prelude's
+# initramfs hooks expect. Two slots, one holder — the role materialises the
+# shell at both well-known names: the usrmerged /usr/bin/sh and the legacy
+# /bin/sh that `#!/bin/sh` shebangs (including prelude's hooks) hard-code.
+# dash can own /bin/sh because the target is its own binary; the full
+# /bin -> /usr/bin merge (for every other tool) is the separate usrmerge farm.
+# Like the loader and init, `sh` is a contended well-known name a provider
+# fills, so a future shell can contend for the role.
+[provides]
+sh = "1"
+
+[claims.provides.sh.usrbin]
+target = "/usr/bin/dash"
+path   = "/usr/bin/sh"
+
+[claims.provides.sh.rootbin]
+target = "/usr/bin/dash"
+path   = "/bin/sh"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+# `make install DESTDIR=` lays the tree into the build stage; carve the binary
+# and its man page (`:` = the "main" build's output).
+":usr/bin/dash"               = "usr/bin/dash"
+":usr/share/man/man1/dash.1*" = "usr/share/man/man1"
