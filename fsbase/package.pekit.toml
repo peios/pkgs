@@ -1,9 +1,10 @@
 format = "peipkg"
 
 [package]
-version      = "1.0.0-1"
+name = "fsbase"
+version      = "1.0.0-2"
 architecture = "noarch"
-description  = "Base filesystem - runtime mountpoint directories"
+description  = "Base filesystem - runtime mountpoint and boot-artifact directories"
 
 # Each directory source packs as an empty-directory entry. Listed explicitly
 # (globs deliberately skip directories — they're for files).
@@ -14,3 +15,7 @@ description  = "Base filesystem - runtime mountpoint directories"
 ":sys"  = "sys"
 ":tmp"  = "tmp"
 ":var"  = "var"
+# /system/boot: where the dynamic-initramfs builder (mkirf) writes the boot
+# cpio. fsbase owns the empty directory; the cpio inside it is a generated
+# artifact, not packaged. (Under §3.4's permitted `system/` top-level.)
+":system/boot" = "system/boot"
