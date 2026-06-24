@@ -1,0 +1,20 @@
+# live-boot — the main-root half of live-medium boot. Owns the kernel cmdline
+# and pulls the initramfs half (live-boot-irf) into the initramfs root via a
+# cross-root dependency. Installing live-boot in / brings the whole live-boot
+# machinery with it; placement of the initramfs half is the dependency's job,
+# not something the consumer has to wire by hand.
+
+[package]
+description = "Live-medium boot support: kernel cmdline + initramfs root-mount hook"
+
+# live-boot-irf's home is the initramfs root, so this edge carries IN initramfs
+# (the table `root` field). Everything else about it — what it ships, what it
+# needs — the package itself declares.
+[dependencies]
+live-boot-irf = { constraint = ">= 1.0.0", root = "initramfs" }
+
+# The kernel cmdline, owned here. mkuki bakes it into the UKI's .cmdline at build
+# time, so it lives under usr/share as package data the builder reads, not a
+# runtime file.
+[files]
+"src/cmdline" = "usr/share/live-boot/cmdline"

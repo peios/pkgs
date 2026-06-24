@@ -1,16 +1,14 @@
+# Base metadata shared by the live-boot packages. Each <name>.package.pekit.toml
+# (live-boot, live-boot-irf) inherits these fields and adds its own description,
+# dependencies, and files. Both are buildless — their payloads come from src/.
+#
+# x86_64, not noarch: although the payloads (a script, a cmdline) are arch-
+# independent, these packages depend on the x86_64 userspace (live-boot-irf ->
+# peiosutils). §4.1.3 only permits `any`-arch deps, which require the satisfier
+# to match the depender's arch (or be noarch) — so a package that pulls x86_64
+# deps must itself be x86_64. Arch-dependence is transitive through deps.
 format = "peipkg"
 
 [package]
 version      = "1.0.0-1"
-architecture = "noarch"
-description  = "Live-medium boot support: kernel cmdline fragment + root-mount script"
-
-# Literal sources: paths are relative to this recipe dir (no build stage to
-# reference). The keys point at the files you'll drop into src/.
-#
-# DESTINATIONS ARE PLACEHOLDERS — usr/share/live-boot/ is a safe, §3.4-valid
-# spot, but confirm where live-boot's files actually install (an initramfs
-# hook dir? boot/? somewhere mkirf scans?) and I'll set them.
-[files]
-"src/cmdline"       = "boot/cmdline"
-"src/mount-root.sh" = "boot/initramfs/hooks/mount-root.sh"
+architecture = "x86_64"

@@ -1,0 +1,17 @@
+# live-boot-irf — the initramfs half: the root-mount hook mkirf packs into the
+# cpio. Its home is the initramfs root (live-boot depends on it IN initramfs).
+# It depends on peiosutils so the hook's mkdir/mount tools land in the initramfs
+# alongside it — as a dep of an initramfs-homed package, peiosutils routes to
+# the initramfs by default, no IN needed. (seed-sd comes from prelude, the
+# initramfs's PID 1.) This is the initramfs composing itself via the dep graph.
+
+[package]
+description = "Initramfs root-mount hook for live-medium boot (squashfs + tmpfs overlay)"
+
+[dependencies]
+peiosutils = ">= 0.1.2"
+
+# The hook lives at /hooks/mount-root.sh — the directory mkirf scans when it
+# packs the initramfs cpio.
+[files]
+"src/mount-root.sh" = "hooks/mount-root.sh"

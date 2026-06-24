@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/sh
 # /// hook
 # provides = ["root-mounted"]
 # ///
@@ -11,8 +11,14 @@
 # the upper for a partition without changing the overlay shape.
 set -eu
 
+# prelude runs hooks with PATH=/usr/bin:/bin, so the peiosutils tools (mkdir,
+# mount) and seed-sd resolve without the hook setting PATH itself.
 mkdir /sysroot.lower /sysroot.rw
-mount -o loop,ro -t squashfs /sysroot.squashfs /sysroot.lower
+# The squashfs ships no SDs (the build doesn't stamp them), so under KACS
+# DENY_MISSING every file in it is locked. policy=synth-ephemeral makes KACS
+# synthesize a default SD per inode in memory — ephemeral, not synth-persist,
+# because a read-only squashfs can't accept a written-back SD.
+mount -o loop,ro,policy=synth-ephemeral -t squashfs /sysroot.squashfs /sysroot.lower
 mount -t tmpfs tmpfs /sysroot.rw
 
 # A freshly-mounted tmpfs root has no SD xattr; under KACS DENY_MISSING
