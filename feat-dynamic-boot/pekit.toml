@@ -1,0 +1,9 @@
+# feat-dynamic-boot — a Peios feature that runs the watch (regenerate-on-change)
+# form of the Dynamic Boot tools mkirf and mkuki as services.
+#
+# BUILDLESS package: nothing is compiled or fetched. The payload is the feature
+# definition in src/ — the four lifecycle scripts (install/enable/disable/
+# uninstall) — mapped literally by package.pekit.toml into the vendor feature
+# library /usr/libexec/peios/features.d/dynamic-boot/. There is no [build] and no
+# [source]; out_dir only names where packaging writes the .peipkg.
+out_dir = "out"

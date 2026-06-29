@@ -1,0 +1,31 @@
+# feat-dynamic-boot — the feature definition for Peios Dynamic Boot's watch
+# services. `feat install dynamic-boot` creates two services (mkirf-watch,
+# mkuki-watch) disabled; `feat enable`/`disable` toggle their `Disabled` flag;
+# `feat remove` deletes them. When enabled, the services keep the boot artifacts
+# in sync: mkirf repacks /boot/initramfs into the cpio on change, and mkuki
+# rebuilds the UKI when the kernel, cpio, or cmdline changes.
+#
+# x86_64, not noarch: although the scripts are arch-independent shell, they
+# depend on the x86_64 peiosutils (feat runs them; they call reg/mkuki/mkirf).
+# Arch-dependence is transitive through deps (cf. live-boot).
+format = "peipkg"
+
+[package]
+name         = "feat-dynamic-boot"
+version      = "0.0.1-1"
+architecture = "x86_64"
+description  = "Feature: run mkirf/mkuki in watch form as Dynamic Boot services"
+
+# feat (runs the lifecycle scripts) and reg/mkirf/mkuki (called by them and by
+# the services) all ship in peiosutils.
+[dependencies]
+peiosutils = "*"
+
+# The feature definition: four lifecycle scripts under the vendor feature
+# library. feat reads this directory; peipkg only delivers the files (it never
+# runs them — package purity), so this stays plain file delivery.
+[files]
+"src/install.sh"   = "usr/libexec/peios/features.d/dynamic-boot/install.sh"
+"src/enable.sh"    = "usr/libexec/peios/features.d/dynamic-boot/enable.sh"
+"src/disable.sh"   = "usr/libexec/peios/features.d/dynamic-boot/disable.sh"
+"src/uninstall.sh" = "usr/libexec/peios/features.d/dynamic-boot/uninstall.sh"
