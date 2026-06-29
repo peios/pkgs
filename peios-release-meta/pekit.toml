@@ -1,0 +1,34 @@
+# peios-release-meta — Peios OS release identity.
+#
+# Ships the freedesktop os-release file that the external ecosystem (tooling,
+# install scripts, telemetry, humans) reads to identify the OS. Peios keeps
+# system state in the registry, but os-release is a foreign-facing compat
+# surface, not Peios config, so it is a static build artifact rather than a
+# registry projection. The package version IS the OS version (2026.6), so the
+# release is tracked in the peipkg database and is upgradable.
+#
+# Canonical file at /usr/lib/os-release — immutable, riding the read-only
+# squashfs, which is the safe home given Peios treats /etc as generated — with
+# /etc/os-release a compat symlink to it (tools that look in /etc still find
+# it). No BUILD_ID: it is the one field a package cannot supply (it is
+# compose-time) and is optional; VERSION_ID plus the package revision answer
+# "which build" through the database. ID_LIKE is deliberately omitted: Peios is
+# not derived from another distribution, and a false family would mislead
+# package-manager detection (Peios uses peipkg/pkm).
+
+out_dir = "out"
+
+[build]
+command = """
+set -eu
+mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/etc"
+cat > "$PEKIT_OUT/usr/lib/os-release" <<EOF
+NAME="Peios"
+ID=peios
+VERSION_ID="$PEKIT_VERSION"
+PRETTY_NAME="Peios $PEKIT_VERSION"
+EOF
+# Compat symlink so tools checking /etc/os-release first still resolve to the
+# immutable vendor file. Relative, so it is correct under any root prefix.
+ln -s ../usr/lib/os-release "$PEKIT_OUT/etc/os-release"
+"""
