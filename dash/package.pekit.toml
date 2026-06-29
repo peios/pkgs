@@ -2,30 +2,24 @@ format = "peipkg"
 
 [package]
 name         = "dash"
-version      = "{{version}}-1"
+version      = "{{version}}-2"
 architecture = "x86_64"
 description  = "DASH - the Debian Almquist Shell, a small POSIX-compliant /bin/sh"
 license      = "BSD-3-Clause"
 homepage     = "http://gondor.apana.org.au/~herbert/dash/"
 
 # dash holds the `sh` role: the POSIX shell that scripts and prelude's
-# initramfs hooks expect. Two slots, one holder — the role materialises the
-# shell at both well-known names: the usrmerged /usr/bin/sh and the legacy
-# /bin/sh that `#!/bin/sh` shebangs (including prelude's hooks) hard-code.
-# dash can own /bin/sh because the target is its own binary; the full
-# /bin -> /usr/bin merge (for every other tool) is the separate usrmerge farm.
-# Like the loader and init, `sh` is a contended well-known name a provider
-# fills, so a future shell can contend for the role.
+# initramfs hooks expect. The role materialises the shell at /usr/bin/sh; the
+# legacy /bin/sh that `#!/bin/sh` shebangs (including prelude's hooks) hard-code
+# resolves through the compose-intrinsic usr-merge (/bin -> usr/bin), so dash no
+# longer claims /bin/sh itself. Like the loader and init, `sh` is a contended
+# well-known name a provider fills, so a future shell can contend for the role.
 [provides]
 sh = "1"
 
 [claims.provides.sh.usrbin]
 target = "/usr/bin/dash"
 path   = "/usr/bin/sh"
-
-[claims.provides.sh.rootbin]
-target = "/usr/bin/dash"
-path   = "/bin/sh"
 
 [dependencies]
 glibc = ">= 2.43"
