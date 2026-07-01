@@ -1,0 +1,14 @@
+# Base metadata shared by the util-linux library sub-packages.
+#
+# These libraries are built from the util-linux source tree (libblkid/libmount/
+# libuuid/libsmartcols/libfdisk all live there). The shared libraries are
+# LGPL-2.1-or-later — dynamically linked by MIT/other consumers without
+# relicensing them. (util-linux's *programs*, not built here, are GPL.)
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "LGPL-2.1-or-later"
+homepage     = "https://github.com/util-linux/util-linux"

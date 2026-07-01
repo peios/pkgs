@@ -1,0 +1,22 @@
+format = "peipkg"
+
+[package]
+name         = "amd-ucode"
+version      = "{{version}}-1"
+architecture = "x86_64"
+# AMD's microcode is redistributable as an unmodified binary under the license
+# in amd-ucode/LICENSE.amd-ucode within linux-firmware. No standard SPDX id.
+license      = "LicenseRef-AMD-Microcode"
+homepage     = "https://gitlab.com/kernel-firmware/linux-firmware"
+# Consumed by the kernel from the EARLY initramfs region, so it homes in the
+# initramfs root like prelude. mkirf prepends the ++/ tree as the uncompressed
+# early cpio ahead of the main archive; see peiosutils mkirf DESIGN §10.
+default_root = "initramfs"
+description  = "AMD CPU microcode update, early-loaded from the initramfs"
+
+# Sibling early-cpio segment to intel-ucode (++/amd-ucode/). mkirf strips the
+# segment label and emits `kernel/x86/microcode/AuthenticAMD.bin`, 16-byte
+# aligned, in the uncompressed leading region — merging with intel-ucode's
+# segment and de-duplicating the shared kernel/x86/microcode/ parents (§10.1).
+[files]
+":++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin" = "++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"

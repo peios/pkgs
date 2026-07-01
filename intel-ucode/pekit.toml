@@ -1,0 +1,33 @@
+# intel-ucode — Intel CPU microcode, assembled into the single container the
+# kernel's early loader scans, shipped into the initramfs early-cpio region.
+#
+# Upstream ships per-signature update files under intel-ucode/; the early-load
+# blob is their concatenation as kernel/x86/microcode/GenuineIntel.bin. This
+# build only ASSEMBLES the blob — mkirf owns the cpio framing and the 16-byte
+# alignment the microcode loader requires (peiosutils mkirf DESIGN §10.2), so
+# nothing here aligns or frames anything.
+
+out_dir = "out"
+
+[source.git]
+url = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files.git"
+# Upstream tags releases as `microcode-YYYYMMDD` (e.g. microcode-20250512); the
+# package version is that date. tag_regex keeps `--latest` enumeration to those
+# dated release tags.
+ref       = "microcode-{{version}}"
+tag_regex = '^microcode-\d{8}$'
+
+# Concatenate every per-signature update into the one container the kernel's
+# early loader scans, in LC_ALL=C order so the build is byte-deterministic
+# (mkirf's determinism guarantee, §5, only holds if its inputs are stable).
+# iucode_tool could de-duplicate/trim the result, but a plain concatenation is
+# a valid container the kernel reads, and avoids a build dependency. Only
+# coreutils are needed — no toolchain.
+[build.main]
+command = """
+SRC="$(pwd)"
+DEST="$PEKIT_OUT/++/intel-ucode/kernel/x86/microcode"
+mkdir -p "$DEST"
+find "$SRC/intel-ucode" -type f | LC_ALL=C sort | xargs cat > "$DEST/GenuineIntel.bin"
+test -s "$DEST/GenuineIntel.bin"
+"""

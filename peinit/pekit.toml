@@ -1,0 +1,30 @@
+# peinit — Peios real-root PID 1 service manager.
+#
+# Delegate recipe: peinit is self-describing — it commits its own pekit files
+# (the build pipeline in pekit.toml, the package definition in
+# package.pekit.toml), so this recipe is just a pointer. pekit fetches the tag
+# matching --version and borrows the source's own build + package definitions.
+# The runtime glibc / libgcc dependencies are derived automatically from the
+# binary's DT_NEEDED (and versioned per the workspace symbol-version policy).
+#
+# Note: peinit's build needs a Rust toolchain and the sibling libp-rs crates,
+# which it references via `../libp-rs` path deps but does not vendor. A git-tag
+# build therefore needs libp-rs checked out alongside the fetched source; until
+# that build bridge is sorted (vendor libp-rs, or migrate peinit onto the peios
+# crate), build with --local against the in-dev tree where libp-rs is a sibling.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url = "https://github.com/peios/peinit.git"
+ref = "v{{version}}"
+# peinit carries its own pekit files from its first tag (0.0.1); there are no
+# tags before that, so a "*" sweep simply finds nothing until that first tag
+# rather than failing on a pre-pekit revision.
+versions = ">=0.0.1"
+
+# Local working copy for `--local` (compile the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+[source.local]
+path = "../../peinit"

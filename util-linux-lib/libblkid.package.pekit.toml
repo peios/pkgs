@@ -1,0 +1,17 @@
+# libblkid — runtime: the shared library that probes filesystem/RAID/partition
+# signatures and resolves LABEL=/UUID=/PARTLABEL=/PARTUUID= tags to devices.
+# Peios's `mount` (peiosutils) dlopens libblkid.so.1 for its -U/-L/UUID=/LABEL=
+# source forms and -t auto type probing. Header + dev symlink are libblkid-devel.
+
+[package]
+description = "Block device identification library"
+
+[dependencies]
+# libblkid.so.1 links only libc (verified: its sole DT_NEEDED is libc.so.6).
+glibc = ">= 2.43"
+
+[files]
+# The real lib (libblkid.so.1.x.x) and its soname symlink (libblkid.so.1). The
+# unversioned dev symlink libblkid.so is libblkid-devel's, so match only names
+# carrying a version after `.so.`.
+":usr/lib/x86_64-linux-peios/libblkid.so.*" = "usr/lib/x86_64-linux-peios"

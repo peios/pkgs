@@ -1,0 +1,11 @@
+out_dir = "out"
+delegate = true
+
+[source.git]
+url = "https://github.com/peios/peipkg.git"
+ref = "v{{version}}"
+
+# Local working copy for `--local` (build the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+[source.local]
+path = "../../peipkg"
