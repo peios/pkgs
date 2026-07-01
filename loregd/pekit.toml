@@ -1,19 +1,23 @@
 # loregd — Local Registry Daemon (RSI storage backend for LCS hives).
 #
 # Delegate recipe: loregd is self-describing — it commits its own pekit
-# files (build + package.pekit.toml) at each release tag, so this recipe
-# is just a pointer. pekit fetches the tag matching --version and borrows
-# the source's own build + package definition. `rev = "v{{version}}"` is
-# what lets the farm enumerate and track new releases (--version=*).
+# files (build pipeline in pekit.toml, package definition in
+# package.pekit.toml), so this recipe is just a pointer. pekit fetches the
+# tag matching --version and borrows the source's own build + package
+# definition. `ref = "v{{version}}"` is what lets the farm enumerate and
+# track new releases (--version=*).
 
-outDir = "out"
+out_dir = "out"
+delegate = true
 
-[source]
-git = "https://github.com/peios/loregd.git"
-rev = "v{{version}}"
+[source.git]
+url = "https://github.com/peios/loregd.git"
+ref = "v{{version}}"
 # loregd only carries its own pekit files from v0.21.1 on; v0.21.0
 # predates them, so a "*" sweep skips it instead of failing.
 versions = ">=0.21.1"
+
 # Local working copy for `--local` (compile the in-dev tree, no tag).
 # Relative to this recipe dir; never used by the farm.
-localpath = "../../loregd"
+[source.local]
+path = "../../loregd"

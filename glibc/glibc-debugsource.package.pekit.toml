@@ -14,4 +14,4 @@ description = "GNU C Library - debug sources"
 glibc-debuginfo = "{{version}}"
 
 [files]
-":usr/src/debug/**" = "usr/src/debug"
+":usr/src/debug/**" = "usr/src/debug/"

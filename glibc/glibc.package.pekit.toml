@@ -12,31 +12,10 @@
 # ":" = the default "main:" build. Mapping dest semantics: a glob source ("**",
 # "*.so.*") maps to a DIRECTORY; an exact-file source maps to a FULL path.
 
-[package]
-description = "GNU C Library - shared libraries and dynamic loader"
-
-[files]
-# All programs — usrmerge folds the former sbin tools (ldconfig, nscd, zic, ...)
-# into /usr/bin. The profiling/tracing utilities are split into glibc-utils via
-# the exclude list below.
-":usr/bin/**"                          = "usr/bin"
-# Versioned shared libraries (*.so.N) + the dynamic loader. The unversioned dev
-# symlinks (*.so) are glibc-devel's; the static *.a are glibc-static's.
-":usr/lib/x86_64-linux-peios/*.so.*"   = "usr/lib/x86_64-linux-peios"
-# gconv charset-conversion modules, loaded at runtime by iconv. (The audit/
-# module and the libmemusage.so/libpcprofile.so shims are glibc-utils'.)
-":usr/lib/x86_64-linux-peios/gconv/**" = "usr/lib/x86_64-linux-peios/gconv"
-# RPC program-number database (runtime data). /etc/ld.so.cache is omitted —
-# host-specific, rebuilt by `ldconfig` post-install.
-":etc/rpc"                             = "etc/rpc"
-# nss_db generation Makefile, relocated out of /var/db (the spec forbids
-# populated /var content); it's an admin template, not runtime state.
-":var/db/Makefile"                     = "usr/share/glibc/db/Makefile"
-
 # Programs claimed by sibling packages — glibc-utils (profiling/tracing tools)
 # and glibc-nscd (the daemon); drop them from usr/bin/** so they aren't
 # double-claimed.
-exclude = [
+excludes = [
   ":usr/bin/mtrace",
   ":usr/bin/nscd",
   ":usr/bin/pcprofiledump",
@@ -45,3 +24,32 @@ exclude = [
   ":usr/bin/sprof",
   ":usr/bin/xtrace",
 ]
+
+[package]
+description = "GNU C Library - shared libraries and dynamic loader"
+
+# The dynamic linker's ABI-fixed path. glibc installs the real loader under the
+# triplet (/usr/lib/x86_64-linux-peios/ld-linux-x86-64.so.2), and the x86-64
+# psABI hard-codes every dynamic binary's interpreter as
+# /lib64/ld-linux-x86-64.so.2. The compose-intrinsic usr-merge points
+# /lib64 -> usr/lib/x86_64-linux-peios, so that interpreter path resolves to the
+# loader glibc ships below — no per-file claim needed (glibc once owned the path
+# via a `dynamic-linker` claim; the merge subsumes it).
+
+[files]
+# All programs — usrmerge folds the former sbin tools (ldconfig, nscd, zic, ...)
+# into /usr/bin. The profiling/tracing utilities are split into glibc-utils via
+# the exclude list below.
+":usr/bin/**"                          = "usr/bin/"
+# Versioned shared libraries (*.so.N) + the dynamic loader. The unversioned dev
+# symlinks (*.so) are glibc-devel's; the static *.a are glibc-static's.
+":usr/lib/x86_64-linux-peios/*.so.*"   = "usr/lib/x86_64-linux-peios/"
+# gconv charset-conversion modules, loaded at runtime by iconv. (The audit/
+# module and the libmemusage.so/libpcprofile.so shims are glibc-utils'.)
+":usr/lib/x86_64-linux-peios/gconv/**" = "usr/lib/x86_64-linux-peios/gconv/"
+# RPC program-number database (runtime data). /etc/ld.so.cache is omitted —
+# host-specific, rebuilt by `ldconfig` post-install.
+":etc/rpc"                             = "etc/rpc"
+# nss_db generation Makefile, relocated out of /var/db (the spec forbids
+# populated /var content); it's an admin template, not runtime state.
+":var/db/Makefile"                     = "usr/share/glibc/db/Makefile"

@@ -8,11 +8,12 @@
 #
 #   nix develop ./_flake#mpfr -c pekit build --version 4.2.2
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 url        = "https://ftp.gnu.org/gnu/mpfr/mpfr-{{version}}.tar.xz"
 extract    = true
+root       = "mpfr-{{version}}"
 file_regex = '^mpfr-\d+\.\d+\.\d+\.tar\.xz$'
 versions   = ">= 4.2"
 
@@ -67,3 +68,18 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
+
+# Build deps. mpfr is autotools (gcc + make), links gmp, and the post-install
+# debug split adds debugedit + patchelf (binutils rides along with gcc).
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+gmp-devel = "*"
+debugedit = "*"
+patchelf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev = "*"
+debugedit = "*"
+patchelf = "*"

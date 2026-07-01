@@ -9,10 +9,11 @@
 #
 #   nix develop ./_flake#binutils -c pekit build --version 2.46.1
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 url        = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
+root       = "binutils-{{version}}"
 extract    = true
 file_regex = '^binutils-\d+\.\d+(\.\d+)?\.tar\.xz$'
 versions   = ">= 2.46"
@@ -111,3 +112,20 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
+
+# Build deps. Canadian cross: the host gcc/g++ + make build the CC_FOR_BUILD
+# helpers (the shipped binaries come from the prebuilt _cross toolchain, a
+# separate prerequisite, not a package). zlib comes from the composed sysroot
+# (--with-system-zlib), NOT the host. The post-install debug split adds
+# debugedit + patchelf.
+[build.main.dependencies.peipkg]
+gcc = "*"
+"gcc-c++" = "*"
+make = "*"
+debugedit = "*"
+patchelf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit = "*"
+patchelf = "*"

@@ -20,12 +20,13 @@
 #
 #   nix develop ./_flake#kernel-headers -c pekit build --version 6.16.7
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 # kernel.org CDN. v6.x major-series subdirectory; file_regex keeps the 6.x.y
 # release tarballs (excludes -rc, testing/, and the .sign/.gz siblings).
 url        = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{version}}.tar.xz"
+root       = "linux-{{version}}"
 extract    = true
 file_regex = '^linux-6\.\d+(\.\d+)?\.tar\.xz$'
 # Floor at the version glibc was built against; package this + newer on demand.
@@ -44,3 +45,12 @@ make headers_install ARCH=x86 INSTALL_HDR_PATH="$PEKIT_OUT/usr" -j"$(nproc)"
 find "$PEKIT_OUT/usr/include" -type f ! -name '*.h' -delete
 find "$PEKIT_OUT/usr/include" -type d -empty -delete
 """
+
+# Build deps. headers_install just needs make plus a host C compiler (to build
+# the scripts/unifdef host tool that sanitizes the UAPI headers). No debug split.
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

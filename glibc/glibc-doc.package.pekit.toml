@@ -10,4 +10,4 @@ description  = "GNU C Library - reference manual"
 architecture = "noarch"
 
 [files]
-":usr/share/info/libc.info*" = "usr/share/info"
+":usr/share/info/libc.info*" = "usr/share/info/"

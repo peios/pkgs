@@ -6,7 +6,7 @@
 format = "peipkg"
 
 [package]
-version      = "{{version}}-1"
+version      = "{{version}}-2"
 architecture = "x86_64"
 # Library is LGPL-2.1-or-later; bundled programs (ldconfig, locale, ...) are
 # GPL-2.0-or-later. (Full tree also carries assorted permissive licenses.)

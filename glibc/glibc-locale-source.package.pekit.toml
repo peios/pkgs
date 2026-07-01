@@ -13,5 +13,5 @@ description  = "GNU C Library - locale source definitions and charmaps"
 architecture = "noarch"
 
 [files]
-":usr/share/i18n/**"   = "usr/share/i18n"
-":usr/share/locale/**" = "usr/share/locale"
+":usr/share/i18n/**"   = "usr/share/i18n/"
+":usr/share/locale/**" = "usr/share/locale/"

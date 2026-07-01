@@ -1,21 +1,21 @@
 # glibc-langpack-<lang> — compiled, per-language locale data (arch-specific).
 #
 # One package is generated per language present in the "locale" build output:
-# [multipack] lists the per-locale dirs, captures the language code (regex group
-# 1), dedupes, and emits a package per unique code. `suffix` appends "-<code>" to
-# this file's base name (glibc-langpack), giving glibc-langpack-de,
-# glibc-langpack-fr, ...; {{multipack}} holds the code in the fields below.
+# [multipack.enum.files] lists the per-locale dirs, captures the language code
+# (regex group 1), dedupes, and emits a package per unique code.
+# [package].name templates {{multipack}} to produce glibc-langpack-de,
+# glibc-langpack-fr, etc.; {{multipack}} holds the code in the fields below.
 #
 # Inherits base metadata, including architecture = x86_64: compiled locale data
 # is native-endian binary, so NOT noarch. The locale SOURCE definitions and the
 # message catalogs live in the noarch glibc-locale-source.
 
-[multipack]
-enum.files.path  = "locale:usr/lib/x86_64-linux-peios/locale/*"
-enum.files.regex = '^([a-z]+)_'
-suffix           = "-{{multipack}}"
+[multipack.enum.files]
+path = "locale:usr/lib/x86_64-linux-peios/locale/*"
+regex = '^([a-z]+)_'
 
 [package]
+name = "glibc-langpack-{{multipack}}"
 description = "GNU C Library - {{multipack}} locale data"
 
 [dependencies]
@@ -27,4 +27,4 @@ glibc = "{{version}}"
 [files]
 # Every locale for this language (de_DE, de_DE.utf8, de_AT, ...) and its LC_*
 # files, taken from the locale build.
-"locale:usr/lib/x86_64-linux-peios/locale/{{multipack}}_*/**" = "usr/lib/x86_64-linux-peios/locale"
+"locale:usr/lib/x86_64-linux-peios/locale/{{multipack}}_*/**" = "usr/lib/x86_64-linux-peios/locale/"

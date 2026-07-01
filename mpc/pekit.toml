@@ -6,10 +6,11 @@
 #
 #   nix develop ./_flake#mpc -c pekit build --version 1.3.1
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 url        = "https://ftp.gnu.org/gnu/mpc/mpc-{{version}}.tar.gz"
+root       = "mpc-{{version}}"
 extract    = true
 file_regex = '^mpc-\d+\.\d+\.\d+\.tar\.gz$'
 versions   = ">= 1.3"
@@ -59,3 +60,20 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
+
+# Build deps. mpc is autotools (gcc + make), links gmp + mpfr, and the
+# post-install debug split adds debugedit + patchelf.
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+gmp-devel = "*"
+mpfr-devel = "*"
+debugedit = "*"
+patchelf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev = "*"
+libmpfr-dev = "*"
+debugedit = "*"
+patchelf = "*"

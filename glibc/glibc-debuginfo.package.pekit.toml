@@ -15,4 +15,4 @@ description = "GNU C Library - debugging symbols"
 glibc = "{{version}}"
 
 [files]
-":usr/lib/debug/**" = "usr/lib/debug"
+":usr/lib/debug/**" = "usr/lib/debug/"

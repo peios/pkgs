@@ -25,4 +25,4 @@ glibc = ">= {{version}}"
 ":usr/lib/x86_64-linux-peios/libmemusage.so"  = "usr/lib/x86_64-linux-peios/libmemusage.so"
 ":usr/lib/x86_64-linux-peios/libpcprofile.so" = "usr/lib/x86_64-linux-peios/libpcprofile.so"
 # LD_AUDIT module used by sotruss.
-":usr/lib/x86_64-linux-peios/audit/**" = "usr/lib/x86_64-linux-peios/audit"
+":usr/lib/x86_64-linux-peios/audit/**" = "usr/lib/x86_64-linux-peios/audit/"

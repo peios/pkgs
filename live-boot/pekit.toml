@@ -6,4 +6,4 @@
 # package.pekit.toml. There is no [build] and no [source] — outDir is kept
 # only because packaging writes the .peipkg under it.
 
-outDir = "out"
+out_dir = "out"

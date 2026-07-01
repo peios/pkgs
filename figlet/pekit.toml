@@ -5,7 +5,7 @@
 # recipe-supplies path (not delegate): pekit/figlet carries the whole build
 # and package definition.
 
-outDir = "out"
+out_dir = "out"
 
 [build]
 # figlet's `install` target depends on `all`, so this single invocation
@@ -23,7 +23,15 @@ command = """
 make DESTDIR="$PEKIT_OUT" BINDIR=/usr/bin MANDIR=/usr/share/man DEFAULTFONTDIR=/usr/share/figlet install
 """
 
-[source]
-git = "https://github.com/cmatsuoka/figlet.git"
+# Build deps. figlet is a plain Makefile C project: gcc + make, nothing else.
+[build.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.dependencies.apt]
+build-essential = "*"
+
+[source.git]
+url = "https://github.com/cmatsuoka/figlet.git"
 # figlet tags are bare (2.2.5), no "v" prefix.
-rev = "{{version}}"
+ref = "{{version}}"

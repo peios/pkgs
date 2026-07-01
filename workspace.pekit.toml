@@ -13,4 +13,38 @@
 # include: glob of member recipes. Each match that is a directory holding
 # its own pekit.toml is a member; everything else (loose files, the publish
 # output dir) is ignored.
-include = "./*"
+include = ["./*"]
+
+# Symbol-version derivation policy (PSD automatic dependency derivation).
+#
+# Pekit always derives soname-level provides/depends from the staged ELF
+# payload. For the sonames listed here it ALSO derives a version floor from
+# the binary's referenced symbol versions: a consumer that references, say,
+# GLIBC_2.34 gains a `libc.so.6 (>= 2.34)` dependency, and the providing
+# package's `libc.so.6` provide is stamped with its own version.
+#
+# A soname belongs here ONLY when its symbol-version tokens are on the SAME
+# scale as the providing package's version (the commensurability rule), so
+# the derived `>= N` can be compared meaningfully against the provide:
+#
+#   * glibc libraries: GLIBC_2.34 tokens vs glibc's 2.xx version. ✓
+#   * libgcc_s.so.1:   GCC_N tokens     vs libgcc's gcc-release version. ✓
+#
+# libstdc++.so.6 is deliberately ABSENT: its GLIBCXX_3.4.x / CXXABI_1.3.x
+# tokens do not track the gcc release version, so a floor would be noise.
+# Such libraries safely fall back to soname-only (exact-name) matching.
+#
+# The ld-linux loader soname is x86_64-specific; revisit per-arch.
+[policy.symbol_versions]
+"libc.so.6"             = "GLIBC_"
+"libm.so.6"             = "GLIBC_"
+"libdl.so.2"            = "GLIBC_"
+"librt.so.1"            = "GLIBC_"
+"libpthread.so.0"       = "GLIBC_"
+"libresolv.so.2"        = "GLIBC_"
+"libutil.so.1"          = "GLIBC_"
+"libanl.so.1"           = "GLIBC_"
+"libmvec.so.1"          = "GLIBC_"
+"libnsl.so.1"           = "GLIBC_"
+"ld-linux-x86-64.so.2"  = "GLIBC_"
+"libgcc_s.so.1"         = "GCC_"

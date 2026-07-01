@@ -10,11 +10,12 @@
 # Build deps come from the nix-shell (see _flake#gmp), e.g.:
 #   nix develop ./_flake#gmp -c pekit build --version 6.3.0
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 # ftp.gnu.org mirrors gmp's signed releases (gmp itself is not GNU-VCS-hosted).
 url        = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
+root       = "gmp-{{version}}"
 extract    = true
 file_regex = '^gmp-\d+\.\d+\.\d+\.tar\.xz$'
 versions   = ">= 6.3"
@@ -82,3 +83,21 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
+
+# Build deps. gmp is autotools: gcc + g++ (--enable-cxx -> libgmpxx) + make, and
+# m4 to expand its hand-written .asm into the FAT runtime-dispatch routines. The
+# post-install debug split adds debugedit + patchelf (binutils strip/objcopy/
+# readelf ride along with the compiler). No external library deps (gmp is a leaf).
+[build.main.dependencies.peipkg]
+gcc = "*"
+"gcc-c++" = "*"
+make = "*"
+m4 = "*"
+debugedit = "*"
+patchelf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+m4 = "*"
+debugedit = "*"
+patchelf = "*"

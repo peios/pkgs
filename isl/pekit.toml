@@ -7,10 +7,11 @@
 #
 #   nix develop ./_flake#isl -c pekit build --version 0.27
 
-outDir = "out"
+out_dir = "out"
 
-[source]
+[source.url]
 url        = "https://libisl.sourceforge.io/isl-{{version}}.tar.xz"
+root       = "isl-{{version}}"
 extract    = true
 file_regex = '^isl-\d+\.\d+\.tar\.xz$'
 versions   = ">= 0.26"
@@ -61,3 +62,18 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
+
+# Build deps. isl is autotools (gcc + make), links gmp, and the post-install
+# debug split adds debugedit + patchelf.
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+gmp-devel = "*"
+debugedit = "*"
+patchelf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev = "*"
+debugedit = "*"
+patchelf = "*"

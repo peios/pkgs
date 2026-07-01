@@ -2,6 +2,10 @@
 # base metadata; depends on glibc-devel for the headers, crt objects, and
 # libc_nonshared.a that static linking also needs.
 
+# libc_nonshared.a is needed for dynamic linking, so it lives in glibc-devel;
+# exclude it here to avoid double-claiming it.
+excludes = [":usr/lib/x86_64-linux-peios/libc_nonshared.a"]
+
 [package]
 description = "GNU C Library - static libraries"
 
@@ -9,7 +13,4 @@ description = "GNU C Library - static libraries"
 glibc-devel = "{{version}}"
 
 [files]
-":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"
-# libc_nonshared.a is needed for dynamic linking, so it lives in glibc-devel;
-# exclude it here to avoid double-claiming it.
-exclude = [":usr/lib/x86_64-linux-peios/libc_nonshared.a"]
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios/"

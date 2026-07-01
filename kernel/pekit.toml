@@ -31,17 +31,20 @@
 #     flag. The other ~38 members (headers, devel, debug sources, every userspace
 #     tool) come from build.source / build.tools and need no keyring.
 
-outDir = "out"
+out_dir = "out"
+delegate = true
 
-[source]
-git = "https://github.com/peios/pkm.git"
-rev = "v{{version}}"
+[source.git]
+url = "https://github.com/peios/pkm.git"
+ref = "v{{version}}"
 # pkm only carries its own pekit files from v0.20.1-rc1 on; earlier tags
 # (≤ v0.20.0-rc2) predate them, so a "*" sweep skips them instead of failing.
 # The floor is written with the prerelease (-rc1, not 0.20.1) deliberately: a
 # bare ">=0.20.1" cap would drop every prerelease — including the only tags that
 # ship today — so the prerelease suffix is what lets RC tags through the cap.
 versions = ">=0.20.1-rc1"
+
 # Local working copy for `--local` (build the in-dev tree, no tag).
 # Relative to this recipe dir; never used by the farm.
-localpath = "../../pkm"
+[source.local]
+path = "../../pkm"
