@@ -5,6 +5,7 @@ name = "fsbase"
 version      = "1.0.0-2"
 architecture = "noarch"
 description  = "Base filesystem - runtime mountpoint and boot-artifact directories"
+license      = "MIT"
 
 # Each directory source packs as an empty-directory entry. Listed explicitly
 # (globs deliberately skip directories — they're for files).

@@ -15,6 +15,7 @@ name         = "feat-dynamic-boot"
 version      = "0.0.1-1"
 architecture = "x86_64"
 description  = "Feature: run mkirf/mkuki in watch form as Dynamic Boot services"
+license      = "MIT"
 
 # feat (runs the lifecycle scripts) and reg/mkirf/mkuki (called by them and by
 # the services) all ship in peiosutils.

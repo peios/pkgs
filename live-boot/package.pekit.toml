@@ -12,3 +12,4 @@ format = "peipkg"
 [package]
 version      = "1.0.0-5"
 architecture = "x86_64"
+license      = "MIT"
