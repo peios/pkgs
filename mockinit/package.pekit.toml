@@ -1,0 +1,12 @@
+format = "peipkg"
+
+[package]
+name         = "mockinit"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "mock PID 1 — a throwaway peinit stand-in for real-root bring-up"
+
+# The build writes the single binary to $PEKIT_OUT/usr/sbin/mockinit; package it
+# verbatim. Runtime deps (libpeios.so.0, libc.so.6) are ELF-derived, not listed.
+[files]
+":usr/sbin/**" = "usr/sbin"

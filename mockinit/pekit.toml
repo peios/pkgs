@@ -1,0 +1,26 @@
+# mock-init — a throwaway PID 1 stand-in for peinit (see src/mock-init.c), to
+# surface real-root init problems before peinit is ready.
+#
+# QUICK-AND-DIRTY BUILD (deliberate, for a throwaway): compile with the host cc
+# against the libpeios dev sysroot peiosutils already carries (deps/{include,lib})
+# instead of going through the Peios toolchain / peipkg provider. That yields an
+# x86_64-linux-gnu binary, but it should still run in the Peios root — the Peios
+# glibc (2.43) is a superset of the host's symbol versions, the loader path
+# matches, and libpeios.so.0 resolves at runtime from the root's own
+# x86_64-linux-peios multiarch dir. If any of those assumptions is wrong, the
+# failure is exactly the kind of thing this mock exists to surface. A real
+# peinit would build through the Peios toolchain; this does not.
+
+out_dir = "out"
+
+[build]
+command = """
+deps="$PEKIT_RECIPE_ROOT/../../peiosutils/deps"
+mkdir -p "$PEKIT_OUT/usr/sbin"
+cc -O2 -Wall -Wextra -rdynamic -o "$PEKIT_OUT/usr/sbin/mockinit" \
+  "$PEKIT_RECIPE_ROOT/src/mock-init.c" \
+  -I"$deps/include" -L"$deps/lib" -lpeios
+"""
+
+[build.dependencies.apt]
+build-essential = "*"

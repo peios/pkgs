@@ -1,0 +1,15 @@
+# e2fsprogs-static — the static archives for consumers that link them directly.
+# Excludes libblkid.a (util-linux-lib's).
+
+[package]
+description = "Ext2/3/4 filesystem utilities - static libraries"
+
+[dependencies]
+e2fsprogs-devel = "{{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/libcom_err.a" = "usr/lib/x86_64-linux-peios/libcom_err.a"
+":usr/lib/x86_64-linux-peios/libss.a"      = "usr/lib/x86_64-linux-peios/libss.a"
+":usr/lib/x86_64-linux-peios/libext2fs.a"  = "usr/lib/x86_64-linux-peios/libext2fs.a"
+":usr/lib/x86_64-linux-peios/libe2p.a"     = "usr/lib/x86_64-linux-peios/libe2p.a"
+":usr/lib/x86_64-linux-peios/libuuid.a"    = "usr/lib/x86_64-linux-peios/libuuid.a"

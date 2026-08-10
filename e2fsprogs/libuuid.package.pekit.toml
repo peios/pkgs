@@ -1,0 +1,13 @@
+# libuuid — runtime shared library from the e2fsprogs source tree.
+
+[package]
+description = "DCE-compatible UUID runtime library (libuuid)"
+license     = "BSD-3-Clause"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+# Versioned runtime lib + soname symlink; the unversioned dev .so is -devel's,
+# the static .a is -static's.
+":usr/lib/x86_64-linux-peios/libuuid.so.*" = "usr/lib/x86_64-linux-peios"

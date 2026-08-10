@@ -1,0 +1,34 @@
+# e2fsprogs-devel — headers, the dev .so symlinks, and pkg-config files for
+# building against libcom_err/libss/libext2fs/libe2p/libuuid. Excludes the
+# blkid header/.pc/.so — those are util-linux-lib's (libblkid-devel).
+
+[package]
+description = "Ext2/3/4 filesystem utilities - development files"
+
+[dependencies]
+libcom-err = "{{version}}"
+libss      = "{{version}}"
+libext2fs  = "{{version}}"
+libe2p     = "{{version}}"
+libuuid    = "{{version}}"
+
+[files]
+":usr/include/et/**"        = "usr/include/et"
+":usr/include/com_err.h"    = "usr/include/com_err.h"
+":usr/include/ss/**"        = "usr/include/ss"
+":usr/include/ext2fs/**"    = "usr/include/ext2fs"
+":usr/include/e2p/**"       = "usr/include/e2p"
+":usr/include/uuid/**"      = "usr/include/uuid"
+# Unversioned dev .so symlinks (listed explicitly so the versioned runtime libs
+# are not double-claimed, and so libblkid.so is not picked up).
+":usr/lib/x86_64-linux-peios/libcom_err.so"         = "usr/lib/x86_64-linux-peios/libcom_err.so"
+":usr/lib/x86_64-linux-peios/libss.so"              = "usr/lib/x86_64-linux-peios/libss.so"
+":usr/lib/x86_64-linux-peios/libext2fs.so"          = "usr/lib/x86_64-linux-peios/libext2fs.so"
+":usr/lib/x86_64-linux-peios/libe2p.so"             = "usr/lib/x86_64-linux-peios/libe2p.so"
+":usr/lib/x86_64-linux-peios/libuuid.so"            = "usr/lib/x86_64-linux-peios/libuuid.so"
+# pkg-config (blkid.pc is util-linux-lib's).
+":usr/lib/x86_64-linux-peios/pkgconfig/com_err.pc"  = "usr/lib/x86_64-linux-peios/pkgconfig/com_err.pc"
+":usr/lib/x86_64-linux-peios/pkgconfig/ss.pc"       = "usr/lib/x86_64-linux-peios/pkgconfig/ss.pc"
+":usr/lib/x86_64-linux-peios/pkgconfig/ext2fs.pc"   = "usr/lib/x86_64-linux-peios/pkgconfig/ext2fs.pc"
+":usr/lib/x86_64-linux-peios/pkgconfig/e2p.pc"      = "usr/lib/x86_64-linux-peios/pkgconfig/e2p.pc"
+":usr/lib/x86_64-linux-peios/pkgconfig/uuid.pc"     = "usr/lib/x86_64-linux-peios/pkgconfig/uuid.pc"

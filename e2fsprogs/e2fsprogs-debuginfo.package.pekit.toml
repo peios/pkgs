@@ -1,0 +1,14 @@
+# e2fsprogs-debuginfo — separated debug symbols for the e2fsprogs tools AND the
+# libraries built from this source (libcom_err/libss/libext2fs/libe2p/libuuid),
+# build-id-indexed under /usr/lib/debug/.build-id/ (gdb/debuginfod locate them by
+# the binary's build-id). One umbrella -debuginfo for the whole source tree, like
+# util-linux-lib; split per-binary-package (Fedora model) only if needed later.
+
+[package]
+description = "Ext2/3/4 filesystem utilities - debugging symbols"
+
+[dependencies]
+e2fsprogs = "{{version}}"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

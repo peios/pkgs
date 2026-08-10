@@ -1,0 +1,183 @@
+diff --git a/misc/Makefile.in b/misc/Makefile.in
+index 2d5be8c..da0a093 100644
+--- a/misc/Makefile.in
++++ b/misc/Makefile.in
+@@ -281,7 +281,7 @@ mklost+found: $(MKLPF_OBJS)
+ mke2fs: $(MKE2FS_OBJS) $(DEPLIBS) $(LIBE2P) $(DEPLIBBLKID) $(DEPLIBUUID) \
+ 		$(LIBEXT2FS)
+ 	$(E) "	LD $@"
+-	$(Q) $(CC) $(ALL_LDFLAGS) -o mke2fs $(MKE2FS_OBJS) $(LIBS) $(LIBBLKID) \
++	$(Q) $(CC) $(ALL_LDFLAGS) -o mke2fs $(MKE2FS_OBJS) -lpeios $(LIBS) $(LIBBLKID) \
+ 		$(LIBUUID) $(LIBEXT2FS) $(LIBE2P) $(LIBINTL) \
+ 		$(SYSLIBS) $(LIBMAGIC) $(LIBARCHIVE)
+ 
+diff --git a/misc/mke2fs.c b/misc/mke2fs.c
+index f24076b..199f965 100644
+--- a/misc/mke2fs.c
++++ b/misc/mke2fs.c
+@@ -52,6 +52,7 @@ extern int optind;
+ 
+ #include "ext2fs/ext2_fs.h"
+ #include "ext2fs/ext2fsP.h"
++#include <peios/security.h>
+ #include "uuid/uuid.h"
+ #include "util.h"
+ #include "support/nls-enable.h"
+@@ -92,6 +93,8 @@ static int	num_backups = 2; /* number of backup bg's for sparse_super2 */
+ static uid_t	root_uid;
+ static mode_t 	root_perms = (mode_t)-1;
+ static gid_t	root_gid;
++static void	*root_sd;		/* binary Security Descriptor for the root dir */
++static size_t	root_sd_len;
+ int	journal_size;
+ int	journal_flags;
+ int	journal_fc_size;
+@@ -490,6 +493,108 @@ static void write_inode_tables(ext2_filsys fs, int lazy_flag, int itable_zeroed)
+ 		write_reserved_inodes(fs);
+ }
+ 
++/*
++ * Peios: stamp an explicit Security Descriptor on the root directory (and
++ * lost+found) at format time. The OS rootfs gets a deterministic SD rather
++ * than one synthesised at mount; foreign/removable media still rely on
++ * mount-time synthesis. The SD is given as SDDL (-E root_sddl= inline, or
++ * -E root_sd_file= for a file whose contents may contain commas) and parsed
++ * to the binary wire form via libpeios, then written to the canonical
++ * security.peios.sd xattr by direct libext2fs manipulation (which bypasses
++ * the host VFS/LSM and the kernel SD-xattr seal alike).
++ */
++static void set_root_sd_from_sddl(const char *sddl)
++{
++	ssize_t n = peios_sddl_parse_sd(NULL, 0, sddl);
++
++	if (n < 0) {
++		fprintf(stderr, _("Invalid root SDDL: '%s'\n"), sddl);
++		exit(1);
++	}
++	free(root_sd);
++	root_sd = malloc(n);
++	if (!root_sd) {
++		fprintf(stderr, "%s",
++			_("Couldn't allocate memory for root security descriptor\n"));
++		exit(1);
++	}
++	if (peios_sddl_parse_sd(root_sd, n, sddl) != n) {
++		fprintf(stderr, _("Failed to parse root SDDL: '%s'\n"), sddl);
++		exit(1);
++	}
++	root_sd_len = (size_t) n;
++}
++
++static void set_root_sd_from_file(const char *path)
++{
++	FILE	*fp;
++	long	sz;
++	char	*txt;
++
++	fp = fopen(path, "r");
++	if (!fp) {
++		fprintf(stderr, _("Cannot open root_sd_file '%s': %s\n"),
++			path, strerror(errno));
++		exit(1);
++	}
++	if (fseek(fp, 0, SEEK_END) != 0 || (sz = ftell(fp)) < 0 ||
++	    fseek(fp, 0, SEEK_SET) != 0) {
++		fprintf(stderr, _("Cannot size root_sd_file '%s'\n"), path);
++		exit(1);
++	}
++	txt = malloc((size_t) sz + 1);
++	if (!txt) {
++		fprintf(stderr, "%s", _("Couldn't allocate memory\n"));
++		exit(1);
++	}
++	if (fread(txt, 1, (size_t) sz, fp) != (size_t) sz) {
++		fprintf(stderr, _("Cannot read root_sd_file '%s'\n"), path);
++		exit(1);
++	}
++	fclose(fp);
++	txt[sz] = 0;
++	/* Trim trailing newline(s) so a one-line SDDL file parses cleanly. */
++	while (sz > 0 && (txt[sz - 1] == '\n' || txt[sz - 1] == '\r'))
++		txt[--sz] = 0;
++	set_root_sd_from_sddl(txt);
++	free(txt);
++}
++
++static void stamp_root_sd(ext2_filsys fs, ext2_ino_t ino)
++{
++	struct ext2_xattr_handle	*h;
++	errcode_t			retval;
++
++	if (!root_sd)
++		return;
++
++	retval = ext2fs_xattrs_open(fs, ino, &h);
++	if (retval) {
++		com_err("ext2fs_xattrs_open", retval,
++			_("while opening inode %u to set its security descriptor"),
++			ino);
++		exit(1);
++	}
++	retval = ext2fs_xattrs_read(h);
++	if (retval) {
++		com_err("ext2fs_xattrs_read", retval,
++			_("while reading xattrs of inode %u"), ino);
++		exit(1);
++	}
++	retval = ext2fs_xattr_set(h, "security.peios.sd", root_sd, root_sd_len);
++	if (retval) {
++		com_err("ext2fs_xattr_set", retval,
++			_("while setting security descriptor on inode %u"), ino);
++		exit(1);
++	}
++	retval = ext2fs_xattrs_close(&h);
++	if (retval) {
++		com_err("ext2fs_xattrs_close", retval,
++			_("while closing inode %u"), ino);
++		exit(1);
++	}
++}
++
+ static void create_root_dir(ext2_filsys fs)
+ {
+ 	errcode_t		retval;
+@@ -533,6 +638,8 @@ static void create_root_dir(ext2_filsys fs)
+ 			exit(1);
+ 		}
+ 	}
++
++	stamp_root_sd(fs, EXT2_ROOT_INO);
+ }
+ 
+ static void create_lost_and_found(ext2_filsys fs)
+@@ -571,6 +678,8 @@ static void create_lost_and_found(ext2_filsys fs)
+ 			exit(1);
+ 		}
+ 	}
++
++	stamp_root_sd(fs, ino);
+ }
+ 
+ static void create_bad_block_inode(ext2_filsys fs, badblocks_list bb_list)
+@@ -1104,6 +1213,12 @@ static void parse_extended_opts(struct ext2_super_block *param,
+ 			if (arg) {
+ 				root_perms = strtoul(arg, &p, 8);
+ 			}
++		} else if (!strcmp(token, "root_sddl")) {
++			if (arg)
++				set_root_sd_from_sddl(arg);
++		} else if (!strcmp(token, "root_sd_file")) {
++			if (arg)
++				set_root_sd_from_file(arg);
+ 		} else if (!strcmp(token, "discard")) {
+ 			discard = 1;
+ 		} else if (!strcmp(token, "nodiscard")) {
+@@ -1189,6 +1304,8 @@ static void parse_extended_opts(struct ext2_super_block *param,
+ 			"\tlazy_journal_init=<0 to disable, 1 to enable>\n"
+ 			"\troot_owner=<uid of root dir>:<gid of root dir>\n"
+ 			"\troot_perms=<octal root directory permissions>\n"
++			"\troot_sddl=<SDDL security descriptor for root dir>\n"
++			"\troot_sd_file=<file with SDDL for root dir>\n"
+ 			"\ttest_fs\n"
+ 			"\tdiscard\n"
+ 			"\tnodiscard\n"

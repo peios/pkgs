@@ -1,0 +1,42 @@
+# e2fsprogs — the ext2/3/4 filesystem tools: mke2fs (+ mkfs.ext{2,3,4}), e2fsck
+# (+ fsck.ext{2,3,4}), tune2fs, resize2fs, dumpe2fs, debugfs, badblocks, blkid,
+# findfs, e2image, e2undo, e2label, filefrag, logsave, and the e2scrub helpers.
+# Patched for Peios: mke2fs grows -E root_sddl=/root_sd_file= and SD-aware -d,
+# both via libpeios (a libpeios.so.0 runtime dep is auto-derived from mke2fs/
+# debugfs — satisfiable once libpeios publishes a package).
+
+# libblkid.3 documents the libblkid library, which e2fsprogs does NOT ship
+# (util-linux-lib owns libblkid) — drop it from the usr/share/man/** glob so we
+# don't carry a man page for an absent library.
+excludes = [
+  ":usr/share/man/man3/libblkid.3",
+]
+
+[package]
+description = "Ext2/3/4 filesystem utilities"
+license     = "GPL-2.0-or-later"
+
+[dependencies]
+glibc      = ">= 2.43"
+libcom-err = "{{version}}"
+libss      = "{{version}}"
+libext2fs  = "{{version}}"
+libe2p     = "{{version}}"
+libuuid    = "{{version}}"
+# libblkid.so.1 comes from util-linux-lib (e2fsprogs' bundled copy is unshipped).
+libblkid   = "*"
+
+[files]
+":usr/sbin/**"            = "usr/sbin"
+":usr/bin/**"             = "usr/bin"
+":usr/libexec/**"         = "usr/libexec"
+":usr/lib/x86_64-linux-peios/e2initrd_helper"     = "usr/lib/x86_64-linux-peios/e2initrd_helper"
+# NOTE: mke2fs.conf / e2scrub.conf are config, not package payload — Peios
+# projects config from the registry (/etc is generated; see peios-config-
+# philosophy). The Patch 3 deltas (inode_size 512, ea_inode, drop acl) are the
+# CONTENT SPEC for that registry entry; delivering it is a separate config step.
+# Left unclaimed here so the payload stays §3.4.1-compliant.
+":usr/share/man/**"       = "usr/share/man"
+":usr/share/info/**"      = "usr/share/info"
+":usr/share/et/**"        = "usr/share/et"
+":usr/share/ss/**"        = "usr/share/ss"

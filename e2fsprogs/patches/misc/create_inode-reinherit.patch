@@ -1,0 +1,198 @@
+diff --git a/debugfs/Makefile.in b/debugfs/Makefile.in
+index 9b402f0..8731db3 100644
+--- a/debugfs/Makefile.in
++++ b/debugfs/Makefile.in
+@@ -65,7 +65,7 @@ all:: $(PROGS) $(MANPAGES)
+ 
+ debugfs: $(DEBUG_OBJS) $(DEPLIBS)
+ 	$(E) "	LD $@"
+-	$(Q) $(CC) $(ALL_LDFLAGS) -o debugfs $(DEBUG_OBJS) $(LIBS)
++	$(Q) $(CC) $(ALL_LDFLAGS) -o debugfs $(DEBUG_OBJS) -lpeios $(LIBS)
+ 
+ debugfs.static: $(DEBUG_OBJS) $(STATIC_DEPLIBS)
+ 	$(E) "	LD $@"
+diff --git a/misc/create_inode.c b/misc/create_inode.c
+index 4e292a2..d1c645b 100644
+--- a/misc/create_inode.c
++++ b/misc/create_inode.c
+@@ -37,6 +37,7 @@
+ 
+ #include "create_inode.h"
+ #include "support/nls-enable.h"
++#include <peios/security.h>
+ 
+ #include "create_inode_libarchive.h"
+ 
+@@ -201,6 +202,13 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
+ 		const char *name = &list[i];
+ 		char *value;
+ 
++		/* Peios: the SD is not copied verbatim — user.peios.sd is the
++		 * out-of-band explicit-SD carrier and security.peios.sd is
++		 * computed by reinheritance; set_inode_sd() handles both. */
++		if (!strcmp(name, "user.peios.sd") ||
++		    !strcmp(name, "security.peios.sd"))
++			continue;
++
+ 		value_size = lgetxattr(filename, name, NULL, 0);
+ 		if (value_size == -1) {
+ 			retval = errno;
+@@ -245,6 +253,108 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
+ 	}
+ 	return retval;
+ }
++
++/*
++ * Peios: SD-aware population for `-d`. Compute this inode's Security Descriptor
++ * by reinheriting from its parent in the NEW filesystem, using the source node's
++ * explicit (creator) SD as the base. The source carries that explicit SD in the
++ * user.peios.sd xattr — the portable staging carrier: security.peios.sd is sealed
++ * on a live Peios fs and needs CAP_SYS_ADMIN on a Linux build host, user.* is
++ * neither. The populate walk is top-down, so the parent's security.peios.sd is
++ * already written. peios_sd_reinherit() is pure userspace (no live KACS), so this
++ * works offline on any host; the result is written to the canonical
++ * security.peios.sd by direct libext2fs manipulation, bypassing the host VFS/LSM
++ * and the kernel SD seal alike.
++ */
++static errcode_t set_inode_sd(ext2_filsys fs, ext2_ino_t ino,
++			      ext2_ino_t parent_ino, const char *filename,
++			      int is_container)
++{
++	errcode_t			retval, cret;
++	struct ext2_xattr_handle	*h = NULL;
++	void				*pval = NULL, *parent_sd = NULL;
++	void				*child = NULL, *newsd = NULL;
++	size_t				parent_len = 0;
++	ssize_t				child_len, n;
++
++	/* 1. The source node's explicit/creator SD (out-of-band carrier). */
++	child_len = lgetxattr(filename, "user.peios.sd", NULL, 0);
++	if (child_len <= 0)
++		return 0;		/* nothing staged for this node */
++	retval = ext2fs_get_mem(child_len, &child);
++	if (retval)
++		return retval;
++	if (lgetxattr(filename, "user.peios.sd", child, child_len) != child_len) {
++		ext2fs_free_mem(&child);
++		return 0;
++	}
++
++	/* 2. Parent's SD from the new image; copy it out, then close. */
++	retval = ext2fs_xattrs_open(fs, parent_ino, &h);
++	if (retval) {
++		ext2fs_free_mem(&child);
++		return (retval == EXT2_ET_MISSING_EA_FEATURE) ? 0 : retval;
++	}
++	retval = ext2fs_xattrs_read(h);
++	if (!retval &&
++	    ext2fs_xattr_get(h, "security.peios.sd", &pval, &parent_len) == 0) {
++		retval = ext2fs_get_mem(parent_len, &parent_sd);
++		if (!retval)
++			memcpy(parent_sd, pval, parent_len);
++		ext2fs_free_mem(&pval);
++	}
++	cret = ext2fs_xattrs_close(&h);
++	if (!retval)
++		retval = cret;
++	if (retval)
++		goto out;
++
++	/* 3. With a parent SD, reinherit; else use the explicit SD verbatim. */
++	if (parent_sd) {
++		n = peios_sd_reinherit(NULL, 0, parent_sd, parent_len,
++				       child, child_len, is_container);
++		if (n < 0) {
++			retval = EINVAL;
++			goto out;
++		}
++		retval = ext2fs_get_mem(n, &newsd);
++		if (retval)
++			goto out;
++		if (peios_sd_reinherit(newsd, n, parent_sd, parent_len,
++				       child, child_len, is_container) != n) {
++			retval = EINVAL;
++			goto out;
++		}
++	} else {
++		n = child_len;
++		retval = ext2fs_get_mem(n, &newsd);
++		if (retval)
++			goto out;
++		memcpy(newsd, child, n);
++	}
++
++	/* 4. Write security.peios.sd onto the child inode. */
++	retval = ext2fs_xattrs_open(fs, ino, &h);
++	if (retval) {
++		if (retval == EXT2_ET_MISSING_EA_FEATURE)
++			retval = 0;
++		goto out;
++	}
++	retval = ext2fs_xattrs_read(h);
++	if (retval)
++		goto out;
++	retval = ext2fs_xattr_set(h, "security.peios.sd", newsd, n);
++out:
++	if (h) {
++		cret = ext2fs_xattrs_close(&h);
++		if (!retval)
++			retval = cret;
++	}
++	ext2fs_free_mem(&parent_sd);
++	ext2fs_free_mem(&child);
++	ext2fs_free_mem(&newsd);
++	return retval;
++}
+ #else /* HAVE_LLISTXATTR */
+ static errcode_t set_inode_xattr(ext2_filsys fs EXT2FS_ATTR((unused)),
+ 				 ext2_ino_t ino EXT2FS_ATTR((unused)),
+@@ -252,6 +362,15 @@ static errcode_t set_inode_xattr(ext2_filsys fs EXT2FS_ATTR((unused)),
+ {
+ 	return 0;
+ }
++
++static errcode_t set_inode_sd(ext2_filsys fs EXT2FS_ATTR((unused)),
++			      ext2_ino_t ino EXT2FS_ATTR((unused)),
++			      ext2_ino_t parent_ino EXT2FS_ATTR((unused)),
++			      const char *filename EXT2FS_ATTR((unused)),
++			      int is_container EXT2FS_ATTR((unused)))
++{
++	return 0;
++}
+ #endif  /* HAVE_LLISTXATTR */
+ 
+ #ifndef _WIN32
+@@ -970,6 +1089,17 @@ find_lnf:
+ 				com_err(name, retval, 0);
+ 					goto out;
+ 			}
++			/* Peios: stamp the dir SD BEFORE recursing, so its
++			 * children reinherit from a parent SD that already
++			 * exists in the image (populate sets dir metadata
++			 * bottom-up otherwise). Re-set at the bottom too, in
++			 * case set_inode_extra rewrites the inode. */
++			retval = set_inode_sd(fs, ino, parent_ino, name, 1);
++			if (retval) {
++				com_err(__func__, retval, _("while setting "
++					"security descriptor for \"%s\""), name);
++				goto out;
++			}
+ 			/* Populate the dir recursively*/
+ 			retval = __populate_fs(fs, ino, name, root, hdlinks,
+ 					       target, fs_callbacks);
+@@ -1008,6 +1138,15 @@ find_lnf:
+ 			goto out;
+ 		}
+ 
++		retval = set_inode_sd(fs, ino, parent_ino, name,
++				      S_ISDIR(st.st_mode));
++		if (retval) {
++			com_err(__func__, retval,
++				_("while setting security descriptor for \"%s\""),
++				name);
++			goto out;
++		}
++
+ 		if (fs_callbacks && fs_callbacks->end_create_new_inode) {
+ 			retval = fs_callbacks->end_create_new_inode(fs,
+ 				target->path, name, parent_ino, root,

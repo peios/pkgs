@@ -1,0 +1,19 @@
+# Base metadata shared by every e2fsprogs sub-package. Each
+# <name>.package.pekit.toml inherits these and overrides as needed (its own
+# description, and the per-library license).
+#
+# e2fsprogs fans into: the e2fsprogs tools, the four support libraries
+# (libcom_err/libss/libext2fs/libe2p) + libuuid, the -devel and -static sets.
+# It deliberately does NOT ship libblkid — util-linux-lib owns libblkid.so.1;
+# e2fsprogs' bundled copy is built but left unclaimed, and the tools resolve
+# the platform libblkid at runtime (see the recipe's lib-dedup note).
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+# Mixed: the programs are GPL-2.0; libext2fs/libe2p are LGPL-2.0; libcom_err/
+# libss are MIT; libuuid is BSD-3-Clause. Per-package members narrow this.
+license      = "GPL-2.0-or-later AND LGPL-2.0-or-later AND BSD-3-Clause AND MIT"
+homepage     = "http://e2fsprogs.sourceforge.net/"
