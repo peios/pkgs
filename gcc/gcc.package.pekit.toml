@@ -27,6 +27,10 @@ libgcc          = "{{version}}"
 binutils        = ">= 2.46"
 "glibc-devel"   = ">= 2.43"
 "kernel-headers" = ">= 6.16"
+# GCC 16 injects -latomic_asneeded into every link by default
+# (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
+# script is part of the compiler's own contract, like libgcc.
+"libatomic-devel" = "{{version}}"
 
 [files]
 # License texts (distro convention: /usr/share/licenses/<name>/).
