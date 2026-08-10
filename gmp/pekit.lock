@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "6.3.0"
+  url = "https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz"
+  sha256 = "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898"
+  locked_at = "2026-08-10T15:04:52Z"

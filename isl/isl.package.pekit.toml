@@ -1,5 +1,9 @@
 # isl — runtime: libisl.so.23. Links libgmp.
 
+# The files glob also catches the gdb pretty-printer; it needs printer
+# modules not shipped in phase 1, so drop it (version-agnostic).
+excludes = [":usr/lib/x86_64-linux-peios/*-gdb.py"]
+
 [package]
 description = "Integer Set Library"
 
@@ -9,6 +13,3 @@ gmp   = ">= 6.3.0"
 
 [files]
 ":usr/lib/x86_64-linux-peios/libisl.so.23*" = "usr/lib/x86_64-linux-peios"
-# The glob also catches the gdb pretty-printer; it needs printer modules not
-# shipped in phase 1, so drop it (version-agnostic).
-exclude = [":usr/lib/x86_64-linux-peios/*-gdb.py"]

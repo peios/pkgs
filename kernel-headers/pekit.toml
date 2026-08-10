@@ -48,9 +48,13 @@ find "$PEKIT_OUT/usr/include" -type d -empty -delete
 
 # Build deps. headers_install just needs make plus a host C compiler (to build
 # the scripts/unifdef host tool that sanitizes the UAPI headers). No debug split.
+# rsync: the kernel's headers_install has copied via rsync since 5.3.
+# Ambient on the old host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
 gcc = "*"
 make = "*"
+rsync = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
+rsync = "*"

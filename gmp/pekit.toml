@@ -88,16 +88,20 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # m4 to expand its hand-written .asm into the FAT runtime-dispatch routines. The
 # post-install debug split adds debugedit + patchelf (binutils strip/objcopy/
 # readelf ride along with the compiler). No external library deps (gmp is a leaf).
+# bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
+# Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
 gcc = "*"
 "gcc-c++" = "*"
 make = "*"
 m4 = "*"
+bison = "*"
 debugedit = "*"
 patchelf = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 m4 = "*"
+bison = "*"
 debugedit = "*"
 patchelf = "*"
