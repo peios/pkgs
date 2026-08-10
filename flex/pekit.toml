@@ -1,0 +1,38 @@
+# flex — the fast lexical analyser generator; elfutils' and gcc's rebuilds
+# feed on it (AC_PROG_LEX).
+#
+# Phase-2a tool (PEI-155): plain autotools from the release tarball,
+# out-of-source via DESTDIR (the m4 shape). The tarball ships the
+# pre-generated scanner/parser, and pekit's mtime-preserving extraction
+# keeps the maintainer regen rules inert — bison/m4 are declared for the
+# regeneration path anyway. flex 2.6 shells out to m4 at runtime, so m4 is
+# a package dependency, not just a build one.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/westes/flex/releases/download/v{{version}}/flex-{{version}}.tar.gz"
+extract  = true
+root     = "flex-{{version}}"
+versions = ">= 2.6.4"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+bison = "*"
+m4 = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bison = "*"
+m4 = "*"

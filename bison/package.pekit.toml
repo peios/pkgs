@@ -1,0 +1,25 @@
+format = "peipkg"
+
+[package]
+name         = "bison"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU Bison - the parser generator (yacc successor)"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/bison/"
+
+# bison execs m4 at runtime (skeleton processing) — a hard runtime dep.
+[dependencies]
+glibc = ">= 2.43"
+m4    = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/bison/"
+":usr/bin/**"        = "usr/bin"
+# The m4 skeletons bison feeds to m4 at runtime — required, not docs.
+":usr/share/bison/**" = "usr/share/bison"
+# liby.a: the tiny static yacc convenience lib (-ly: main/yyerror stubs).
+# Static-only and part of yacc's historical contract, so it rides in the
+# main package rather than a -static split.
+":usr/lib/x86_64-linux-peios/liby.a" = "usr/lib/x86_64-linux-peios/liby.a"
+":usr/share/man/**"  = "usr/share/man"

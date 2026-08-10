@@ -1,0 +1,16 @@
+# flex — the generator itself + the runtime shared lib.
+
+[package]
+name        = "flex"
+description = "flex - the fast lexical analyser generator"
+
+# flex 2.6 execs m4 at runtime — a hard runtime dep.
+[dependencies]
+glibc = ">= 2.43"
+m4    = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/flex/"
+":usr/bin/**"       = "usr/bin"
+":usr/lib/x86_64-linux-peios/libfl.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/share/man/**" = "usr/share/man"

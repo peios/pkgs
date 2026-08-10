@@ -1,0 +1,14 @@
+# flex-devel — the link-time pieces for programs built against libfl
+# (-lfl: the default-main/yywrap stubs) and the C++ scanner base class.
+
+[package]
+name        = "flex-devel"
+description = "flex - libfl link library and FlexLexer.h"
+
+[dependencies]
+flex = "{{version}}"
+
+[files]
+":usr/include/FlexLexer.h"                = "usr/include/FlexLexer.h"
+":usr/lib/x86_64-linux-peios/libfl.so"    = "usr/lib/x86_64-linux-peios/libfl.so"
+":usr/lib/x86_64-linux-peios/libfl.a"     = "usr/lib/x86_64-linux-peios/libfl.a"
