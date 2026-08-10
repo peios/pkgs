@@ -9,4 +9,6 @@ glibc = ">= 2.43"
 gmp = ">= 6.3.0"
 
 [files]
+# License texts (distro convention: /usr/share/licenses/<name>/).
+"@source:COPYING*" = "usr/share/licenses/mpfr/"
 ":usr/lib/x86_64-linux-peios/libmpfr.so.6*" = "usr/lib/x86_64-linux-peios"

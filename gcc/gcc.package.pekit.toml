@@ -29,6 +29,8 @@ binutils        = ">= 2.46"
 "kernel-headers" = ">= 6.16"
 
 [files]
+# License texts (distro convention: /usr/share/licenses/<name>/).
+"@source:COPYING*" = "usr/share/licenses/gcc/"
 # Driver + coverage/archive wrappers. Exclude the C++ drivers (gcc-c++) and the
 # standalone preprocessor (cpp).
 ":usr/bin/**" = "usr/bin"

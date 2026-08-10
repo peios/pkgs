@@ -12,6 +12,8 @@ description = "Compression library (zlib-ng native API) - shared library (libz-n
 glibc = ">= 2.43"
 
 [files]
+# License text (distro convention: /usr/share/licenses/<name>/).
+"@source:LICENSE.md" = "usr/share/licenses/zlib-ng/"
 # SONAME symlink (libz-ng.so.2) + real object (libz-ng.so.2.3.3). Excludes the
 # dev libz-ng.so symlink and the static libz-ng.a.
 ":usr/lib/x86_64-linux-peios/libz-ng.so.2*" = "usr/lib/x86_64-linux-peios"

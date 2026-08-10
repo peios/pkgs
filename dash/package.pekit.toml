@@ -25,6 +25,8 @@ path   = "/usr/bin/sh"
 glibc = ">= 2.43"
 
 [files]
+# License text (distro convention: /usr/share/licenses/<name>/).
+"@source:COPYING" = "usr/share/licenses/dash/"
 # `make install DESTDIR=` lays the tree into the build stage; carve the binary
 # and its man page (`:` = the "main" build's output).
 ":usr/bin/dash"               = "usr/bin/dash"

@@ -37,6 +37,9 @@ description = "GNU C Library - shared libraries and dynamic loader"
 # via a `dynamic-linker` claim; the merge subsumes it).
 
 [files]
+# License texts (distro convention: /usr/share/licenses/<name>/).
+"@source:COPYING*" = "usr/share/licenses/glibc/"
+"@source:LICENSES" = "usr/share/licenses/glibc/"
 # All programs — usrmerge folds the former sbin tools (ldconfig, nscd, zic, ...)
 # into /usr/bin. The profiling/tracing utilities are split into glibc-utils via
 # the exclude list below.
