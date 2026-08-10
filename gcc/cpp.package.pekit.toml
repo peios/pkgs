@@ -15,7 +15,7 @@ description = "The C Preprocessor"
 glibc       = ">= 2.43"
 gmp         = ">= 6.3.0"
 mpfr        = ">= 4.2"
-"libmpc"    = ">= 1.3"
+mpc         = ">= 1.3"
 isl         = ">= 0.27"
 zlib        = ">= 2.3.3"
 
