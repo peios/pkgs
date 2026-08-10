@@ -1,0 +1,71 @@
+# peipkg-compose manifest — the Peios sysroot for the milestone-2 gcc build.
+#
+# Composes glibc + the toolchain bignums (all built locally) into a populated
+# Peios root that the Peios-target gcc configures against via --with-sysroot:
+# headers at <root>/usr/include, libs + crt at <root>/usr/lib/x86_64-linux-peios.
+#
+# Bootstrap path: every package comes from local_packages (our own .peipkg build
+# output) — no repository, no network. Resolve from this recipe dir (pkgs/gcc):
+#   peipkg-compose build sysroot.toml --out _sysroot
+
+schema      = 1
+arch        = "x86_64"
+source_date = "2026-06-15T00:00:00Z"
+
+# .peipkg build output that forms the candidate set. Bignums + glibc + the gcc
+# runtime (libstdc++/libgcc, pulled in as gmp's deps).
+local_packages = [
+  "../glibc/out/*/package/*/*.peipkg",
+  "../gcc/out/*/package/*/*.peipkg",
+  "../gmp/out/*/package/*/*.peipkg",
+  "../mpfr/out/*/package/*/*.peipkg",
+  "../mpc/out/*/package/*/*.peipkg",
+  "../isl/out/*/package/*/*.peipkg",
+  "../kernel-headers/out/*/package/*/*.peipkg",
+  "../zlib-ng/out/*/package/*/*.peipkg",
+]
+
+# Top-level wants; the resolver pulls in their transitive deps (e.g. gmp-devel ->
+# gmp -> libstdc++ -> libgcc -> glibc). gcc's build needs the bignum HEADERS and
+# .so link symlinks (the -devel packages), not just the runtime libs — plus the
+# static archives so a milestone-2 gcc can link the bignums into cc1 statically.
+# The Linux UAPI headers (linux/, asm/, asm-generic/) that glibc's own headers
+# #include — without these the cross-gcc can't even preprocess <stdio.h>.
+[[package]]
+name    = "kernel-headers"
+version = "*"
+[[package]]
+name    = "glibc-devel"
+version = "*"
+[[package]]
+name    = "glibc-static"
+version = "*"
+[[package]]
+name    = "gmp-devel"
+version = "*"
+[[package]]
+name    = "gmp-static"
+version = "*"
+[[package]]
+name    = "mpfr-devel"
+version = "*"
+[[package]]
+name    = "mpfr-static"
+version = "*"
+[[package]]
+name    = "mpc-devel"
+version = "*"
+[[package]]
+name    = "mpc-static"
+version = "*"
+[[package]]
+name    = "isl-devel"
+version = "*"
+[[package]]
+name    = "isl-static"
+version = "*"
+# zlib (compat libz.so.1) + headers: binutils' libbfd and gcc's libbacktrace/LTO
+# link the system zlib (--with-system-zlib) when host=peios.
+[[package]]
+name    = "zlib-devel"
+version = "*"

@@ -7,7 +7,7 @@
 # Tarball source (the binutils-gdb git repo is huge and bundles gdb; the release
 # tarball is binutils-only and ships configure). Versions are 2- or 3-component.
 #
-#   nix develop ./_flake#binutils -c pekit build --version 2.46.1
+#   pekit package --all --env debian --version 2.46.1
 
 out_dir = "out"
 
@@ -27,17 +27,19 @@ versions   = ">= 2.46"
 #   --with-system-zlib        : link Peios's system libz, don't bundle one.
 #   --disable-werror          : binutils warns on modern gcc.
 # PREREQUISITE: the Pass-1 cross toolchain + composed sysroot must exist:
-#   nix develop ./_flake#cross -c sh pkgs/gcc/_cross/build-cross.sh
+#   cd pkgs/gcc && peipkg-compose build sysroot.toml --out _sysroot
+#   sh pkgs/gcc/_cross/run-pass1.sh
 [build.main]
 command = """
 SRC="$(pwd)"
 TRIPLET=x86_64-linux-peios
 
 # Pass 2 of the milestone-2 Canadian cross: build the SHIPPED binutils so it
-# RUNS on Peios (host=peios), using the Pass-1 nix->peios cross toolchain (from
-# pkgs/gcc/_cross/build-cross.sh) as the compiler. The cross tools + the composed
-# sysroot live beside the gcc recipe; PEKIT_OUT is <recipe>/out/<ver>/build/main,
-# so strip from "/out/" on to find the recipe root, then hop to ../gcc.
+# RUNS on Peios (host=peios), using the Pass-1 debian->peios cross toolchain
+# (from pkgs/gcc/_cross/build-cross.sh) as the compiler. The cross tools + the
+# composed sysroot live beside the gcc recipe; PEKIT_OUT is
+# <recipe>/out/<ver>/build/main, so strip from "/out/" on to find the recipe
+# root, then hop to ../gcc.
 GCC_DIR="${PEKIT_OUT%%/out/*}/../gcc"
 CROSS="$GCC_DIR/_cross/tools"
 SYSROOT="$GCC_DIR/_sysroot"
@@ -45,11 +47,11 @@ SYSROOT="$GCC_DIR/_sysroot"
 [ -f "$SYSROOT/usr/include/zlib.h" ] || { echo "binutils: sysroot missing zlib.h — recompose pkgs/gcc/sysroot.toml" >&2; exit 1; }
 export PATH="$CROSS/bin:$PATH"
 
-# The nix shell EXPORTS CC/CXX/AR/... pointing at nix's wrapped tools. binutils'
-# configure honours those env vars OVER its --host detection, so without this the
-# host binaries link against nix's glibc + loader (wrong interp). Unset them so
-# the Canadian cross resolves the prefixed cross tools ($TRIPLET-gcc, -ar, ...)
-# for host code; CC_FOR_BUILD still finds nix's gcc on PATH for build helpers.
+# Defensive: exported CC/CXX/AR/... would override configure's --host tool
+# detection and link the host binaries against the build box's toolchain
+# defaults. The Debian container exports none, but keep the cross honest so
+# configure resolves the prefixed cross tools ($TRIPLET-gcc, -ar, ...) for
+# host code; CC_FOR_BUILD still finds the container's gcc on PATH.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE
 
 # config.sub must accept the peios host/target triplet.

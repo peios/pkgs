@@ -9,11 +9,11 @@
 excludes = [
   # C++ drivers -> gcc-c++; standalone preprocessor -> cpp.
   ":usr/bin/g++", ":usr/bin/c++",
-  ":usr/bin/x86_64-pc-linux-gnu-g++", ":usr/bin/x86_64-pc-linux-gnu-c++",
+  ":usr/bin/x86_64-linux-peios-g++", ":usr/bin/x86_64-linux-peios-c++",
   ":usr/bin/cpp",
   # cc1 -> cpp; cc1plus -> gcc-c++.
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1",
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1plus",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus",
 ]
 
 [package]
