@@ -16,3 +16,7 @@ gcc/_cross/build/
 gcc/_sysroot/
 # peipkg-compose lock: regenerated per machine; pins absolute local out/ paths.
 sysroot.lock.toml
+
+# Local dev package-signing key material (PEI-154); never commit.
+/dev-signing.key
+/dev-signing.pub
