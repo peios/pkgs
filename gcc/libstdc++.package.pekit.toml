@@ -5,6 +5,11 @@
 #
 # A glob source ("so.6*") maps to a DIRECTORY; an exact source to a FULL path.
 
+# The glob above also catches the gdb pretty-printer (libstdc++.so.6.0.NN-gdb.py).
+# It auto-loads from the lib dir but needs the python printer modules, which phase
+# 1 doesn't ship — so drop it (version-agnostic glob).
+excludes = [":usr/lib/x86_64-linux-peios/*-gdb.py"]
+
 [package]
 description = "GNU Standard C++ Library (libstdc++.so.6)"
 
@@ -19,7 +24,3 @@ glibc  = ">= 2.43"
 # SONAME symlink (libstdc++.so.6) + the real object (libstdc++.so.6.0.NN). The
 # unversioned dev .so symlink is libstdc++-devel's.
 ":usr/lib/x86_64-linux-peios/libstdc++.so.6*" = "usr/lib/x86_64-linux-peios"
-# The glob above also catches the gdb pretty-printer (libstdc++.so.6.0.NN-gdb.py).
-# It auto-loads from the lib dir but needs the python printer modules, which phase
-# 1 doesn't ship — so drop it (version-agnostic glob).
-exclude = [":usr/lib/x86_64-linux-peios/*-gdb.py"]

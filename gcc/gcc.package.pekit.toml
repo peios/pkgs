@@ -6,6 +6,16 @@
 #
 # A ":path/**" glob maps to a DIRECTORY; an exact-file source to a FULL path.
 
+excludes = [
+  # C++ drivers -> gcc-c++; standalone preprocessor -> cpp.
+  ":usr/bin/g++", ":usr/bin/c++",
+  ":usr/bin/x86_64-pc-linux-gnu-g++", ":usr/bin/x86_64-pc-linux-gnu-c++",
+  ":usr/bin/cpp",
+  # cc1 -> cpp; cc1plus -> gcc-c++.
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1plus",
+]
+
 [package]
 description = "Various compilers (C)"
 
@@ -35,12 +45,3 @@ binutils        = ">= 2.46"
 # Docs + driver data.
 ":usr/share/gcc-{{version}}/**" = "usr/share/gcc-{{version}}"
 
-exclude = [
-  # C++ drivers -> gcc-c++; standalone preprocessor -> cpp.
-  ":usr/bin/g++", ":usr/bin/c++",
-  ":usr/bin/x86_64-linux-peios-g++", ":usr/bin/x86_64-linux-peios-c++",
-  ":usr/bin/cpp",
-  # cc1 -> cpp; cc1plus -> gcc-c++.
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1",
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus",
-]

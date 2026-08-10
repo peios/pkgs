@@ -17,7 +17,7 @@ gcc               = "{{version}}"
 # The C++ drivers (g++ + the c++ alias, prefixed + unprefixed).
 ":usr/bin/g++"                       = "usr/bin/g++"
 ":usr/bin/c++"                       = "usr/bin/c++"
-":usr/bin/x86_64-linux-peios-g++"    = "usr/bin/x86_64-linux-peios-g++"
-":usr/bin/x86_64-linux-peios-c++"    = "usr/bin/x86_64-linux-peios-c++"
+":usr/bin/x86_64-pc-linux-gnu-g++"    = "usr/bin/x86_64-pc-linux-gnu-g++"
+":usr/bin/x86_64-pc-linux-gnu-c++"    = "usr/bin/x86_64-pc-linux-gnu-c++"
 # The C++ compiler core.
-":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus"
+":usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1plus" = "usr/lib/x86_64-linux-peios/gcc/x86_64-pc-linux-gnu/{{version}}/cc1plus"
