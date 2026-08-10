@@ -1,0 +1,10 @@
+# build-essentials — stacked build-environment meta-packages (PEI-155).
+#
+# Pure metas: no source, no build, no files — only dependencies. A composed
+# build root is the dependency closure of what a recipe declares, so these
+# packages ARE the ambient floor other distros make implicit (Debian
+# build-essential, Alpine build-base, Arch base-devel). Unlike all of those,
+# the baseline deliberately excludes the C toolchain: compilers live in the
+# per-language stacks (-c, -c++, and -rust etc. as toolchains arrive).
+
+out_dir = "out"

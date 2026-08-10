@@ -1,0 +1,14 @@
+# The C++ floor: stacks the C++ compiler and standard-library headers on the
+# C floor.
+
+[package]
+name        = "build-essentials-c++"
+description = "Build environment for C++ - adds g++ and the C++ standard library headers"
+
+[dependencies]
+build-essentials-c = "*"
+"gcc-c++"          = "*"
+"libstdc++-devel"  = "*"
+
+[files]
+"@recipe:docs/build-essentials-c++.txt" = "usr/share/doc/build-essentials-c++/README"

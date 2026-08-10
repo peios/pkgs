@@ -1,0 +1,21 @@
+# The ambient userland floor: shell + tools every build may assume without
+# declaring. No toolchain — that's the per-language stacks' job. make is
+# baseline by decision: it's a general orchestrator (Makefiles drive far more
+# than C), not a C artifact.
+
+[package]
+name        = "build-essentials"
+description = "Build environment baseline - shell and userland every build may assume"
+
+[dependencies]
+dash      = "*"
+coreutils = "*"
+sed       = "*"
+grep      = "*"
+gawk      = "*"
+findutils = "*"
+diffutils = "*"
+make      = "*"
+
+[files]
+"@recipe:docs/build-essentials.txt" = "usr/share/doc/build-essentials/README"

@@ -1,0 +1,4 @@
+build-essentials-c++ — the build floor for C++, stacked on
+build-essentials-c.
+
+Adds g++ and the C++ standard library headers: gcc-c++, libstdc++-devel.

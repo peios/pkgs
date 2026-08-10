@@ -1,0 +1,9 @@
+# Shared defaults layer for the build-essentials members (a bare
+# package.pekit.toml is never a package once named members exist).
+
+format = "peipkg"
+
+[package]
+version      = "1.0.0-1"
+architecture = "noarch"
+license      = "MIT"

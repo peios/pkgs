@@ -1,0 +1,20 @@
+# The C floor: compiler, assembler/linker, libc + kernel headers, and the
+# debug-split pipeline (strip/objcopy via binutils, debugedit, patchelf) that
+# every C recipe's package step invokes. glibc-devel pins only glibc, so
+# kernel-headers is declared here (the libc6-dev -> linux-libc-dev precedent).
+
+[package]
+name        = "build-essentials-c"
+description = "Build environment for C - compiler, binutils, libc and kernel headers, debug-split tools"
+
+[dependencies]
+build-essentials = "*"
+gcc              = "*"
+binutils         = "*"
+glibc-devel      = "*"
+kernel-headers   = "*"
+debugedit        = "*"
+patchelf         = "*"
+
+[files]
+"@recipe:docs/build-essentials-c.txt" = "usr/share/doc/build-essentials-c/README"

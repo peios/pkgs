@@ -1,0 +1,5 @@
+build-essentials-c — the build floor for C, stacked on build-essentials.
+
+Pulls the compiler and everything a C recipe's build and package steps
+assume: gcc, binutils, glibc-devel, kernel-headers, and the debug-split
+pipeline tools (debugedit, patchelf).
