@@ -1,0 +1,3 @@
+# Peios gettext patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+gnulib/glibc-const-generics.patch  # all 20 bundled gnulib copies vs glibc >= 2.43 _Generic const-correctness macros

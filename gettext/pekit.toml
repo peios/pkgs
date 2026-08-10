@@ -1,0 +1,48 @@
+# gettext — GNU gettext: msgfmt and the i18n toolbox; the glibc closure
+# rebuild feeds on msgfmt (libc message catalogs).
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape), with every optional integration switched off —
+# Java/C#, curses (libtextstyle colour), git/xz-reliant autopoint archive
+# left in but autopoint is not packaged. The bundled libxml/libunistring
+# fallbacks engage automatically in the pristine root (no system copies),
+# keeping the dependency claim at glibc alone. glibc provides libintl, so
+# no libintl ships on Peios.
+#
+# gnulib/glibc-const-generics: 0.26's bundled gnulib predates the upstream
+# fix (2025-11-23, df17f4f3) for glibc >= 2.43's _Generic const-correctness
+# macros; the same #undef patch as m4's, replicated per bundled gnulib copy.
+# Drop when a gettext release bundles a fixed gnulib.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/gettext/gettext-{{version}}.tar.xz"
+extract  = true
+root     = "gettext-{{version}}"
+versions = ">= 0.26"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --disable-nls \
+  --disable-java --disable-csharp --disable-curses \
+  --without-emacs --disable-openmp --disable-rpath
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+"""
+
+# gzip: gettext-tools/misc gzips autopoint's version archive at build time
+# (the archive itself is not packaged — autopoint is dropped).
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+gzip = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gzip = "*"

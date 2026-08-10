@@ -1,0 +1,372 @@
+diff -ur a/gettext-runtime/gnulib-lib/stdlib.in.h b/gettext-runtime/gnulib-lib/stdlib.in.h
+--- a/gettext-runtime/gnulib-lib/stdlib.in.h
++++ b/gettext-runtime/gnulib-lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/gnulib-lib/string.in.h b/gettext-runtime/gnulib-lib/string.in.h
+--- a/gettext-runtime/gnulib-lib/string.in.h
++++ b/gettext-runtime/gnulib-lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/gnulib-lib/wchar.in.h b/gettext-runtime/gnulib-lib/wchar.in.h
+--- a/gettext-runtime/gnulib-lib/wchar.in.h
++++ b/gettext-runtime/gnulib-lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/intl/gnulib-lib/stdlib.in.h b/gettext-runtime/intl/gnulib-lib/stdlib.in.h
+--- a/gettext-runtime/intl/gnulib-lib/stdlib.in.h
++++ b/gettext-runtime/intl/gnulib-lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/intl/gnulib-lib/string.in.h b/gettext-runtime/intl/gnulib-lib/string.in.h
+--- a/gettext-runtime/intl/gnulib-lib/string.in.h
++++ b/gettext-runtime/intl/gnulib-lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/intl/gnulib-lib/wchar.in.h b/gettext-runtime/intl/gnulib-lib/wchar.in.h
+--- a/gettext-runtime/intl/gnulib-lib/wchar.in.h
++++ b/gettext-runtime/intl/gnulib-lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/libasprintf/gnulib-lib/stdlib.in.h b/gettext-runtime/libasprintf/gnulib-lib/stdlib.in.h
+--- a/gettext-runtime/libasprintf/gnulib-lib/stdlib.in.h
++++ b/gettext-runtime/libasprintf/gnulib-lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/libasprintf/gnulib-lib/string.in.h b/gettext-runtime/libasprintf/gnulib-lib/string.in.h
+--- a/gettext-runtime/libasprintf/gnulib-lib/string.in.h
++++ b/gettext-runtime/libasprintf/gnulib-lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-runtime/libasprintf/gnulib-lib/wchar.in.h b/gettext-runtime/libasprintf/gnulib-lib/wchar.in.h
+--- a/gettext-runtime/libasprintf/gnulib-lib/wchar.in.h
++++ b/gettext-runtime/libasprintf/gnulib-lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/gnulib-lib/stdlib.in.h b/gettext-tools/gnulib-lib/stdlib.in.h
+--- a/gettext-tools/gnulib-lib/stdlib.in.h
++++ b/gettext-tools/gnulib-lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/gnulib-lib/string.in.h b/gettext-tools/gnulib-lib/string.in.h
+--- a/gettext-tools/gnulib-lib/string.in.h
++++ b/gettext-tools/gnulib-lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/gnulib-lib/wchar.in.h b/gettext-tools/gnulib-lib/wchar.in.h
+--- a/gettext-tools/gnulib-lib/wchar.in.h
++++ b/gettext-tools/gnulib-lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/libgettextpo/stdlib.in.h b/gettext-tools/libgettextpo/stdlib.in.h
+--- a/gettext-tools/libgettextpo/stdlib.in.h
++++ b/gettext-tools/libgettextpo/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/libgettextpo/string.in.h b/gettext-tools/libgettextpo/string.in.h
+--- a/gettext-tools/libgettextpo/string.in.h
++++ b/gettext-tools/libgettextpo/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/libgettextpo/wchar.in.h b/gettext-tools/libgettextpo/wchar.in.h
+--- a/gettext-tools/libgettextpo/wchar.in.h
++++ b/gettext-tools/libgettextpo/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/libgrep/gnulib-lib/stdlib.in.h b/gettext-tools/libgrep/gnulib-lib/stdlib.in.h
+--- a/gettext-tools/libgrep/gnulib-lib/stdlib.in.h
++++ b/gettext-tools/libgrep/gnulib-lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/gettext-tools/libgrep/gnulib-lib/wchar.in.h b/gettext-tools/libgrep/gnulib-lib/wchar.in.h
+--- a/gettext-tools/libgrep/gnulib-lib/wchar.in.h
++++ b/gettext-tools/libgrep/gnulib-lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/libtextstyle/lib/stdlib.in.h b/libtextstyle/lib/stdlib.in.h
+--- a/libtextstyle/lib/stdlib.in.h
++++ b/libtextstyle/lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/libtextstyle/lib/string.in.h b/libtextstyle/lib/string.in.h
+--- a/libtextstyle/lib/string.in.h
++++ b/libtextstyle/lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/libtextstyle/lib/wchar.in.h b/libtextstyle/lib/wchar.in.h
+--- a/libtextstyle/lib/wchar.in.h
++++ b/libtextstyle/lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
