@@ -1,6 +1,7 @@
 # pekit build artifacts: per-recipe staging trees + the published-package pool
 out/
 _pkgsOut_/
+_pkgsOut_.presigning-bak/
 # Legacy publish-pool name (superseded by _pkgsOut_/); never commit the pool.
 pkgsOut/
 
