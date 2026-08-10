@@ -5,9 +5,9 @@ format = "peipkg"
 
 [package]
 version      = "1.0.0-1"
-# x86_64, not noarch, and necessarily so: §4.1.3 (PSD-009 v0.22) resolves a
-# dependency only against the depender's own architecture or noarch, so a
-# noarch meta can never pull x86_64 packages. Debian's build-essential is
-# arch-specific for the same reason — the floor is per-architecture.
+# x86_64 by choice, not necessity (since the §4.1.3 clarification, noarch
+# dependers resolve against the primary architecture): the floor genuinely
+# is per-architecture — an arm64 system wants an arm64 gcc — and Debian's
+# build-essential is arch-specific for the same reason.
 architecture = "x86_64"
 license      = "MIT"
