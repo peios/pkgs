@@ -6,7 +6,8 @@
 # mkfs.* write a Linux-compatible on-disk format Peios deliberately mirrors —
 # they sit BELOW the security seam (mount is the seam, not mkfs). See the
 # mkfs-e2fsprogs-packaging design note. What Peios needs on top of stock
-# e2fsprogs is a small maintained patchset (SDs-are-xattrs), carried pkm-style:
+# e2fsprogs is a small maintained patchset (SDs-are-xattrs), carried as a
+# pekit patch series:
 #
 #   * -E root_sd=<blob>  : stamp an explicit Security Descriptor on the root
 #                          inode (+ lost+found) at format time — the OS rootfs
@@ -15,55 +16,26 @@
 #                          libpeios peios_sd_reinherit() during the populate walk
 #                          (pure userspace; no live kernel/KACS needed).
 #
-# Patch dev follows pkm/: build the `source` target to materialise the patched
-# (today: pristine) tree, read it, write diffs into patches/ + series.
+# Patch dev: `pekit lock --version 1.47.2` materialises the patched checkout
+# under out/ (pekit applies patches/series during source materialisation);
+# edit there and regenerate diffs into patches/. pekit applies strictly — no
+# fuzz — so on a version bump a stale patch fails loudly; rebase it manually
+# against the new tag.
 #
 #   nix develop ./_flake#e2fsprogs -c pekit build --version 1.47.2
 
 out_dir = "out"
 
-# Single source of truth for the upstream e2fsprogs version. build.upstream
-# clones this exact tag; patches/ are generated against it, so a bump means
-# re-rebasing the series (apply-patches.sh fails loudly if a patch no longer
-# applies — re-run with E2FSPROGS_PATCH_3WAY=1 to surface conflicts as .rej).
-[env]
-E2FSPROGS_VERSION = "v1.47.2"
+# Pinned upstream: v{{version}} tags on the canonical kernel.org repo, the
+# resolved commit TOFU-pinned in pekit.lock. patches/series is applied to the
+# checkout before any build target runs.
+[source]
+patches = "patches"
 
-# --- upstream: pristine clone of the pinned tag over HTTPS ------------------
-[build.upstream]
-command = """
-git clone --depth 1 --branch "$E2FSPROGS_VERSION" \
-	https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git \
-	"$PEKIT_OUT"
-"""
-
-[build.upstream.dependencies.peipkg]
-git = "*"
-ca-certificates = "*"
-
-[build.upstream.dependencies.apt]
-git = "*"
-ca-certificates = "*"
-
-# --- source: pristine tree + Peios patch series, .git stripped --------------
-[build.source]
-needs = ["upstream"]
-command = """
-PATCHES="$(pwd)/patches"
-cp -aT "$PEKIT_UPSTREAM_OUT" "$PEKIT_OUT"
-./apply-patches.sh "$PEKIT_OUT" "$PATCHES"
-# .git is only needed for `git apply` above; strip it so the staged source is a
-# plain tree (e2fsprogs' version.h carries the literal version, no git needed).
-rm -rf "$PEKIT_OUT/.git"
-"""
-
-[build.source.dependencies.peipkg]
-git = "*"
-patch = "*"
-
-[build.source.dependencies.apt]
-git = "*"
-patch = "*"
+[source.git]
+url = "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git"
+ref = "v{{version}}"
+tag_regex = '^v\d+\.\d+(\.\d+)?$'
 
 # --- main: out-of-source configure/make/install -----------------------------
 # Minimal scaffold build: prove the pinned tree compiles in the pekit env
@@ -77,7 +49,6 @@ patch = "*"
 # The debug-split pipeline + per-library .package.pekit.toml fan-out land once
 # the patchset is in; they are orthogonal to patch development.
 [build.main]
-needs = ["source"]
 command = """
 # libpeios (for the Peios patches) comes from the vendored deps/ tree — the
 # build bridge until the root self-hosts libpeios-devel + kernel-headers. Inject
@@ -91,7 +62,7 @@ DEPS="$(pwd)/deps"
   exit 1
 }
 
-SRC="$PEKIT_SOURCE_OUT"
+SRC="$PEKIT_SOURCE_ROOT"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" CC="gcc -g -I$DEPS/include -L$DEPS/lib" \
@@ -109,8 +80,8 @@ find "$PEKIT_OUT/usr" -name '*.la' -delete
 # build path (-> /usr/src/debug/e2fsprogs) and records referenced sources;
 # split debug info build-id-indexed under usr/lib/debug/.build-id; strip the
 # shipped ELF; stage the referenced sources. The .c sources live in
-# $PEKIT_SOURCE_OUT (the compiler saw absolute paths to it).
-SRCROOT="$PEKIT_SOURCE_OUT"
+# $PEKIT_SOURCE_ROOT (the compiler saw absolute paths to it).
+SRCROOT="$PEKIT_SOURCE_ROOT"
 cd "$PEKIT_OUT"
 : > "$PEKIT_OUT/.srclist"
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do

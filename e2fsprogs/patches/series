@@ -1,7 +1,5 @@
-# Peios e2fsprogs patch series — applied in order by apply-patches.sh.
-# Planned, in dependency order:
-#   misc/mke2fs-root-sd.patch          # -E root_sddl=/root_sd_file= : stamp root SD at format (libpeios SDDL parse)
-#   misc/create_inode-reinherit.patch  # -d : libpeios peios_sd_reinherit walk  [TODO]
-misc/mke2fs-root-sd.patch
-misc/create_inode-reinherit.patch
+# Peios e2fsprogs patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml). In dependency order:
+misc/mke2fs-root-sd.patch          # -E root_sddl=/root_sd_file= : stamp root SD at format (libpeios SDDL parse)
+misc/create_inode-reinherit.patch  # -d : libpeios peios_sd_reinherit walk
 misc/mke2fs.conf-peios-defaults.patch
