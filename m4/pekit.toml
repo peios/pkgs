@@ -5,6 +5,13 @@
 
 out_dir = "out"
 
+# gnulib/glibc-const-generics: 1.4.20's bundled gnulib redeclares functions
+# that glibc >= 2.43 turns into _Generic const-correctness macros whenever
+# _GNU_SOURCE is set (it implies _ISOC23_SOURCE, so -std can't opt out).
+# Drop when an m4 release bundles a gnulib with the upstream fix.
+[source]
+patches = "patches"
+
 [source.url]
 url      = "https://ftp.gnu.org/gnu/m4/m4-{{version}}.tar.xz"
 extract  = true
@@ -22,8 +29,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

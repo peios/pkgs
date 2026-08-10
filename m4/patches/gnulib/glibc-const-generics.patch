@@ -1,0 +1,56 @@
+diff -ur a/lib/stdlib.in.h b/lib/stdlib.in.h
+--- a/lib/stdlib.in.h
++++ b/lib/stdlib.in.h
+@@ -52,6 +52,12 @@
+ #ifndef _@GUARD_PREFIX@_STDLIB_H
+ #define _@GUARD_PREFIX@_STDLIB_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef bsearch
++
+ /* This file uses _Noreturn, _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE,
+    _GL_INLINE_HEADER_BEGIN, GNULIB_POSIXCHECK, HAVE_RAW_DECL_*.  */
+diff -ur a/lib/string.in.h b/lib/string.in.h
+--- a/lib/string.in.h
++++ b/lib/string.in.h
+@@ -44,6 +44,16 @@
+ #ifndef _@GUARD_PREFIX@_STRING_H
+ #define _@GUARD_PREFIX@_STRING_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef memchr
++#undef strchr
++#undef strpbrk
++#undef strrchr
++#undef strstr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
+diff -ur a/lib/wchar.in.h b/lib/wchar.in.h
+--- a/lib/wchar.in.h
++++ b/lib/wchar.in.h
+@@ -87,6 +87,16 @@
+ #ifndef _@GUARD_PREFIX@_WCHAR_H
+ #define _@GUARD_PREFIX@_WCHAR_H
+ 
++/* glibc >= 2.43 with _GNU_SOURCE (which implies _ISOC23_SOURCE) defines
++   qualifier-generic macros for these functions (__glibc_const_generic);
++   they break this header's plain redeclarations.  Drop the macros — the
++   underlying functions are unchanged.  */
++#undef wcschr
++#undef wcspbrk
++#undef wcsrchr
++#undef wcsstr
++#undef wmemchr
++
+ /* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_MALLOC,
+    _GL_ATTRIBUTE_NOTHROW, _GL_ATTRIBUTE_PURE, GNULIB_POSIXCHECK,
+    HAVE_RAW_DECL_*.  */
