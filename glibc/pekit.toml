@@ -8,12 +8,13 @@
 # then globs the staged tree selectively (the build scratch left in $PEKIT_OUT
 # never matches the usr/** install globs, the same way figlet's package does).
 #
-# Build deps are NOT declared here — `pekit build` is run inside a nix-shell that
-# provides the toolchain, e.g.:
-#   nix-shell -p gcc binutils gnumake bison gawk gnused gnugrep python3 perl texinfo gettext debugedit linuxHeaders
-# Kernel headers come from that shell (linuxHeaders); from libc's point of view
-# they're vanilla Linux, so we don't pass --with-headers and let the compiler
-# wrapper supply them.
+# Build deps are declared per-provider below; the environment selected with
+# --env decides which set provisions. The clean-room path is
+# `pekit package --all --env debian` (PEI-156): a pristine Debian container
+# installs exactly the apt list. Kernel headers come from the environment
+# (linux-libc-dev there, kernel-headers under the peipkg provider); from
+# libc's point of view they're vanilla Linux, so we don't pass
+# --with-headers and let the compiler supply them.
 
 out_dir = "out"
 
@@ -76,7 +77,7 @@ make install DESTDIR="$PEKIT_OUT"
 # class of leak as rpath — and source paths don't resolve on a target) and lists
 # the sources it references; objcopy then splits the clean DWARF into
 # /usr/lib/debug/.build-id/ and strip removes it. Build-id notes come from the
-# env (NIX_LDFLAGS --build-id). Static archives (*.a) just get --strip-debug
+# toolchain (Debian's gcc defaults to --build-id; under nix it was NIX_LDFLAGS). Static archives (*.a) just get --strip-debug
 # (keeps the symtab so they still link; DWARF discarded, since archive members
 # have no build-id to index — like Fedora's brp-strip-static-archive); *.o and
 # non-ELF files are left alone. Then the referenced sources are copied under
