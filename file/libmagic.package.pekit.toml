@@ -1,0 +1,15 @@
+# libmagic — the type-detection library + the compiled magic database it
+# reads at runtime.
+
+[package]
+name        = "libmagic"
+description = "file - libmagic type-detection library and magic database"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/libmagic/"
+":usr/lib/x86_64-linux-peios/libmagic.so.1*" = "usr/lib/x86_64-linux-peios"
+":usr/share/misc/**"     = "usr/share/misc"
+":usr/share/man/man4/**" = "usr/share/man/man4"

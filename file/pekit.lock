@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "5.48"
+  url = "https://astron.com/pub/file/file-5.48.tar.gz"
+  sha256 = "ed14656883b23a364b4057c05595d93252da9bc473d30106519519d0da141283"
+  locked_at = "2026-08-10T23:31:51Z"

@@ -1,0 +1,14 @@
+# file-devel — magic.h, the libmagic.so link, and pkg-config metadata.
+
+[package]
+name        = "file-devel"
+description = "file - libmagic headers and link library"
+
+[dependencies]
+libmagic = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libmagic.so"  = "usr/lib/x86_64-linux-peios/libmagic.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"                   = "usr/share/man/man3"

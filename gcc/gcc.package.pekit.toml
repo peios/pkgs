@@ -19,6 +19,17 @@ excludes = [
 [package]
 description = "Various compilers (C)"
 
+# gcc holds the `cc` role: the well-known name make's default CC and
+# countless plain Makefiles invoke. Upstream gcc never installs it —
+# distros add it — and like `sh` it's a contended name a future clang
+# could claim, so it's a role, not a shipped file.
+[provides]
+cc = "1"
+
+[claims.provides.cc.usrbin]
+target = "/usr/bin/gcc"
+path   = "/usr/bin/cc"
+
 [dependencies]
 # cc1 lives in cpp; as/ld come from binutils; the startup objects + libgcc are
 # the compiler's own runtime; compiling C needs the libc + kernel headers.

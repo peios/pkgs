@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "2.5.1"
+  url = "https://distfiles.ariadne.space/pkgconf/pkgconf-2.5.1.tar.xz"
+  sha256 = "cd05c9589b9f86ecf044c10a2269822bc9eb001eced2582cfffd658b0a50c243"
+  locked_at = "2026-08-10T23:32:03Z"

@@ -1,0 +1,44 @@
+# pkgconf — the modern pkg-config implementation (zero deps beyond libc);
+# elfutils' and debugedit's configures hard-require the pkg-config tool.
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape). --disable-shared statically links libpkgconf
+# into the binary — one self-contained tool, no lib package; the dev bits
+# of libpkgconf itself (headers/.a/.pc) are dropped after install since
+# nothing consumes the library. --libdir drives the default .pc search path
+# (libdir/pkgconfig + share/pkgconfig); the system-libdir/-includedir
+# settings make pkgconf elide -L/-I flags for the system locations. A
+# pkg-config compatibility symlink is installed — configure scripts look
+# for either name. Ships share/aclocal/pkg.m4 (PKG_CHECK_MODULES).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://distfiles.ariadne.space/pkgconf/pkgconf-{{version}}.tar.xz"
+extract  = true
+root     = "pkgconf-{{version}}"
+versions = ">= 2.5, < 2.9.90"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --disable-shared \
+  --with-system-libdir=/usr/lib/x86_64-linux-peios \
+  --with-system-includedir=/usr/include
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+ln -sfn pkgconf "$PEKIT_OUT/usr/bin/pkg-config"
+ln -sfn pkgconf.1 "$PEKIT_OUT/usr/share/man/man1/pkg-config.1"
+rm -rf "$PEKIT_OUT/usr/include" "$PEKIT_OUT/usr/lib/x86_64-linux-peios/pkgconfig" \
+  "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libpkgconf.a" \
+  "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libpkgconf.la" \
+  "$PEKIT_OUT/usr/share/man/man3" "$PEKIT_OUT/usr/share/doc"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

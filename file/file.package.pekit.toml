@@ -1,0 +1,14 @@
+# file — the command-line identifier.
+
+[package]
+name        = "file"
+description = "file - determine file type"
+
+[dependencies]
+glibc    = ">= 2.43"
+libmagic = "{{version}}"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/file/"
+":usr/bin/**"            = "usr/bin"
+":usr/share/man/man1/**" = "usr/share/man/man1"

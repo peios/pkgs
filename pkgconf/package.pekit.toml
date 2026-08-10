@@ -1,0 +1,22 @@
+format = "peipkg"
+
+[package]
+name         = "pkgconf"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "pkgconf - pkg-config compiler/linker flag resolver"
+license      = "ISC"
+homepage     = "https://gitea.treehouse.systems/ariadne/pkgconf"
+
+# The compatibility name: configure scripts and recipes may ask for either.
+[provides]
+pkg-config = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"    = "usr/share/licenses/pkgconf/"
+":usr/bin/**"        = "usr/bin"
+":usr/share/aclocal/**" = "usr/share/aclocal"
+":usr/share/man/**"  = "usr/share/man"
