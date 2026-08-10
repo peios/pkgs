@@ -1,0 +1,38 @@
+# xz — XZ Utils: the xz tool + liblzma; kernel tarballs and debug-section
+# compression feed on it (elfutils' xz support re-enables against liblzma
+# at the closure rebuild).
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape). Static lib and doc trees off; the grep/diff/
+# less script conveniences are dropped (undeclared runtime deps), keeping
+# xz/unxz/xzcat and the lzma compat names, which are plain symlinks.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/tukaani-project/xz/releases/download/v{{version}}/xz-{{version}}.tar.xz"
+extract  = true
+root     = "xz-{{version}}"
+versions = ">= 5.8"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --disable-static --disable-nls --disable-doc
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+cd "$PEKIT_OUT/usr/bin"
+for f in xzcmp xzdiff xzegrep xzfgrep xzgrep xzless xzmore lzcmp lzdiff lzegrep lzfgrep lzgrep lzless lzmore; do rm -f "$f"; done
+cd "$PEKIT_OUT/usr/share/man/man1"
+for f in xzcmp xzdiff xzegrep xzfgrep xzgrep xzless xzmore lzcmp lzdiff lzegrep lzfgrep lzgrep lzless lzmore; do rm -f "$f.1"; done
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/lib/x86_64-linux-peios/*.la"
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/liblzma.la"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

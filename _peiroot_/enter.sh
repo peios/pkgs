@@ -13,6 +13,11 @@
 # the workspace bound at its host path, keeping every literal PEKIT_*
 # path in the script valid inside. The root is composed fresh per
 # invocation and discarded — pristine by construction.
+#
+# FORCE_UNSAFE_CONFIGURE: gnulib's configure refuses to run as root
+# (tar, coreutils, ...). uid 0 inside is this rung's permanent ownership
+# model (peipkg normalises everything to root) and the root is a
+# throwaway, so the check protects nothing here.
 set -eu
 script=${1:?missing wrapped command}
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
@@ -47,5 +52,6 @@ bwrap \
   --clearenv \
   --setenv PATH /usr/bin \
   --setenv HOME /tmp \
+  --setenv FORCE_UNSAFE_CONFIGURE 1 \
   /usr/bin/sh -euc "$script" || status=$?
 exit $status

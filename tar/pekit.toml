@@ -1,0 +1,29 @@
+# tar — the GNU archiver; source unpacking everywhere feeds on it.
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape). rmt (the remote-magtape server, installed to
+# libexec) is a tape-era artifact — dropped.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/tar/tar-{{version}}.tar.xz"
+extract  = true
+root     = "tar-{{version}}"
+versions = ">= 1.35"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/libexec" "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/man/man8"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

@@ -1,0 +1,48 @@
+# bzip2 — the block-sorting compressor; older source tarballs feed on it.
+#
+# Phase-2a tool (PEI-155): NOT autotools — a plain hand-rolled Makefile with
+# no out-of-source support, so the tree is copied into the stage and built
+# there (the LFS dance: shared lib via Makefile-libbz2_so first, clean,
+# then the static build that `make install` wants). Paths are then bent to
+# our layout: bins to usr/bin, libs to the triplet libdir, man to share/man.
+# The bzdiff/bzgrep/bzmore script conveniences are dropped (undeclared
+# runtime deps on grep/less).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://sourceware.org/pub/bzip2/bzip2-{{version}}.tar.gz"
+extract  = true
+root     = "bzip2-{{version}}"
+versions = ">= 1.0.8"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+make -f Makefile-libbz2_so -j"$(nproc)" CFLAGS="-fPIC -O2 -g -D_FILE_OFFSET_BITS=64"
+make clean
+make -j"$(nproc)" CFLAGS="-fPIC -O2 -g -D_FILE_OFFSET_BITS=64"
+make install PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+mkdir -p "$LIBDIR" "$PEKIT_OUT/usr/share"
+cp -a libbz2.so.* "$LIBDIR/"
+ln -sfn "$(basename "$(find "$LIBDIR" -name 'libbz2.so.*.*.*' -type f)")" "$LIBDIR/libbz2.so"
+mv "$PEKIT_OUT/usr/lib/libbz2.a" "$LIBDIR/" && rmdir "$PEKIT_OUT/usr/lib" 2>/dev/null || true
+mv "$PEKIT_OUT/usr/man" "$PEKIT_OUT/usr/share/man"
+cd "$PEKIT_OUT/usr/bin"
+rm -f bzcmp bzdiff bzegrep bzfgrep bzgrep bzless bzmore
+rm -f "$PEKIT_OUT/usr/share/man/man1/bzcmp.1" "$PEKIT_OUT/usr/share/man/man1/bzdiff.1" \
+  "$PEKIT_OUT/usr/share/man/man1/bzgrep.1" "$PEKIT_OUT/usr/share/man/man1/bzmore.1" \
+  "$PEKIT_OUT/usr/share/man/man1/bzless.1" "$PEKIT_OUT/usr/share/man/man1/bzegrep.1" \
+  "$PEKIT_OUT/usr/share/man/man1/bzfgrep.1"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

@@ -1,0 +1,14 @@
+# bzip2 — the tools + the runtime shared lib.
+
+[package]
+name        = "bzip2"
+description = "bzip2 - block-sorting compression (bzip2, bunzip2, bzcat)"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/bzip2/"
+":usr/bin/**"       = "usr/bin"
+":usr/lib/x86_64-linux-peios/libbz2.so.1*" = "usr/lib/x86_64-linux-peios"
+":usr/share/man/**" = "usr/share/man"

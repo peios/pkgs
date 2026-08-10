@@ -1,0 +1,14 @@
+# xz — the command-line tools (xz/unxz/xzcat + lzma compat symlinks).
+
+[package]
+name        = "xz"
+description = "XZ Utils - xz/unxz/xzcat LZMA compression tools"
+
+[dependencies]
+glibc  = ">= 2.43"
+liblzma = "{{version}}"
+
+[files]
+"@source:COPYING*"  = "usr/share/licenses/xz/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

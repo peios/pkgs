@@ -1,0 +1,13 @@
+# bzip2-devel — bzlib.h, the libbz2.so link, and the static archive.
+
+[package]
+name        = "bzip2-devel"
+description = "bzip2 - libbz2 headers and link libraries"
+
+[dependencies]
+bzip2 = "{{version}}"
+
+[files]
+":usr/include/bzlib.h"                     = "usr/include/bzlib.h"
+":usr/lib/x86_64-linux-peios/libbz2.so"    = "usr/lib/x86_64-linux-peios/libbz2.so"
+":usr/lib/x86_64-linux-peios/libbz2.a"     = "usr/lib/x86_64-linux-peios/libbz2.a"
