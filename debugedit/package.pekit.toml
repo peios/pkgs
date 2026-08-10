@@ -1,0 +1,18 @@
+format = "peipkg"
+
+[package]
+name         = "debugedit"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "debugedit - DWARF build-path rewriting for debuginfo packaging"
+license      = "GPL-3.0-or-later"
+homepage     = "https://sourceware.org/debugedit/"
+
+[dependencies]
+glibc    = ">= 2.43"
+elfutils = ">= 0.193"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/debugedit/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

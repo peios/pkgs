@@ -1,0 +1,38 @@
+# findutils — GNU find + xargs.
+#
+# PEIOS-DIVERGENCE(permissions): find's -perm/-user/-group predicates read
+# POSIX modes/ownership, which the peipkg format normalises to 0777/root and
+# KACS supersedes as the authorisation story — the predicates work but carry
+# no security meaning on an installed Peios system. locate/updatedb are NOT
+# packaged: a background index rebuilder is a peinit service decision for
+# later, not a build-base tool.
+#
+# Phase-1 build-base leaf (PEI-155): plain autotools from the release tarball.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/findutils/findutils-{{version}}.tar.xz"
+extract  = true
+root     = "findutils-{{version}}"
+versions = ">= 4.10.0"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/libexec"
+rm -f "$PEKIT_OUT/usr/bin/locate" "$PEKIT_OUT/usr/bin/updatedb" \
+  "$PEKIT_OUT/usr/share/man/man1/locate.1" "$PEKIT_OUT/usr/share/man/man1/updatedb.1" \
+  "$PEKIT_OUT/usr/share/man/man5/locatedb.5"
+"""
+
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

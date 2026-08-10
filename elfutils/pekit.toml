@@ -1,0 +1,40 @@
+# elfutils — libelf/libdw/libasm + the eu-* tools; debugedit's library home.
+#
+# Phase-1 build-base leaf (PEI-155): autotools from the release tarball.
+# debuginfod (client and server) disabled — no curl/network stack in the
+# seed; bzip2/xz/zstd section decompression auto-disable in the pristine
+# root (only zlib is declared), which is the intended phase-1 shape.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://sourceware.org/elfutils/ftp/{{version}}/elfutils-{{version}}.tar.bz2"
+extract  = true
+root     = "elfutils-{{version}}"
+versions = ">= 0.193"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --program-prefix=eu- \
+  --disable-debuginfod --disable-libdebuginfod --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/etc"
+"""
+
+# m4: libcpu generates the i386/x86_64 disassembler defs through m4.
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+m4 = "*"
+pkgconf = "*"
+"zlib-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+m4 = "*"
+pkg-config = "*"
+zlib1g-dev = "*"

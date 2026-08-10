@@ -1,0 +1,28 @@
+# sed — the GNU stream editor.
+#
+# Phase-1 build-base leaf (PEI-155): plain autotools from the release tarball.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/sed/sed-{{version}}.tar.xz"
+extract  = true
+root     = "sed-{{version}}"
+versions = ">= 4.9"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

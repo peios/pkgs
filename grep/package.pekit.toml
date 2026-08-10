@@ -1,0 +1,17 @@
+format = "peipkg"
+
+[package]
+name         = "grep"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU grep - pattern matching (built without PCRE; no -P)"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/grep/"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/grep/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

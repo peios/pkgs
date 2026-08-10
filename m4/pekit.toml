@@ -1,0 +1,29 @@
+# m4 — the GNU macro processor: the `m4` autotools and parser generators feed on.
+#
+# Phase-1 build-base leaf (PEI-155): plain autotools from the release tarball,
+# out-of-source build into the stage via DESTDIR (the dash shape).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/m4/m4-{{version}}.tar.xz"
+extract  = true
+root     = "m4-{{version}}"
+versions = ">= 1.4.20"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

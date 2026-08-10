@@ -1,0 +1,30 @@
+# gawk — GNU awk. glibc's build scripts need GNU awk specifically.
+#
+# Phase-1 build-base leaf (PEI-155): plain autotools from the release tarball.
+# --libdir homes the loadable extensions per PSD-009 §3.4.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/gawk/gawk-{{version}}.tar.xz"
+extract  = true
+root     = "gawk-{{version}}"
+versions = ">= 5.3.1"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios --disable-nls
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

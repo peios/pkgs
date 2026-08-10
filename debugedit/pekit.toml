@@ -1,0 +1,40 @@
+# debugedit — DWARF build-path rewriting + source listing; every recipe's
+# debug-split pipeline invokes it.
+#
+# Phase-1 build-base leaf (PEI-155): autotools from the release tarball.
+# Man pages are help2man-generated at build time (needs perl); acceptable on
+# the apt rung, revisit (disable) for the phase-2 closure rebuild.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://sourceware.org/pub/debugedit/{{version}}/debugedit-{{version}}.tar.xz"
+extract  = true
+root     = "debugedit-{{version}}"
+versions = ">= 5.1"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+"""
+
+# debugedit 5.x hard-requires xxhash (build-id hashing) — xxhash therefore
+# joins the phase-2 packaging list alongside elfutils.
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+pkgconf = "*"
+"elfutils-devel" = "*"
+"xxhash-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config = "*"
+libelf-dev = "*"
+libdw-dev = "*"
+libxxhash-dev = "*"
+help2man = "*"

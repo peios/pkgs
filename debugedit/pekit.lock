@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "5.2"
+  url = "https://sourceware.org/pub/debugedit/5.2/debugedit-5.2.tar.xz"
+  sha256 = "705296803cc4403f38764e891b4ed38f8d8d4f8a9164bd4f86c9d4bedcac68dd"
+  locked_at = "2026-08-10T19:47:48Z"

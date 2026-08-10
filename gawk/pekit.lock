@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "5.3.2"
+  url = "https://ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz"
+  sha256 = "f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc"
+  locked_at = "2026-08-10T19:45:14Z"

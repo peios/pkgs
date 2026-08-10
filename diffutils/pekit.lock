@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "3.12"
+  url = "https://ftp.gnu.org/gnu/diffutils/diffutils-3.12.tar.xz"
+  sha256 = "7c8b7f9fc8609141fdea9cece85249d308624391ff61dedaf528fcb337727dfd"
+  locked_at = "2026-08-10T19:45:57Z"

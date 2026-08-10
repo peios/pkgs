@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "4.10.0"
+  url = "https://ftp.gnu.org/gnu/findutils/findutils-4.10.0.tar.xz"
+  sha256 = "1387e0b67ff247d2abde998f90dfbf70c1491391a59ddfecb8ae698789f0a4f5"
+  locked_at = "2026-08-10T19:45:28Z"

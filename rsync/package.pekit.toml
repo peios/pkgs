@@ -1,0 +1,17 @@
+format = "peipkg"
+
+[package]
+name         = "rsync"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "rsync - fast incremental file transfer (no openssl/xxhash/zstd/lz4)"
+license      = "GPL-3.0-or-later"
+homepage     = "https://rsync.samba.org/"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/rsync/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

@@ -1,0 +1,38 @@
+# rsync — fast file transfer/sync; the kernel's headers_install copies via
+# rsync (>= 5.3), which is what pulls it into the build base.
+#
+# PEIOS-DIVERGENCE(kacs,services): on an installed Peios system rsync's
+# -X/--xattrs path must round-trip KACS security descriptors
+# (security-namespace xattrs, LSM-gated writes) — untested until rung 3 —
+# and daemon mode (rsyncd) would need a peinit service definition. Neither
+# affects the build-base role. openssl/xxhash/zstd/lz4 are explicitly
+# disabled: internal digests suffice and keep the seed's dependency closure
+# tight; rsync-ssl is dropped from the stage with them.
+#
+# Phase-1 build-base leaf (PEI-155): autotools from the release tarball.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://download.samba.org/pub/rsync/src/rsync-{{version}}.tar.gz"
+extract  = true
+root     = "rsync-{{version}}"
+versions = ">= 3.4.1"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --disable-openssl --disable-xxhash --disable-zstd --disable-lz4
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -f "$PEKIT_OUT/usr/bin/rsync-ssl" "$PEKIT_OUT/usr/share/man/man1/rsync-ssl.1"
+"""
+
+[build.main.dependencies.peipkg]
+gcc = "*"
+make = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

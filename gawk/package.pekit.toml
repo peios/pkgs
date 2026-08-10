@@ -1,0 +1,19 @@
+format = "peipkg"
+
+[package]
+name         = "gawk"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU awk - pattern scanning and processing (provides the awk link)"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/gawk/"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/gawk/"
+":usr/bin/**"                    = "usr/bin"
+":usr/lib/x86_64-linux-peios/**" = "usr/lib/x86_64-linux-peios"
+":usr/share/awk/**"              = "usr/share/awk"
+":usr/share/man/**"              = "usr/share/man"
