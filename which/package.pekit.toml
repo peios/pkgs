@@ -1,0 +1,18 @@
+format = "peipkg"
+
+[package]
+name         = "which"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU which - locate a command on PATH"
+license      = "GPL-3.0-or-later"
+homepage     = "https://carlowood.github.io/which/"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/which/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

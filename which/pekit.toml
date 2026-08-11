@@ -1,0 +1,31 @@
+# which — locate a command on PATH; half the world's Makefiles feature-
+# probe with `which foo` (cpupower's msgfmt check was the pool's first
+# casualty — coreutils does not ship which, Debian's comes from
+# debianutils). PEI-158 Tier 2.
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). 2.23+ is Carlo Wood's C++ rewrite — c++ floor, libstdc++ runtime.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/which/which-{{version}}.tar.gz"
+extract  = true
+root     = "which-{{version}}"
+versions = ">= 2.25"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
