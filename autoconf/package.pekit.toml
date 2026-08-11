@@ -1,0 +1,19 @@
+format = "peipkg"
+
+[package]
+name         = "autoconf"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU autoconf - configure script generator"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/autoconf/"
+
+[dependencies]
+m4   = ">= 1.4"
+perl = ">= 5.44"
+
+[files]
+"@source:COPYING"          = "usr/share/licenses/autoconf/"
+":usr/bin/**"              = "usr/bin"
+":usr/share/autoconf/**"   = "usr/share/autoconf"
+":usr/share/man/**"        = "usr/share/man"

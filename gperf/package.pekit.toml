@@ -1,0 +1,18 @@
+format = "peipkg"
+
+[package]
+name         = "gperf"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU gperf - perfect hash function generator"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/gperf/"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/gperf/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

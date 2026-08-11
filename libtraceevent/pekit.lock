@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.9.0"
+  url = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/snapshot/libtraceevent-1.9.0.tar.gz"
+  sha256 = "e6d82cb2392d04866203387fa092692e4282ccc36c8235dc129afd1ceba12684"
+  locked_at = "2026-08-11T13:20:33Z"

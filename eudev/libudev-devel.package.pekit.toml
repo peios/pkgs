@@ -1,0 +1,13 @@
+# libudev-devel — libudev.h, the .so link, and pkg-config metadata.
+
+[package]
+name        = "libudev-devel"
+description = "libudev - headers and link library (eudev)"
+
+[dependencies]
+libudev = "{{version}}"
+
+[files]
+":usr/include/libudev.h"                   = "usr/include/libudev.h"
+":usr/lib/x86_64-linux-peios/libudev.so"   = "usr/lib/x86_64-linux-peios/libudev.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

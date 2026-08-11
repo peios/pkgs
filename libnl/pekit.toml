@@ -1,0 +1,42 @@
+# libnl — netlink protocol library suite; intel-speed-select links
+# libnl-genl-3 and libthermal drives the thermal netlink through it
+# (PEI-158 Tier 2, wave 3).
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). CLI tools off (undeclared conveniences); flex/bison regenerate
+# the classifier lexers. Release tag spells the version with underscores —
+# the {{major}}/{{minor}}/{{patch}} template variables rebuild it.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/thom311/libnl/releases/download/libnl{{major}}_{{minor}}_{{patch}}/libnl-{{version}}.tar.gz"
+extract  = true
+root     = "libnl-{{version}}"
+versions = ">= 3.12"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --mandir=/usr/share/man \
+  --libdir="$LIBDIR" --sysconfdir=/etc \
+  --disable-cli --disable-static
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/etc"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+flex = "*"
+bison = "*"
+pkgconf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+flex = "*"
+bison = "*"
+pkg-config = "*"

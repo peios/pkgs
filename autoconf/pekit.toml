@@ -1,0 +1,32 @@
+# autoconf — configure-script generator; usbip's in-tree autogen.sh runs
+# it (PEI-158 Tier 2, wave 3).
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). Pure perl+m4 scripts at runtime — both declared.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/autoconf/autoconf-{{version}}.tar.xz"
+extract  = true
+root     = "autoconf-{{version}}"
+versions = ">= 2.72"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials = "*"
+m4 = "*"
+perl = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+m4 = "*"

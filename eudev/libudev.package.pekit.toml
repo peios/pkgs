@@ -1,0 +1,14 @@
+# libudev — the device-enumeration runtime library (from eudev; usbip's
+# hard requirement). The udev daemon itself is deliberately unpackaged —
+# init-system territory, separate decision.
+
+[package]
+name        = "libudev"
+description = "libudev - device enumeration runtime library (eudev)"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/libudev/"
+":usr/lib/x86_64-linux-peios/libudev.so.1*" = "usr/lib/x86_64-linux-peios"

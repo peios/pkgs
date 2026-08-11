@@ -1,0 +1,42 @@
+# eudev — the autotools-maintained udev fork; packaged ONLY for libudev,
+# which usbip hard-requires (PEI-158 Tier 2, wave 3). systemd's libudev is
+# meson-only, so eudev is the pool's libudev provider until the joint
+# meson adoption revisits this.
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). Everything optional is off (manpages want xsltproc, hwdb/blkid/
+# kmod/selinux are daemon concerns) — udevd/udevadm build but are
+# deliberately NOT packaged: udev-the-daemon is init-system territory and
+# a separate decision; only libudev + headers ship.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/eudev-project/eudev/releases/download/v{{version}}/eudev-{{version}}.tar.gz"
+extract  = true
+root     = "eudev-{{version}}"
+versions = ">= 3.2.14"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin \
+  --libdir="$LIBDIR" --sysconfdir=/etc \
+  --disable-manpages --disable-hwdb --disable-blkid --disable-kmod \
+  --disable-selinux --disable-static
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+gperf = "*"
+pkgconf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gperf = "*"
+pkg-config = "*"

@@ -1,0 +1,21 @@
+format = "peipkg"
+
+[package]
+name         = "automake"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU automake - Makefile.in generator"
+license      = "GPL-2.0-or-later"
+homepage     = "https://www.gnu.org/software/automake/"
+
+[dependencies]
+autoconf = ">= 2.72"
+perl     = ">= 5.44"
+
+[files]
+"@source:COPYING"           = "usr/share/licenses/automake/"
+":usr/bin/**"               = "usr/bin"
+":usr/share/automake-*/**"  = "usr/share"
+":usr/share/aclocal-*/**"   = "usr/share"
+":usr/share/aclocal/**"     = "usr/share/aclocal"
+":usr/share/man/**"         = "usr/share/man"

@@ -1,0 +1,23 @@
+format = "peipkg"
+
+[package]
+name         = "libtool"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU libtool - shared library build wrapper (with libltdl)"
+license      = "GPL-2.0-or-later"
+homepage     = "https://www.gnu.org/software/libtool/"
+
+[dependencies]
+glibc    = ">= 2.43"
+autoconf = ">= 2.72"
+automake = ">= 1.18"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/libtool/"
+":usr/bin/**"            = "usr/bin"
+":usr/include/**"        = "usr/include"
+":usr/lib/x86_64-linux-peios/libltdl.so*" = "usr/lib/x86_64-linux-peios"
+":usr/share/aclocal/**"  = "usr/share/aclocal"
+":usr/share/libtool/**"  = "usr/share/libtool"
+":usr/share/man/**"      = "usr/share/man"
