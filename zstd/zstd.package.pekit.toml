@@ -1,0 +1,13 @@
+# zstd — the command-line tools (libzstd is compiled in, not linked).
+
+[package]
+name        = "zstd"
+description = "Zstandard - fast lossless compression (zstd, zstdcat, unzstd)"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/zstd/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

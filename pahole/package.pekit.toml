@@ -1,0 +1,20 @@
+format = "peipkg"
+
+[package]
+name         = "pahole"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "pahole (dwarves) - DWARF/BTF introspection tools for the kernel's BTF generation"
+license      = "GPL-2.0-only"
+homepage     = "https://git.kernel.org/pub/scm/devel/pahole/pahole.git"
+
+[dependencies]
+glibc    = ">= 2.43"
+elfutils = ">= 0.193"
+zlib     = ">= 2.3.3"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/pahole/"
+":usr/bin/**"       = "usr/bin"
+":usr/lib/x86_64-linux-peios/libdwarves*.so.*" = "usr/lib/x86_64-linux-peios"
+":usr/share/man/**" = "usr/share/man"

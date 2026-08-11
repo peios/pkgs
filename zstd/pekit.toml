@@ -1,0 +1,40 @@
+# zstd — Zstandard compression; kernel module/BTF/image compression and
+# kmod's module decompression feed on it.
+#
+# PEI-158 kernel-tooling leaf: NOT autotools — zstd's hand-rolled Makefiles
+# have no out-of-source support, so the tree is copied into the stage and
+# built there (the bzip2 dance). The threaded CLI is the Makefile default
+# (pthread lives in glibc); the programs auto-detect zlib/lzma/lz4 from the
+# root, and only glibc is declared — the plain single-format build is the
+# intended seed shape. The CLI links libzstd's objects statically (its
+# Makefile design), so the zstd tool carries no libzstd runtime dep.
+# Static lib dropped; zstdgrep/zstdless script conveniences dropped
+# (undeclared runtime deps on grep/less).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/facebook/zstd/releases/download/v{{version}}/zstd-{{version}}.tar.gz"
+extract  = true
+root     = "zstd-{{version}}"
+versions = ">= 1.5.7"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT" prefix=/usr libdir=/usr/lib/x86_64-linux-peios
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libzstd.a"
+rm -f "$PEKIT_OUT/usr/bin/zstdgrep" "$PEKIT_OUT/usr/bin/zstdless"
+rm -f "$PEKIT_OUT/usr/share/man/man1/zstdgrep.1" "$PEKIT_OUT/usr/share/man/man1/zstdless.1"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

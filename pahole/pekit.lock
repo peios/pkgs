@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.31"
+  url = "https://fedorapeople.org/~acme/dwarves/dwarves-1.31.tar.xz"
+  sha256 = "0a7f255ccacf8cc7f8cd119099eb327179b4b3c67cb015af646af6d0cb03054d"
+  locked_at = "2026-08-11T09:00:42Z"

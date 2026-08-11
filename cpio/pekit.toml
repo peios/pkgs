@@ -1,0 +1,35 @@
+# cpio — GNU cpio archiver; the kernel's initramfs assembly (usr/*.cpio
+# handling around gen_init_cpio) and firmware packaging feed on it.
+#
+# PEI-158 kernel-tooling leaf: autotools from the release tarball, out-of-
+# source via DESTDIR (the m4 shape); NLS off in the seed shape. The
+# bundled gnulib survives glibc 2.43 unpatched, but cpio's own K&R-era
+# `int (*xstat) ()` pointer breaks under GCC 16's C23 default (empty
+# parens now mean (void), so `xstat = lstat` no longer converts) —
+# -std=gnu17 restores C17 semantics until upstream's declaration fix
+# ships in a release.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/cpio/cpio-{{version}}.tar.gz"
+extract  = true
+root     = "cpio-{{version}}"
+versions = ">= 2.15"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --disable-nls CFLAGS="-g -O2 -std=gnu17"
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/libexec"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

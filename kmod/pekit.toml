@@ -1,0 +1,49 @@
+# kmod — kernel module tools (depmod/modprobe/...) + libkmod; the kernel's
+# `make modules_install` runs depmod over the staged module tree.
+#
+# PEI-158 kernel-tooling leaf: autotools from the release tarball, out-of-
+# source via DESTDIR (the m4 shape). Pinned to 33, the last properly
+# dist'd autotools release: kmod is meson-first from 33 on, and 34's
+# tarball ships build-aux/* and m4/* as ABSOLUTE symlinks into the
+# maintainer's /usr/share (pekit's unsafe_archive guard rejects it) —
+# moving past 33 means taking the meson+ninja decision. Manpages off
+# (they want scdoc). Compressed-module support wired to our zlib/xz/zstd;
+# --with-openssl (modinfo PKCS7 signature display) re-enables when openssl
+# lands (PEI-158 item 6). The depmod/modprobe/... compat names are made by
+# kmod's own install hook, plain symlinks beside kmod in bindir.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.tar.xz"
+extract  = true
+root     = "kmod-{{version}}"
+versions = ">= 33, < 34"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --sysconfdir=/etc \
+  --libdir=/usr/lib/x86_64-linux-peios --mandir=/usr/share/man \
+  --disable-manpages --with-zlib --with-xz --with-zstd
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/bash-completion" "$PEKIT_OUT/usr/share/fish" \
+  "$PEKIT_OUT/usr/share/zsh" "$PEKIT_OUT/etc"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+pkgconf = "*"
+"zlib-devel" = "*"
+"xz-devel" = "*"
+"zstd-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config = "*"
+zlib1g-dev = "*"
+liblzma-dev = "*"
+libzstd-dev = "*"

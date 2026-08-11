@@ -1,0 +1,9 @@
+# Shared defaults layer for the kmod members (a bare package.pekit.toml is
+# never a package once named members exist).
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+homepage     = "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"

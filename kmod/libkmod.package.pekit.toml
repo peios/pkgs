@@ -1,0 +1,18 @@
+# libkmod — the module-management runtime library, on its own so library
+# consumers (a future init/udev) need not pull the tools. DT_NEEDED carries
+# the compressed-module decompressors.
+
+[package]
+name        = "libkmod"
+description = "kmod - libkmod kernel module management library"
+license     = "LGPL-2.1-or-later"
+
+[dependencies]
+glibc   = ">= 2.43"
+zlib    = ">= 2.3.3"
+liblzma = ">= 5.8"
+libzstd = ">= 1.5.7"
+
+[files]
+"@source:libkmod/COPYING" = "usr/share/licenses/libkmod/"
+":usr/lib/x86_64-linux-peios/libkmod.so.2*" = "usr/lib/x86_64-linux-peios"

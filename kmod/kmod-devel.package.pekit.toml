@@ -1,0 +1,15 @@
+# kmod-devel — libkmod.h, the libkmod.so link, and pkg-config metadata for
+# building against libkmod.
+
+[package]
+name        = "kmod-devel"
+description = "kmod - libkmod headers and link library"
+license     = "LGPL-2.1-or-later"
+
+[dependencies]
+libkmod = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libkmod.so"   = "usr/lib/x86_64-linux-peios/libkmod.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

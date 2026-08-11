@@ -1,0 +1,15 @@
+# kmod — the multicall tool + its depmod/modprobe/insmod/rmmod/lsmod/
+# modinfo compat names (plain symlinks).
+
+[package]
+name        = "kmod"
+description = "kmod - kernel module management tools (depmod, modprobe, ...)"
+license     = "GPL-2.0-or-later"
+
+[dependencies]
+glibc   = ">= 2.43"
+libkmod = "{{version}}"
+
+[files]
+"@source:tools/COPYING" = "usr/share/licenses/kmod/"
+":usr/bin/**"           = "usr/bin"
