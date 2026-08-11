@@ -2,6 +2,10 @@
 # zlib API. Split out like glibc-static / Fedora's zlib-ng-compat-static. The
 # archive is --strip-debug'd at build time (symtab kept so it still links; DWARF
 # discarded — archive members have no build-id to index).
+#
+# Built PIC (CMAKE_POSITION_INDEPENDENT_CODE, see the recipe), so these objects
+# can also be linked into a shared library. gcc's default -fPIE is not enough
+# for that.
 
 [package]
 description = "Compression library (zlib API) - static library"

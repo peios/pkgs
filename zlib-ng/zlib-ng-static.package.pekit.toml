@@ -1,6 +1,11 @@
 # zlib-ng-static — the static archive (libz-ng.a) for statically linking the
 # native zlib-ng API. --strip-debug'd at build time (symtab kept, DWARF
 # discarded — archive members have no build-id to index).
+#
+# Built PIC (CMAKE_POSITION_INDEPENDENT_CODE, see the recipe), so these objects
+# can also be linked into a shared library. gcc's default -fPIE is not enough
+# for that. Fedora ships no equivalent — its native build is shared-only — so
+# this package is a Peios addition, symmetrical with zlib-static.
 
 [package]
 description = "Compression library (zlib-ng native API) - static library"
