@@ -1,0 +1,40 @@
+# ncurses — terminal control library + terminfo database; tmon's TUI and
+# perf's slang TUI stack feed on it (PEI-158 Tier 2).
+#
+# Wide-character build only (the modern default everywhere; nothing in the
+# seed wants the narrow ABI): libncursesw/libpanelw/libmenuw/libformw with
+# versioned symbols and pkg-config files — consumers ask pkg-config for
+# ncursesw. Headers land in /usr/include (curses.h is the widec one).
+# Static libs off (house style); ada off; terminfo database ships with the
+# tools.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/ncurses/ncurses-{{version}}.tar.gz"
+extract  = true
+root     = "ncurses-{{version}}"
+versions = ">= 6.6"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir="$LIBDIR" \
+  --with-shared --without-normal --without-debug --without-ada \
+  --enable-widec --with-versioned-syms --enable-pc-files \
+  --with-pkg-config-libdir="$LIBDIR/pkgconfig" \
+  --disable-stripping --without-tests
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+pkgconf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config = "*"

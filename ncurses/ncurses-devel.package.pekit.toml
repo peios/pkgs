@@ -1,0 +1,17 @@
+# ncurses-devel — headers, .so links, pkg-config files, and the
+# ncursesw6-config script.
+
+[package]
+name        = "ncurses-devel"
+description = "ncurses - headers and link libraries"
+
+[dependencies]
+libncurses = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libncursesw.so" = "usr/lib/x86_64-linux-peios/libncursesw.so"
+":usr/lib/x86_64-linux-peios/libpanelw.so"   = "usr/lib/x86_64-linux-peios/libpanelw.so"
+":usr/lib/x86_64-linux-peios/libmenuw.so"    = "usr/lib/x86_64-linux-peios/libmenuw.so"
+":usr/lib/x86_64-linux-peios/libformw.so"    = "usr/lib/x86_64-linux-peios/libformw.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"   = "usr/lib/x86_64-linux-peios/pkgconfig"

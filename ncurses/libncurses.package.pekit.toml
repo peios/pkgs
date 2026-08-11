@@ -1,0 +1,21 @@
+# libncurses — the wide-character runtime libraries (ncursesw, panelw,
+# menuw, formw) plus the terminfo database they read at /usr/share/terminfo
+# (compiled-in default). Lib + data together: a curses app without terminfo
+# is dead on arrival, and keeping them in one package avoids a dep cycle
+# with the tools.
+
+[package]
+name        = "libncurses"
+description = "ncurses - wide-character terminal runtime libraries + terminfo database"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/libncurses/"
+":usr/share/terminfo/**" = "usr/share/terminfo"
+":usr/share/tabset/**"   = "usr/share/tabset"
+":usr/lib/x86_64-linux-peios/libncursesw.so.6*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libpanelw.so.6*"   = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libmenuw.so.6*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libformw.so.6*"    = "usr/lib/x86_64-linux-peios"

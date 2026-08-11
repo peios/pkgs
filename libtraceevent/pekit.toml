@@ -1,0 +1,37 @@
+# libtraceevent — trace event parsing library; perf, rtla, and rv all
+# link it (PEI-158 Tier 2).
+#
+# kernel.org git snapshot tarball (no dist tarballs published), plain
+# Makefile build in a tree copy (objects land in-tree; the bzip2 dance).
+# Upstream is meson-first these days but the Makefile remains maintained —
+# same posture as kmod 33 (revisit at the joint meson adoption). The
+# event-parsing plugins ship with the runtime lib.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/snapshot/libtraceevent-{{version}}.tar.gz"
+extract  = true
+root     = "libtraceevent-{{version}}"
+versions = ">= 1.9"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+make -j"$(nproc)" prefix=/usr libdir="$LIBDIR"
+make install DESTDIR="$PEKIT_OUT" prefix=/usr libdir="$LIBDIR"
+find "$PEKIT_OUT$LIBDIR" -maxdepth 1 -name '*.a' -delete
+rm -rf "$PEKIT_OUT/build"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+pkgconf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config = "*"

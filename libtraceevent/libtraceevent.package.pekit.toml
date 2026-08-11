@@ -1,0 +1,13 @@
+# libtraceevent — the runtime library + its event-parsing plugins.
+
+[package]
+name        = "libtraceevent"
+description = "libtraceevent - trace event parsing runtime library and plugins"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/libtraceevent/"
+":usr/lib/x86_64-linux-peios/libtraceevent.so.1*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/traceevent/**"       = "usr/lib/x86_64-linux-peios/traceevent"

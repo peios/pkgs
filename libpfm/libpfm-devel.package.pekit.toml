@@ -1,0 +1,13 @@
+# libpfm-devel — perfmon headers, the .so link, and the man pages.
+
+[package]
+name        = "libpfm-devel"
+description = "libpfm - headers and link library"
+
+[dependencies]
+libpfm = "{{version}}"
+
+[files]
+":usr/include/**"                        = "usr/include"
+":usr/lib/x86_64-linux-peios/libpfm.so"  = "usr/lib/x86_64-linux-peios/libpfm.so"
+":usr/share/man/**"                      = "usr/share/man"

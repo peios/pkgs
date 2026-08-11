@@ -1,0 +1,33 @@
+# libconfig — structured configuration file library; thermal-engine reads
+# its config through it (PEI-158 Tier 2).
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). C library only — the C++ binding is off (nothing in the seed
+# wants libconfig++, and it would drag libstdc++ into the runtime dep).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://hyperrealm.github.io/libconfig/dist/libconfig-{{version}}.tar.gz"
+extract  = true
+root     = "libconfig-{{version}}"
+versions = ">= 1.8.2"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --libdir="$LIBDIR" \
+  --disable-cxx --disable-examples --disable-static
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

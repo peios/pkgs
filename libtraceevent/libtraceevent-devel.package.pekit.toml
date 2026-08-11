@@ -1,0 +1,13 @@
+# libtraceevent-devel — headers, the .so link, and pkg-config metadata.
+
+[package]
+name        = "libtraceevent-devel"
+description = "libtraceevent - headers and link library"
+
+[dependencies]
+libtraceevent = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libtraceevent.so" = "usr/lib/x86_64-linux-peios/libtraceevent.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

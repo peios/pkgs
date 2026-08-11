@@ -1,0 +1,13 @@
+# capstone-devel — capstone headers, the .so link, and pkg-config metadata.
+
+[package]
+name        = "capstone-devel"
+description = "capstone - headers and link library"
+
+[dependencies]
+capstone = "{{version}}"
+
+[files]
+":usr/include/**"                             = "usr/include"
+":usr/lib/x86_64-linux-peios/libcapstone.so"  = "usr/lib/x86_64-linux-peios/libcapstone.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"    = "usr/lib/x86_64-linux-peios/pkgconfig"

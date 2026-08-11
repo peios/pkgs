@@ -1,0 +1,16 @@
+# libcap — the capabilities runtime libraries (libcap + libpsx) and the
+# capability tools (setcap/getcap/capsh/...).
+
+[package]
+name        = "libcap"
+description = "libcap - POSIX capabilities runtime libraries and tools"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:License" = "usr/share/licenses/libcap/"
+":usr/bin/**"     = "usr/bin"
+":usr/lib/x86_64-linux-peios/libcap.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libpsx.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/share/man/**" = "usr/share/man"

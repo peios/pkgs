@@ -1,0 +1,13 @@
+# libtracefs-devel — headers, the .so link, and pkg-config metadata.
+
+[package]
+name        = "libtracefs-devel"
+description = "libtracefs - headers and link library"
+
+[dependencies]
+libtracefs = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libtracefs.so" = "usr/lib/x86_64-linux-peios/libtracefs.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

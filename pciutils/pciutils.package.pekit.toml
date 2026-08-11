@@ -1,0 +1,15 @@
+# pciutils — the PCI tools (lspci, setpci) and the pci.ids database.
+
+[package]
+name        = "pciutils"
+description = "pciutils - PCI bus inspection tools (lspci, setpci) and pci.ids"
+
+[dependencies]
+glibc  = ">= 2.43"
+libpci = "{{version}}"
+
+[files]
+"@source:COPYING"    = "usr/share/licenses/pciutils/"
+":usr/bin/**"        = "usr/bin"
+":usr/share/pci.ids" = "usr/share/pci.ids"
+":usr/share/man/**"  = "usr/share/man"

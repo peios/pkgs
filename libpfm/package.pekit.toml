@@ -1,0 +1,10 @@
+# Shared defaults layer for the libpfm members (a bare package.pekit.toml
+# is never a package once named members exist).
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "MIT"
+homepage     = "https://perfmon2.sourceforge.net/"

@@ -1,0 +1,10 @@
+# Shared defaults layer for the libconfig members (a bare
+# package.pekit.toml is never a package once named members exist).
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "LGPL-2.1-or-later"
+homepage     = "https://hyperrealm.github.io/libconfig/"

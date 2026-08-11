@@ -1,0 +1,14 @@
+# libcap-devel — headers, .so links, and pkg-config metadata.
+
+[package]
+name        = "libcap-devel"
+description = "libcap - headers and link libraries"
+
+[dependencies]
+libcap = "{{version}}"
+
+[files]
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libcap.so"    = "usr/lib/x86_64-linux-peios/libcap.so"
+":usr/lib/x86_64-linux-peios/libpsx.so"    = "usr/lib/x86_64-linux-peios/libpsx.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

@@ -1,0 +1,14 @@
+# ncurses — the terminfo tools (the database itself rides with
+# libncurses, keeping lib+data self-contained and the dep graph acyclic).
+
+[package]
+name        = "ncurses"
+description = "ncurses - terminfo tools (tic, tput, infocmp)"
+
+[dependencies]
+glibc      = ">= 2.43"
+libncurses = "{{version}}"
+
+[files]
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

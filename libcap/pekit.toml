@@ -1,0 +1,40 @@
+# libcap — POSIX capabilities library + tools; turbostat links libcap
+# (PEI-158 Tier 2).
+#
+# NOT autotools — kernel.org Make.Rules variables, built in a tree copy
+# (the bzip2 dance; objects land in-tree). GOLANG off (no go in the seed);
+# RAISE_SETFCAP off (install would otherwise setcap its own binary, which
+# needs privileges a DESTDIR stage doesn't have); tests skipped. The sbin
+# tools are redirected to /usr/bin (usrmerge, no sbin split).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-{{version}}.tar.xz"
+extract  = true
+root     = "libcap-{{version}}"
+versions = ">= 2.78"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+make -j"$(nproc)" prefix=/usr lib=lib/x86_64-linux-peios \
+  SBINDIR=/usr/bin GOLANG=no RAISE_SETFCAP=no
+make install DESTDIR="$PEKIT_OUT" prefix=/usr lib=lib/x86_64-linux-peios \
+  SBINDIR=/usr/bin GOLANG=no RAISE_SETFCAP=no
+find "$PEKIT_OUT$LIBDIR" -maxdepth 1 -name '*.a' -delete
+rm -rf "$PEKIT_OUT/build"
+"""
+
+# bash: progs/mkcapshdoc.sh is a bash script.
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+bash = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bash = "*"

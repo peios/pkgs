@@ -1,0 +1,39 @@
+# capstone — multi-architecture disassembly framework; perf's annotate
+# disasm auto-detects it (PEI-158 Tier 2).
+#
+# cmake from the release tarball (the pahole shape). Shared lib only,
+# tests off, cstool ships. All architectures on (the default; the size is
+# modest and pinning to X86+BPF buys little).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/capstone-engine/capstone/archive/refs/tags/{{version}}.tar.gz"
+extract  = true
+root     = "capstone-{{version}}"
+versions = ">= 5.0.9, < 6"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_LIBDIR=lib/x86_64-linux-peios \
+  -DBUILD_SHARED_LIBS=ON -DCAPSTONE_BUILD_STATIC_LIBS=OFF \
+  -DCAPSTONE_BUILD_TESTS=OFF -DCAPSTONE_BUILD_CSTOOL=ON \
+  "$SRC"
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+# c++ floor: capstone's cmake project() declares CXX (the lib itself is C).
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+cmake = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake = "*"

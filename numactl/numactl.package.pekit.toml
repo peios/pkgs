@@ -1,0 +1,14 @@
+# numactl — the NUMA policy tools (numactl, numastat, memhog, ...).
+
+[package]
+name        = "numactl"
+description = "numactl - NUMA policy control tools"
+license     = "GPL-2.0-only"
+
+[dependencies]
+glibc   = ">= 2.43"
+libnuma = "{{version}}"
+
+[files]
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

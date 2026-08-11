@@ -1,0 +1,20 @@
+# libslang — the S-Lang runtime library, its interpreter data tree, and
+# the slsh shell.
+
+[package]
+name        = "libslang"
+description = "S-Lang - terminal handling and interpreter runtime library"
+
+[dependencies]
+glibc = ">= 2.43"
+zlib  = ">= 2.3.3"
+# terminfo database — slang reads it directly at runtime.
+libncurses = ">= 6.6"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/libslang/"
+":usr/bin/**"     = "usr/bin"
+":usr/lib/x86_64-linux-peios/libslang.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/slang/**"       = "usr/lib/x86_64-linux-peios/slang"
+":usr/share/slsh/**" = "usr/share/slsh"
+":usr/share/man/**"  = "usr/share/man"
