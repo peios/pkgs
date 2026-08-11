@@ -1,0 +1,57 @@
+# glibc-bin — the programs that ship with the C library, the locale
+# infrastructure they operate on, and the C.UTF-8 locale.
+#
+# The reference distributions all draw this line: Fedora's glibc-common and
+# Debian's libc-bin hold exactly this content, including C.utf8. (Arch alone
+# ships one undivided glibc.) Named -bin after Debian rather than Fedora's
+# -common, which reads as "the baseline part" when it is in fact the optional
+# half; and not -tools, because glibc-utils already exists next door for the
+# profiling tools, and one of each would be a coin-flip to tell apart.
+#
+# The split is worth making because glibc is in every root and this is not:
+# a root holding one service or an initramfs needs libc.so.6 and the loader,
+# never `getent` or `localedef`.
+#
+# Programs claimed by sibling packages are excluded so they are not
+# double-claimed: glibc-utils takes the profiling/tracing tools. (nscd is not
+# built at all — see --disable-nscd in the recipe.)
+excludes = [
+  ":usr/bin/mtrace",
+  ":usr/bin/pcprofiledump",
+  ":usr/bin/pldd",
+  ":usr/bin/sotruss",
+  ":usr/bin/sprof",
+  ":usr/bin/xtrace",
+]
+
+[package]
+description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 locale"
+
+[dependencies]
+# The programs are linked against the runtime and the locale data is read by
+# it; both need at least the glibc they were built against (newer glibc stays
+# backward-compatible), so a >= bound rather than glibc-devel's exact pin. The
+# operand omits the peios revision (§2.2.8), matching any revision at or above.
+glibc = ">= {{version}}"
+
+[files]
+# All programs — usrmerge folds the former sbin tools (ldconfig, zic, ...) into
+# /usr/bin.
+":usr/bin/**" = "usr/bin/"
+# C.UTF-8: the C locale with a UTF-8 charset rather than ASCII. It is NOT built
+# into the library — only C/POSIX are — so without this directory setlocale
+# fails for it and libc's multibyte functions treat every byte as a character
+# (`wc -m` counts bytes, `tr` will not case-map a non-ASCII letter).
+#
+# It lives here rather than in glibc for the same reason the programs do: the
+# things that consume a UTF-8 locale are the text-processing tools, and a root
+# holding only the libraries has none of them. Fedora ships it in
+# glibc-common and Debian in libc-bin, i.e. both put it beside the programs.
+#
+# Sourced from the `locale` build (the same target the langpacks enumerate);
+# glibc's own `make install` compiles no locales.
+"locale:usr/lib/x86_64-linux-peios/locale/C.utf8/**" = "usr/lib/x86_64-linux-peios/locale/C.utf8/"
+# nss_db generation Makefile, relocated out of /var/db (the spec forbids
+# populated /var content). It is the admin template `makedb` operates with, so
+# it belongs with the programs, not in the runtime.
+":var/db/Makefile" = "usr/share/glibc/db/Makefile"

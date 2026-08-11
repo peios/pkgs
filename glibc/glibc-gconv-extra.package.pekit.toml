@@ -1,0 +1,41 @@
+# glibc-gconv-extra — every charset converter beyond the core eight, plus the
+# registry that names them.
+#
+# 7.6 MB across ~247 modules, against 135 KB for the core set glibc keeps. In
+# one package they are 53% of a payload that lands in every root, to convert
+# encodings — EBCDIC codepages, legacy CJK, ISO-2022 variants — that almost
+# nothing on a Peios system will ask for. Both references split this: Fedora as
+# glibc-gconv-extra (Recommends, so present by default and removable), Debian as
+# libc-gconv-modules-extra.
+#
+# The partition follows upstream's own registries rather than a hand-kept list,
+# so it stays correct as glibc adds converters: gconv-modules names the core
+# eight and ships in glibc, gconv-modules.d/gconv-modules-extra.conf names
+# these and ships here. A root without this package has a working iconv for
+# UTF-*, Latin-1/9 and CP1252; anything else reports the conversion as
+# unavailable, exactly as on a Debian or Fedora system without the extras.
+#
+# The core eight are excluded here rather than enumerated there being no glob
+# for "all but these"; the exclusion list is the same set glibc claims.
+excludes = [
+  ":usr/lib/x86_64-linux-peios/gconv/gconv-modules",
+  ":usr/lib/x86_64-linux-peios/gconv/ANSI_X3.110.so",
+  ":usr/lib/x86_64-linux-peios/gconv/CP1252.so",
+  ":usr/lib/x86_64-linux-peios/gconv/ISO8859-1.so",
+  ":usr/lib/x86_64-linux-peios/gconv/ISO8859-15.so",
+  ":usr/lib/x86_64-linux-peios/gconv/UNICODE.so",
+  ":usr/lib/x86_64-linux-peios/gconv/UTF-7.so",
+  ":usr/lib/x86_64-linux-peios/gconv/UTF-16.so",
+  ":usr/lib/x86_64-linux-peios/gconv/UTF-32.so",
+]
+
+[package]
+description = "GNU C Library - additional charset conversion modules"
+
+[dependencies]
+# Loadable modules of the runtime's iconv machinery: they are opened by the
+# glibc they were built against and are useless without it.
+glibc = ">= {{version}}"
+
+[files]
+":usr/lib/x86_64-linux-peios/gconv/**" = "usr/lib/x86_64-linux-peios/gconv/"

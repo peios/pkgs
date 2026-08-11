@@ -18,6 +18,28 @@
 
 out_dir = "out"
 
+# Build flags: glibc implements the hardening features itself and must not be
+# handed the distro's CFLAGS form of them (PEI-159).
+#
+# _FORTIFY_SOURCE is the one that actually breaks. glibc IS the implementation
+# of the fortified entry points, so defining the macro while compiling it makes
+# the library fortify itself; Fedora's spec records that libc_nonshared.a
+# "cannot be built with the default hardening flags because the glibc build
+# system is incompatible with -D_FORTIFY_SOURCE", and Arch strips the same flag
+# with the note that it "causes testsuite build failure and is unnecessary
+# during actual builds (support is built-in via --enable-fortify-source)".
+# So it is removed here and requested through configure instead.
+#
+# Stack protector and BIND_NOW are not removed but are ALSO requested through
+# configure, because glibc needs to control where they apply: parts of the
+# library run before the TCB that holds the stack canary exists (early startup,
+# static IFUNC resolvers), and glibc's build system is what knows to compile
+# those with -fno-stack-protector. --enable-stack-protector=strong is that
+# controlled form; the compiler default alone is not.
+[env]
+CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Werror=format-security -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
+CXXFLAGS = "$CFLAGS"
+
 [source.git]
 # Canonical upstream. (The github.com/bminor/glibc mirror is archived.)
 url = "https://sourceware.org/git/glibc.git"
@@ -62,7 +84,42 @@ for tool in makeinfo msgfmt debugedit; do
   command -v "$tool" >/dev/null || { echo "missing required glibc build tool: $tool" >&2; exit 1; }
 done
 cd "$PEKIT_OUT"
-"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --libexecdir=/usr/lib/x86_64-linux-peios --disable-werror CC="gcc -Wl,--build-id" libc_cv_slibdir=/usr/lib/x86_64-linux-peios libc_cv_rtlddir=/usr/lib/x86_64-linux-peios
+# Hardening is requested through glibc's own switches rather than flags — see
+# the [env] note above. --enable-cet is the matching in-library half of
+# -fcf-protection (Intel CET/IBT): the flag emits the landing pads, this makes
+# the loader and the library's own asm honour them.
+#
+# --enable-kernel=6.12 raises the minimum supported kernel from glibc's default
+# of 3.2.0 (2012), dropping the runtime fallbacks it otherwise keeps for every
+# syscall added since. In 2.43 that is 51 conditional sites in the Linux
+# sysdeps, with feature gates at 3.19, 4.0, 4.4, 5.1, 5.3, 5.4, 5.8, 5.9, 5.14,
+# 6.0 and 6.6 — all of which a floor at or above 6.6 clears.
+#
+# 6.12 rather than 6.6 because it is the current LTS and leaves headroom as
+# glibc adds gates; the two are equivalent in what they unlock today.
+#
+# What this actually constrains: a glibc built with this floor REFUSES TO START
+# on an older kernel ("FATAL: kernel too old"). Peios binaries run on the Peios
+# kernel (Linux 7.x base) and, during builds, on the build-farm host — rung 1
+# and rung 2 both execute under docker/bwrap on the host kernel. So this is in
+# effect "the oldest build-farm host we support", not just a Peios-runtime
+# floor. Raise it only alongside that expectation.
+#
+# --disable-nscd drops the Name Service Cache Daemon, as Arch does and as
+# Fedora does by shipping no nscd subpackage. It is the stronger of glibc's two
+# switches: --disable-build-nscd merely stops building the daemon, while this
+# also builds a C library that NEVER ATTEMPTS TO CONTACT nscd — so every NSS
+# lookup loses a socket connect to a daemon that was never going to answer.
+#
+# It has no purpose on Peios. nscd exists to amortise expensive identity
+# lookups against NIS/LDAP directories, and Peios identity is KACS SIDs with no
+# /etc/passwd to cache; nscd's remaining value would be its hosts cache, which
+# belongs in a resolver. Set against that, it is a persistent root daemon
+# holding a shared mutable cache with a long history of serving stale entries.
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --libexecdir=/usr/lib/x86_64-linux-peios --disable-werror \
+  --enable-stack-protector=strong --enable-bind-now --enable-fortify-source --enable-cet \
+  --enable-kernel=6.12 --disable-nscd \
+  CC="gcc -Wl,--build-id" libc_cv_slibdir=/usr/lib/x86_64-linux-peios libc_cv_rtlddir=/usr/lib/x86_64-linux-peios
 # glibc installs ldconfig/sln to rootsbindir (/sbin) and nscd/zic/iconvconfig to
 # sbindir (/usr/sbin). usrmerge wants them all in /usr/bin, and glibc honors these
 # two dirs via configparms — NOT the autoconf --sbindir flag — so set both here.
