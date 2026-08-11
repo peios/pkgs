@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "3.14.7"
+  url = "https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz"
+  sha256 = "3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81"
+  locked_at = "2026-08-11T00:05:36Z"

@@ -1,0 +1,3 @@
+# Peios python3 patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+peios/platform-triplet.patch  # PEIOS-DIVERGENCE(triplet): accept x86_64-linux-peios from --print-multiarch

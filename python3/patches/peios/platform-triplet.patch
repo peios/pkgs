@@ -1,0 +1,16 @@
+--- a/configure
++++ b/configure
+@@ -7189,6 +7189,13 @@
+ esac
+ 
+ 
++# Peios: the toolchain's --print-multiarch answers x86_64-linux-peios; adopt
++# it as the platform triplet instead of failing against the glibc-derived
++# x86_64-linux-gnu default (SOABI then carries the Peios triplet).
++if test x$MULTIARCH = xx86_64-linux-peios; then
++  PLATFORM_TRIPLET=x86_64-linux-peios
++fi
++
+ if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
+   if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
+     as_fn_error $? "internal configure error for the platform triplet, please file a bug report" "$LINENO" 5

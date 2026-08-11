@@ -1,0 +1,33 @@
+# cmake — the CMake build system; zlib-ng's closure rebuild feeds on it.
+#
+# Phase-2a tool (PEI-155): bootstrap build (cmake builds itself; C++ —
+# the first consumer of build-essentials-c++), out-of-source via DESTDIR.
+# --no-system-libs: every third-party lib (curl, zlib, ...) is the bundled
+# copy, keeping the dependency claim at glibc + libstdc++; the bundled
+# curl builds without TLS, which only matters for https file(DOWNLOAD) —
+# not a build-root concern. No sphinx => no man/html docs, by design.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://github.com/Kitware/CMake/releases/download/v{{version}}/cmake-{{version}}.tar.gz"
+extract  = true
+root     = "cmake-{{version}}"
+versions = ">= 4.4"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/bootstrap" --prefix=/usr --parallel="$(nproc)" --no-system-libs \
+  -- -DCMAKE_BUILD_TYPE=Release -DCMAKE_USE_OPENSSL=OFF
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/doc" "$PEKIT_OUT/usr/share/doc"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

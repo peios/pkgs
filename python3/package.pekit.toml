@@ -1,0 +1,23 @@
+format = "peipkg"
+
+[package]
+name         = "python3"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "Python 3 - the CPython interpreter and standard library"
+license      = "PSF-2.0"
+homepage     = "https://www.python.org/"
+
+[dependencies]
+glibc = ">= 2.43"
+zlib  = ">= 2.3.3"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/python3/"
+":usr/bin/**"       = "usr/bin"
+# stdlib + include/python3.x headers + the static libpython in
+# lib/python3.x/config-*/ — one package; a -devel split can come when
+# something builds C extensions out of tree.
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"
+":usr/include/**"   = "usr/include"
+":usr/share/man/**" = "usr/share/man"

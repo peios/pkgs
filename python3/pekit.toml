@@ -1,0 +1,50 @@
+# python3 — the CPython interpreter + stdlib; glibc's build scripts
+# require python >= 3.4 (header generation), the closure's reason.
+#
+# PEIOS-DIVERGENCE(triplet): configure cross-checks its glibc-derived
+# platform triplet (x86_64-linux-gnu) against `gcc --print-multiarch`,
+# which our toolchain answers x86_64-linux-peios — patched to adopt the
+# Peios triplet (SOABI carries it too). Upstreamable as a generalised
+# triplet-acceptance fix at Phase 2's config.sub pass.
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape). Seed-minimal: no ensurepip (pip needs ssl),
+# test package dropped at the source, and extension modules for libraries
+# we don't declare (ssl/ffi/sqlite/readline/...) skip themselves — only
+# zlib is declared, so the zlib/gzip modules build. --with-platlibdir puts
+# the stdlib inside the triplet dir per §3.4.2 (the perl lesson, applied
+# up front). Static libpython (no --enable-shared); nothing embeds.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url      = "https://www.python.org/ftp/python/{{version}}/Python-{{version}}.tar.xz"
+extract  = true
+root     = "Python-{{version}}"
+versions = ">= 3.14, < 3.15"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --with-platlibdir=lib/x86_64-linux-peios \
+  --without-ensurepip --disable-test-modules
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+# tkinter is never built (no tk); drop the pure-python shells that need it.
+PYLIB="$PEKIT_OUT/usr/lib/x86_64-linux-peios"/python3.*
+rm -rf $PYLIB/idlelib $PYLIB/turtledemo $PYLIB/tkinter $PYLIB/turtle.py
+rm -f "$PEKIT_OUT"/usr/bin/idle3*
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+"zlib-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+zlib1g-dev = "*"
