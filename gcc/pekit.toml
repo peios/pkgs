@@ -27,6 +27,11 @@
 #   pekit package --all --env peipkg --version 16.1.0
 out_dir = "out"
 
+# Peios's three gcc patches — the OS-identity work that used to be in-recipe
+# `sed` calls, plus the LTO fix. See patches/series.
+[source]
+patches = "patches"
+
 # Build flags: GCC consumes the workspace CFLAGS, but not where it matters.
 #
 # The bootstrap compiles GCC three times — stage1 by the already-installed
@@ -84,10 +89,60 @@ versions = ">=15"
 #   --with-slibdir=$LIBDIR    : libgcc_s.so.1/libstdc++.so.6 into the triplet dir
 #       (they otherwise go to the multilib os-dir ../lib64).
 #   --disable-multilib        : 64-bit only.
-#   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in.
+#   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in. Ada and
+#       D are the time-sensitive omissions — both compilers are written in their
+#       own language, so they can only be bootstrapped while the Debian rung
+#       still exists to supply gnat/gdc. Deferred deliberately, not by accident.
 #   --disable-libsanitizer    : asan/ubsan/tsan deferred (large, dev-tooling).
+#   --disable-libssp          : dead weight on glibc, which provides
+#       __stack_chk_fail itself — our canaries already resolve there, so libssp
+#       was built and then dropped unpackaged. Fedora disables it for the same
+#       reason. NOTE: configure is guarded above for incremental re-runs, so
+#       this takes effect on the next tree-wiping rebuild; nothing shipped
+#       changes either way, since libssp was never in a package.
 #   --enable-__cxa_atexit     : correct C++ static-dtor ordering (distro default).
 #   --with-system-zlib        : link the root's libz, not the bundled copy.
+#
+# Hardening the COMPILER ITSELF, not just what it emits (PEI-159). gcc and cc1
+# were EXEC with no BIND_NOW — the least hardened binaries on the system, while
+# everything they produced was PIE + BIND_NOW + CET:
+#   --enable-host-pie --enable-host-bind-now : the shipped gcc/cc1/cc1plus get
+#       the same PIE + full RELRO the distro flag set gives everything else.
+#       Fedora enables both for RHEL.
+#   --enable-cet              : Intel CET (IBT + shadow stack) in gcc's own
+#       runtime libraries, matching the -fcf-protection in the flag set.
+#   --with-tls=gnu2           : TLS descriptors — cheaper dynamic TLS than the
+#       traditional model.
+#   --with-linker-hash-style=gnu : .gnu.hash only, no legacy .hash (binutils is
+#       already configured this way; this makes gcc agree).
+#   --enable-initfini-array   : .init_array/.fini_array rather than the legacy
+#       .ctors/.dtors sections.
+#   --enable-gnu-unique-object : STB_GNU_UNIQUE for C++ template statics, so
+#       dlopen/dlclose cycles don't duplicate them.
+#   --enable-checking=release : explicit rather than inherited. GCC picks
+#       `release` only because gcc/DEV-PHASE is empty on a release tag; build a
+#       snapshot and the default silently becomes the far slower `yes`.
+#
+# Baseline ISA (PEI-159). --with-arch sets the oldest CPU Peios runs on;
+# --with-tune only biases scheduling and restricts nothing.
+#   x86-64-v2 (~2009 Nehalem/Bulldozer) buys SSE4.2, POPCNT and — the one that
+#   earns it on its own — CMPXCHG16B. Without that instruction a 16-byte atomic
+#   cannot be done inline at all: gcc emits a call into libatomic, which falls
+#   back to a global lock table. v3 (AVX2, 2013+) was rejected because Intel's
+#   budget N-series had no AVX2 until 2023, and locking those out of a new OS
+#   for a modest win is a poor trade. Note the hot paths dispatch at runtime
+#   anyway (zlib-ng, gmp --enable-fat, glibc ifuncs), so the baseline mostly
+#   governs undispatched code. RAISING this later breaks installed systems;
+#   lowering does not.
+#
+# Identity:
+#   --with-pkgversion / --with-bugurl : `gcc --version` says which distro built
+#       it, and __VERSION__ carries that into every binary compiled — so "was
+#       this built by Peios's gcc?" is answerable. bugs.peios.org does not
+#       exist yet; it is where bug reports are expected to land.
+#   --with-gcc-major-version-only : internal paths become .../gcc/<triplet>/16/
+#       instead of .../16.1.0/, so they survive point releases and the [files]
+#       globs stop churning ({{major}}, not {{version}}).
 #   bignums: native default search finds gmp/mpfr/mpc/isl in the root
 #       (/usr/include + $LIBDIR via the -devel packages) — no --with-* paths.
 [build.main]
@@ -117,14 +172,11 @@ MEMJOBS=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1500000 ))
 [ "$MEMJOBS" -lt "$JOBS" ] && JOBS=$MEMJOBS
 [ "$JOBS" -lt 1 ] && JOBS=1
 
-# Source patches (pekit's resolve resets the tree on every run, re-apply):
-# config.sub learns peios; t-linux64/t-linux use the peios multiarch dirname.
+# config.sub learns peios. Not in patches/ with the rest: config.sub ships in
+# several vintages across the toolchain and the script detects which, asserting
+# each edit landed. Everything else moved to patches/ (pekit's resolve resets
+# the tree, so a patch series re-applies cleanly on every run).
 sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
-for tf in gcc/config/i386/t-linux64 gcc/config/i386/t-linux; do
-  if grep -q 'linux-gnu' "$SRC/$tf"; then
-    sed -i 's/x86_64-linux-gnu/x86_64-linux-peios/g; s/i386-linux-gnu/i386-linux-peios/g' "$SRC/$tf"
-  fi
-done
 
 mkdir -p "$PEKIT_OUT/build"
 cd "$PEKIT_OUT/build"
@@ -137,7 +189,15 @@ if [ ! -f "$PEKIT_OUT/build/Makefile" ]; then
     --enable-shared --enable-threads=posix --enable-__cxa_atexit \
     --enable-linker-build-id \
     --enable-default-pie --enable-default-ssp \
-    --disable-libsanitizer --disable-werror \
+    --enable-host-pie --enable-host-bind-now \
+    --enable-cet --with-tls=gnu2 \
+    --with-arch=x86-64-v2 --with-tune=generic \
+    --with-linker-hash-style=gnu --enable-initfini-array \
+    --enable-gnu-unique-object --enable-checking=release \
+    --with-gcc-major-version-only \
+    --with-pkgversion="Peios $PEKIT_VERSION" \
+    --with-bugurl=https://bugs.peios.org \
+    --disable-libsanitizer --disable-libssp --disable-werror \
     --with-system-zlib \
     XCFLAGS="$CFLAGS" TCFLAGS="$CFLAGS" \
     LDFLAGS_FOR_TARGET="$LDFLAGS"
@@ -157,6 +217,15 @@ if [ -d "$PEKIT_OUT/usr/lib/lib64" ]; then
 fi
 # Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED win).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# libstdc++'s gdb pretty-printer installs beside the library, where gdb never
+# looks; move it under the auto-load tree (keyed by the library's install
+# path), exactly as the isl recipe does with its own. Left in place it is
+# simply dropped — it matches no package glob.
+if ls "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py >/dev/null 2>&1; then
+  mkdir -p "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR"
+  mv "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR/"
+fi
 
 # Post-install debug pipeline over the WHOLE install tree (compiler binaries +
 # runtime libs). Scrub any stray rpath, scrub DWARF build paths

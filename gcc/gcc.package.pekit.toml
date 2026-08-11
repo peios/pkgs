@@ -12,8 +12,8 @@ excludes = [
   ":usr/bin/x86_64-linux-peios-g++", ":usr/bin/x86_64-linux-peios-c++",
   ":usr/bin/cpp",
   # cc1 -> cpp; cc1plus -> gcc-c++.
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1",
-  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{version}}/cc1plus",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/cc1",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/cc1plus",
 ]
 
 [package]
@@ -64,5 +64,15 @@ binutils        = ">= 2.46"
 ":usr/lib/x86_64-linux-peios/libgcc_s.so"          = "usr/lib/x86_64-linux-peios/libgcc_s.so"
 ":usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so" = "usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so"
 # Docs + driver data.
-":usr/share/gcc-{{version}}/**" = "usr/share/gcc-{{version}}"
+":usr/share/gcc-{{major}}/**" = "usr/share/gcc-{{major}}"
+# Man pages. GCC ships these PRE-GENERATED, so unlike the autotools packages
+# they do not need help2man — they were simply matched by no glob and dropped.
+# cpp.1 goes with cpp, g++.1 with gcc-c++; the man7 pages (fsf-funding, gfdl,
+# gpl) are the driver's licence/doc references and belong with the driver.
+":usr/share/man/man1/gcc.1"       = "usr/share/man/man1/gcc.1"
+":usr/share/man/man1/gcov.1"      = "usr/share/man/man1/gcov.1"
+":usr/share/man/man1/gcov-dump.1" = "usr/share/man/man1/gcov-dump.1"
+":usr/share/man/man1/gcov-tool.1" = "usr/share/man/man1/gcov-tool.1"
+":usr/share/man/man1/lto-dump.1"  = "usr/share/man/man1/lto-dump.1"
+":usr/share/man/man7/**"          = "usr/share/man/man7"
 

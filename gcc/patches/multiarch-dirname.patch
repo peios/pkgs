@@ -1,0 +1,31 @@
+GCC hardcodes the Debian multiarch directory name for this target as
+`x86_64-linux-gnu`.  Peios installs architecture-specific libraries under
+`/usr/lib/x86_64-linux-peios` (PSD-009 3.4.2), so the name has to follow the
+triplet, or the compiler searches a directory that does not exist and installs
+its own runtime libraries into one nothing looks in.
+
+This replaces an in-recipe `sed` that did the same rewrite, guarded by
+`if grep -q 'linux-gnu'` -- so an upstream rename would have silently produced
+a compiler pointed at /usr/lib/x86_64-linux-gnu.  As a patch it fails loudly
+instead.
+
+The x32 name goes along for consistency (x86_64-linux-peiosx32); Peios builds
+--disable-multilib, so neither the m32 nor the mx32 entry is reachable.
+
+--- a/gcc/config/i386/t-linux	2026-08-11 23:25:57.739601971 +0100
++++ b/gcc/config/i386/t-linux	2026-08-11 23:25:57.751428310 +0100
+@@ -1 +1 @@
+-MULTIARCH_DIRNAME = $(call if_multiarch,i386-linux-gnu)
++MULTIARCH_DIRNAME = $(call if_multiarch,i386-linux-peios)
+--- a/gcc/config/i386/t-linux64	2026-08-11 23:25:57.746331902 +0100
++++ b/gcc/config/i386/t-linux64	2026-08-11 23:25:57.752253141 +0100
+@@ -33,6 +33,6 @@
+ comma=,
+ MULTILIB_OPTIONS    = $(subst $(comma),/,$(TM_MULTILIB_CONFIG))
+ MULTILIB_DIRNAMES   = $(patsubst m%, %, $(subst /, ,$(MULTILIB_OPTIONS)))
+-MULTILIB_OSDIRNAMES = m64=../lib64$(call if_multiarch,:x86_64-linux-gnu)
+-MULTILIB_OSDIRNAMES+= m32=$(if $(wildcard $(shell echo $(SYSTEM_HEADER_DIR))/../../usr/lib32),../lib32,../lib)$(call if_multiarch,:i386-linux-gnu)
+-MULTILIB_OSDIRNAMES+= mx32=../libx32$(call if_multiarch,:x86_64-linux-gnux32)
++MULTILIB_OSDIRNAMES = m64=../lib64$(call if_multiarch,:x86_64-linux-peios)
++MULTILIB_OSDIRNAMES+= m32=$(if $(wildcard $(shell echo $(SYSTEM_HEADER_DIR))/../../usr/lib32),../lib32,../lib)$(call if_multiarch,:i386-linux-peios)
++MULTILIB_OSDIRNAMES+= mx32=../libx32$(call if_multiarch,:x86_64-linux-peiosx32)

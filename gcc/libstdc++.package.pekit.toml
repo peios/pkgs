@@ -24,3 +24,9 @@ glibc  = ">= 2.43"
 # SONAME symlink (libstdc++.so.6) + the real object (libstdc++.so.6.0.NN). The
 # unversioned dev .so symlink is libstdc++-devel's.
 ":usr/lib/x86_64-linux-peios/libstdc++.so.6*" = "usr/lib/x86_64-linux-peios"
+
+# gdb pretty-printer for std:: types, relocated by the recipe into the
+# auto-load tree (gdb never looks beside the library). It was not caught by the
+# so.6* glob above either, so it was being dropped outright. Same treatment isl
+# gives its own printer.
+":usr/share/gdb/auto-load/**" = "usr/share/gdb/auto-load"

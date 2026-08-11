@@ -15,3 +15,7 @@ description = "GNU Standard C++ Library - development files"
 ":usr/include/c++/**"                      = "usr/include/c++"
 # Developer .so symlink (libstdc++.so -> libstdc++.so.6).
 ":usr/lib/x86_64-linux-peios/libstdc++.so" = "usr/lib/x86_64-linux-peios/libstdc++.so"
+
+# C++20 named-module metadata: tells build systems where libstdc++.modules
+# lives so `import std;` can be compiled. Build-time data, so -devel.
+":usr/lib/x86_64-linux-peios/libstdc++.modules.json" = "usr/lib/x86_64-linux-peios/libstdc++.modules.json"
