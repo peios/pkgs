@@ -1,7 +1,9 @@
 # The C floor: compiler, assembler/linker, libc + kernel headers, and the
 # debug-split pipeline (strip/objcopy via binutils, debugedit, patchelf) that
 # every C recipe's package step invokes. glibc-devel pins only glibc, so
-# kernel-headers is declared here (the libc6-dev -> linux-libc-dev precedent).
+# the Linux UAPI is declared here (the libc6-dev -> linux-libc-dev precedent).
+# By its virtual name: the package shipping it is versioned on pkm's SemVer,
+# which does not describe the Linux syscall surface a C build compiles against.
 
 [package]
 name        = "build-essentials-c"
@@ -12,7 +14,7 @@ build-essentials = "*"
 gcc              = "*"
 binutils         = "*"
 glibc-devel      = "*"
-kernel-headers   = "*"
+"linux-kernel-headers" = "*"
 debugedit        = "*"
 patchelf         = "*"
 

@@ -37,7 +37,11 @@ cpp             = "{{version}}"
 libgcc          = "{{version}}"
 binutils        = ">= 2.46"
 "glibc-devel"   = ">= 2.43"
-"kernel-headers" = ">= 6.16"
+# The Linux UAPI, by its virtual name rather than the package's. The package
+# that ships it is versioned on pkm's SemVer (the PKM/KACS ABI), which says
+# nothing about which Linux syscalls exist; `linux-kernel-headers` is the
+# Linux scale, published as a versioned provide for exactly this.
+"linux-kernel-headers" = ">= 6.16"
 # GCC 16 injects -latomic_asneeded into every link by default
 # (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
 # script is part of the compiler's own contract, like libgcc.
