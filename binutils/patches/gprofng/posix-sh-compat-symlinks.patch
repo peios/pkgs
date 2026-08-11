@@ -1,0 +1,51 @@
+gprofng: use a POSIX word list for the gp-* compatibility symlinks
+
+install-exec-local writes gprofng's five legacy `gp-*` names as symlinks
+onto the current `gprofng-*` binaries, and spells the list with a brace
+expansion:
+
+    for i in gp-{archive,collect-app,display-html,display-src,display-text}
+
+Brace expansion is a bash/ksh/zsh extension, not POSIX. make runs recipes
+with /bin/sh, so on a system whose sh is dash the loop executes exactly
+once with `i` set to the literal, unexpanded string. The result is a
+single dangling symlink whose name and target both contain braces:
+
+    gp-{archive,collect-app,display-html,display-src,display-text}
+      -> gprofng-{archive,collect-app,display-html,display-src,display-text}
+
+and none of the five intended names. Peios's `sh` role is dash, so it gets
+the broken form; distributions whose /bin/sh is bash never see it.
+
+Spelling the list as plain words is POSIX and behaves identically under
+bash, so this is portable rather than Peios-specific and is suitable to
+send upstream.
+
+Both Makefile.am and Makefile.in are patched: the build consumes
+Makefile.in, and .am is kept in step so a regenerated tree does not
+reintroduce it.
+
+diff -ur a/gprofng/src/Makefile.am b/gprofng/src/Makefile.am
+--- a/gprofng/src/Makefile.am
++++ b/gprofng/src/Makefile.am
+@@ -196,7 +196,7 @@
+ .PHONY: install-exec-local
+ install-exec-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(bindir)
+-	for i in gp-{archive,collect-app,display-html,display-src,display-text}; do \
++	for i in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-text; do \
+ 		oldname=`echo $$i | sed '$(transform)'`; \
+ 		rm -f $(DESTDIR)$(bindir)/$$oldname ; \
+ 		ln -s `echo $$oldname | sed 's&gp-&gprofng-&'` $(DESTDIR)$(bindir)/$$oldname; \
+diff -ur a/gprofng/src/Makefile.in b/gprofng/src/Makefile.in
+--- a/gprofng/src/Makefile.in
++++ b/gprofng/src/Makefile.in
+@@ -1193,7 +1193,7 @@
+ .PHONY: install-exec-local
+ install-exec-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(bindir)
+-	for i in gp-{archive,collect-app,display-html,display-src,display-text}; do \
++	for i in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-text; do \
+ 		oldname=`echo $$i | sed '$(transform)'`; \
+ 		rm -f $(DESTDIR)$(bindir)/$$oldname ; \
+ 		ln -s `echo $$oldname | sed 's&gp-&gprofng-&'` $(DESTDIR)$(bindir)/$$oldname; \

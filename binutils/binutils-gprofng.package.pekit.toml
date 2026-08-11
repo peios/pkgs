@@ -1,0 +1,36 @@
+# binutils-gprofng — GNU Next Generation Profiler.
+#
+# Split out because it is a profiler, not a binary utility: ~2.5 MB of the main
+# package (984 KB of programs plus a 1.5 MB collector-library tree) that exists
+# to analyse application performance, while everything else in binutils exists
+# to build software. Nothing in the toolchain path — as, ld, ar, the debug-split
+# pipeline — touches it. Fedora splits it the same way, as binutils-gprofng.
+#
+# The collector libraries under <triplet>/gprofng/ are LD_PRELOAD shims that
+# gprofng injects into the program being profiled, which is why they live in
+# their own directory rather than beside the ordinary shared libraries.
+
+[package]
+description = "GNU Next Generation Profiler for analysing application performance"
+
+[dependencies]
+# Programs and libraries built against this binutils; libgprofng links libbfd.
+binutils = "{{version}}"
+
+[files]
+# Drivers plus the gp-* compatibility names. Those five are symlinks onto the
+# gprofng-* binaries, and only exist at all because of the patch in
+# patches/gprofng/ — upstream writes them with a bash brace expansion that a
+# POSIX sh (Peios's sh role is dash) leaves unexpanded, producing one dangling
+# link literally named "gp-{archive,collect-app,...}" and none of the five.
+":usr/bin/gprofng"   = "usr/bin/gprofng"
+":usr/bin/gprofng-*" = "usr/bin/"
+":usr/bin/gp-*"      = "usr/bin/"
+# The profiler's own library — runtime, dev symlink and archive together.
+# Fedora does the same (%{_libdir}/libgprofng.*), and it is what keeps the
+# package self-contained: leaving the libgprofng.so dev symlink in
+# binutils-devel would point it at a libgprofng.so.0 living in this package,
+# so binutils-devel alone would install a dangling symlink.
+":usr/lib/x86_64-linux-peios/libgprofng.so*"  = "usr/lib/x86_64-linux-peios/"
+":usr/lib/x86_64-linux-peios/libgprofng.a"    = "usr/lib/x86_64-linux-peios/libgprofng.a"
+":usr/lib/x86_64-linux-peios/gprofng/**"      = "usr/lib/x86_64-linux-peios/gprofng/"

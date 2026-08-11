@@ -2,6 +2,12 @@
 # dev .so symlinks, and the static archives, for building tools against libbfd /
 # libopcodes / libctf / libsframe.
 
+# libgprofng.a belongs to binutils-gprofng, which ships the whole libgprofng.*
+# set so the profiler is self-contained; exclude it from the *.a sweep below.
+excludes = [
+  ":usr/lib/x86_64-linux-peios/libgprofng.a",
+]
+
 [package]
 description = "GNU binary utilities - development files"
 
@@ -17,6 +23,5 @@ binutils = "{{version}}"
 ":usr/lib/x86_64-linux-peios/libctf.so"          = "usr/lib/x86_64-linux-peios/libctf.so"
 ":usr/lib/x86_64-linux-peios/libctf-nobfd.so"    = "usr/lib/x86_64-linux-peios/libctf-nobfd.so"
 ":usr/lib/x86_64-linux-peios/libsframe.so"       = "usr/lib/x86_64-linux-peios/libsframe.so"
-":usr/lib/x86_64-linux-peios/libgprofng.so"      = "usr/lib/x86_64-linux-peios/libgprofng.so"
 # Static archives.
 ":usr/lib/x86_64-linux-peios/*.a"                = "usr/lib/x86_64-linux-peios"

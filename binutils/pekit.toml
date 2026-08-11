@@ -11,6 +11,12 @@
 
 out_dir = "out"
 
+# gprofng/posix-sh-compat-symlinks: upstream writes gprofng's five gp-* legacy
+# symlinks with a bash brace expansion, which a POSIX sh leaves unexpanded.
+# Drop when a binutils release carries the fix upstream.
+[source]
+patches = "patches"
+
 [source.url]
 url        = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
 root       = "binutils-{{version}}"
@@ -18,60 +24,77 @@ extract    = true
 file_regex = '^binutils-\d+\.\d+(\.\d+)?\.tar\.xz$'
 versions   = ">= 2.46"
 
-# Out-of-source build, Canadian cross (host=peios) — see the command's inline
-# comments for the cross setup. Layout per PSD-009 §3.4: arch libs under
-# /usr/lib/<triplet>.
-#   --enable-shared           : build libbfd/libopcodes/libctf as shared libs.
-#   --enable-plugins          : ld plugin API (gcc LTO needs the linker plugin).
-#   --enable-deterministic-archives : reproducible `ar` output by default.
-#   --with-system-zlib        : link Peios's system libz, don't bundle one.
-#   --disable-werror          : binutils warns on modern gcc.
-# PREREQUISITE: the Pass-1 cross toolchain + composed sysroot must exist:
-#   cd pkgs/gcc && peipkg-compose build sysroot.toml --out _sysroot
-#   sh pkgs/gcc/_cross/run-pass1.sh
+# Out-of-source NATIVE build: build=host=target=x86_64-linux-peios, compiled by
+# the shipped Peios gcc inside the rung-2 composed root. This followed gcc from
+# the milestone-2 Canadian cross to the milestone-3 native self-build — while it
+# still declared --build=x86_64-pc-linux-gnu it was asserting something false on
+# a rung where the build machine IS peios, and surviving only because the two
+# triplets are ABI-identical. It also no longer needs the Pass-1 cross toolchain
+# or the composed sysroot beside the gcc recipe; zlib now comes from the root's
+# own zlib-devel, like any other build dependency.
+#
+# Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
 [build.main]
 command = """
 SRC="$(pwd)"
 TRIPLET=x86_64-linux-peios
 
-# Pass 2 of the milestone-2 Canadian cross: build the SHIPPED binutils so it
-# RUNS on Peios (host=peios), using the Pass-1 debian->peios cross toolchain
-# (from pkgs/gcc/_cross/build-cross.sh) as the compiler. The cross tools + the
-# composed sysroot live beside the gcc recipe; PEKIT_OUT is
+# config.sub lives beside the gcc recipe (shared with it); PEKIT_OUT is
 # <recipe>/out/<ver>/build/main, so strip from "/out/" on to find the recipe
 # root, then hop to ../gcc.
 GCC_DIR="${PEKIT_OUT%%/out/*}/../gcc"
-CROSS="$GCC_DIR/_cross/tools"
-SYSROOT="$GCC_DIR/_sysroot"
-[ -x "$CROSS/bin/$TRIPLET-gcc" ] || { echo "binutils: cross gcc missing at $CROSS — run pkgs/gcc/_cross/build-cross.sh" >&2; exit 1; }
-[ -f "$SYSROOT/usr/include/zlib.h" ] || { echo "binutils: sysroot missing zlib.h — recompose pkgs/gcc/sysroot.toml" >&2; exit 1; }
-export PATH="$CROSS/bin:$PATH"
 
-# Defensive: exported CC/CXX/AR/... would override configure's --host tool
-# detection and link the host binaries against the build box's toolchain
-# defaults. The Debian container exports none, but keep the cross honest so
-# configure resolves the prefixed cross tools ($TRIPLET-gcc, -ar, ...) for
-# host code; CC_FOR_BUILD still finds the container's gcc on PATH.
+# Defensive: exported CC/CXX/AR/... would override configure's tool detection.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE
 
-# config.sub must accept the peios host/target triplet.
+# PEIOS-DIVERGENCE(triplet): config.sub must accept x86_64-linux-peios, which
+# names peios as the USERLAND on a linux kernel — the `android` model. Applied
+# as a shared idempotent script rather than a patch series because it must cope
+# with several config.sub vintages, and because a context patch against a file
+# upstream regenerates would break on every release. Note the trap it exists to
+# avoid: the OS-normalisation `case` has a `pe*)` arm that captures "peios" and
+# mis-normalises it to obj=peios, os='' unless a peios arm precedes it.
 sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
 
 cd "$PEKIT_OUT"
-# Canadian cross: configure auto-selects $TRIPLET-gcc for host code and the nix
-# gcc for build-time helpers (CC_FOR_BUILD).
-#   --with-sysroot=/        : the SHIPPED ld searches the real Peios root at run
-#       time (the build-time sysroot is baked into the cross gcc, not set here).
-#   --with-system-zlib      : link Peios's system libz (zlib-ng compat) from the
-#       sysroot, not a bundled copy (matches the binutils->zlib dependency).
-#   --without-debuginfod    : no elfutils/debuginfod in the sysroot yet.
-#   LDFLAGS=-Wl,--build-id  : vanilla cross ld emits no build-id notes, but the
-#       debug-split below indexes by build-id, so request them on every host ELF.
+#   --with-lib-path         : the SEARCH_DIR list ld compiles into its default
+#       linker script. Without it ld derives the list from libdir and the
+#       emulation's "append 64" convention, which yields
+#       /usr/lib/x86_64-linux-peios64 — libdir with 64 glued on, a path that
+#       cannot exist — plus /usr/lib64, /usr/local/lib and other directories the
+#       §3.4 layout does not have. The correct answer on Peios is one directory:
+#       every arch-specific library lives under the triplet (§3.4.2). Reaching
+#       it previously depended on /lib64 being the compose-minted symlink to it,
+#       i.e. it worked by accident of the usr-merge rather than by design.
+#   --with-sysroot=/        : the shipped ld searches the real root at run time.
+#   --with-system-zlib      : link the root's libz (zlib-ng compat), not a
+#       bundled copy — matches the declared zlib-devel build dependency.
+#   --without-debuginfod    : elfutils is in the pool but its libdebuginfod
+#       needs libcurl, which is not packaged yet (Phase 3).
+#   --enable-plugins        : ld plugin API (gcc LTO needs the linker plugin).
+#   --enable-deterministic-archives : `ar` omits timestamps/uids by default —
+#       a prerequisite for reproducible builds (PEI-94).
+#   --enable-default-execstack=no : ld does NOT mark the stack executable when
+#       an input object lacks .note.GNU-stack. The permissive default is a
+#       1990s compatibility behaviour; one hand-written .S with no annotation
+#       otherwise silently gives the whole program an executable stack.
+#   --enable-relro          : -z relro on by default.
+#   --enable-new-dtags      : emit RUNPATH rather than the legacy RPATH, so
+#       LD_LIBRARY_PATH still takes precedence and the setting is overridable.
+#   --enable-default-hash-style=gnu : the GNU hash table only; the SysV table is
+#       dead weight for a distribution whose entire userland is being built here.
+#   --enable-cet            : CET/IBT in binutils' own binaries, matching the
+#       -fcf-protection in the workspace flag set.
+#   --enable-64-bit-bfd     : 64-bit BFD support.
+#   --disable-werror        : binutils warns on modern gcc.
+#   LDFLAGS=-Wl,--build-id  : the debug split below indexes by build-id.
 "$SRC/configure" \
-  --build=x86_64-pc-linux-gnu --host="$TRIPLET" --target="$TRIPLET" \
+  --build="$TRIPLET" --host="$TRIPLET" --target="$TRIPLET" \
   --prefix=/usr --libdir=/usr/lib/$TRIPLET \
-  --with-sysroot=/ \
+  --with-sysroot=/ --with-lib-path=/usr/lib/$TRIPLET \
   --enable-shared --enable-plugins --enable-deterministic-archives \
+  --enable-default-execstack=no --enable-relro --enable-new-dtags \
+  --enable-default-hash-style=gnu --enable-cet --enable-64-bit-bfd \
   --with-system-zlib --without-debuginfod --disable-nls --disable-werror \
   LDFLAGS="-Wl,--build-id"
 make -j"$(nproc)"
@@ -115,13 +138,15 @@ done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
-# Build deps. Canadian cross: the host gcc/g++ + make build the CC_FOR_BUILD
-# helpers (the shipped binaries come from the prebuilt _cross toolchain, a
-# separate prerequisite, not a package). zlib comes from the composed sysroot
-# (--with-system-zlib), NOT the host. The post-install debug split adds
-# debugedit + patchelf.
+# Build deps. Native build: the c++ floor supplies the compiler, make, the
+# assembler/linker this package is replacing, and the debug-split tools
+# (debugedit, patchelf, strip/objcopy) the post-install pipeline invokes.
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
+# --with-system-zlib links the root's libz rather than binutils' bundled copy.
+# Previously satisfied by the composed sysroot beside the gcc recipe; now an
+# ordinary build dependency, since this builds natively in the rung-2 root.
+"zlib-devel" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
