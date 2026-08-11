@@ -75,7 +75,16 @@ make -j"$(nproc)"
 
 # gmp is a correctness-critical library that gcc folds constants with, so the
 # suite is not optional. Fedora, Debian and Arch all run it.
-make -j"$(nproc)" check
+#
+# LD_LIBRARY_PATH is load-bearing, not belt-and-braces. The libtool rewrite
+# above strips the rpath libtool would otherwise bake into the test binaries,
+# so without it they resolve libgmp.so.10 from the composed root — meaning they
+# exercise the PREVIOUSLY PUBLISHED library, not the one just built, and pass
+# while proving nothing about it. Fedora's gmp.spec exports the same variable
+# in %check (as `pwd`/.libs) for precisely this reason; taking their sed
+# without their export is how this recipe first shipped a green suite that had
+# never touched the new code.
+LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -j"$(nproc)" check
 
 make install DESTDIR="$PEKIT_OUT"
 

@@ -43,7 +43,11 @@ make -j"$(nproc)"
 # isl drives gcc's Graphite loop transforms, where a wrong answer is miscompiled
 # code rather than a crash. Arch runs the suite; Fedora's spec has it commented
 # out, which is not a reason to follow.
-make -j"$(nproc)" check
+#
+# LD_LIBRARY_PATH is load-bearing: the libtool rewrite above strips the rpath
+# from the test binaries, so without it they load libisl.so.23 from the
+# composed root and test the previously published library instead of this one.
+LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -j"$(nproc)" check
 
 make install DESTDIR="$PEKIT_OUT"
 

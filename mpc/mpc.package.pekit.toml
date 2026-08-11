@@ -9,4 +9,8 @@ gmp   = ">= 6.3.0"
 mpfr  = ">= 4.2.2"
 
 [files]
+# License text (distro convention: /usr/share/licenses/<name>/). mpc ships only
+# COPYING.LESSER — it is LGPL-3.0-or-later throughout, with no GPL half to
+# choose between, so unlike gmp there is a single text.
+"@source:COPYING.LESSER" = "usr/share/licenses/mpc/"
 ":usr/lib/x86_64-linux-peios/libmpc.so.3*" = "usr/lib/x86_64-linux-peios"

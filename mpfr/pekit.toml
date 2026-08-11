@@ -47,7 +47,12 @@ make -j"$(nproc)"
 
 # Correct rounding is the entire product; the suite is what establishes it, and
 # gcc folds float constants through this library. Fedora and Arch both run it.
-make -j"$(nproc)" check
+#
+# LD_LIBRARY_PATH is load-bearing: the libtool rewrite above strips the rpath
+# from the test binaries, so without it they load libmpfr.so.6 from the
+# composed root and test the previously published library instead of this
+# build. Fedora's mpfr.spec exports it in %check for the same reason.
+LD_LIBRARY_PATH="$PEKIT_OUT/src/.libs" make -j"$(nproc)" check
 
 make install DESTDIR="$PEKIT_OUT"
 
