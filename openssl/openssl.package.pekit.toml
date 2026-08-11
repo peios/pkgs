@@ -1,0 +1,12 @@
+# openssl — the command-line tool.
+
+[package]
+name        = "openssl"
+description = "OpenSSL - cryptography toolkit command-line tool"
+
+[dependencies]
+glibc  = ">= 2.43"
+libssl = "{{version}}"
+
+[files]
+":usr/bin/**" = "usr/bin"

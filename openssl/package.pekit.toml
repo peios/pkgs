@@ -1,0 +1,10 @@
+# Shared defaults layer for the openssl members (a bare package.pekit.toml
+# is never a package once named members exist).
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "Apache-2.0"
+homepage     = "https://openssl-library.org/"

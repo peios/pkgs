@@ -1,0 +1,18 @@
+# libssl — libcrypto + libssl runtime libraries and the provider/engine
+# modules (the Debian libssl3 shape: one package, both libs), on their own
+# so library consumers (sign-file, kmod, debuginfod) need not pull the
+# tool.
+
+[package]
+name        = "libssl"
+description = "OpenSSL - libcrypto and libssl runtime libraries"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE.txt" = "usr/share/licenses/libssl/"
+":usr/lib/x86_64-linux-peios/libcrypto.so.*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libssl.so.*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/ossl-modules/**" = "usr/lib/x86_64-linux-peios/ossl-modules"
+":usr/lib/x86_64-linux-peios/engines-3/**"    = "usr/lib/x86_64-linux-peios/engines-3"
