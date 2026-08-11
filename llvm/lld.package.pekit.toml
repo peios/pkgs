@@ -1,0 +1,16 @@
+# lld — the LLVM linker (the kernel's LD under LLVM=1: ld.lld).
+
+[package]
+name        = "lld"
+description = "lld - the LLVM linker (ld.lld)"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+llvm        = "{{version}}"
+
+[files]
+":usr/bin/lld*"    = "usr/bin"
+":usr/bin/ld.lld"  = "usr/bin/ld.lld"
+":usr/bin/ld64.lld" = "usr/bin/ld64.lld"
+":usr/bin/wasm-ld" = "usr/bin/wasm-ld"

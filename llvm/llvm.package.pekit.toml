@@ -1,0 +1,27 @@
+# llvm — the llvm-* tool set (the kernel's LLVM=1 binutils: llvm-ar,
+# llvm-nm, llvm-objcopy, llvm-objdump, llvm-readelf, llvm-strip, ...) +
+# llc/opt + the libLLVM dylib everything here links.
+
+[package]
+name        = "llvm"
+description = "LLVM - compiler infrastructure tools and libLLVM runtime"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+zlib        = ">= 2.3.3"
+libzstd     = ">= 1.5.7"
+
+[files]
+"@source:llvm/LICENSE.TXT" = "usr/share/licenses/llvm/"
+":usr/bin/llvm-*"       = "usr/bin"
+":usr/bin/llc"          = "usr/bin/llc"
+":usr/bin/opt"          = "usr/bin/opt"
+":usr/bin/bugpoint"     = "usr/bin/bugpoint"
+":usr/bin/sancov"       = "usr/bin/sancov"
+":usr/bin/sanstats"     = "usr/bin/sanstats"
+":usr/bin/dsymutil"     = "usr/bin/dsymutil"
+":usr/bin/verify-uselistorder" = "usr/bin/verify-uselistorder"
+":usr/lib/x86_64-linux-peios/libLLVM*.so*"   = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libLTO.so*"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libRemarks.so*" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,116 @@
+# llvm — LLVM + clang + lld; the Peios kernel is clang/LLVM-built (LLVM=1),
+# and bindgen's libclang feeds on this too (PEI-158 item 7).
+#
+# Pinned to the 18.x series: pkm's build/toolchain.lock pins LLVM 18 — the
+# first self-hosted kernel build keeps container parity, the version bump
+# is pkm's decision to make, not packaging's.
+#
+# Monorepo tarball, cmake with the Unix Makefiles generator (no ninja in
+# the seed). Distro dylib shape: one libLLVM + libclang-cpp instead of a
+# hundred static archives — smaller install, lighter link memory. Targets
+# X86 + BPF only (BPF objects back BTF/eBPF work; more targets on demand).
+# zlib+zstd forced on (compressed sections/debug); terminfo, libedit,
+# libxml2, ffi, bindings, tests, examples, benchmarks, docs all off.
+#
+# Minimal dev surface: rustc builds against system LLVM (llvm-config +
+# the LLVM headers + the libLLVM.so link — the llvm-devel member), so the
+# llvm/llvm-c include trees ship; the clang C++ headers, cmake packages,
+# and the static .a set are still dropped (nothing compiles against
+# clang's C++ API — bindgen needs only libclang.so + clang's resource
+# headers, which ship in the clang package). Script conveniences in bin/
+# (scan-build & friends — perl/python) are dropped by shebang scan,
+# consistent with the xz/bzip2 precedent.
+#
+# patches/gcc16 + -include cstdint: GCC 16's libstdc++ no longer provides
+# <cstdint> transitively, and 18.x-era headers use bare uint64_t in many
+# spots (upstream fixed after 18). The SmallVector.h patch fixes the
+# ubiquitous case at the source; the CMAKE_CXX_FLAGS force-include mops up
+# the long tail (X86MCTargetDesc.h & co) without patching dozens of files
+# this recipe will drop at the 19+ bump anyway.
+#
+# Triplet note (recorded on PEI-158): LLVM_HOST_TRIPLE=x86_64-linux-peios
+# normalizes to OS=linux with UNKNOWN environment "peios" — the Linux
+# driver engages, but clang's GCC-installation/multiarch probing does not
+# know our /usr/lib/<triplet> layout, so clang is a freestanding/explicit
+# --target compiler here (exactly what the kernel does). The first kernel
+# attempt keeps HOSTCC=gcc; teaching the clang driver the peios userspace
+# layout is separate future work.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url      = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{{version}}/llvm-project-{{version}}.src.tar.xz"
+extract  = true
+root     = "llvm-project-{{version}}.src"
+versions = ">= 18.1.8, < 19"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+
+# Memory-bounded parallelism: Release C++ compiles + dylib links peak
+# around 1-2 GB; cap at ~1 job/2 GB, never above the core count.
+JOBS=$(nproc)
+MEMJOBS=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 2000000 ))
+[ "$MEMJOBS" -lt "$JOBS" ] && JOBS=$MEMJOBS
+[ "$JOBS" -lt 1 ] && JOBS=1
+
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+# Guard configure so re-runs stay incremental.
+if [ ! -f Makefile ]; then
+  cmake -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_FLAGS="-include cstdint" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLLVM_LIBDIR_SUFFIX=/$TRIPLET \
+    -DLLVM_HOST_TRIPLE=$TRIPLET \
+    -DLLVM_ENABLE_PROJECTS="clang;lld" \
+    -DLLVM_TARGETS_TO_BUILD="X86;BPF" \
+    -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DCLANG_LINK_CLANG_DYLIB=ON \
+    -DLLVM_ENABLE_ZLIB=FORCE_ON -DLLVM_ENABLE_ZSTD=FORCE_ON \
+    -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBEDIT=OFF \
+    -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_FFI=OFF \
+    -DLLVM_ENABLE_BINDINGS=OFF \
+    -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_DOCS=OFF \
+    "$SRC/llvm"
+fi
+make -j"$JOBS"
+make install DESTDIR="$PEKIT_OUT"
+
+# Dev surface trim (see header): the llvm/llvm-c headers stay (llvm-devel,
+# for rustc's system-LLVM build); clang's C++ headers, cmake packages and
+# static archives go.
+rm -rf "$PEKIT_OUT/usr/include/clang" "$PEKIT_OUT/usr/include/clang-c" \
+  "$PEKIT_OUT/usr/include/lld" "$PEKIT_OUT$LIBDIR/cmake"
+find "$PEKIT_OUT$LIBDIR" -maxdepth 1 -name '*.a' -delete
+# Script conveniences out of bin (perl/python shebangs), then any symlinks
+# left dangling by that.
+for f in "$PEKIT_OUT/usr/bin/"*; do
+  [ -f "$f" ] && [ ! -L "$f" ] || continue
+  if head -c 2 "$f" | grep -q '#!'; then rm -f "$f"; fi
+done
+find "$PEKIT_OUT/usr/bin" -type l ! -exec test -e {} ';' -delete
+rm -rf "$PEKIT_OUT/usr/libexec" "$PEKIT_OUT/usr/share"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+cmake = "*"
+python3 = "*"
+"zlib-devel" = "*"
+"zstd-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake = "*"
+python3 = "*"
+zlib1g-dev = "*"
+libzstd-dev = "*"
