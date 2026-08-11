@@ -28,3 +28,14 @@ glibc = "{{version}}"
 # libc_nonshared.a is a static archive but is required for DYNAMIC linking too
 # (the libc.so linker script GROUPs it), so it lives here, not in glibc-static.
 ":usr/lib/x86_64-linux-peios/libc_nonshared.a" = "usr/lib/x86_64-linux-peios/libc_nonshared.a"
+# The empty compat archives for libraries merged into libc (2.34) plus the
+# historic -lg stub. glibc no longer installs .so linker stubs for these, so
+# `-lrt`/`-lpthread`/`-ldl` resolve through these archives — part of the
+# DYNAMIC-linking compat surface (Debian ships them in libc6-dev), not of
+# static glibc. Old-tarball probes (perl's Time::HiRes -lrt) depend on them.
+":usr/lib/x86_64-linux-peios/libanl.a"     = "usr/lib/x86_64-linux-peios/libanl.a"
+":usr/lib/x86_64-linux-peios/libdl.a"      = "usr/lib/x86_64-linux-peios/libdl.a"
+":usr/lib/x86_64-linux-peios/libg.a"       = "usr/lib/x86_64-linux-peios/libg.a"
+":usr/lib/x86_64-linux-peios/libpthread.a" = "usr/lib/x86_64-linux-peios/libpthread.a"
+":usr/lib/x86_64-linux-peios/librt.a"      = "usr/lib/x86_64-linux-peios/librt.a"
+":usr/lib/x86_64-linux-peios/libutil.a"    = "usr/lib/x86_64-linux-peios/libutil.a"

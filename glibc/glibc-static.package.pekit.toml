@@ -2,9 +2,18 @@
 # base metadata; depends on glibc-devel for the headers, crt objects, and
 # libc_nonshared.a that static linking also needs.
 
-# libc_nonshared.a is needed for dynamic linking, so it lives in glibc-devel;
-# exclude it here to avoid double-claiming it.
-excludes = [":usr/lib/x86_64-linux-peios/libc_nonshared.a"]
+# libc_nonshared.a and the merged-lib compat archives (-lrt/-lpthread/... )
+# are needed for dynamic linking, so they live in glibc-devel; exclude them
+# here to avoid double-claiming.
+excludes = [
+  ":usr/lib/x86_64-linux-peios/libc_nonshared.a",
+  ":usr/lib/x86_64-linux-peios/libanl.a",
+  ":usr/lib/x86_64-linux-peios/libdl.a",
+  ":usr/lib/x86_64-linux-peios/libg.a",
+  ":usr/lib/x86_64-linux-peios/libpthread.a",
+  ":usr/lib/x86_64-linux-peios/librt.a",
+  ":usr/lib/x86_64-linux-peios/libutil.a",
+]
 
 [package]
 description = "GNU C Library - static libraries"
