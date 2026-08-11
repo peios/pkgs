@@ -1,0 +1,47 @@
+gmp's "long long reliability" probe — the one that decides whether the
+compiler works at all — calls g() with six arguments after declaring it
+`void g(){}`. Under C17 and earlier that is a function with an unspecified
+parameter list, so the call is legal. C23 redefined `()` to mean `(void)`,
+so gcc 16 (C23 by default) rejects the call:
+
+    error: too many arguments to function 'g'
+
+The probe then fails, gmp concludes the compiler is broken, and configure
+either falls back to another compiler or gives up.
+
+Upstream fixed this in 8e7bb4ae7a18 by giving g() the prototype the call
+site actually uses. Fedora ships the same change as gmp-6.3.0-c23.patch,
+Debian as fix-acinclude-m4-for-gcc-15.patch, and Arch as gmp-gcc-15.patch.
+
+All three of them patch `acinclude.m4`, which is the right place, and then
+re-run autoreconf. Peios packages no autoconf/automake/libtool, so we cannot
+regenerate `configure` — and `configure` is where the probe actually runs,
+the macro having been expanded into it verbatim (twice). So this applies the
+same one-line change to both expansions in the shipped `configure` instead.
+It is otherwise identical to upstream, and becomes unnecessary the moment
+gmp releases a version containing 8e7bb4ae7a18.
+
+This replaces an earlier workaround that pinned the whole build to
+`-std=gnu17`, which fixed the probe by making the entire library compile as
+C17 — a much larger hammer, and one that quietly rots as gcc moves on.
+
+--- a/configure
++++ b/configure
+@@ -6568,7 +6568,7 @@
+
+ #if defined (__GNUC__) && ! defined (__cplusplus)
+ typedef unsigned long long t1;typedef t1*t2;
+-void g(){}
++void g(int a,t1 const*b,t1 c,t2 d,t1 const*e,int f){}
+ void h(){}
+ static __inline__ t1 e(t2 rp,t2 up,int n,t1 v0)
+ {t1 c,x,r;int i;if(v0){c=1;for(i=1;i<n;i++){x=up[i];r=x+1;rp[i]=r;}}return c;}
+@@ -8187,7 +8187,7 @@
+
+ #if defined (__GNUC__) && ! defined (__cplusplus)
+ typedef unsigned long long t1;typedef t1*t2;
+-void g(){}
++void g(int a,t1 const*b,t1 c,t2 d,t1 const*e,int f){}
+ void h(){}
+ static __inline__ t1 e(t2 rp,t2 up,int n,t1 v0)
+ {t1 c,x,r;int i;if(v0){c=1;for(i=1;i<n;i++){x=up[i];r=x+1;rp[i]=r;}}return c;}

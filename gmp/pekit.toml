@@ -12,6 +12,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 # ftp.gnu.org mirrors gmp's signed releases (gmp itself is not GNU-VCS-hosted).
 url        = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
@@ -24,29 +27,64 @@ versions   = ">= 6.3"
 # same shape as glibc. Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
 # gmp is a plain libtool lib, so --libdir is honoured directly (no gcc-style
 # multilib os-directory to fight).
-#   --enable-cxx : also build the C++ wrapper libgmpxx.so.4.
+#   --enable-cxx : also build the C++ wrapper libgmpxx.so.4 (packaged apart, as
+#     gmp-c++, so plain libgmp consumers don't drag in libstdc++).
 #   --enable-fat : runtime CPU dispatch — ONE portable binary that selects the
 #     best routines at runtime, never tuned to the build host (same discipline as
 #     zlib-ng's runtime detection). Without it gmp tunes to the builder's CPU.
-#   CC="gcc -std=gnu17 -g" : the shell's gcc 15 defaults to C23, where `()` means
-#     `(void)`; gmp 6.3.0's K&R-style configure probes then fail to compile
-#     ("too many arguments to function 'g'"). Pinning gnu17 restores the legacy
-#     `()`=unspecified semantics. -g is added because gmp's own default flags
-#     (-O2 -pedantic -fomit-frame-pointer) carry NO debug info, so without it the
-#     debug-split + debugsource come out empty. Both go in CC (not CFLAGS) so gmp
-#     still layers on its own -O2/-fat tuning, which a user-set CFLAGS suppresses.
-#   CXX="g++ -g" : same -g reasoning for the C++ wrapper libgmpxx (no C23 std
-#     issue on the C++ side, so just -g). Without it libgmpxx ships no DWARF.
+#
+# The distro CFLAGS/CXXFLAGS/LDFLAGS reach this build through the environment,
+# which is what Fedora does too (%configure passes %{optflags}). Two notes:
+#
+#   * Setting CFLAGS suppresses gmp's own default flags — the ones the recipe
+#     used to preserve by hiding -g inside CC. That is fine and deliberate:
+#     those defaults are "-O2 -pedantic -fomit-frame-pointer", which carry no
+#     debug info (the reason for the old -g hack) and no hardening. What they
+#     do NOT include is CPU selection: with --enable-fat, gmp picks its
+#     assembly at runtime through MPN_PATH, independently of CFLAGS, so
+#     nothing about the fat build is lost by supplying our own.
+#
+#   * -Wl,-z,shstk is added because gmp's hot loops are hand-written assembly
+#     with no CET markings, so the linker's AND over .note.gnu.property yields
+#     nothing and the library ships with CET off entirely — which, since gcc's
+#     cc1 links libgmp, would silently disable CET for the compiler itself.
+#     -z shstk forces the shadow-stack bit back on; that is sound because
+#     shadow stack only constrains call/ret, which gmp's assembly does
+#     normally. IBT is NOT forced, and must not be: it needs an endbr64 at
+#     every indirect-branch target, which the assembly does not have. Fedora
+#     adds those with a 3519-line patch across ~400 .asm files, but it also
+#     patches acinclude.m4/configure.ac and so requires autoreconf, which
+#     Peios has no packages for. Arch takes exactly this -z shstk route.
 [build.main]
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17 -g" CXX="g++ -g" LDFLAGS="-Wl,--build-id" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+"$SRC/configure" LDFLAGS="$LDFLAGS -Wl,-z,shstk" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+
+# libtool appends -Wl,--as-needed AFTER the libraries on the link line, where
+# it has no effect on anything preceding it. Fedora and Arch both rewrite the
+# generated libtool for this; move the flag onto the compiler driver so it
+# leads. Also blank the rpath machinery at source rather than unpicking it
+# with patchelf afterwards.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
+    -i libtool
+
 make -j"$(nproc)"
+
+# gmp is a correctness-critical library that gcc folds constants with, so the
+# suite is not optional. Fedora, Debian and Arch all run it.
+make -j"$(nproc)" check
+
 make install DESTDIR="$PEKIT_OUT"
 
 # Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED supersede).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+# The info manual is installed but packaged by nobody (Peios ships no
+# /usr/share/info; see texinfo/flex). Remove it rather than leave it orphaned
+# in the staging tree.
+rm -rf "$PEKIT_OUT/usr/share/info"
 
 # Post-install debug pipeline (identical to glibc/zlib): debugedit scrubs build
 # paths (-> /usr/src/debug/gmp), split debug build-id-indexed, strip, stage the

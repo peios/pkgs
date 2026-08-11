@@ -16,18 +16,45 @@ extract    = true
 file_regex = '^isl-\d+\.\d+\.tar\.xz$'
 versions   = ">= 0.26"
 
-# Standard autotools (-g -O2 default). CC pins gnu17 (gcc 15 / C23 probe safety).
+# Standard autotools. The distro CFLAGS/LDFLAGS arrive through the environment;
+# assigning LDFLAGS on the configure line OVERRIDES it rather than adding, which
+# is how this recipe used to discard the whole distro link flag set while adding
+# --build-id (already in LDFLAGS, as sha1). `-std=gnu17` is gone with it: it
+# guarded against C23 tripping K&R configure probes, which is a gmp problem
+# (now patched at source), not isl's.
+#
 # gmp found via the cc-wrapper's injected -I/-L (isl's --with-gmp defaults to
 # system).
 [build.main]
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17" LDFLAGS="-Wl,--build-id" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
+
+# libtool appends -Wl,--as-needed after the libraries and hardcodes an rpath to
+# the install libdir; Fedora and Arch both rewrite it, so do the same.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
+    -i libtool
+
 make -j"$(nproc)"
+
+# isl drives gcc's Graphite loop transforms, where a wrong answer is miscompiled
+# code rather than a crash. Arch runs the suite; Fedora's spec has it commented
+# out, which is not a reason to follow.
+make -j"$(nproc)" check
+
 make install DESTDIR="$PEKIT_OUT"
 
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+# gdb's pretty-printer for isl types. Upstream installs it beside the library,
+# where gdb never looks; both Fedora and Arch move it under the auto-load tree,
+# which is keyed by the library's install path. Do the same, or it can only be
+# dropped (which is what the isl package's `excludes` was doing).
+mkdir -p "$PEKIT_OUT/usr/share/gdb/auto-load/usr/lib/x86_64-linux-peios"
+mv "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/libisl.so.*-gdb.py \
+   "$PEKIT_OUT/usr/share/gdb/auto-load/usr/lib/x86_64-linux-peios/"
 
 # Post-install debug pipeline (same as gmp/mpfr/mpc): strip libtool's redundant
 # rpath + the stray ld-linux DT_NEEDED, scrub DWARF (-> /usr/src/debug/isl), split

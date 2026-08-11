@@ -1,8 +1,5 @@
-# isl — runtime: libisl.so.23. Links libgmp.
-
-# The files glob also catches the gdb pretty-printer; it needs printer
-# modules not shipped in phase 1, so drop it (version-agnostic).
-excludes = [":usr/lib/x86_64-linux-peios/*-gdb.py"]
+# isl — runtime: libisl.so.23, plus gdb's pretty-printer for isl types. Links
+# libgmp.
 
 [package]
 description = "Integer Set Library"
@@ -12,4 +9,15 @@ glibc = ">= 2.43"
 gmp   = ">= 6.3.0"
 
 [files]
+# License text (distro convention: /usr/share/licenses/<name>/).
+"@source:LICENSE" = "usr/share/licenses/isl/"
 ":usr/lib/x86_64-linux-peios/libisl.so.23*" = "usr/lib/x86_64-linux-peios"
+# gdb pretty-printer. The recipe moves it from beside the library (where gdb
+# never looks) into the auto-load tree, as Fedora and Arch both do.
+#
+# It used to be dropped here by an `excludes`, on the grounds that it "needs
+# printer modules not shipped in phase 1". It does not: the script imports only
+# `gdb` and `re`, both built into gdb, and upstream ships it with registration
+# commented out — it installs an `islprint` command rather than hooking itself
+# into value printing. Nothing was missing; it was simply in the wrong place.
+":usr/share/gdb/auto-load/**" = "usr/share/gdb/auto-load"

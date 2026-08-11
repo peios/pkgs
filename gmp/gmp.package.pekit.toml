@@ -1,20 +1,26 @@
-# gmp — runtime: the C library (libgmp.so.10) plus the C++ wrapper
-# (libgmpxx.so.4). Bundled together (Fedora model). The C++ wrapper links the C++
-# runtime, so this pulls libstdc++; the bare C library needs only glibc.
+# gmp — runtime: the C library (libgmp.so.10), and only that. The C++ wrapper
+# (libgmpxx.so.4) is the separate gmp-c++ package; headers and dev symlinks are
+# gmp-devel; the static archives are gmp-static.
 #
 # A glob source ("so.10*") maps to a DIRECTORY.
 
 [package]
 description = "GNU Multiple Precision Arithmetic Library"
+# The C++ wrapper used to live here, which the old comment justified as "the
+# Fedora model" — Fedora in fact splits it as gmp-c++, and the reason is the
+# dependency rather than tidiness: libgmpxx links libstdc++, so bundling it put
+# libstdc++ in the install closure of EVERYTHING that uses libgmp. gcc's cc1
+# links libgmp, as will nettle/gnutls; none of them touch the C++ API.
 
 [dependencies]
 glibc = ">= 2.43"
-# libgmpxx.so.4 links libstdc++.so.6 (DT_NEEDED); floor = the libstdc++ Peios
-# ships (ABI is forward-compatible, so any newer also satisfies it).
-"libstdc++" = ">= 16.1.0"
 
 [files]
-# SONAME symlink + real object for each lib. The dev .so symlinks are gmp-devel's,
-# the static .a are gmp-static's.
-":usr/lib/x86_64-linux-peios/libgmp.so.10*"  = "usr/lib/x86_64-linux-peios"
-":usr/lib/x86_64-linux-peios/libgmpxx.so.4*" = "usr/lib/x86_64-linux-peios"
+# License texts. gmp is dual-licensed and ships four: COPYING (the statement of
+# which licence applies to what), COPYINGv2 + COPYINGv3 (GPL) and
+# COPYING.LESSERv3 (LGPL). Ship the set — under "LGPLv3+ or GPLv2+" the choice
+# is the recipient's, so they need all of it to make one.
+"@source:COPYING*" = "usr/share/licenses/gmp/"
+# SONAME symlink + real object. The dev .so symlink is gmp-devel's, the static
+# .a is gmp-static's.
+":usr/lib/x86_64-linux-peios/libgmp.so.10*" = "usr/lib/x86_64-linux-peios"

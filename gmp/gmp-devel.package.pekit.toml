@@ -6,6 +6,10 @@ description = "GNU Multiple Precision Arithmetic Library - development files"
 
 [dependencies]
 gmp = "{{version}}"
+# gmpxx.h and the libgmpxx.so dev symlink live here, so the runtime they
+# resolve against has to come too. Fedora's gmp-devel Requires gmp-c++ for the
+# same reason.
+"gmp-c++" = "{{version}}"
 
 [files]
 ":usr/include/gmp.h"                          = "usr/include/gmp.h"

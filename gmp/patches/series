@@ -1,0 +1,3 @@
+# Peios gmp patch series — applied in order by pekit during source
+# materialisation (`patches = "patches"` in pekit.toml).
+c23-compiler-probe.patch  # configure's "does this compiler work" probe is pre-C23 K&R; gcc 16 rejects it

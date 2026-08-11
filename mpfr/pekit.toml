@@ -17,20 +17,46 @@ root       = "mpfr-{{version}}"
 file_regex = '^mpfr-\d+\.\d+\.\d+\.tar\.xz$'
 versions   = ">= 4.2"
 
-# Standard autotools, so the default CFLAGS already carry -g -O2 (debug present,
-# unlike gmp's custom flags). CC pins gnu17 defensively: the shell's gcc 15
-# defaults to C23, which trips legacy K&R configure probes. mpfr finds gmp via the
-# cc-wrapper's injected -I/-L (no --with-gmp needed).
+# Standard autotools. The distro CFLAGS/LDFLAGS reach the build through the
+# environment; nothing is passed on the configure line, because assigning
+# LDFLAGS there OVERRIDES the environment rather than adding to it — which is
+# how this recipe previously threw the whole distro link flag set away in the
+# course of adding --build-id (which LDFLAGS already carries, as sha1).
+#
+# `-std=gnu17` is likewise gone. It was set defensively against gcc's C23
+# default tripping K&R configure probes; mpfr's configure has no such probe
+# (that was gmp, which now carries the upstream fix as a patch), and pinning a
+# superseded standard for a hazard the package does not have only rots.
+#
+# mpfr finds gmp via the cc-wrapper's injected -I/-L (no --with-gmp needed).
 [build.main]
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17" LDFLAGS="-Wl,--build-id" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
+
+# libtool appends -Wl,--as-needed AFTER the libraries, where it cannot act on
+# them, and hardcodes an rpath to the install libdir. Fedora and Arch both
+# rewrite the generated libtool for exactly this; do the same.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
+    -i libtool
+
 make -j"$(nproc)"
+
+# Correct rounding is the entire product; the suite is what establishes it, and
+# gcc folds float constants through this library. Fedora and Arch both run it.
+make -j"$(nproc)" check
+
 make install DESTDIR="$PEKIT_OUT"
 
 # Drop libtool archives.
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+# Installed but packaged by nobody: Peios ships no /usr/share/info and no
+# /usr/share/doc (the licence texts come from @source instead, into
+# /usr/share/licenses/mpfr/). Remove rather than leave orphaned in staging.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 
 # Post-install debug pipeline (same as glibc/gmp): strip libtool's redundant
 # install-libdir rpath, scrub DWARF build paths (-> /usr/src/debug/mpfr), split

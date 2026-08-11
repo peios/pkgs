@@ -1,0 +1,24 @@
+# gmp-c++ — the C++ wrapper library (libgmpxx.so.4): operator overloading and
+# the mpz_class/mpq_class/mpf_class types over gmp's C API. Split out exactly as
+# Fedora does, because this is the only piece of gmp that links libstdc++ —
+# keeping it here means a package that only wants libgmp does not acquire the
+# C++ runtime through it.
+#
+# The matching header (gmpxx.h) and dev symlink (libgmpxx.so) are in gmp-devel,
+# which depends on this; the static archive is in gmp-static.
+
+[package]
+description = "GNU Multiple Precision Arithmetic Library - C++ bindings"
+
+[dependencies]
+# Wraps libgmp of exactly this build (the two are one source and share internals).
+gmp = "{{version}}"
+glibc = ">= 2.43"
+# libgmpxx.so.4 links libstdc++.so.6 (DT_NEEDED); floor = the libstdc++ Peios
+# ships (ABI is forward-compatible, so any newer also satisfies it).
+"libstdc++" = ">= 16.1.0"
+
+[files]
+# Separately installable, so it carries the licence set in its own right.
+"@source:COPYING*" = "usr/share/licenses/gmp-c++/"
+":usr/lib/x86_64-linux-peios/libgmpxx.so.4*" = "usr/lib/x86_64-linux-peios"
