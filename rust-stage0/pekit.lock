@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.82.0"
+  url = "https://static.rust-lang.org/dist/rust-1.82.0-x86_64-unknown-linux-gnu.tar.xz"
+  sha256 = "8a6bf24ca1fee2bd861590431c7954674191a0c0dfa0af4169731bc1459cf58a"
+  signature_key = "108f66205eaeb0aaa8dd5e1c85ab96e6fa1be5fe"
+  locked_at = "2026-08-11T10:03:33Z"

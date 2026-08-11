@@ -1,0 +1,18 @@
+format = "peipkg"
+
+[package]
+name         = "rust-stage0"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "Upstream Rust release binaries - the pinned bootstrap seed for building rustc (build-time only, never a runtime dependency)"
+license      = "Apache-2.0 OR MIT"
+homepage     = "https://www.rust-lang.org/"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYRIGHT"     = "usr/share/licenses/rust-stage0/"
+"@source:LICENSE-APACHE" = "usr/share/licenses/rust-stage0/"
+"@source:LICENSE-MIT"    = "usr/share/licenses/rust-stage0/"
+":usr/lib/x86_64-linux-peios/rust-stage0/**" = "usr/lib/x86_64-linux-peios/rust-stage0"
