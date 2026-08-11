@@ -1,0 +1,73 @@
+# bindgen — the C-to-Rust bindings generator; the kernel's Rust side runs
+# it over kernel headers through libclang (PEI-158 item 9).
+#
+# Pinned to the 0.65 series: pkm's build/toolchain.lock pins bindgen
+# 0.65.1 — kernel bindgen version requirements are strict, the bump is
+# pkm's call.
+#
+# Source is the published crate from static.crates.io (a tar.gz). crates.io
+# does not sign artifacts, so this is lock-only TOFU — but integrity
+# extends inward: the crate ships its own Cargo.lock with per-dependency
+# sha256s, and cargo verifies the vendor tree against them.
+#
+# Two-stage shape (the pkm upstream/source precedent — source
+# materialisation off the pristine rung, builds on it):
+#   [build.vendor] runs `cargo vendor` and needs NETWORK — run it under
+#     the recipe-local peipkg-net env (enter-net.sh: the standard rung-2
+#     root plus --share-net, host resolv.conf, and the host CA bundle;
+#     there is no ca-certificates package yet, and host trust anchors for
+#     a source-materialisation stage match how pekit itself downloads).
+#     The toolchain in that root is still entirely ours (rust package).
+#   [build.main] consumes the cached vendor tree fully --offline.
+# Flow:  pekit build vendor --env peipkg-net
+#        pekit package --all --env peipkg ...   (vendor stage reused)
+#
+# clang-sys stays on its default runtime-loading feature, so libclang is
+# a RUNTIME dep (dlopen), not a build dep — the clang package carries
+# libclang.so + the resource headers.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://static.crates.io/crates/bindgen-cli/bindgen-cli-{{version}}.crate"
+extract  = true
+root     = "bindgen-cli-{{version}}"
+versions = ">= 0.65.1, < 0.66"
+
+[build.vendor]
+command = """
+SRC="$(pwd)"
+export CARGO_HOME=/tmp/cargo
+mkdir -p "$CARGO_HOME" "$PEKIT_OUT"
+cd "$SRC"
+cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
+"""
+
+[build.vendor.dependencies.peipkg]
+rust = "*"
+
+[build.vendor.dependencies.apt]
+cargo = "*"
+ca-certificates = "*"
+
+[build.main]
+needs = ["vendor"]
+command = """
+SRC="$(pwd)"
+export CARGO_HOME=/tmp/cargo
+mkdir -p "$CARGO_HOME"
+cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+cd "$SRC"
+cargo build --release --offline --target-dir "$PEKIT_OUT/target"
+mkdir -p "$PEKIT_OUT/usr/bin"
+cp "$PEKIT_OUT/target/release/bindgen" "$PEKIT_OUT/usr/bin/bindgen"
+rm -rf "$PEKIT_OUT/target"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+rust = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cargo = "*"

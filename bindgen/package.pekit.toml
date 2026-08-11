@@ -1,0 +1,19 @@
+format = "peipkg"
+
+[package]
+name         = "bindgen"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "bindgen - C-to-Rust FFI bindings generator (the bindgen-cli crate)"
+license      = "BSD-3-Clause"
+homepage     = "https://github.com/rust-lang/rust-bindgen"
+
+[dependencies]
+glibc = ">= 2.43"
+# bindgen dlopens libclang.so at runtime (clang-sys runtime loading);
+# kernel parity keeps it on the same major as the kernel's clang.
+clang = ">= 18.1.8, < 19"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/bindgen/"
+":usr/bin/bindgen" = "usr/bin/bindgen"

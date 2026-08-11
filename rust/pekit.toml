@@ -1,0 +1,112 @@
+# rust — rustc + cargo + rustfmt + the rust-src component; the Peios
+# kernel's in-tree Rust (kacs et al) and bindgen both feed on it
+# (PEI-158 item 8).
+#
+# Pinned to the 1.83 series: pkm's build/toolchain.lock pins Rust 1.83.0 —
+# kernel Rust version requirements are strict, the bump is pkm's call.
+#
+# Bootstrap shape (anchor decision approved 2026-08-11, see rust-stage0):
+# x.py is pointed at the composed root's rust-stage0 prefix via
+# build.rustc/build.cargo — the distro-standard "system stage0" flow — and
+# climbs stage0 -> stage1 -> stage2 as usual, so the shipped compiler is
+# built by itself, by our build. The src dist tarball vendors every crate
+# (bootstrap detects vendor/ and runs cargo frozen), so the no-network
+# rung needs nothing.
+#
+# LLVM: system libLLVM via llvm-config (llvm-devel supplies the headers,
+# link-shared avoids a second LLVM inside rustc). The source tarball's
+# bundled llvm-project never builds. rustc's host triple stays
+# x86_64-unknown-linux-gnu — the kernel compiles Rust against its own
+# generated target spec, and a peios rustc triple is future work aligned
+# with the clang-driver item (PEI-158).
+
+out_dir = "out"
+
+[source.url]
+url      = "https://static.rust-lang.org/dist/rustc-{{version}}-src.tar.xz"
+extract  = true
+root     = "rustc-{{version}}-src"
+versions = ">= 1.83, < 1.84"
+
+[source.url.signature]
+key_files    = ["keys/rust-release.asc"]
+url          = "{{source_url}}.asc"
+fingerprints = ["108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"]
+
+[build.main]
+command = """
+SRC="$(pwd)"
+TRIPLET_DIR=/usr/lib/x86_64-linux-peios
+STAGE0="$TRIPLET_DIR/rust-stage0"
+[ -x "$STAGE0/bin/rustc" ] || { echo "rust: root missing rust-stage0" >&2; exit 1; }
+command -v llvm-config >/dev/null || { echo "rust: root missing llvm-config" >&2; exit 1; }
+
+mkdir -p "$PEKIT_OUT/build"
+cat > "$PEKIT_OUT/config.toml" <<EOF
+[build]
+build = "x86_64-unknown-linux-gnu"
+host = ["x86_64-unknown-linux-gnu"]
+target = ["x86_64-unknown-linux-gnu"]
+rustc = "$STAGE0/bin/rustc"
+cargo = "$STAGE0/bin/cargo"
+build-dir = "$PEKIT_OUT/build"
+docs = false
+extended = true
+tools = ["cargo", "rustfmt", "src"]
+vendor = true
+
+[install]
+prefix = "/usr"
+sysconfdir = "etc"
+libdir = "lib/x86_64-linux-peios"
+mandir = "share/man"
+
+[rust]
+channel = "stable"
+rpath = false
+
+[llvm]
+download-ci-llvm = false
+link-shared = true
+
+[target.x86_64-unknown-linux-gnu]
+llvm-config = "/usr/bin/llvm-config"
+# Bootstrap's sanity gate insists FileCheck exists, but nothing in
+# `x.py install` runs it (test-suite-only tool, and our llvm install
+# skips LLVM_INSTALL_UTILS). Satisfy the existence check; ship FileCheck
+# from the llvm recipe (LLVM_INSTALL_UTILS=ON) at its next rebuild cycle
+# if rust's test suites ever run here.
+llvm-filecheck = "/usr/bin/true"
+EOF
+
+cd "$SRC"
+DESTDIR="$PEKIT_OUT" python3 x.py install --config "$PEKIT_OUT/config.toml" -j"$(nproc)"
+
+# Shell-completion and uninstall bookkeeping aren't payload.
+rm -rf "$PEKIT_OUT/etc" "$PEKIT_OUT/usr/lib/rustlib" \
+  "$PEKIT_OUT$TRIPLET_DIR/rustlib/uninstall.sh" \
+  "$PEKIT_OUT$TRIPLET_DIR/rustlib/install.log"
+"""
+
+# g++ builds the llvm-wrapper shim; zlib/zstd -devel supply the link libs
+# llvm-config --system-libs names; python3 drives x.py; pkgconf +
+# openssl-devel serve cargo's openssl-sys (cargo links system libssl).
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+rust-stage0 = "*"
+python3 = "*"
+llvm = "*"
+"llvm-devel" = "*"
+"zlib-devel" = "*"
+"zstd-devel" = "*"
+pkgconf = "*"
+"openssl-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+python3 = "*"
+"llvm-18-dev" = "*"
+zlib1g-dev = "*"
+libzstd-dev = "*"
+pkg-config = "*"
+libssl-dev = "*"
