@@ -51,8 +51,7 @@ find "$PEKIT_OUT/usr/include" -type d -empty -delete
 # rsync: the kernel's headers_install has copied via rsync since 5.3.
 # Ambient on the old host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 rsync = "*"
 
 [build.main.dependencies.apt]

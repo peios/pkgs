@@ -12,3 +12,9 @@ out_dir = "out"
 
 [build]
 command = "for d in dev proc run sys tmp var system/boot; do mkdir -p \"$PEKIT_OUT/$d\"; done"
+
+# Buildless, but the mkdir loop still needs a shell and mkdir in the
+# composed root.
+[build.dependencies.peipkg]
+dash = "*"
+"coreutils-gnu" = "*"  # build deps are compose GOALS: name-only, no provides resolution

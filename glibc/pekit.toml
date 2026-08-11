@@ -62,7 +62,7 @@ for tool in makeinfo msgfmt debugedit; do
   command -v "$tool" >/dev/null || { echo "missing required glibc build tool: $tool" >&2; exit 1; }
 done
 cd "$PEKIT_OUT"
-"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --libexecdir=/usr/lib/x86_64-linux-peios --disable-werror libc_cv_slibdir=/usr/lib/x86_64-linux-peios libc_cv_rtlddir=/usr/lib/x86_64-linux-peios
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --libexecdir=/usr/lib/x86_64-linux-peios --disable-werror CC="gcc -Wl,--build-id" libc_cv_slibdir=/usr/lib/x86_64-linux-peios libc_cv_rtlddir=/usr/lib/x86_64-linux-peios
 # glibc installs ldconfig/sln to rootsbindir (/sbin) and nscd/zic/iconvconfig to
 # sbindir (/usr/sbin). usrmerge wants them all in /usr/bin, and glibc honors these
 # two dirs via configparms — NOT the autoconf --sbindir flag — so set both here.
@@ -119,16 +119,15 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # kernel-headers, which the compiler wrapper supplies). The debug split uses
 # debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
+bash = "*"
 bison = "*"
-gawk = "*"
 python3 = "*"
 perl = "*"
 texinfo = "*"
 gettext = "*"
-debugedit = "*"
 kernel-headers = "*"
+gzip = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -140,6 +139,7 @@ texinfo = "*"
 gettext = "*"
 debugedit = "*"
 linux-libc-dev = "*"
+gzip = "*"
 
 # Compiled locale data, kept out of the main build (locale compilation is slow
 # and bulky). needs = ["main"] orders this after main and exposes its output dir
@@ -157,8 +157,7 @@ make -C "$PEKIT_MAIN_OUT" -j"$(nproc)" localedata/install-locale-files DESTDIR="
 # Build deps. Re-runs make in main's already-configured glibc tree to compile the
 # per-locale data with the localedef built there — needs the same gcc + make.
 [build.locale.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.locale.dependencies.apt]
 build-essential = "*"

@@ -121,11 +121,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # (--with-system-zlib), NOT the host. The post-install debug split adds
 # debugedit + patchelf.
 [build.main.dependencies.peipkg]
-gcc = "*"
-"gcc-c++" = "*"
-make = "*"
-debugedit = "*"
-patchelf = "*"
+"build-essentials-c++" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

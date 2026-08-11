@@ -46,7 +46,7 @@ TRIPLET=x86_64-linux-peios
 # shared and a static lib only when it's undefined; setting it ON yields
 # shared-only (no libz.a), OFF yields static-only. On Linux both come out named
 # libz/libz-ng (the MSVC "zlibstatic" naming never applies here).
-COMMON="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib/$TRIPLET -DWITH_GZFILEOP=ON -DWITH_RUNTIME_CPU_DETECTION=ON -DZLIB_ENABLE_TESTS=OFF -DBUILD_TESTING=OFF -DCMAKE_SKIP_INSTALL_RPATH=ON"
+COMMON="-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--build-id -DCMAKE_EXE_LINKER_FLAGS=-Wl,--build-id -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib/$TRIPLET -DWITH_GZFILEOP=ON -DWITH_RUNTIME_CPU_DETECTION=ON -DZLIB_ENABLE_TESTS=OFF -DBUILD_TESTING=OFF -DCMAKE_SKIP_INSTALL_RPATH=ON"
 
 # compat ABI -> libz.so.1 / zlib.h / zlib.pc / cmake/ZLIB
 cmake -S "$SRC" -B "$PEKIT_OUT/build-compat" $COMMON -DZLIB_COMPAT=ON
@@ -97,11 +97,8 @@ rm -rf "$PEKIT_OUT/build-compat" "$PEKIT_OUT/build-native"
 # builds) compiled with gcc/g++; the post-install debug split adds debugedit
 # (no patchelf — zlib-ng links no libtool rpath to scrub). No external lib deps.
 [build.main.dependencies.peipkg]
-gcc = "*"
-"gcc-c++" = "*"
-make = "*"
+"build-essentials-c++" = "*"
 cmake = "*"
-debugedit = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

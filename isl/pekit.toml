@@ -23,7 +23,7 @@ versions   = ">= 0.26"
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
+"$SRC/configure" CC="gcc -std=gnu17" LDFLAGS="-Wl,--build-id" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
@@ -66,11 +66,8 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # Build deps. isl is autotools (gcc + make), links gmp, and the post-install
 # debug split adds debugedit + patchelf.
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 gmp-devel = "*"
-debugedit = "*"
-patchelf = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

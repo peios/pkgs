@@ -41,7 +41,7 @@ versions   = ">= 6.3"
 command = """
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" CC="gcc -std=gnu17 -g" CXX="g++ -g" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+"$SRC/configure" CC="gcc -std=gnu17 -g" CXX="g++ -g" LDFLAGS="-Wl,--build-id" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
@@ -91,13 +91,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
 # Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
-gcc = "*"
-"gcc-c++" = "*"
-make = "*"
+"build-essentials-c++" = "*"
 m4 = "*"
 bison = "*"
-debugedit = "*"
-patchelf = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
