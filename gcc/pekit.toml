@@ -1,23 +1,22 @@
-# gcc — the GCC compiler for Peios (milestone 2: the self-hosting toolchain).
+# gcc — the GCC compiler for Peios (milestone 3: the native self-build).
 #
-# Built as PASS 2 of a Canadian cross: host=target=x86_64-linux-peios,
-# build=the rung-1 Debian container (PEI-156/PEI-157), compiled by the Pass-1
-# debian->peios cross toolchain (pkgs/gcc/_cross). The result RUNS on Peios.
-# Host and target share the ABI (same glibc, psABI /lib64 loader via the
-# compose usr-merge); the cross exists so the shipped compiler is CONFIGURED
-# for the peios layout — internal tree under the peios triplet, library
-# search in /usr/lib/x86_64-linux-peios — rather than the build box's.
+# Built NATIVELY on the rung-2 peipkg root (PEI-126/PEI-155 closure):
+# build=host=target=x86_64-linux-peios, compiled by the shipped Peios gcc
+# (itself born of the milestone-2 Canadian cross, preserved in _cross/ for
+# re-bootstrap). Full 3-stage bootstrap: the new gcc compiles itself twice
+# and the build compares stage2 vs stage3 object files — a built-in
+# determinism check on the whole toolchain.
+#
+# --enable-linker-build-id: the native compiler emits GNU build-ids by
+# default (the Debian/Fedora default), so debug-split pipelines downstream
+# no longer need per-recipe LDFLAGS=-Wl,--build-id.
 #
 # It ships the COMPILER (gcc, g++, cpp, cc1, cc1plus, crt*.o, libgcc.a, fixed
 # headers, specs) AND the runtime libs (libgcc_s/libstdc++/libatomic/libgomp/
 # libquadmath) built by the same toolchain — see the <name>.package.pekit.toml
 # split.
 #
-# PREREQUISITE: the Pass-1 cross toolchain + composed sysroot must exist:
-#   cd pkgs/gcc && peipkg-compose build sysroot.toml --out _sysroot
-#   sh pkgs/gcc/_cross/run-pass1.sh
-# Then:
-#   pekit package --all --env debian --version 16.1.0
+#   pekit package --all --env peipkg --version 16.1.0
 out_dir = "out"
 
 [source.git]
@@ -45,10 +44,9 @@ versions = ">=15"
 #   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in.
 #   --disable-libsanitizer    : asan/ubsan/tsan deferred (large, dev-tooling).
 #   --enable-__cxa_atexit     : correct C++ static-dtor ordering (distro default).
-#   --with-system-zlib        : link Peios's system libz (from sysroot), not a
-#       bundled copy.
-#   dynamic bignums: cc1 links libgmp/mpfr/mpc/isl as shared libs from the
-#       sysroot — point configure at the sysroot include + triplet lib.
+#   --with-system-zlib        : link the root's libz, not the bundled copy.
+#   bignums: native default search finds gmp/mpfr/mpc/isl in the root
+#       (/usr/include + $LIBDIR via the -devel packages) — no --with-* paths.
 [build.main]
 command = """
 SRC="$(pwd)"
@@ -58,20 +56,12 @@ LIBDIR=/usr/lib/$TRIPLET
 for tool in flex bison debugedit patchelf; do
   command -v "$tool" >/dev/null || { echo "missing required gcc build tool: $tool" >&2; exit 1; }
 done
+[ -f /usr/include/gmp.h ] || { echo "gcc: root missing gmp.h — gmp-devel not composed" >&2; exit 1; }
 
-# Canadian-cross setup. This recipe's dir is PEKIT_OUT up to "/out/"; the cross
-# toolchain + composed sysroot sit beside it (built by _cross/build-cross.sh).
+# This recipe's dir is PEKIT_OUT up to "/out/" (for the config.sub script).
 GCC_DIR="${PEKIT_OUT%%/out/*}"
-CROSS="$GCC_DIR/_cross/tools"
-SYSROOT="$GCC_DIR/_sysroot"
-[ -x "$CROSS/bin/$TRIPLET-gcc" ] || { echo "gcc: cross toolchain missing at $CROSS — run pkgs/gcc/_cross/run-pass1.sh" >&2; exit 1; }
-[ -f "$SYSROOT/usr/include/gmp.h" ] || { echo "gcc: sysroot missing gmp.h — recompose pkgs/gcc/sysroot.toml (needs gmp/mpfr/mpc/isl-devel + zlib-devel + kernel-headers)" >&2; exit 1; }
-export PATH="$CROSS/bin:$PATH"
 
-# Defensive: any exported tool vars would override configure's --host/--target
-# tool detection — the host set would link the compiler against the build
-# box's glibc, the target set would build libgcc/libstdc++ with the wrong
-# compiler. The Debian container exports none, but keep the cross honest.
+# Defensive: exported tool vars would override configure's tool detection.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE \
       CC_FOR_TARGET CXX_FOR_TARGET GCC_FOR_TARGET CPP_FOR_TARGET GCJ_FOR_TARGET \
       AS_FOR_TARGET LD_FOR_TARGET AR_FOR_TARGET RANLIB_FOR_TARGET NM_FOR_TARGET \
@@ -84,8 +74,7 @@ MEMJOBS=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1500000 ))
 [ "$MEMJOBS" -lt "$JOBS" ] && JOBS=$MEMJOBS
 [ "$JOBS" -lt 1 ] && JOBS=1
 
-# Source patches (idempotent — Pass 1 already applied them to this shared tree,
-# and pekit's resolve resets the tree on every run, so re-apply here):
+# Source patches (pekit's resolve resets the tree on every run, re-apply):
 # config.sub learns peios; t-linux64/t-linux use the peios multiarch dirname.
 sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
 for tf in gcc/config/i386/t-linux64 gcc/config/i386/t-linux; do
@@ -98,22 +87,15 @@ mkdir -p "$PEKIT_OUT/build"
 cd "$PEKIT_OUT/build"
 # Guard configure so re-runs stay incremental.
 if [ ! -f "$PEKIT_OUT/build/Makefile" ]; then
-  # --with-sysroot=/ : the SHIPPED gcc searches the real Peios root at run time.
-  # --with-build-sysroot=$SYSROOT : during THIS build, the cross gcc finds the
-  #   peios glibc/headers in the composed sysroot (not in the container's /).
   "$SRC/configure" \
-    --build=x86_64-pc-linux-gnu --host="$TRIPLET" --target="$TRIPLET" \
+    --build="$TRIPLET" --host="$TRIPLET" --target="$TRIPLET" \
     --prefix=/usr --libdir="$LIBDIR" --libexecdir="$LIBDIR" --with-slibdir="$LIBDIR" \
-    --with-sysroot=/ --with-build-sysroot="$SYSROOT" \
     --disable-multilib --enable-languages=c,c++ \
     --enable-shared --enable-threads=posix --enable-__cxa_atexit \
-    --disable-libsanitizer --disable-bootstrap --disable-werror \
+    --enable-linker-build-id \
+    --disable-libsanitizer --disable-werror \
     --with-system-zlib \
-    --with-gmp-include="$SYSROOT/usr/include"  --with-gmp-lib="$SYSROOT$LIBDIR" \
-    --with-mpfr-include="$SYSROOT/usr/include" --with-mpfr-lib="$SYSROOT$LIBDIR" \
-    --with-mpc-include="$SYSROOT/usr/include"  --with-mpc-lib="$SYSROOT$LIBDIR" \
-    --with-isl-include="$SYSROOT/usr/include"  --with-isl-lib="$SYSROOT$LIBDIR" \
-    LDFLAGS="-Wl,--build-id -Wl,-rpath-link,$SYSROOT$LIBDIR" LDFLAGS_FOR_TARGET="-Wl,--build-id"
+    LDFLAGS="-Wl,--build-id" LDFLAGS_FOR_TARGET="-Wl,--build-id"
 fi
 make -j"$JOBS"
 make install DESTDIR="$PEKIT_OUT"
@@ -129,10 +111,9 @@ fi
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
 # Post-install debug pipeline over the WHOLE install tree (compiler binaries +
-# runtime libs). Same mechanics as binutils/glibc: strip any build-path rpath
-# the cross gcc baked (e.g. from --with-gmp-lib) + the stray ld-linux NEEDED,
-# scrub DWARF build paths (-> /usr/src/debug/gcc), split debug build-id-indexed,
-# strip, stage referenced sources. Static *.a get --strip-debug (no build-id).
+# runtime libs). Scrub any stray rpath, scrub DWARF build paths
+# (-> /usr/src/debug/gcc), split debug build-id-indexed, strip, stage the
+# referenced sources. Static *.a get --strip-debug (no build-id to index).
 cd "$PEKIT_OUT"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
@@ -143,7 +124,6 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
   debugedit -b "$ROOT" -d /usr/src/debug/gcc -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   if [ -n "$bid" ]; then
@@ -168,17 +148,12 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # it never matches the usr/** package globs. `pekit clean` removes it.
 """
 
-# Build deps. Canadian cross: the container gcc/g++ + make compile the
-# build-side gen* helpers (CC_FOR_BUILD); the shipped binaries come from the
-# prebuilt _cross toolchain (a prerequisite, not a package). flex + bison
-# regenerate gcc's lexers from the git checkout. The host bignum dev packages
-# exist for the PASS-1 tools — the cross cc1 runs in this container and links
-# Debian's gmp/mpfr/mpc/isl (the shipped cc1's bignums come from the sysroot).
-# The post-install debug split uses debugedit + patchelf.
+# Build deps. Native self-build: the c++ floor supplies the compiler, make,
+# binutils, and the debug-split tools; flex + bison regenerate gcc's lexers
+# from the git checkout; the bignum -devel packages and zlib-devel are what
+# cc1 compiles and links against — all from our own pool.
 [build.main.dependencies.peipkg]
-gcc = "*"
-"gcc-c++" = "*"
-make = "*"
+"build-essentials-c++" = "*"
 flex = "*"
 bison = "*"
 "gmp-devel" = "*"
@@ -186,8 +161,8 @@ bison = "*"
 "mpc-devel" = "*"
 "isl-devel" = "*"
 "zlib-devel" = "*"
-debugedit = "*"
-patchelf = "*"
+# gcc's bootstrap copies fixed headers between stages via tar.
+tar = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
