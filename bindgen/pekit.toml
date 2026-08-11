@@ -19,8 +19,12 @@
 #     a source-materialisation stage match how pekit itself downloads).
 #     The toolchain in that root is still entirely ours (rust package).
 #   [build.main] consumes the cached vendor tree fully --offline.
-# Flow:  pekit build vendor --env peipkg-net
-#        pekit package --all --env peipkg ...   (vendor stage reused)
+# Flow:  pekit build vendor --env peipkg-net --version <v> --keyring dev
+#        pekit package --all --env peipkg --no-build=vendor --version <v> ...
+# The --no-build=vendor is LOAD-BEARING: stages are re-run by default, and
+# a package run without it re-executes vendor under the offline env —
+# which scrubs the stage before failing on the network. If that happens,
+# just re-run the vendor invocation first.
 #
 # clang-sys stays on its default runtime-loading feature, so libclang is
 # a RUNTIME dep (dlopen), not a build dep — the clang package carries
@@ -44,6 +48,7 @@ cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
 """
 
 [build.vendor.dependencies.peipkg]
+build-essentials = "*"
 rust = "*"
 
 [build.vendor.dependencies.apt]

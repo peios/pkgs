@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "0.65.1"
+  url = "https://static.crates.io/crates/bindgen-cli/bindgen-cli-0.65.1.crate"
+  sha256 = "33373a4e0ec8b6fa2654e0c941ad16631b0d564cfd20e7e4b3db4c5b28f4a237"
+  locked_at = "2026-08-11T10:51:41Z"
