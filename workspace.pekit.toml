@@ -15,6 +15,49 @@
 # output dir) is ignored.
 include = ["./*"]
 
+# Distro build flags (PEI-159). The Peios analogue of Fedora's
+# %__global_compiler_flags / Debian's dpkg-buildflags / Arch's makepkg.conf:
+# the flag set every package is built with unless it states otherwise.
+#
+# This lives at workspace level — not in an env file — because it is a
+# property of THE DISTRIBUTION, not of how a build was entered. Flags set in
+# _peiroot_/enter.sh would apply on the peipkg rung and silently vanish on the
+# debian rung and the future VM rung.
+#
+# A recipe overrides any of these in its own [env] (workspace → recipe → env
+# file, later wins), which is where per-package exemptions belong — glibc and
+# the kernel both build their own way and will need them. Record the reason in
+# the recipe when you do.
+#
+# Two hardening features are deliberately NOT here: PIE and stack protector are
+# compiled into gcc itself (--enable-default-pie/--enable-default-ssp), so a
+# build system that ignores the environment still gets them. bzip2's Makefile
+# sets its own CFLAGS and xxhash uses make's built-ins — neither would see a
+# single flag below.
+#
+# LTO is deliberately omitted (Fedora and Arch ship it, Debian does not): it
+# doubles compile work under -ffat-lto-objects, moves debug-info generation to
+# link time where the debugedit/patchelf split runs, and adds a variable to
+# gcc's 3-stage bootstrap comparison. Revisit once the corpus is reviewed.
+#
+#   -Werror=format-security   a format-string bug is a security bug, not a warning
+#   -Wp,-D_FORTIFY_SOURCE=3   glibc's fortified string/mem builtins, dynamic-size
+#                             variant (needs gcc >= 12 and -O1+; we are 16 at -O2)
+#   -fstack-clash-protection  probe each stack page so a large frame cannot skip
+#                             the guard page
+#   -fcf-protection           Intel CET: endbr landing pads + shadow stack
+#   -grecord-gcc-switches     record the flags in .GCC.command.line, so a shipped
+#                             binary can answer "what was I built with?"
+#   -Wl,-z,relro -Wl,-z,now   full RELRO: resolve all symbols at load, then make
+#                             the GOT read-only
+#   -Wl,--as-needed           drop DT_NEEDED entries nothing actually references
+#   -Wl,-z,pack-relative-relocs  DT_RELR compressed relocations (binutils >= 2.38,
+#                             glibc >= 2.36; we are 2.46.1 and 2.43)
+[env]
+CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=3 -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
+CXXFLAGS = "$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"
+LDFLAGS = "-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,--build-id=sha1"
+
 # Symbol-version derivation policy (PSD automatic dependency derivation).
 #
 # Pekit always derives soname-level provides/depends from the staged ELF

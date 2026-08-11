@@ -11,6 +11,14 @@
 # default (the Debian/Fedora default), so debug-split pipelines downstream
 # no longer need per-recipe LDFLAGS=-Wl,--build-id.
 #
+# --enable-default-pie / --enable-default-ssp (PEI-159): the two hardening
+# features Peios compiles INTO the compiler rather than passing per build, as
+# Fedora, Debian and Arch all do. The workspace flag set reaches any build
+# system that honours CFLAGS; these reach the ones that don't (bzip2 sets its
+# own CFLAGS, xxhash uses make's built-ins). After this, bare `gcc foo.c`
+# produces a PIE binary with stack-protector-strong, and a package must pass
+# -no-pie / -fno-stack-protector explicitly to opt out.
+#
 # It ships the COMPILER (gcc, g++, cpp, cc1, cc1plus, crt*.o, libgcc.a, fixed
 # headers, specs) AND the runtime libs (libgcc_s/libstdc++/libatomic/libgomp/
 # libquadmath) built by the same toolchain — see the <name>.package.pekit.toml
@@ -18,6 +26,41 @@
 #
 #   pekit package --all --env peipkg --version 16.1.0
 out_dir = "out"
+
+# Build flags: GCC consumes the workspace CFLAGS, but not where it matters.
+#
+# The bootstrap compiles GCC three times — stage1 by the already-installed
+# compiler, stage2 by stage1, stage3 by stage2 — then byte-compares stages 2
+# and 3 to prove the toolchain is a fixed point. Stage3 is what gets installed.
+# Stage1's compiler is an unknown quantity and may not accept our flags, while
+# stages 2 and 3 must use identical flags or the comparison means nothing, so
+# GCC keeps the two on separate knobs:
+#
+#   CFLAGS            -> build-side tools and stage1. Thrown away.
+#   BOOT_CFLAGS       -> stages 2 and 3: the compiler we actually ship.
+#                        Defaults to "-g -O2" and does NOT inherit CFLAGS.
+#   XCFLAGS/TCFLAGS   -> the target runtime libs (libgcc, libstdc++, libatomic),
+#                        which do ship.
+#
+# Left alone, the workspace set therefore takes all of the breakage (it is what
+# failed build-libcpp under -Werror=format-security) and delivers none of the
+# hardening. BOOT_CFLAGS is what carries it to the shipped binaries.
+#
+# Two flags are also filtered out, matching Fedora's gcc.spec (which does the
+# same removals against %{optflags}):
+#
+#   -Werror=format-security -> -Wformat-security. GCC's own libcpp calls its
+#       diagnostic helpers with non-literal format strings, so the error form
+#       cannot build GCC at all (Fedora additionally carries
+#       gcc16-Wno-format-security.patch). Downgraded, not dropped.
+#   -Wp,-D_FORTIFY_SOURCE=3 removed. Fedora strips every _FORTIFY_SOURCE form
+#       before building GCC; the compiler's own sources are not built against
+#       the fortified glibc headers.
+#
+# CXXFLAGS additionally drops -Wall and -fexceptions, per Fedora gcc.spec.
+[env]
+CFLAGS = "-O2 -g -fexceptions -Wall -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
+CXXFLAGS = "-O2 -g -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
 
 [source.git]
 # Canonical upstream. Release tags are releases/gcc-<major>.<minor>.<patch>.
@@ -93,11 +136,16 @@ if [ ! -f "$PEKIT_OUT/build/Makefile" ]; then
     --disable-multilib --enable-languages=c,c++ \
     --enable-shared --enable-threads=posix --enable-__cxa_atexit \
     --enable-linker-build-id \
+    --enable-default-pie --enable-default-ssp \
     --disable-libsanitizer --disable-werror \
     --with-system-zlib \
-    LDFLAGS="-Wl,--build-id" LDFLAGS_FOR_TARGET="-Wl,--build-id"
+    XCFLAGS="$CFLAGS" TCFLAGS="$CFLAGS" \
+    LDFLAGS_FOR_TARGET="$LDFLAGS"
 fi
-make -j"$JOBS"
+# BOOT_CFLAGS carries the hardening into stages 2/3 — see the [env] note above.
+# Passed on the make line (not configure) because that is where GCC reads it,
+# and it is what Fedora's gcc.spec does.
+make -j"$JOBS" BOOT_CFLAGS="$CFLAGS"
 make install DESTDIR="$PEKIT_OUT"
 
 # GCC may still drop the target runtime libs in the multilib os-dir
