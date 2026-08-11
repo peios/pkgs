@@ -22,8 +22,7 @@ rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/zsh"
 """
 
 [build.main.dependencies.peipkg]
-"gcc-c++" = "*"
-make = "*"
+"build-essentials-c++" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

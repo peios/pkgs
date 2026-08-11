@@ -15,6 +15,12 @@
 
 out_dir = "out"
 
+# gnulib/glibc-const-generics: 9.9's bundled gnulib redeclares functions
+# glibc >= 2.43 turns into _Generic const-correctness macros (the m4/gettext
+# patch template). Drop when a release bundles the upstream gnulib fix.
+[source]
+patches = "patches"
+
 [source.url]
 url      = "https://ftp.gnu.org/gnu/coreutils/coreutils-{{version}}.tar.xz"
 extract  = true
@@ -33,8 +39,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

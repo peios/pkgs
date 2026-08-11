@@ -21,8 +21,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

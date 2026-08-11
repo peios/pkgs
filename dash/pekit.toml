@@ -34,8 +34,7 @@ make install DESTDIR="$PEKIT_OUT"
 # Plain autotools C: gcc + make. The release tarball ships `configure` and the
 # pre-generated arithmetic parser, so no autotools or yacc are required.
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

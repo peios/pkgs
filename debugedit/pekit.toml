@@ -25,11 +25,10 @@ make install DESTDIR="$PEKIT_OUT"
 # debugedit 5.x hard-requires xxhash (build-id hashing) — xxhash therefore
 # joins the phase-2 packaging list alongside elfutils.
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 pkgconf = "*"
-"elfutils-devel" = "*"
-"xxhash-devel" = "*"
+elfutils-devel = "*"
+xxhash-devel = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

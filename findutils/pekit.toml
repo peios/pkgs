@@ -31,8 +31,7 @@ rm -f "$PEKIT_OUT/usr/bin/locate" "$PEKIT_OUT/usr/bin/updatedb" \
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

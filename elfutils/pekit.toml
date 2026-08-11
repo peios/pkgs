@@ -19,7 +19,8 @@ SRC="$(pwd)"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --libdir=/usr/lib/x86_64-linux-peios --program-prefix=eu- \
-  --disable-debuginfod --disable-libdebuginfod --disable-nls
+  --disable-debuginfod --disable-libdebuginfod --disable-nls \
+  CFLAGS="-g -O2 -Wno-error=discarded-qualifiers"
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/etc"
@@ -27,11 +28,10 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/etc"
 
 # m4: libcpu generates the i386/x86_64 disassembler defs through m4.
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+"build-essentials-c++" = "*"  # eu-* tools link libstdc++ (__cxa_demangle)
 m4 = "*"
 pkgconf = "*"
-"zlib-devel" = "*"
+zlib-devel = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

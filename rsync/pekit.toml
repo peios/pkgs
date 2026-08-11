@@ -31,8 +31,7 @@ rm -f "$PEKIT_OUT/usr/bin/rsync-ssl" "$PEKIT_OUT/usr/share/man/man1/rsync-ssl.1"
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
