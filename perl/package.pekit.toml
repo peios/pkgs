@@ -1,0 +1,21 @@
+format = "peipkg"
+
+[package]
+name         = "perl"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "Perl - the Perl 5 interpreter and core modules"
+license      = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+homepage     = "https://www.perl.org/"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:Copying"  = "usr/share/licenses/perl/Copying"
+"@source:Artistic" = "usr/share/licenses/perl/Artistic"
+":usr/bin/**"           = "usr/bin"
+# The core module tree, including the XS shared objects and headers under
+# .../CORE that XS module builds (texinfo's parser) compile against.
+":usr/lib/x86_64-linux-peios/perl5/**" = "usr/lib/x86_64-linux-peios/perl5"
+":usr/share/man/man1/**" = "usr/share/man/man1"

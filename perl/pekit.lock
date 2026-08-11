@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "5.44.0"
+  url = "https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz"
+  sha256 = "505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91"
+  locked_at = "2026-08-10T23:49:52Z"

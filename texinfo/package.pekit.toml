@@ -1,0 +1,22 @@
+format = "peipkg"
+
+[package]
+name         = "texinfo"
+version      = "{{version}}-1"
+architecture = "x86_64"
+description  = "GNU Texinfo - texi2any/makeinfo documentation tools"
+license      = "GPL-3.0-or-later"
+homepage     = "https://www.gnu.org/software/texinfo/"
+
+# texi2any is perl; the Texinfo modules load at runtime.
+[dependencies]
+glibc = ">= 2.43"
+perl  = "*"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/texinfo/"
+":usr/bin/**"       = "usr/bin"
+# texi2any's Perl module tree (Texinfo::*) — runtime, version-independent.
+":usr/share/texi2any/**" = "usr/share/texi2any"
+":usr/share/texinfo/**"  = "usr/share/texinfo"
+":usr/share/man/man1/**" = "usr/share/man/man1"
