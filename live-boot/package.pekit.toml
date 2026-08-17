@@ -10,6 +10,16 @@
 format = "peipkg"
 
 [package]
-version      = "1.0.0-5"
+# -7: the root-mount hook stands aside when `root=` is on the kernel cmdline,
+# so disk-boot's hook can take the boot instead. Both ship in the same
+# initramfs and both provide `root-mounted`.
+#
+# -8: standing aside is now DECLINING (exit 69) rather than exiting 0. Since
+# both hooks provide `root-mounted`, and `provides` means alternatives, exiting
+# 0 was a claim to have mounted the root — so a machine neither hook could boot
+# looked successful until a later check noticed nothing was mounted. Requires a
+# prelude honouring the hook-outcomes contract, which the irf package's
+# dependency enforces.
+version      = "1.0.0-8"
 architecture = "x86_64"
 license      = "MIT"

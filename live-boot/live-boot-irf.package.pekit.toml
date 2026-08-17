@@ -10,6 +10,12 @@ description = "Initramfs root-mount hook for live-medium boot (squashfs + tmpfs 
 
 [dependencies]
 peiosutils = ">= 0.1.2"
+# The hook stands aside with exit 69 (declined). In front of a prelude that
+# predates the outcome contract, 69 is simply a non-zero exit — so instead of
+# standing aside for the disk-boot hook, it would HALT the boot it was
+# standing aside for. Depending on the capability makes that a compose-time
+# error rather than an unbootable image.
+hook-outcomes = ">= 1"
 
 # The hook lives at /hooks/mount-root.sh — the directory mkirf scans when it
 # packs the initramfs cpio.

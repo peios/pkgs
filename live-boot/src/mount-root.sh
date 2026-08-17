@@ -11,7 +11,26 @@
 # the upper for a partition without changing the overlay shape.
 set -eu
 
-# prelude runs hooks with PATH=/usr/bin:/bin, so the peiosutils tools (mkdir,
+# This hook and disk-boot's both provide `root-mounted`, and both run. `root=`
+# on the kernel command line decides which one acts: an installed UKI carries
+# one, the live UKI does not.
+#
+# Standing aside is exit 69 — DECLINED — and it is neither of the two things
+# it could otherwise be. Not an error, because prelude halts on those and it
+# would take down the boot this hook is standing aside FOR. And not an exit 0
+# either: `provides` means alternatives, so exiting 0 claims to be the hook
+# that mounted the root, which would leave disk-boot's mount looking optional
+# and a machine where neither acted looking successful.
+for word in $(cat /proc/cmdline); do
+    case "$word" in
+        root=*)
+            echo "live-boot: root= on the cmdline; this is a disk boot, standing aside"
+            exit 69
+            ;;
+    esac
+done
+
+# prelude runs hooks with PATH=/usr/bin, so the peiosutils tools (mkdir,
 # mount) and seed-sd resolve without the hook setting PATH itself.
 mkdir /medium /sysroot.lower /sysroot.rw
 # Find and mount the boot medium — the ISO9660 that carries the rootfs squashfs
