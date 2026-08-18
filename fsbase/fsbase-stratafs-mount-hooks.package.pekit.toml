@@ -12,16 +12,29 @@
 # failure modes, and an image may reasonably want the skeleton without the
 # views: prod ran an initramfs with no hooks at all before this existed.
 #
-# Plural in the name because the base views are the first of these, not the
-# only ones — a later hook assembling views this one deliberately leaves out
-# belongs here beside it.
+# Plural in the name because there are two, and there may be more. Both hooks
+# assemble the same eight base views over the same /usr + /lcl pairs; they
+# differ only in which root they act on and in one stratum:
+#
+#   mount-initramfs-stratafs-base.sh  the initramfs itself, before every other
+#                                     hook (contributes initramfs-ready)
+#   mount-rootfs-stratafs-base.sh     the mounted root, after something has
+#                                     mounted it (contributes
+#                                     rootfs-strata-ready)
+#
+# One package rather than two because they are the same decision applied to
+# two roots — the view stack is defined once, and an image wanting StrataFS
+# wants it in both places. This supersedes the stratafs-base-topo package,
+# which did the mounted-root half alone and could drift from the skeleton it
+# stacked over.
 
 [package]
-description = "Initramfs hook that mounts the Peios base StrataFS views"
+description = "Initramfs hooks that mount the Peios base StrataFS views"
 
-# The hook runs inside the initramfs, so its home is the initramfs root. A
-# direct install or an unqualified compose entry therefore places itself
-# without anything having to say where it goes.
+# BOTH hooks run inside the initramfs, so the initramfs root is home to both.
+# That is easy to misread for the second one: it decorates the MOUNTED root,
+# but it does so from the initramfs, before the pivot, by chrooting in. A hook
+# is where it runs, not where it acts.
 default_root = "initramfs"
 
 [dependencies]
@@ -39,3 +52,4 @@ prelude-hook-abi = ">= 2"
 # /lcl/libexec/prelude/hooks.d, which wins without this one being removed.
 [files]
 "src/mount-initramfs-stratafs-base.sh" = "usr/libexec/prelude/hooks.d/mount-initramfs-stratafs-base.sh"
+"src/mount-rootfs-stratafs-base.sh"    = "usr/libexec/prelude/hooks.d/mount-rootfs-stratafs-base.sh"

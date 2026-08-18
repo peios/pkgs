@@ -20,6 +20,9 @@ format = "peipkg"
 #
 # -5: adds fsbase-stratafs-mount-hooks, the initramfs hook that mounts the base
 # StrataFS views over the skeleton fsbase-irf lays down.
-version      = "1.0.0-5"
+#
+# -6: fsbase-stratafs-mount-hooks gains the mounted-root half,
+# mount-rootfs-stratafs-base.sh, superseding the stratafs-base-topo package.
+version      = "1.0.0-6"
 architecture = "x86_64"
 license      = "MIT"
