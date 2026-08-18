@@ -27,6 +27,12 @@ format = "peipkg"
 # The mount path became /mnt/rootfs in -9 and the file name was the last place
 # the old word survived — a hook mounting /mnt/rootfs.lower from a file called
 # sysroot is the kind of half-rename that misleads a year later.
-version      = "1.0.0-10"
+#
+# -11: the hook no longer reads `root=` to decide whether it is wanted. Package
+# presence is the selector — the installer swaps live-boot for disk-boot — so
+# the check had nothing left to decide. live-boot-irf now conflicts with
+# disk-boot-irf, which is where the "exactly one root-mount hook" invariant
+# went when the runtime check came out.
+version      = "1.0.0-11"
 architecture = "x86_64"
 license      = "MIT"

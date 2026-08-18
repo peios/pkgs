@@ -11,27 +11,17 @@
 # the upper for a partition without changing the overlay shape.
 set -eu
 
-# This hook and disk-boot's both contribute to `rootfs-ready`, and both run.
-# `root=` on the kernel command line decides which one acts: an installed UKI
-# carries one, the live UKI does not.
+# There is no "is this my boot?" check here, and that is the design rather
+# than an omission. This hook used to read `root=` off the kernel command line
+# and stand aside when it found one, because both root-mount hooks shipped in
+# every initramfs and one of them had to lose at runtime.
 #
-# Standing aside is exit 69 — DECLINED — rather than an error, because prelude
-# halts on errors and that would take down the boot this hook is standing
-# aside FOR. Declining completes this hook's part of the conjunction without
-# claiming to have mounted anything: nothing needed doing here.
-#
-# The runtime check is temporary. The intended shape is that an installed
-# system simply does not have the live-boot package — the installer removes
-# it — so package presence selects the boot path and no hook has to inspect
-# the cmdline to discover whether it is wanted.
-for word in $(cat /proc/cmdline); do
-    case "$word" in
-        root=*)
-            echo "live-boot: root= on the cmdline; this is a disk boot, standing aside"
-            exit 69
-            ;;
-    esac
-done
+# Presence of the package is the selector now: a live image carries live-boot,
+# an installed system carries disk-boot, and the installer swaps one for the
+# other. So a hook that is here was wanted, and it acts. That is why
+# live-boot-irf declares a conflict with disk-boot-irf — the invariant that
+# exactly one root-mount hook exists moved from a runtime check into the
+# package manager, which can enforce it before a boot rather than during one.
 
 # prelude runs hooks with PATH=/usr/bin, so the peiosutils tools (mkdir,
 # mount) and seed-sd resolve without the hook setting PATH itself.

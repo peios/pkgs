@@ -18,6 +18,15 @@ peiosutils = ">= 0.1.2"
 # dependency makes either mismatch a compose-time error instead.
 prelude-hook-abi = ">= 2"
 
+# Exactly one root-mount hook may exist in an initramfs, and this is where that
+# invariant now lives. It used to be enforced at runtime — both hooks shipped
+# together and read `root=` to decide which stood aside — and removing that
+# check would have left the rule enforced by nothing at all. A conflict states
+# it where it can be caught before a boot instead of during one: two hooks both
+# mounting /mnt/rootfs means the second fails and takes the boot with it.
+[conflicts]
+disk-boot-irf = "*"
+
 # The hook lives in the packaged hook directory, one of the places mkirf scans
 # when it packs the initramfs cpio. /usr because it is package payload; an
 # operator overriding it drops a file of the same name in
