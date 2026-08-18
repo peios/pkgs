@@ -1,0 +1,33 @@
+# disk-boot-irf — the initramfs half: the root-mount hook mkirf packs into the
+# cpio. Its home is the initramfs root (disk-boot depends on it IN initramfs).
+# It depends on peiosutils so the hook's mount and lsblk land in the initramfs
+# alongside it — as a dep of an initramfs-homed package, peiosutils routes to
+# the initramfs by default, no IN needed.
+#
+# It does NOT depend on e2fsprogs. The hook would rather run fsck before
+# mounting, but pulling e2fsprogs in drags libext2fs, libcom_err, libblkid,
+# libuuid and libe2p into a cpio that is already 27 MB. The hook therefore
+# treats fsck as optional and says so at boot when it is absent; making it
+# mandatory is a deliberate size decision to take later, not a default to
+# arrive at by accident.
+
+[package]
+description = "Initramfs root-mount hook for disk boot (direct mount of an installed root)"
+
+[dependencies]
+peiosutils = ">= 0.1.2"
+# Everything this hook and prelude must agree on: that exit 69 means declined
+# rather than failed, and that the real root is mounted at /mnt/rootfs. Each
+# half fails hard on its own — against a prelude predating the outcome
+# contract the hook would HALT the boot it was standing aside for, and against
+# one still expecting /sysroot it would mount where nothing looks. The
+# dependency makes either mismatch a compose-time error instead.
+prelude-hook-abi = ">= 2"
+
+# The hook lives in the packaged hook directory, one of the places mkirf scans
+# when it packs the initramfs cpio. The name differs from live-boot's
+# mount-root.sh because both are packed into the SAME initramfs and a file name
+# identifies a hook — same name would mean one shadowing the other rather than
+# two hooks.
+[files]
+"src/mount-root-disk.sh" = "usr/libexec/prelude/hooks.d/mount-root-disk.sh"

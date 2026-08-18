@@ -1,0 +1,34 @@
+# Base metadata shared by the disk-boot packages. Each
+# <name>.package.pekit.toml (disk-boot, disk-boot-irf) inherits these fields
+# and adds its own description, dependencies, and files. Both are buildless —
+# their payloads come from src/.
+#
+# x86_64, not noarch, for the same reason live-boot is: the payloads are a
+# script and a cmdline, but disk-boot-irf depends on the x86_64 userspace
+# (peiosutils), and §4.1.3 makes arch-dependence transitive through deps.
+format = "peipkg"
+
+[package]
+# -3: cmdline template gains peios.login=1 (an installed system needs a login
+# prompt) and drops panic=-1 (a reboot loop on any reproducible boot failure).
+# -2: the device-resolution retry loop tolerates "not found yet" instead of
+# failing the boot on the first miss (`|| true` under set -e), and an
+# unsupported root= form is rejected before the retry rather than from inside
+# a command substitution, where the exit reached only the subshell.
+#
+# -4: the hook stands aside by DECLINING (exit 69) rather than exiting 0, so a
+# hook that did nothing no longer reports the same outcome as one that did the
+# job. Requires a prelude honouring the hook-outcomes contract, which the irf
+# package's dependency enforces.
+#
+# -5: the hook moves to /usr/libexec/prelude/hooks.d, mounts at /mnt/rootfs
+# rather than /sysroot, and contributes to `rootfs-ready` instead of providing
+# `root-mounted`.
+#
+# -6: a missing `root=` is an error rather than a decline. `root=` is read for
+# the device it names, not to decide whether this hook is wanted — package
+# presence answers that, and live-boot-irf's conflict keeps it to one hook — so
+# there is no other hook to stand aside for, and a UKI without one is broken.
+version      = "1.0.0-6"
+architecture = "x86_64"
+license      = "MIT"
