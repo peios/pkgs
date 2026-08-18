@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 # dynamic-boot / enable — clear the watcher services' Disabled flag.
 #
 # This makes them eligible to run; peinit starts them on the next boot (a live

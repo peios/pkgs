@@ -1,0 +1,130 @@
+diff --git a/nss/initgroups.c b/nss/initgroups.c
+index f4106226ec..c0399b38e8 100644
+--- a/nss/initgroups.c
++++ b/nss/initgroups.c
+@@ -84,7 +84,12 @@ internal_getgrouplist (const char *user, gid_t group, long int *size,
+     }
+   else
+     {
+-      nip = __nss_action_parse ("files");
++      /* Peios: unreachable, because the initgroups and group databases both
++         have fixed non-empty defaults (nss/nss_database.c).  The "files"
++         fallback that stood here is removed rather than left unreachable:
++         there is no /etc/passwd on Peios, and a literal naming it in the
++         identity path is a thing to delete rather than to reason about.  */
++      nip = NULL;
+       use_initgroups_entry = false;
+     }
+ 
+diff --git a/nss/nss_database.c b/nss/nss_database.c
+index 6997b5bb04..abc125fc17 100644
+--- a/nss/nss_database.c
++++ b/nss/nss_database.c
+@@ -85,26 +85,73 @@ enum nss_database_default
+  nss_database_default_nis,    /* "nis".  */
+  nss_database_default_nis_nisplus,    /* "nis nisplus".  */
+  nss_database_default_none,      /* Empty list.  */
++ nss_database_default_peios,     /* "peios".  Peios: see below.  */
+ 
+  NSS_DATABASE_DEFAULT_COUNT     /* Number of defaults.  */
+ };
+ 
++/* Peios: the identity databases.
++
++   On Peios a principal is not a line in a file.  Identity comes from the
++   authentication authority, which resolves a name across the principal sources
++   it is configured to have, in a configured order, applying the domain and
++   numeric confinement that keeps one source from answering for another.  None
++   of that is expressible in nsswitch.conf, and a second search order that the
++   authority cannot see is a second answer to "who is jack" -- which is how a
++   program comes to act for one principal while its access is checked against
++   another.
++
++   So these databases are not configurable.  Their lines in nsswitch.conf are
++   discarded (see nss_database_reload) and these defaults are the only possible
++   answer.  Adding a source of identity to a Peios machine means writing a
++   principal source, which is a separate process the authority confines -- not
++   an object injected into every address space on the system.
++
++   There is no "files" fallback because there is no /etc/passwd.  uid 0 is a
++   projection of the SYSTEM token rather than an account, and nothing on the
++   system resolves a name in order to find it.  Before the authority is running,
++   identity does not resolve at all, which is the honest answer rather than a
++   gap to paper over.
++
++   shadow and gshadow are empty rather than routed: a Peios verifier lives in
++   its source's store and cannot be read out, so there is no entry to return.  */
++
+ /* Databases not listed default to nss_database_default_defconfig.  */
+ static const char per_database_defaults[NSS_DATABASE_COUNT] =
+   {
+-   [nss_database_group] = nss_database_default_compat,
+-   [nss_database_group_compat] = nss_database_default_nis,
+-   [nss_database_gshadow] = nss_database_default_files,
++   [nss_database_group] = nss_database_default_peios,
++   [nss_database_group_compat] = nss_database_default_none,
++   [nss_database_gshadow] = nss_database_default_none,
+    [nss_database_hosts] = nss_database_default_dns,
+-   [nss_database_initgroups] = nss_database_default_none,
++   [nss_database_initgroups] = nss_database_default_peios,
+    [nss_database_networks] = nss_database_default_dns,
+-   [nss_database_passwd] = nss_database_default_compat,
+-   [nss_database_passwd_compat] = nss_database_default_nis,
++   [nss_database_passwd] = nss_database_default_peios,
++   [nss_database_passwd_compat] = nss_database_default_none,
+    [nss_database_publickey] = nss_database_default_nis_nisplus,
+-   [nss_database_shadow] = nss_database_default_compat,
+-   [nss_database_shadow_compat] = nss_database_default_nis,
++   [nss_database_shadow] = nss_database_default_none,
++   [nss_database_shadow_compat] = nss_database_default_none,
+   };
+ 
++/* Peios: true for a database whose service list is fixed above.  */
++static bool
++nss_database_is_identity (enum nss_database db)
++{
++  switch (db)
++    {
++    case nss_database_group:
++    case nss_database_group_compat:
++    case nss_database_gshadow:
++    case nss_database_initgroups:
++    case nss_database_passwd:
++    case nss_database_passwd_compat:
++    case nss_database_shadow:
++    case nss_database_shadow_compat:
++      return true;
++    default:
++      return false;
++    }
++}
++
+ static bool
+ nss_database_select_default (enum nss_database db, nss_action_list *result)
+ {
+@@ -143,6 +190,10 @@ nss_database_select_default (enum nss_database db, nss_action_list *result)
+       line = "nis nisplus";
+       break;
+ 
++    case nss_database_default_peios:
++      line = "peios";
++      break;
++
+     case nss_database_default_none:
+       /* Very special case: Leave *result as NULL.  */
+       return true;
+@@ -349,6 +400,14 @@ nss_database_reload (struct nss_database_data *staging,
+ 	staging->services[nss_database_gshadow] =
+ 	  staging->services[nss_database_group];
+ 
++      /* Peios: identity is not configurable.  Discard anything nsswitch.conf
++         said about the identity databases -- including what the inheritance
++         above just copied into shadow and gshadow -- so that the defaults
++         below are the only path a lookup can take.  */
++      for (int i = 0; i < NSS_DATABASE_COUNT; ++i)
++        if (nss_database_is_identity (i))
++          staging->services[i] = NULL;
++
+       /* For anything still unspecified, load the default configs.  */
+ 
+       for (int i = 0; i < NSS_DATABASE_COUNT; ++i)

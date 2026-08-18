@@ -12,7 +12,7 @@ format = "peipkg"
 
 [package]
 name         = "feat-dynamic-boot"
-version      = "0.0.1-1"
+version      = "0.0.1-2"
 architecture = "x86_64"
 description  = "Feature: run mkirf/mkuki in watch form as Dynamic Boot services"
 license      = "MIT"
@@ -26,7 +26,7 @@ peiosutils = "*"
 # library. feat reads this directory; peipkg only delivers the files (it never
 # runs them — package purity), so this stays plain file delivery.
 [files]
-"src/install.sh"   = "usr/libexec/peios/features.d/dynamic-boot/install.sh"
-"src/enable.sh"    = "usr/libexec/peios/features.d/dynamic-boot/enable.sh"
-"src/disable.sh"   = "usr/libexec/peios/features.d/dynamic-boot/disable.sh"
-"src/uninstall.sh" = "usr/libexec/peios/features.d/dynamic-boot/uninstall.sh"
+"src/install.sh"   = "usr/libexec/features/dynamic-boot/install.sh"
+"src/enable.sh"    = "usr/libexec/features/dynamic-boot/enable.sh"
+"src/disable.sh"   = "usr/libexec/features/dynamic-boot/disable.sh"
+"src/uninstall.sh" = "usr/libexec/features/dynamic-boot/uninstall.sh"

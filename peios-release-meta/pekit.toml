@@ -8,9 +8,9 @@
 # release is tracked in the peipkg database and is upgradable.
 #
 # Canonical file at /usr/lib/os-release — immutable, riding the read-only
-# squashfs, which is the safe home given Peios treats /etc as generated — with
-# /etc/os-release a compat symlink to it (tools that look in /etc still find
-# it). No BUILD_ID: it is the one field a package cannot supply (it is
+# squashfs, which is the safe home given Peios treats /etc as a generated
+# merged view — with /usr/etc/os-release a compat symlink to it, so tools that
+# look in /etc still resolve through the view and find it. No BUILD_ID: it is the one field a package cannot supply (it is
 # compose-time) and is optional; VERSION_ID plus the package revision answer
 # "which build" through the database. ID_LIKE is deliberately omitted: Peios is
 # not derived from another distribution, and a false family would mislead
@@ -21,7 +21,7 @@ out_dir = "out"
 [build]
 command = """
 set -eu
-mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/etc"
+mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/etc"
 cat > "$PEKIT_OUT/usr/lib/os-release" <<EOF
 NAME="Peios"
 ID=peios
@@ -29,6 +29,8 @@ VERSION_ID="$PEKIT_VERSION"
 PRETTY_NAME="Peios $PEKIT_VERSION"
 EOF
 # Compat symlink so tools checking /etc/os-release first still resolve to the
-# immutable vendor file. Relative, so it is correct under any root prefix.
-ln -s ../usr/lib/os-release "$PEKIT_OUT/etc/os-release"
+# immutable vendor file. It ships in the vendor config layer (/usr/etc), the
+# bottom of the /etc merge — packages never write /etc directly. Relative, so
+# it is correct under any root prefix.
+ln -s ../lib/os-release "$PEKIT_OUT/usr/etc/os-release"
 """

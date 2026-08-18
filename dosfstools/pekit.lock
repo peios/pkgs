@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "4.2"
+  url = "https://github.com/dosfstools/dosfstools/releases/download/v4.2/dosfstools-4.2.tar.gz"
+  sha256 = "64926eebf90092dca21b14259a5301b7b98e7b1943e8a201c7d726084809b527"
+  locked_at = "2026-08-16T17:49:04Z"

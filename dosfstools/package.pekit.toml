@@ -1,0 +1,27 @@
+# dosfstools — FAT12/16/32 tools. One package: three programs, four
+# dispatcher symlinks, three man pages plus their symlinks. No library, no
+# headers, so no -devel/-static fan-out; no debug split, matching the other
+# small tool packages (dash, cpio, which).
+
+format = "peipkg"
+
+[package]
+name         = "dosfstools"
+# -2: programs moved out of usr/sbin (--sbindir=/usr/bin) and the fsck.<type>
+# backends relocated to usr/libexec/fsck/.
+version      = "{{version}}-2"
+architecture = "x86_64"
+description  = "Utilities for making and checking FAT filesystems"
+license      = "GPL-3.0-or-later"
+homepage     = "https://github.com/dosfstools/dosfstools"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/dosfstools/"
+# usr/bin: the programs and the mkfs.<type> names, which nothing dispatches on.
+# usr/libexec/fsck: the fsck.<type> backends the `fsck` front-end execs.
+":usr/bin/**"       = "usr/bin"
+":usr/libexec/**"   = "usr/libexec"
+":usr/share/man/**" = "usr/share/man"

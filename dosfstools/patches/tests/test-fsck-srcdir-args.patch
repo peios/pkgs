@@ -1,0 +1,15 @@
+diff --git a/tests/test-fsck b/tests/test-fsck
+index df53c31..da84861 100755
+--- a/tests/test-fsck
++++ b/tests/test-fsck
+@@ -41,8 +41,8 @@ if [ "$XXD_FOUND" != "yes" ]; then
+ fi
+ 
+ 
+-if [ -f "$testname.args" ]; then
+-	ARGS=$(cat "$testname.args")
++if [ -f "${srcdir}/${testname}.args" ]; then
++	ARGS=$(cat "${srcdir}/${testname}.args")
+ else
+ 	ARGS=
+ fi

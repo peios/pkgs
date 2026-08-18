@@ -9,12 +9,20 @@
 # e2fsprogs is a small maintained patchset (SDs-are-xattrs), carried as a
 # pekit patch series:
 #
-#   * -E root_sd=<blob>  : stamp an explicit Security Descriptor on the root
-#                          inode (+ lost+found) at format time — the OS rootfs
-#                          gets a deterministic SD, not a synthesised one.
+#   * -E root_sddl=<sddl>     : stamp an explicit Security Descriptor on the
+#     -E root_sd_file=<path>    root inode (+ lost+found) at format time — the
+#                               OS rootfs gets a deterministic SD, not one
+#                               synthesised at mount. Parsed by libpeios
+#                               peios_sddl_parse_sd().
 #   * -d reinherit       : SD-aware tree population — compute each node's SD via
 #                          libpeios peios_sd_reinherit() during the populate walk
 #                          (pure userspace; no live kernel/KACS needed).
+#
+# Patch 3 rewrites mke2fs.conf.in, which misc/Makefile.in feeds through
+# profile-to-c.awk into default_profile.c — so the Peios defaults (inode_size
+# 512, ea_inode, no acl) are COMPILED INTO mke2fs and apply even where no
+# /etc/mke2fs.conf exists. That is why the package deliberately ships no conf
+# file (see e2fsprogs.package.pekit.toml).
 #
 # Patch dev: `pekit lock --version 1.47.2` materialises the patched checkout
 # under out/ (pekit applies patches/series during source materialisation);
@@ -22,7 +30,7 @@
 # fuzz — so on a version bump a stale patch fails loudly; rebase it manually
 # against the new tag.
 #
-#   nix develop ./_flake#e2fsprogs -c pekit build --version 1.47.2
+#   pekit publish --version 1.47.2 --env peipkg --keyring dev --all
 
 out_dir = "out"
 
@@ -38,36 +46,51 @@ ref = "v{{version}}"
 tag_regex = '^v\d+\.\d+(\.\d+)?$'
 
 # --- main: out-of-source configure/make/install -----------------------------
-# Minimal scaffold build: prove the pinned tree compiles in the pekit env
-# before any patch lands, so a future build break is unambiguously the patch.
-# Deliberately conservative for now:
 #   --enable-elf-shlibs : build the shared support libraries.
-#   bundled libblkid/libuuid left ON (default) so this builds standalone with
-#       just gcc+make. De-duplicating against util-linux-lib's libblkid (ship
-#       one, --disable-libblkid here) is a packaging-phase refinement, tracked
-#       with the multi-package fan-out — not needed to materialise/smoke source.
-# The debug-split pipeline + per-library .package.pekit.toml fan-out land once
-# the patchset is in; they are orthogonal to patch development.
+#   bundled libblkid/libuuid left ON (default). The split of ownership is
+#       deliberate and asymmetric: e2fsprogs SHIPS libuuid (util-linux-lib
+#       builds with --disable-libuuid), and util-linux-lib SHIPS libblkid
+#       (this build's copy is compiled but claimed by no package, so it never
+#       enters a payload). The tools therefore link the bundled libblkid at
+#       build time and resolve DT_NEEDED libblkid.so.1 to util-linux-lib's at
+#       runtime. Verified safe: all 20 blkid_* symbols the shipped binaries
+#       reference are exported by util-linux 2.42.2's libblkid.so.1, and the
+#       bundled library is unversioned so the loader binds the defaults.
+#       Building --disable-libblkid instead would be tidier but needs
+#       libblkid-devel, which is not published.
+#   --sysconfdir=/etc : the RUNTIME lookup path (PFSL's merged /etc view), not
+#       a payload destination — the conf files it governs are unclaimed.
+#   --sbindir=/usr/bin : /sbin is for daemons, which appear in service
+#       definitions; mke2fs, e2fsck, tune2fs and friends are privileged
+#       binaries a PERSON runs, so they belong in /usr/bin. One flag suffices
+#       even though 46 install rules use $(root_sbindir) rather than
+#       $(sbindir): configure.ac sets `root_sbindir=$sbindir` whenever
+#       --sbindir is non-default. (The same clause governs root_libdir, which
+#       is why --libdir alone already produces the triplet layout.)
 [build.main]
 command = """
-# libpeios (for the Peios patches) comes from the vendored deps/ tree — the
-# build bridge until the root self-hosts libpeios-devel + kernel-headers. Inject
-# its headers (<peios/*.h> + the <pkm/*.h> they include) and lib via CC so every
-# compile/link sees them; the mke2fs link line's bare -lpeios then resolves. No
-# rpath: the shipped mke2fs carries DT_NEEDED libpeios.so.0, resolved from the
-# system path once installed (run in-tree with LD_LIBRARY_PATH=deps/lib).
-DEPS="$(pwd)/deps"
-[ -d "$DEPS/lib" ] && [ -d "$DEPS/include/peios" ] || {
-  echo "deps/ is not vendored — run ./deps/refresh.sh (or LIBPEIOS=.. PKM=.. ./deps/refresh.sh)" >&2
-  exit 1
-}
-
 SRC="$PEKIT_SOURCE_ROOT"
 cd "$PEKIT_OUT"
 
-"$SRC/configure" CC="gcc -g -I$DEPS/include -L$DEPS/lib" \
+# CC is left to the environment: the workspace CFLAGS already carry -g (the
+# debug split below needs it), and libpeios comes from libpeios-devel in the
+# composed root — its header tree is on the default include path and gcc's
+# triplet libdir is on the default link path, so the patched mke2fs/debugfs
+# link lines' bare -lpeios resolves with no injection. The result carries a
+# normal DT_NEEDED libpeios.so.0 and no rpath.
+#
+# The three --without-* are pinned, not left to detection. e2fsprogs sniffs
+# the BUILD HOST for a cron.d directory, a systemd pkg-config, and a udev
+# pkg-config, and installs e2scrub's cron job / service units / udev rules if
+# it finds them. Peios has none of the three, so the answer is always "no" —
+# but leaving it to detection makes the payload a property of whatever the
+# build ran inside. The pre-rung-2 build did find a cron.d on the host and
+# staged usr/libexec/e2fsprogs/e2scrub_all_cron + etc/cron.d/e2scrub_all,
+# which the rung-2 build does not. Pinned so the answer is the recipe's.
+"$SRC/configure" \
   --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios \
-  --sysconfdir=/etc \
+  --sbindir=/usr/bin --sysconfdir=/etc \
+  --without-crond-dir --without-systemd-unit-dir --without-udev-rules-dir \
   --enable-elf-shlibs --disable-nls
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
@@ -75,6 +98,37 @@ make install-libs DESTDIR="$PEKIT_OUT"
 
 # Drop libtool archives (hardcoded paths + overlink; DT_NEEDED supersedes).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# --- multicall aliases: hard links -> symlinks, and fsck backends to libexec --
+#
+# e2fsprogs ships four argv[0]-dispatch programs whose aliases are installed as
+# HARD links, so each alias is a full copy of the binary as far as anything
+# outside the build tree is concerned. The peipkg format has no hard-link
+# representation (pack validates symlinks only, §3.4: relative, resolving
+# inside the tree), so those copies are what actually get installed — four
+# 352 KB e2fsck images, four 150 KB mke2fs images. Relative symlinks carry the
+# same argv[0] dispatch and cost a few bytes.
+#
+# The fsck.<type> aliases additionally MOVE to /usr/libexec/fsck/. They are not
+# commands a person types — they are the private interface `fsck` execs after
+# choosing a type — and libexec is exactly that distinction. The patched
+# fsck_prefix_path looks there (misc/fsck-backend-dir.patch). The canonical
+# checker, e2fsck, stays in /usr/bin.
+#
+# `../../bin/<prog>` is deliberately relative and deliberately two levels up: it
+# resolves to /usr/bin/<prog> against the packaging path and to /bin/<prog>
+# against the runtime StrataFS view. One link, correct in both.
+cd "$PEKIT_OUT/usr/bin"
+for alias in e2mmpstatus:dumpe2fs e2label:tune2fs findfs:tune2fs \
+             mkfs.ext2:mke2fs mkfs.ext3:mke2fs mkfs.ext4:mke2fs; do
+  ln -sfn "${alias#*:}" "${alias%%:*}"
+done
+
+mkdir -p "$PEKIT_OUT/usr/libexec/fsck"
+for t in ext2 ext3 ext4; do
+  rm -f "$PEKIT_OUT/usr/bin/fsck.$t"
+  ln -s ../../bin/e2fsck "$PEKIT_OUT/usr/libexec/fsck/fsck.$t"
+done
 
 # Debug split (same shape as util-linux-lib/gmp/glibc): debugedit scrubs the
 # build path (-> /usr/src/debug/e2fsprogs) and records referenced sources;
@@ -113,21 +167,20 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
-pkg-config = "*"
-# Debug split: debugedit scrubs build paths + lists sources, patchelf drops
-# rpaths (strip/objcopy/readelf come with the binutils toolchain).
-debugedit = "*"
-patchelf = "*"
-# NOTE: the Peios patches link libpeios (peios_sddl_parse_sd / peios_sd_reinherit),
-# but libpeios isn't a resolvable peipkg dep yet (unpublished, no release tags) —
-# it's supplied by the vendored deps/ tree (see deps/README.md). When libpeios
-# publishes, drop deps/ and add: libpeios = "*"; libpeios-devel = "*" (the
-# cc-wrapper then injects -I/-L, same as gmp→mpfr).
+# The C floor: compiler, binutils, libc/kernel headers, the shell + userland
+# every build assumes, and the debug-split tools (debugedit, patchelf; strip/
+# objcopy/readelf come with binutils) the command below invokes.
+build-essentials-c = "*"
+# makeinfo, for doc/libext2fs.info (claimed as usr/share/info/**).
+texinfo = "*"
+pkgconf = "*"
+# The Peios patches call peios_sddl_parse_sd() / peios_sd_reinherit(), so the
+# build needs libpeios's headers and dev symlink; -devel pulls kernel-headers
+# for the <pkm/*.h> those headers include. This replaces the vendored deps/
+# bridge the recipe used before libpeios published (deps/README.md).
+libpeios = "*"
+libpeios-devel = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-pkg-config = "*"
-debugedit = "*"
-patchelf = "*"
+# No [build.main.dependencies.apt]: this recipe is rung-2 only. Debian has no
+# libpeios, so the apt provider cannot satisfy the patchset's link dependency
+# — the same reason `kernel` is peipkg-only. Build it with --env peipkg.

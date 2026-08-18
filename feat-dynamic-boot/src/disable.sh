@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 # dynamic-boot / disable — set the watcher services' Disabled flag.
 #
 # Keeps the service definitions but marks them disabled; they will not start on

@@ -23,9 +23,9 @@ description = "GNU C Library - shared libraries and dynamic loader"
 # The dynamic linker's ABI-fixed path. glibc installs the real loader under the
 # triplet (/usr/lib/x86_64-linux-peios/ld-linux-x86-64.so.2), and the x86-64
 # psABI hard-codes every dynamic binary's interpreter as
-# /lib64/ld-linux-x86-64.so.2. The compose-intrinsic usr-merge points
-# /lib64 -> usr/lib/x86_64-linux-peios, so that interpreter path resolves to the
-# loader glibc ships below — no per-file claim needed.
+# /lib64/ld-linux-x86-64.so.2. fsbase supplies the explicit
+# /lib64 -> usr/lib/x86_64-linux-peios ABI mapping, so that interpreter path
+# resolves to the loader glibc ships below — no per-file claim needed.
 
 [files]
 # License texts (distro convention: /usr/share/licenses/<name>/).
@@ -54,6 +54,9 @@ description = "GNU C Library - shared libraries and dynamic loader"
 ":usr/lib/x86_64-linux-peios/gconv/UTF-7.so"           = "usr/lib/x86_64-linux-peios/gconv/UTF-7.so"
 ":usr/lib/x86_64-linux-peios/gconv/UTF-16.so"          = "usr/lib/x86_64-linux-peios/gconv/UTF-16.so"
 ":usr/lib/x86_64-linux-peios/gconv/UTF-32.so"          = "usr/lib/x86_64-linux-peios/gconv/UTF-32.so"
-# RPC program-number database (runtime data). /etc/ld.so.cache is omitted —
-# host-specific, rebuilt by `ldconfig` post-install.
-":etc/rpc"                             = "etc/rpc"
+# RPC program-number database (runtime data), shipped into the vendor config
+# layer — /usr/etc is the bottom of the /etc merge, and a package never writes
+# /etc directly, so readers still find it at /etc/rpc through the view.
+# /etc/ld.so.cache is omitted — host-specific, rebuilt by `ldconfig`
+# post-install.
+":etc/rpc"                             = "usr/etc/rpc"

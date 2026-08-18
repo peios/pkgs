@@ -1,5 +1,2 @@
 # Build output
 /out/
-# Vendored libpeios build bridge — artifacts only; refresh.sh + README stay tracked.
-/deps/include/
-/deps/lib/

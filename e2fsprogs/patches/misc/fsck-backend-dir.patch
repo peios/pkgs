@@ -1,0 +1,36 @@
+diff --git a/misc/fsck.8.in b/misc/fsck.8.in
+index c1890df..d7506a4 100644
+--- a/misc/fsck.8.in
++++ b/misc/fsck.8.in
+@@ -377,14 +377,10 @@ be run based on gathering accounting data from the operating system.
+ .B PATH
+ The
+ .B PATH
+-environment variable is used to find file system checkers.  A set of
+-system directories are searched first:
+-.BR /sbin ,
+-.BR /sbin/fs.d ,
+-.BR  /sbin/fs ,
+-.BR /etc/fs ,
+-and
+-.BR /etc .
++environment variable is used to find file system checkers.  The
++system checker directory
++.B /libexec/fsck
++is searched first.
+ Then the set of directories found in the
+ .B PATH
+ environment are searched.
+diff --git a/misc/fsck.c b/misc/fsck.c
+index 64d0e7c..a0f34c8 100644
+--- a/misc/fsck.c
++++ b/misc/fsck.c
+@@ -121,7 +121,7 @@ static char *progname;
+ static char *fstype = NULL;
+ static struct fs_info *filesys_info = NULL, *filesys_last = NULL;
+ static struct fsck_instance *instance_list;
+-static const char *fsck_prefix_path = "/sbin:/sbin/fs.d:/sbin/fs:/etc/fs:/etc";
++static const char *fsck_prefix_path = "/libexec/fsck";
+ static char *fsck_path = 0;
+ static blkid_cache cache = NULL;
+ 

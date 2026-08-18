@@ -1,16 +1,21 @@
 diff --git a/misc/mke2fs.conf.in b/misc/mke2fs.conf.in
-index b7fc95d..5b79952 100644
+index b7fc95d..983283e 100644
 --- a/misc/mke2fs.conf.in
 +++ b/misc/mke2fs.conf.in
-@@ -1,9 +1,17 @@
+@@ -1,9 +1,22 @@
 +# Peios defaults. Deltas from upstream e2fsprogs (SDs are stored as the
 +# security.peios.sd xattr):
 +#   inode_size 256->512  : keep the common Security Descriptor inline (perf).
 +#   ext4 += ea_inode     : let an oversized SD spill to its own inode (ceiling).
 +#   default_mntopts drops 'acl' : Peios uses SDs, not POSIX ACLs.
-+#   ext4 += quota        : the kernel projects SID->fsuid at the cred level
-+#     (verified), so POSIX-keyed usr/grp quota charges the projected uid
-+#     through the stock path; SYSTEM->uid 0, so boot/root-fs is safe.
++#
++# NOT set: the ext4 'quota' feature. Peios' kernel has CONFIG_QUOTA and
++# CONFIG_QUOTACTL but NOT CONFIG_QFMT_V2, and ext4 refuses to mount a
++# filesystem carrying the quota feature without the vfsv1 format compiled in
++# ("The kernel was not built with CONFIG_QUOTA and CONFIG_QFMT_V2"). Enabling
++# it here made every filesystem mke2fs produced unmountable. Restoring it is a
++# pair of changes that must land together: CONFIG_QFMT_V2 in the kernel, then
++# 'quota' back in this list.
  [defaults]
  	base_features = sparse_super,large_file,filetype,resize_inode,dir_index,ext_attr
 -	default_mntopts = acl,user_xattr
@@ -22,12 +27,12 @@ index b7fc95d..5b79952 100644
  	inode_ratio = 16384
  
  [fs_types]
-@@ -11,7 +19,7 @@
+@@ -11,7 +24,7 @@
  		features = has_journal
  	}
  	ext4 = {
 -		features = has_journal,extent,huge_file,flex_bg,metadata_csum,metadata_csum_seed,64bit,dir_nlink,extra_isize,orphan_file
-+		features = has_journal,extent,huge_file,flex_bg,metadata_csum,metadata_csum_seed,64bit,dir_nlink,extra_isize,orphan_file,ea_inode,quota
++		features = has_journal,extent,huge_file,flex_bg,metadata_csum,metadata_csum_seed,64bit,dir_nlink,extra_isize,orphan_file,ea_inode
  	}
  	small = {
  		blocksize = 1024

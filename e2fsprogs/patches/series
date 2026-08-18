@@ -3,3 +3,4 @@
 misc/mke2fs-root-sd.patch          # -E root_sddl=/root_sd_file= : stamp root SD at format (libpeios SDDL parse)
 misc/create_inode-reinherit.patch  # -d : libpeios peios_sd_reinherit walk
 misc/mke2fs.conf-peios-defaults.patch
+misc/fsck-backend-dir.patch        # fsck finds fsck.<type> in /libexec/fsck, not the 1990s /sbin list (code + man page)

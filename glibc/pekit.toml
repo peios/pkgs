@@ -40,6 +40,12 @@ out_dir = "out"
 CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Werror=format-security -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
 CXXFLAGS = "$CFLAGS"
 
+# nss/identity-is-not-configurable: identity comes from the authority and from
+# nowhere a configuration file can name. See patches/series — glibc carried no
+# Peios patches before this one, and the bar for adding to that stays high.
+[source]
+patches = "patches"
+
 [source.git]
 # Canonical upstream. (The github.com/bminor/glibc mirror is archived.)
 url = "https://sourceware.org/git/glibc.git"

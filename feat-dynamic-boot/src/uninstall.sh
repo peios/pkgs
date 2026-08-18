@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 # dynamic-boot / uninstall — remove the watcher service definitions.
 #
 # feat disables before uninstalling, so by here the services are already marked

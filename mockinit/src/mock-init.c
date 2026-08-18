@@ -51,9 +51,9 @@ static void seed_sd(const char *path) {
     pid_t p = fork();
     if (p == 0) {
         char *argv[] = {"sd", "set", (char *)path, SEED_SDDL, NULL};
-        char *envp[] = {"PATH=/usr/bin:/bin", NULL};
-        execve("/usr/bin/sd", argv, envp);
-        perror("mock-init: exec /usr/bin/sd");
+        char *envp[] = {"PATH=/bin", NULL};
+        execve("/bin/sd", argv, envp);
+        perror("mock-init: exec /bin/sd");
         _exit(127);
     }
     if (p < 0) {
@@ -87,12 +87,12 @@ static void scratch_tmpfs(const char *target) {
 // Launch registryd (loregd) as a system daemon, the way an init brings up a
 // service: fork it as a background child; the supervise loop reaps it if it
 // dies. A real init (peinit) materializes a LocalService/SYSTEM token and the
-// /usr/sbin/registryd role symlink; the mock just execs the binary under our
+// /sbin/registryd role symlink; the mock just execs the binary under our
 // inherited boot token to see how far it gets — whether /dev/pkm_registry
 // exists, whether we hold SeTcbPrivilege, whether the hives open.
 //
 // Hive specs follow peinit's convention (REGISTRYD_HIVE_ARGS in its main.rs):
-// Name=/var/lib/loregd/Name.hive, on the overlay root (writable via the
+// Name=/var/state/loregd/Name.hive, on the overlay root (writable via the
 // hook-seeded tmpfs upper). loregd creates each database AND its directory on
 // first boot, so no pre-mkdir is needed. peinit currently registers only
 // Machine; we add Users (the per-user / HKU-equivalent hive) too.
@@ -102,20 +102,20 @@ static void start_registryd(void) {
     // unlike the tmpfs mounts: a new dir under /var/lib inherits a usable SD
     // from that squashfs dir's inheritable ACE (confirmed — loregd opens its
     // hives straight after the mkdir). /var and /var/lib ship in the squashfs.
-    if (mkdir("/var/lib/loregd", 0755) != 0 && errno != EEXIST)
-        fprintf(stderr, "mock-init: mkdir /var/lib/loregd: %s\n", strerror(errno));
+    if (mkdir("/var/state/loregd", 0755) != 0 && errno != EEXIST)
+        fprintf(stderr, "mock-init: mkdir /var/state/loregd: %s\n", strerror(errno));
 
     pid_t p = fork();
     if (p == 0) {
         char *argv[] = {
             "loregd",
-            "Machine=/var/lib/loregd/Machine.hive",
-            "Users=/var/lib/loregd/Users.hive",
+            "Machine=/var/state/loregd/Machine.hive",
+            "Users=/var/state/loregd/Users.hive",
             NULL,
         };
-        char *envp[] = {"PATH=/usr/sbin:/usr/bin:/bin", NULL};
-        execve("/usr/sbin/loregd", argv, envp);
-        perror("mock-init: exec /usr/sbin/loregd");
+        char *envp[] = {"PATH=/sbin:/bin", NULL};
+        execve("/sbin/loregd", argv, envp);
+        perror("mock-init: exec /sbin/loregd");
         _exit(127);
     }
     if (p < 0)
@@ -159,9 +159,9 @@ int main(void) {
             shell = fork();
             if (shell == 0) {
                 char *argv[] = {"-sh", NULL};
-                char *envp[] = {"TERM=linux", "PATH=/usr/bin:/bin", "HOME=/root", NULL};
-                execve("/usr/bin/sh", argv, envp);
-                perror("mock-init: exec /usr/bin/sh");
+                char *envp[] = {"TERM=linux", "PATH=/bin", "HOME=/root", NULL};
+                execve("/bin/sh", argv, envp);
+                perror("mock-init: exec /bin/sh");
                 _exit(127);
             }
             if (shell < 0) {

@@ -1,0 +1,7 @@
+# Peios dosfstools patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+#
+# Note this is a TEST-ONLY patch. dosfstools needs no functional change for
+# Peios: a FAT filesystem has no extended attributes, so there is nothing for
+# the security-descriptor work to extend.
+tests/test-fsck-srcdir-args.patch   # out-of-source `make check`: .args lookup must be srcdir-relative
