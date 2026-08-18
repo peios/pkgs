@@ -1,17 +1,97 @@
-# fsbase — base filesystem: the runtime mountpoint directories every Peios
-# system needs (dev, proc, run, sys, tmp, var) plus /system/boot, where the
-# dynamic-initramfs builder writes the boot cpio.
+# fsbase — base filesystem: the whole Peios filesystem skeleton. Every
+# directory the layout defines but no package owns, minted empty so the
+# system has somewhere to write from its very first boot.
+#
+# TWO packages come out of this one recipe, the same way live-boot and
+# live-boot-irf do:
+#
+#   fsbase      the full skeleton, for the main system root
+#   fsbase-irf  the reduced skeleton, for the initramfs root
+#
+# The build stages one tree per package, but drives the shared half of both
+# from a single list — so the directories they have in common cannot drift
+# apart, and what differs is stated once, in one place, as two short lists.
+#
+# The tiers fsbase covers:
+#
+#   kernel/runtime  dev, proc, sys, run, tmp — mountpoints, never populated
+#   mutable         var/{state,cache,log,crash,tmp}, each with its reserved
+#                   services/ namespace, plus var/state/secrets
+#   operator        lcl/{bin,sbin,lib,…,etc,conf} and lcl/policy/{autorun.d,
+#                   autoapply.d}
+#   vendor          usr/{bin,sbin,libexec,lib,include,share,src,etc,conf} —
+#                   the shape every package installs into. Minted empty here
+#                   for the same reason as everything else: the layout defines
+#                   it and no single package owns it.
+#   derived / other system/{retc,boot}, boot, data, home, srv, opt, mnt, media
+#
+# What fsbase-irf drops, and the test it is held to: a directory is removed
+# only if it makes no sense for an initramfs to hold EVER — not merely if
+# nothing uses it today. So kernel modules and firmware stay (loading modules
+# is the textbook initramfs job; our kernel being monolithic is a current
+# choice, not a law) and var/state/secrets stays (a LUKS keyfile or a
+# TPM-sealed key is precisely an initramfs secret). What goes is /data, /home,
+# /srv, /opt, /media, /boot, the registry-derived system/retc, mkirf's
+# system/boot output directory, the registry apply queue, and peinit's
+# reserved per-service namespaces — the initramfs's PID 1 is prelude, a hook
+# runner, not a service manager.
+#
+# fsbase-irf additionally mints hook drop-in directories that have no meaning
+# in the main root: usr/libexec/prelude/hooks.d (vendor) and
+# lcl/libexec/prelude/hooks.d (operator).
+#
+# Missing any one of these is a first-boot failure rather than a degraded
+# system: peinit writes /lcl/etc/machine-id before anything else runs, and a
+# missing parent directory drops it straight into recovery.
+#
+# NOT created: /root (the layout has no root account) and the merged command
+# views /bin, /sbin and /lib. Those views are mounted at boot, not package
+# payload. /lib64 is the one exception: the x86-64 psABI fixes the dynamic
+# interpreter path there, so fsbase supplies an explicit link to the loader's
+# package-storage directory before any dynamically linked program can run.
 #
 # A pure-skeleton package: no source, no compilation. The "build" just mints
-# the empty directories into the stage; package.pekit.toml maps each as a
-# directory source, which packs as an empty-directory payload entry. dev/proc/
-# run/sys/tmp are §3.4's permitted directory-only roots, var/ is permitted
-# empty, and system/boot sits under the permitted `system/` top-level.
+# the empty directories into the stage; each <name>.package.pekit.toml maps
+# the ones it wants as directory sources, which pack as empty-directory
+# payload entries. Directories minted here but mapped by neither package are
+# simply not packed.
+#
+# None of these destinations is on peipkg's allowlist, and that is the point:
+# laying down the structure the layout rules protect is precisely what those
+# rules exist to stop an ordinary package doing. fsbase therefore declares
+# itself a Special System Package, and an image composes it only by granting
+# the exemption explicitly (bypass_path_restrictions in its peiso spec).
 
 out_dir = "out"
 
 [build]
-command = "for d in dev proc run sys tmp var system/boot; do mkdir -p \"$PEKIT_OUT/$d\"; done"
+command = """
+# Directories both skeletons ship. One list applied to both stage trees, so the
+# shared half of fsbase and fsbase-irf cannot drift apart.
+common="dev proc sys run/lock tmp var/state/secrets var/cache var/log var/crash var/tmp mnt lcl/bin lcl/sbin lcl/libexec lcl/include lcl/share lcl/lib lcl/etc lcl/conf usr/bin usr/sbin usr/libexec usr/lib/x86_64-linux-peios usr/lib/modules usr/lib/firmware usr/include/x86_64-linux-peios usr/share usr/src usr/etc usr/conf"
+
+# Main root only: peinit's reserved per-service namespaces, the registry apply
+# queue and reconciler output, mkirf's cpio destination, and the operator and
+# human storage tiers.
+main_only="run/services var/state/services var/cache/services var/log/services lcl/policy/autorun.d lcl/policy/autoapply.d system/retc system/boot boot data home srv opt media"
+
+# Initramfs only: the hook drop-in directories, vendor and operator halves.
+irf_only="usr/libexec/prelude/hooks.d lcl/libexec/prelude/hooks.d"
+
+# Two stage trees rather than one, because a directory source maps its whole
+# subtree: from a single tree, fsbase mapping usr/libexec would drag the
+# initramfs hook directory along with it, and fsbase-irf mapping var/cache would
+# drag peinit's services namespace. Stage paths and destination paths are
+# independent, so the main/ and irf/ prefixes never reach an installed system.
+for p in main irf; do
+    for d in $common; do mkdir -p "$PEKIT_OUT/$p/$d"; done
+    # The x86-64 psABI fixes the dynamic interpreter at /lib64, so both roots
+    # need the link before anything dynamically linked can run.
+    ln -s usr/lib/x86_64-linux-peios "$PEKIT_OUT/$p/lib64"
+done
+for d in $main_only; do mkdir -p "$PEKIT_OUT/main/$d"; done
+for d in $irf_only; do mkdir -p "$PEKIT_OUT/irf/$d"; done
+"""
 
 # Buildless, but the mkdir loop still needs a shell and mkdir in the
 # composed root.

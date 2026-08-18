@@ -1,0 +1,101 @@
+# fsbase-irf — the reduced skeleton, for the initramfs root.
+#
+# The initramfs is an independently executing root: it runs dynamically linked
+# hooks and tools before the real root's StrataFS views exist, so it needs its
+# own mountpoints and its own ABI loader link. The main root's fsbase cannot
+# supply either across a named-root boundary.
+#
+# THE TEST FOR REMOVING A DIRECTORY is whether an initramfs could ever hold it,
+# not whether anything holds it today. This package is permanent, so a
+# directory omitted because it happens to be unused now is a directory someone
+# has to argue back in later. Hence:
+#
+#   usr/lib/modules, usr/lib/firmware  kept — loading modules is the textbook
+#                                      initramfs job, and a storage driver may
+#                                      need firmware to reach the boot medium.
+#                                      Our kernel being monolithic today is a
+#                                      current choice, not a law.
+#   var/state/secrets                  kept — a LUKS keyfile or a TPM-sealed
+#                                      key is precisely an initramfs secret.
+#   usr/include, usr/src               kept — a rescue initramfs carrying a
+#                                      toolchain is unusual, not absurd.
+#   mnt                                kept, and /media deliberately not: one
+#                                      mount location is policy enough for an
+#                                      initramfs.
+#
+# And what goes, each for a reason that holds for all time:
+#
+#   data, home, srv, opt   an initramfs stores no bulk data, houses no humans,
+#                          serves nothing, and hosts no self-contained trees.
+#   boot, system/boot      an initramfs does not build or hold initramfses.
+#   system/retc,           registry-derived. No registry exists before the
+#   lcl/policy/*           pivot, so nothing produces or drains these.
+#   */services             peinit's reserved per-service namespaces. The
+#                          initramfs's PID 1 is prelude, a hook runner rather
+#                          than a service manager — a different init model, not
+#                          merely an unused one.
+#
+# Sources come from the build's irf/ stage tree; destinations are the real
+# paths. Leaf directories only, as in fsbase: a directory source maps its whole
+# subtree, so ancestors (/var, /usr/lib, /lcl/libexec) arrive automatically.
+
+[package]
+description = "Base filesystem for the initramfs root - the reduced Peios skeleton"
+
+# This package writes outside every permitted destination — mountpoint roots
+# and system/boot — because laying that structure down IS its job. The
+# declaration waives pack-time layout validation; it grants nothing at install
+# or compose time, where the operator must also pass the bypass.
+#
+# Declared per package rather than in the shared base: the hooks package ships
+# an ordinary script to an ordinary destination and has no business holding an
+# exemption it does not need.
+special_system_package = true
+
+
+[files]
+# x86-64 ABI interpreter view, needed here for the same reason as in the main
+# root: the initramfs runs dynamically linked hooks before anything is mounted.
+":irf/lib64" = "lib64"
+# kernel interfaces — mount-root.sh reads /proc/cmdline, scans /sys/block, and
+# tests /dev/<name> block nodes
+":irf/dev" = "dev"
+":irf/proc" = "proc"
+":irf/sys" = "sys"
+":irf/run/lock" = "run/lock"
+":irf/tmp" = "tmp"
+# a keyfile for unlocking an encrypted root would live here
+":irf/var/state/secrets" = "var/state/secrets"
+":irf/var/cache" = "var/cache"
+":irf/var/log" = "var/log"
+":irf/var/crash" = "var/crash"
+":irf/var/tmp" = "var/tmp"
+# where transient mounts belong: the boot medium and the root being assembled
+":irf/mnt" = "mnt"
+# operator tier
+":irf/lcl/bin" = "lcl/bin"
+":irf/lcl/sbin" = "lcl/sbin"
+# operator-supplied hooks, mirroring the vendor drop-in below. Placing one here
+# is how a custom script gets into the initramfs without rebuilding a package.
+":irf/lcl/libexec/prelude/hooks.d" = "lcl/libexec/prelude/hooks.d"
+":irf/lcl/include" = "lcl/include"
+":irf/lcl/share" = "lcl/share"
+":irf/lcl/lib" = "lcl/lib"
+":irf/lcl/etc" = "lcl/etc"
+":irf/lcl/conf" = "lcl/conf"
+# vendor tier
+":irf/usr/bin" = "usr/bin"
+":irf/usr/sbin" = "usr/sbin"
+# vendor hooks: machine-facing executables in a package-owned drop-in
+# directory, which is exactly what libexec is for. Hooks ship from packages
+# other than prelude (live-boot-irf, disk-boot-irf, and this recipe's own
+# fsbase-stratafs-mount-hooks), hence the .d suffix.
+":irf/usr/libexec/prelude/hooks.d" = "usr/libexec/prelude/hooks.d"
+":irf/usr/lib/x86_64-linux-peios" = "usr/lib/x86_64-linux-peios"
+":irf/usr/lib/modules" = "usr/lib/modules"
+":irf/usr/lib/firmware" = "usr/lib/firmware"
+":irf/usr/include/x86_64-linux-peios" = "usr/include/x86_64-linux-peios"
+":irf/usr/share" = "usr/share"
+":irf/usr/src" = "usr/src"
+":irf/usr/etc" = "usr/etc"
+":irf/usr/conf" = "usr/conf"

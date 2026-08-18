@@ -1,0 +1,41 @@
+# fsbase-stratafs-mount-hooks — the initramfs hook that mounts the base
+# StrataFS views over the skeleton fsbase-irf lays down.
+#
+# Built from the fsbase recipe rather than one of its own, because the views it
+# mounts are stacked over exactly the /usr/X + /lcl/X pairs fsbase-irf mints.
+# Those two lists have to agree — drop /lcl/share from the skeleton and this
+# hook's /share view fails at boot — and keeping them in one recipe is the same
+# argument that keeps fsbase and fsbase-irf together.
+#
+# Separate from fsbase-irf rather than folded into it because minting a
+# directory and mounting something over it are different jobs with different
+# failure modes, and an image may reasonably want the skeleton without the
+# views: prod ran an initramfs with no hooks at all before this existed.
+#
+# Plural in the name because the base views are the first of these, not the
+# only ones — a later hook assembling views this one deliberately leaves out
+# belongs here beside it.
+
+[package]
+description = "Initramfs hook that mounts the Peios base StrataFS views"
+
+# The hook runs inside the initramfs, so its home is the initramfs root. A
+# direct install or an unqualified compose entry therefore places itself
+# without anything having to say where it goes.
+default_root = "initramfs"
+
+[dependencies]
+# The hook is a #!/usr/bin/sh script.
+sh = ">= 1"
+# mkdir and mount, before any view exists to find them through.
+peiosutils = ">= 0.1.2"
+# It is packaged where mkirf now looks, and it declares `contributes`, which an
+# older mkirf rejects as an unknown key rather than misreading. Both halves of
+# the same prelude/hook interface.
+prelude-hook-abi = ">= 2"
+
+# The packaged hook directory — the /usr tier, since this is package payload.
+# An operator overriding it drops a file of the same name into
+# /lcl/libexec/prelude/hooks.d, which wins without this one being removed.
+[files]
+"src/mount-initramfs-stratafs-base.sh" = "usr/libexec/prelude/hooks.d/mount-initramfs-stratafs-base.sh"

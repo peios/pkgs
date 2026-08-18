@@ -1,22 +1,25 @@
+# Base metadata shared by the fsbase packages. Each <name>.package.pekit.toml
+# (fsbase, fsbase-irf, fsbase-stratafs-mount-hooks) inherits these fields and
+# adds its own description and files.
+#
+# The two skeletons are pure — their payloads are the empty directories the
+# recipe's build mints, carved into two subsets. The hooks package is the
+# exception that made this recipe stop being source-free: it ships a script
+# from src/, and it lives here because what it mounts has to agree with what
+# fsbase-irf mints.
+#
+# x86_64, not noarch: both carry the tuple-named directories
+# usr/lib/x86_64-linux-peios and usr/include/x86_64-linux-peios, and the
+# psABI-fixed /lib64 link into the first of them.
 format = "peipkg"
 
 [package]
-name = "fsbase"
-version      = "1.0.0-2"
-architecture = "noarch"
-description  = "Base filesystem - runtime mountpoint and boot-artifact directories"
+# -4: adds the /usr vendor shape to the skeleton, and splits fsbase-irf out as
+# a second package built from the same mkdir loop. One version across all of
+# them, because one recipe produces them all — bumping any bumps the set.
+#
+# -5: adds fsbase-stratafs-mount-hooks, the initramfs hook that mounts the base
+# StrataFS views over the skeleton fsbase-irf lays down.
+version      = "1.0.0-5"
+architecture = "x86_64"
 license      = "MIT"
-
-# Each directory source packs as an empty-directory entry. Listed explicitly
-# (globs deliberately skip directories — they're for files).
-[files]
-":dev"  = "dev"
-":proc" = "proc"
-":run"  = "run"
-":sys"  = "sys"
-":tmp"  = "tmp"
-":var"  = "var"
-# /system/boot: where the dynamic-initramfs builder (mkirf) writes the boot
-# cpio. fsbase owns the empty directory; the cpio inside it is a generated
-# artifact, not packaged. (Under §3.4's permitted `system/` top-level.)
-":system/boot" = "system/boot"

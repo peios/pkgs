@@ -1,0 +1,94 @@
+# fsbase — the full skeleton, for the main system root.
+#
+# Sources come from the build's main/ stage tree; destinations are the real
+# paths. Each directory source packs as an empty-directory payload entry.
+#
+# Listed explicitly (globs deliberately skip directories — they're for files),
+# and kept in the same order as the build's lists so the two stay comparable by
+# eye. Only LEAF directories are listed: a directory source maps its whole
+# subtree, so naming both a parent and its child collides. Ancestors are
+# emitted automatically, so /var, /var/state, /usr/lib, /lcl and /lcl/policy
+# still land — they simply arrive as parents of the leaves below.
+
+[package]
+description = "Base filesystem - the Peios filesystem skeleton"
+
+# This package writes outside every permitted destination — mountpoint roots
+# and system/boot — because laying that structure down IS its job. The
+# declaration waives pack-time layout validation; it grants nothing at install
+# or compose time, where the operator must also pass the bypass.
+#
+# Declared per package rather than in the shared base: the hooks package ships
+# an ordinary script to an ordinary destination and has no business holding an
+# exemption it does not need.
+special_system_package = true
+
+
+[files]
+# x86-64 ABI interpreter view. This is deliberately package-owned rather than
+# compose-intrinsic; removing fsbase removes the topology it supplied.
+":main/lib64" = "lib64"
+# kernel interfaces
+":main/dev" = "dev"
+":main/proc" = "proc"
+":main/sys" = "sys"
+# XDG_RUNTIME_DIR parent; peinit creates per-service dirs beneath
+":main/run/services" = "run/services"
+":main/run/lock" = "run/lock"
+# cleared on reboot
+":main/tmp" = "tmp"
+# reserved namespace; peinit provisions per-service state
+":main/var/state/services" = "var/state/services"
+# the persistent secret store
+":main/var/state/secrets" = "var/state/secrets"
+":main/var/cache/services" = "var/cache/services"
+":main/var/log/services" = "var/log/services"
+":main/var/crash" = "var/crash"
+# survives reboot; wiped by operators, not the system
+":main/var/tmp" = "var/tmp"
+# operator tier
+":main/lcl/bin" = "lcl/bin"
+":main/lcl/sbin" = "lcl/sbin"
+":main/lcl/libexec" = "lcl/libexec"
+":main/lcl/include" = "lcl/include"
+":main/lcl/share" = "lcl/share"
+":main/lcl/lib" = "lcl/lib"
+# everything in the /etc namespace not derived from the registry
+":main/lcl/etc" = "lcl/etc"
+":main/lcl/conf" = "lcl/conf"
+# boot scripts peinit runs at Phase 1.5
+":main/lcl/policy/autorun.d" = "lcl/policy/autorun.d"
+# composer-seeded registry apply queue
+":main/lcl/policy/autoapply.d" = "lcl/policy/autoapply.d"
+# vendor tier: the shape every package installs into
+":main/usr/bin" = "usr/bin"
+":main/usr/sbin" = "usr/sbin"
+":main/usr/libexec" = "usr/libexec"
+# public shared libraries, flat and ldconfig-indexed
+":main/usr/lib/x86_64-linux-peios" = "usr/lib/x86_64-linux-peios"
+# kernel modules + vmlinuz, System.map, config, per version
+":main/usr/lib/modules" = "usr/lib/modules"
+":main/usr/lib/firmware" = "usr/lib/firmware"
+# arch-dependent headers; arch-independent ones sit in the parent
+":main/usr/include/x86_64-linux-peios" = "usr/include/x86_64-linux-peios"
+":main/usr/share" = "usr/share"
+":main/usr/src" = "usr/src"
+# vendor config defaults for legacy apps; supplementary config for native ones
+":main/usr/etc" = "usr/etc"
+":main/usr/conf" = "usr/conf"
+# reconciler output, projected into /etc
+":main/system/retc" = "system/retc"
+# where mkirf writes the boot cpio
+":main/system/boot" = "system/boot"
+# the initramfs root and the ESP live under here
+":main/boot" = "boot"
+# operator-placed bulk data; never removed automatically
+":main/data" = "data"
+# humans only — services have no /home entry
+":main/home" = "home"
+# index of what this host serves
+":main/srv" = "srv"
+# software that brings its own layout
+":main/opt" = "opt"
+":main/mnt" = "mnt"
+":main/media" = "media"
