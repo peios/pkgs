@@ -1,0 +1,12 @@
+# peios-install — install the running live system onto a disk.
+#
+# BUILDLESS package: the payload is the script in this recipe's src/ dir.
+#
+# Scope is the minimum that produces a bootable installed system: format,
+# copy the tree, write a UKI to the ESP. Since 0.2.0 it can also partition the
+# target first (--whole-disk), delegating to `part` rather than reimplementing
+# GPT — so the two forms are "here are two partitions" and "here is a disk".
+# Nothing here needs privilege beyond what the operation itself is authorised
+# for; there is no uid check anywhere, as everywhere else in Peios.
+
+out_dir = "out"

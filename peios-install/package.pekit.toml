@@ -1,0 +1,89 @@
+# peios-install — the installer, as one shell script.
+#
+# /usr/bin, not /usr/sbin: /sbin is for daemons, which appear in service
+# definitions. This is a privileged binary a person runs, invoked as
+# `peios-install` through the /bin view.
+#
+# x86_64 rather than noarch: the payload is a script, but it depends on the
+# x86_64 userspace, and §4.1.3 makes arch-dependence transitive through deps.
+format = "peipkg"
+
+[package]
+name         = "peios-install"
+# 0.2.0: --whole-disk, which partitions the target with `part` before
+# installing. A minor bump because it adds a form rather than fixing one: the
+# two-partition invocation is unchanged. Requires peiosutils >= 0.1.3 for
+# `part`. This is the last step that needed a host tool — dist/Makefile no
+# longer shells out to sgdisk to build a test disk.
+# -9: the "device is already mounted" guard called grep, which Peios does not
+# ship — sh exited 127 and the check silently passed on every run since -1.
+# Replaced with a pure-shell read of /proc/mounts. Dependency comment corrected:
+# peiosutils is a coreutils fork and never supplied grep.
+# -8: drop --no-preserve=xattrs,security from the copy, so -a means what it
+# says. It was a workaround for PEI-180 (source-side listxattr EOPNOTSUPP),
+# which is fixed in peiosutils 0.1.2-3; the policy half of the justification
+# was never load-bearing, since no Peios tree carries a generic xattr.
+# -7: delete Machine\System\Services\lpsd-first-account from the registry
+# before the copy, so an installed system does not inherit the development
+# account whose password ships in the image. Verified, and fatal if it fails —
+# a silent miss would hand out a machine with a published password.
+# -6: comment only — record that --no-preserve is currently load-bearing
+# around PEI-180 (listxattr EOPNOTSUPP), not purely policy.
+# -5: --no-preserve=xattrs,security. The security class was the actual
+# culprit: its call site propagates unconditionally, so -a could never skip it.
+# -4: --no-preserve=xattrs on the copy. Under -a every attribute is
+# required:true, so a system.posix_acl_* the target cannot accept (Peios ext4
+# is formatted without `acl` on purpose) aborts the copy partway.
+# -3: copy the root entry by entry, skipping mountpoints — `cp -a /. target/`
+# is refused as a copy into itself, and -x alone mishandles a mountpoint named
+# as the source. Harden the UUID read against blank lines.
+# -2: mke2fs -F, so a re-run never stops on the "filesystem already present"
+# prompt. --yes is the confirmation; there is nobody at the console to answer.
+# 0.3.0: the installer swaps the boot packages on the TARGET, taking disk-boot
+# from the repository on the installation medium. A minor bump rather than a
+# patch because it adds a requirement: the image must carry a medium
+# repository, and an image that does not can no longer install itself.
+#
+# The dependency on disk-boot is GONE, and its removal is the point. That edge
+# made this package uninstallable on any live image: disk-boot pulls
+# disk-boot-irf into the initramfs root, where it conflicts with live-boot-irf,
+# so a manifest naming both the installer and live-boot did not resolve. The
+# old recipe justified the edge as "an image carrying the installer can always
+# boot what the installer produces" — true of the image, but the wrong system:
+# what has to carry disk-boot is the machine being INSTALLED, and the installer
+# now puts it there.
+# -2: device checks ask /proc/partitions instead of `[ -b ]`. Stat on a
+# devtmpfs node is refused even to a principal that can read and write it
+# (PEI-196: the synthesised descriptor grants 0xF, with no READ_ATTRIBUTES,
+# which kacs/file_access.c demands on every open), so `[ -b /dev/vdb ]` was
+# false for an attached 8G disk and the installer reported it "not a block
+# device". `[ -b ]` cannot tell absent from denied — both are false — so the
+# message sent the operator hunting a hardware fault. `part` had already hit
+# this and moved to sysfs; this script should not have been written with the
+# check it knew did not work.
+version      = "0.3.0-2"
+architecture = "x86_64"
+description  = "Install the running Peios system onto a disk, partitioning it if asked"
+license      = "MIT"
+
+# Every tool the script calls, declared. peiosutils supplies mount, umount,
+# lsblk, cp, mkdir, sync, reg, part, mkirf and mkuki; e2fsprogs supplies mke2fs
+# (with the Peios -E root_sddl= extension the install depends on); dosfstools
+# supplies mkfs.vfat for the ESP; peipkg performs the package swap on the
+# target.
+#
+# Nothing here pulls in disk-boot, and nothing can: it is the one package this
+# installer must NOT have. See the version note above.
+#
+# The script calls no other external command — deliberately. Peios ships no
+# grep and no gzip, so a check reaching for either exits 127 and passes
+# silently, which is how the "device is already mounted" guard managed to never
+# fire between 0.1.0-1 and 0.1.0-9.
+[dependencies]
+peiosutils = ">= 0.1.3"
+e2fsprogs  = ">= 1.47.2-2"
+dosfstools = ">= 4.2-2"
+peipkg     = ">= 0.1.1-2"
+
+[files]
+"src/peios-install.sh" = "usr/bin/peios-install"
