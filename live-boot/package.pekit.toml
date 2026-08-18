@@ -22,6 +22,11 @@ format = "peipkg"
 # -9: the hook moves to /usr/libexec/prelude/hooks.d, mounts at /mnt/rootfs
 # rather than /sysroot, and contributes to `rootfs-ready` instead of providing
 # `root-mounted`.
-version      = "1.0.0-9"
+#
+# -10: the medium's rootfs image is `rootfs.squashfs`, not `sysroot.squashfs`.
+# The mount path became /mnt/rootfs in -9 and the file name was the last place
+# the old word survived — a hook mounting /mnt/rootfs.lower from a file called
+# sysroot is the kind of half-rename that misleads a year later.
+version      = "1.0.0-10"
 architecture = "x86_64"
 license      = "MIT"
