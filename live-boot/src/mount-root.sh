@@ -29,8 +29,9 @@ mkdir /mnt/medium /mnt/rootfs.lower /mnt/rootfs.rw
 # Find and mount the boot medium — the ISO9660 that carries the rootfs squashfs
 # as a file. The squashfs lives here, not in the initramfs, so the whole OS
 # never has to fit in RAM: the loop device below reads its blocks off the medium
-# on demand. /mnt/medium therefore stays mounted for the session — prelude's chroot
-# doesn't unmount it, so the loop keeps reading from it after the pivot.
+# on demand. The medium therefore stays mounted for the whole session — the last
+# step of this hook moves it into the new root at /media/peios, so the loop keeps
+# reading from it after the pivot AND the booted system can reach it.
 #
 # We can't resolve the medium by LABEL=: the initramfs has no udev, so
 # libblkid's /dev/disk/by-label lookup is empty (and a hybrid GPT image hides
@@ -81,3 +82,43 @@ mkdir /mnt/rootfs.rw/upper /mnt/rootfs.rw/work
 mount -t overlay overlay \
     -o lowerdir=/mnt/rootfs.lower,upperdir=/mnt/rootfs.rw/upper,workdir=/mnt/rootfs.rw/work \
     /mnt/rootfs
+
+# --- the medium, carried into the new root -----------------------------------
+# prelude mount-moves only /proc, /sys and /dev into the new root and then
+# CHROOTS into it (it cannot pivot_root onto the kernel rootfs). Everything
+# else the initramfs mounted — including this medium — stays in a namespace
+# the booted system has no path to. So a live system could not read the
+# medium it booted from, which is a strange thing for a live system not to be
+# able to do: the medium is the one piece of storage it is guaranteed to have.
+#
+# Moving it here rather than rescanning later is the point. This hook has
+# already identified the right device, out of every block device on the
+# machine, by the only reliable test (does its ISO9660 carry rootfs.squashfs).
+# Anything doing that again in userspace would be reimplementing that scan
+# against a system where the answer is already known.
+#
+# MS_MOVE, not a bind: one mount, relocated. A bind would leave the original
+# in the initramfs namespace, where prelude's cleanup walk would step around
+# it forever.
+#
+# The move does not disturb the loop device backing /mnt/rootfs.lower. A loop
+# device holds an open file, and an open file does not care what path it was
+# opened through.
+#
+# /media is fsbase's, shipped as an empty directory in the squashfs; the
+# per-medium subdirectory is created in the overlay's tmpfs upper, where
+# seed-sd's inheritable ACE gives it a descriptor. Under /media rather than
+# /run because this outlives no reboot but does outlive peinit mounting its
+# own tmpfs over /run, and because /media is where a mounted medium belongs.
+#
+# Failure here is NOT fatal. Every earlier step in this hook is load-bearing —
+# without them there is no root to boot. This one is a convenience, and a boot
+# that reaches a login prompt with an unreachable medium is far better than no
+# boot at all. It says so and continues.
+# Both steps are guarded: this script runs under `set -e`, so an unguarded
+# mkdir failure would abort the boot the paragraph above just promised not to.
+if mkdir -p /mnt/rootfs/media/peios && mount --move /mnt/medium /mnt/rootfs/media/peios; then
+    echo "live-boot: medium available at /media/peios"
+else
+    echo "live-boot: could not carry the medium into the new root; /media/peios will be empty" >&2
+fi

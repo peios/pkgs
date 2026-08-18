@@ -33,6 +33,14 @@ format = "peipkg"
 # the check had nothing left to decide. live-boot-irf now conflicts with
 # disk-boot-irf, which is where the "exactly one root-mount hook" invariant
 # went when the runtime check came out.
-version      = "1.0.0-11"
+#
+# -12: the hook carries the medium into the new root at /media/peios. prelude
+# mount-moves only /proc, /sys and /dev and then chroots, so everything else
+# the initramfs mounted is unreachable afterwards — a live system could not
+# read the medium it booted from. This hook has already identified the right
+# device by the only reliable test, so relocating that mount is strictly
+# better than any later rescan. Non-fatal: a boot that reaches a prompt with
+# an unreachable medium beats no boot.
+version      = "1.0.0-12"
 architecture = "x86_64"
 license      = "MIT"
