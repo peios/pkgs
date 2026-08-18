@@ -4,10 +4,18 @@ _pkgsOut_/
 _pkgsOut_.presigning-bak/
 # Legacy publish-pool name (superseded by _pkgsOut_/); never commit the pool.
 pkgsOut/
+# Dated/labelled snapshots of the pool taken before a sweeping change
+# (_pkgsOut_.pre-pfsl-…, .pre-hardening-bak, .superseded). Same artifacts, same
+# reason, and they run to gigabytes: three of them were 3.1 GB and one
+# `git add -A` away from the history.
+_pkgsOut_.*/
 
 # Keyring files are per-developer / environment-specific (hold or reference key
 # material) and are never committed.
 *.keyring.pekit.toml
+# ...and their backups. The pattern above is anchored at the end, so a .bak
+# suffix slips past it while holding exactly the same key material.
+*.keyring.pekit.toml.*
 
 # Milestone-2 toolchain build scratch: the build-only nix->peios cross toolchain
 # (gcc/_cross/tools) + its build tree (gcc/_cross/build), and the peipkg-compose'd
