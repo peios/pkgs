@@ -10,14 +10,17 @@ description = "Initramfs root-mount hook for live-medium boot (squashfs + tmpfs 
 
 [dependencies]
 peiosutils = ">= 0.1.2"
-# The hook stands aside with exit 69 (declined). In front of a prelude that
-# predates the outcome contract, 69 is simply a non-zero exit — so instead of
-# standing aside for the disk-boot hook, it would HALT the boot it was
-# standing aside for. Depending on the capability makes that a compose-time
-# error rather than an unbootable image.
-hook-outcomes = ">= 1"
+# Everything this hook and prelude must agree on: that exit 69 means declined
+# rather than failed, and that the real root is mounted at /mnt/rootfs. Each
+# half fails hard on its own — against a prelude predating the outcome
+# contract the hook would HALT the boot it was standing aside for, and against
+# one still expecting /sysroot it would mount where nothing looks. The
+# dependency makes either mismatch a compose-time error instead.
+prelude-hook-abi = ">= 2"
 
-# The hook lives at /hooks/mount-root.sh — the directory mkirf scans when it
-# packs the initramfs cpio.
+# The hook lives in the packaged hook directory, one of the places mkirf scans
+# when it packs the initramfs cpio. /usr because it is package payload; an
+# operator overriding it drops a file of the same name in
+# /lcl/libexec/prelude/hooks.d, which wins without this one being deleted.
 [files]
-"src/mount-root.sh" = "hooks/mount-root.sh"
+"src/mount-root.sh" = "usr/libexec/prelude/hooks.d/mount-root.sh"

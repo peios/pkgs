@@ -1,26 +1,29 @@
 #!/usr/bin/sh
 # /// hook
-# provides = ["root-mounted"]
+# contributes = ["rootfs-ready"]
 # ///
 #
 # Mount the real root as an overlay: read-only squashfs at the bottom,
-# tmpfs scratch on top. Prelude pivots into the merged view at /sysroot,
+# tmpfs scratch on top. Prelude pivots into the merged view at /mnt/rootfs,
 # so userspace sees a writable Linux root while the shipped squashfs
 # stays byte-for-byte the trusted artifact. Writes accumulate in the
 # tmpfs upper and evaporate on reboot; a disk-backed install would swap
 # the upper for a partition without changing the overlay shape.
 set -eu
 
-# This hook and disk-boot's both provide `root-mounted`, and both run. `root=`
-# on the kernel command line decides which one acts: an installed UKI carries
-# one, the live UKI does not.
+# This hook and disk-boot's both contribute to `rootfs-ready`, and both run.
+# `root=` on the kernel command line decides which one acts: an installed UKI
+# carries one, the live UKI does not.
 #
-# Standing aside is exit 69 — DECLINED — and it is neither of the two things
-# it could otherwise be. Not an error, because prelude halts on those and it
-# would take down the boot this hook is standing aside FOR. And not an exit 0
-# either: `provides` means alternatives, so exiting 0 claims to be the hook
-# that mounted the root, which would leave disk-boot's mount looking optional
-# and a machine where neither acted looking successful.
+# Standing aside is exit 69 — DECLINED — rather than an error, because prelude
+# halts on errors and that would take down the boot this hook is standing
+# aside FOR. Declining completes this hook's part of the conjunction without
+# claiming to have mounted anything: nothing needed doing here.
+#
+# The runtime check is temporary. The intended shape is that an installed
+# system simply does not have the live-boot package — the installer removes
+# it — so package presence selects the boot path and no hook has to inspect
+# the cmdline to discover whether it is wanted.
 for word in $(cat /proc/cmdline); do
     case "$word" in
         root=*)
@@ -32,11 +35,11 @@ done
 
 # prelude runs hooks with PATH=/usr/bin, so the peiosutils tools (mkdir,
 # mount) and seed-sd resolve without the hook setting PATH itself.
-mkdir /medium /sysroot.lower /sysroot.rw
+mkdir /mnt/medium /mnt/rootfs.lower /mnt/rootfs.rw
 # Find and mount the boot medium — the ISO9660 that carries the rootfs squashfs
 # as a file. The squashfs lives here, not in the initramfs, so the whole OS
 # never has to fit in RAM: the loop device below reads its blocks off the medium
-# on demand. /medium therefore stays mounted for the session — prelude's chroot
+# on demand. /mnt/medium therefore stays mounted for the session — prelude's chroot
 # doesn't unmount it, so the loop keeps reading from it after the pivot.
 #
 # We can't resolve the medium by LABEL=: the initramfs has no udev, so
@@ -54,12 +57,12 @@ while [ -z "$found" ]; do
     for sysdev in /sys/block/*; do
         dev="/dev/${sysdev##*/}"
         [ -b "$dev" ] || continue
-        if mount -t iso9660 -o ro "$dev" /medium 2>/dev/null; then
-            if [ -e /medium/sysroot.squashfs ]; then
+        if mount -t iso9660 -o ro "$dev" /mnt/medium 2>/dev/null; then
+            if [ -e /mnt/medium/sysroot.squashfs ]; then
                 found="$dev"
                 break
             fi
-            umount /medium 2>/dev/null || true
+            umount /mnt/medium 2>/dev/null || true
         fi
     done
     [ -n "$found" ] && break
@@ -70,21 +73,21 @@ while [ -z "$found" ]; do
     fi
     sleep 0.1
 done
-echo "live-boot: mounted boot medium $found at /medium"
+echo "live-boot: mounted boot medium $found at /mnt/medium"
 # The squashfs ships no SDs (the build doesn't stamp them), so under KACS
 # DENY_MISSING every file in it is locked. policy=synth-ephemeral makes KACS
 # synthesize a default SD per inode in memory — ephemeral, not synth-persist,
 # because a read-only squashfs can't accept a written-back SD.
-mount -o loop,ro,policy=synth-ephemeral -t squashfs /medium/sysroot.squashfs /sysroot.lower
-mount -t tmpfs tmpfs /sysroot.rw
+mount -o loop,ro,policy=synth-ephemeral -t squashfs /mnt/medium/sysroot.squashfs /mnt/rootfs.lower
+mount -t tmpfs tmpfs /mnt/rootfs.rw
 
 # A freshly-mounted tmpfs root has no SD xattr; under KACS DENY_MISSING
 # the mkdirs immediately below would fail. Seed the SYSTEM-owned default
 # first; the OI|CI ACE on it makes KACS inheritance derive a child SD
 # for every directory and file we create here.
-seed-sd /sysroot.rw
+seed-sd /mnt/rootfs.rw
 
-mkdir /sysroot.rw/upper /sysroot.rw/work
+mkdir /mnt/rootfs.rw/upper /mnt/rootfs.rw/work
 mount -t overlay overlay \
-    -o lowerdir=/sysroot.lower,upperdir=/sysroot.rw/upper,workdir=/sysroot.rw/work \
-    /sysroot
+    -o lowerdir=/mnt/rootfs.lower,upperdir=/mnt/rootfs.rw/upper,workdir=/mnt/rootfs.rw/work \
+    /mnt/rootfs

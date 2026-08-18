@@ -14,12 +14,14 @@ format = "peipkg"
 # so disk-boot's hook can take the boot instead. Both ship in the same
 # initramfs and both provide `root-mounted`.
 #
-# -8: standing aside is now DECLINING (exit 69) rather than exiting 0. Since
-# both hooks provide `root-mounted`, and `provides` means alternatives, exiting
-# 0 was a claim to have mounted the root — so a machine neither hook could boot
-# looked successful until a later check noticed nothing was mounted. Requires a
-# prelude honouring the hook-outcomes contract, which the irf package's
-# dependency enforces.
-version      = "1.0.0-8"
+# -8: standing aside is now DECLINING (exit 69) rather than exiting 0, so a
+# hook that did nothing no longer reports the same outcome as one that did the
+# job. Requires a prelude honouring the hook-outcomes contract, which the irf
+# package's dependency enforces.
+#
+# -9: the hook moves to /usr/libexec/prelude/hooks.d, mounts at /mnt/rootfs
+# rather than /sysroot, and contributes to `rootfs-ready` instead of providing
+# `root-mounted`.
+version      = "1.0.0-9"
 architecture = "x86_64"
 license      = "MIT"
