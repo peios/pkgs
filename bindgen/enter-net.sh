@@ -27,7 +27,20 @@ trap 'rm -rf "$work"' EXIT INT TERM
   done
 } > "$work/root.toml"
 
-peipkg-compose build "$work/root.toml" --out "$work/root"
+# --dangerously-bypass-path-restrictions: this root always includes
+# fsbase, whose whole job is to mint the mountpoint tree (/dev, /proc,
+# /run, /sys, /tmp) that the payload layout rules otherwise protect.
+# fsbase declares special_system_package; this flag is the composer's
+# half of that two-key exemption. A build root is precisely the case
+# it exists for, and it grants nothing to a package that has not
+# declared itself special.
+peipkg-compose build "$work/root.toml" --out "$work/root" \
+  --dangerously-bypass-path-restrictions
+
+# Root-level runtime views — see _peiroot_/enter.sh for the reasoning.
+for view in bin sbin lib; do
+  [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
+done
 
 status=0
 bwrap \

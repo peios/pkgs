@@ -31,7 +31,34 @@ trap 'rm -rf "$work"' EXIT INT TERM
   done
 } > "$work/root.toml"
 
-peipkg-compose build "$work/root.toml" --out "$work/root"
+# --dangerously-bypass-path-restrictions: this root always includes
+# fsbase, whose whole job is to mint the mountpoint tree (/dev, /proc,
+# /run, /sys, /tmp) that the payload layout rules otherwise protect.
+# fsbase declares special_system_package; this flag is the composer's
+# half of that two-key exemption. A build root is precisely the case
+# it exists for, and it grants nothing to a package that has not
+# declared itself special.
+peipkg-compose build "$work/root.toml" --out "$work/root" \
+  --dangerously-bypass-path-restrictions
+
+# Root-level runtime views. A booted Peios gets /bin, /sbin and /lib from
+# StrataFS (stratafs-base-topo's mount hook); peipkg-compose used to mint
+# them as usr-merge symlinks until that intrinsic was deliberately removed,
+# on the grounds that filesystem topology is not a composer side effect.
+# Correct — but a bwrap build root has no StrataFS, and essentially every
+# upstream build system hardcodes /bin/sh (autotools' configure, generated
+# libtool, make's default SHELL). Without these the rung cannot run a single
+# autotools recipe.
+#
+# So the sandbox mints them itself, which is where the responsibility now
+# sits. Deliberately the pre-removal mapping (/lib -> usr/lib), not
+# stratafs-base-topo's (/lib -> usr/lib/<triplet>): this restores the exact
+# shape every package in the farm was built and verified against, and a
+# build root's job is to be that known-good environment. /lib64 is skipped —
+# fsbase 1.0.0-3 owns it as real package payload.
+for view in bin sbin lib; do
+  [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
+done
 
 # Delegate dual-mount: bind the source-tree CWD when the workspace bind
 # does not already cover it.
