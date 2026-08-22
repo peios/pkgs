@@ -29,6 +29,13 @@ format = "peipkg"
 # the device it names, not to decide whether this hook is wanted — package
 # presence answers that, and live-boot-irf's conflict keeps it to one hook — so
 # there is no other hook to stand aside for, and a UKI without one is broken.
-version      = "1.0.0-6"
+#
+# -7: the cmdline template drops `peios.login=1`. peinit retired the token when
+# the authd/lpsd/login service definitions stopped being compiled in and became
+# registry data, and its parser ignores unknown tokens, so this changes no
+# behaviour — the point is the recipe comment, which described the token as
+# load-bearing and would have sent anyone debugging a missing login prompt to
+# the wrong place.
+version      = "1.0.0-7"
 architecture = "x86_64"
 license      = "MIT"

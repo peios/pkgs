@@ -19,14 +19,19 @@ disk-boot-irf = { constraint = ">= 1.0.0", root = "initramfs" }
 # stable part, the operator tree holds the per-install part, and mkuki is
 # pointed at the latter.
 #
-# Two deliberate differences from live-boot's cmdline, both because an
-# installed system is not a live medium:
+# Nothing here selects services. An installed system's login prompt comes from
+# the authd, lpsd and login SERVICE DEFINITIONS in the registry hive, which
+# travel with the copied /var/state/loregd — not from the kernel command line.
+# The template used to carry `peios.login=1` to inject those three as
+# compiled-in definitions; peinit retired that token (along with
+# `peios.console=1`) when they became ordinary registry data, and its parser
+# now ignores both. Do not re-add either token expecting it to do anything: if
+# an installed system reaches a console nobody can log into, the fault is in
+# the seeded registry data or in the packages that seed it, and the command
+# line is the wrong place to look.
 #
-#   peios.login=1  starts authd and lpsd, so the system has a login prompt and
-#                  lpsd-first-account can create the first account. A live
-#                  image can reasonably ship without one; a system somebody
-#                  installed cannot — without this it boots to a console
-#                  nobody can log into.
+# One deliberate difference from live-boot's cmdline, because an installed
+# system is not a live medium:
 #
 #   no panic=-1    live-boot sets it so a panic exits QEMU during testing. On
 #                  a persistent system it means "reboot immediately on panic",
