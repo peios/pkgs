@@ -23,6 +23,12 @@ format = "peipkg"
 #
 # -6: fsbase-stratafs-mount-hooks gains the mounted-root half,
 # mount-rootfs-stratafs-base.sh, superseding the stratafs-base-topo package.
-version      = "1.0.0-6"
+#
+# -7: both mount hooks view /lib over /usr/lib rather than the triplet
+# directory. The triplet mapping resolved no library anything used — the loader
+# finds them by absolute path and the ELF interpreter comes from /lib64 — while
+# breaking the two consumers that do read /lib: kmod has /lib/modules compiled
+# in, and the kernel's firmware loader searches /lib/firmware.
+version      = "1.0.0-7"
 architecture = "x86_64"
 license      = "MIT"

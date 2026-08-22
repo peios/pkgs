@@ -4,6 +4,6 @@
 format = "peipkg"
 
 [package]
-version      = "{{version}}-1"
+version      = "{{version}}-2"
 architecture = "x86_64"
 homepage     = "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
