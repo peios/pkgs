@@ -41,7 +41,10 @@ mount_view() {
 # independently writable through /usr.
 mount_view /bin     '/lcl/bin+create:/usr/bin+ro+am'
 mount_view /sbin    '/lcl/sbin+create:/usr/sbin+ro+am'
-mount_view /lib     '/lcl/lib+create:/usr/lib/x86_64-linux-peios+ro'
+# /usr/lib, NOT /usr/lib/<triplet> — see the note in the rootfs hook. It
+# matters here too: kernel-modules-irf installs to /usr/lib/modules/<release>
+# inside this root, and modprobe looks for /lib/modules/<release>.
+mount_view /lib     '/lcl/lib+create:/usr/lib+ro'
 mount_view /libexec '/lcl/libexec+create:/usr/libexec+ro+am'
 mount_view /share   '/lcl/share+create:/usr/share+ro+am'
 mount_view /include '/lcl/include+create:/usr/include+ro+am'

@@ -49,7 +49,17 @@ mount_view() {
 # independently writable through /usr by the package manager.
 mount_view /bin     '/lcl/bin+create:/usr/bin+ro+am'
 mount_view /sbin    '/lcl/sbin+create:/usr/sbin+ro+am'
-mount_view /lib     '/lcl/lib+create:/usr/lib/x86_64-linux-peios+ro'
+# /usr/lib, NOT /usr/lib/<triplet>. Nothing resolves a library through this
+# view — the loader's built-in system search path is the absolute
+# /usr/lib/x86_64-linux-peios, and the ELF interpreter comes from /lib64, a
+# plain fsbase symlink that this view does not touch. Pointing /lib at the
+# triplet therefore bought nothing, and broke the two consumers that do use
+# the path: kmod has /lib/modules compiled in, and the kernel's firmware
+# loader searches /lib/firmware (drivers/base/firmware_loader/main.c). Both
+# expect /lib to mean /usr/lib, as it does on every usr-merged system. With
+# this mapping /lib/x86_64-linux-peios/ also resolves, mirroring the
+# /lib/<triplet>/ shape foreign binaries expect.
+mount_view /lib     '/lcl/lib+create:/usr/lib+ro'
 mount_view /libexec '/lcl/libexec+create:/usr/libexec+ro+am'
 mount_view /share   '/lcl/share+create:/usr/share+ro+am'
 mount_view /include '/lcl/include+create:/usr/include+ro+am'

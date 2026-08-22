@@ -51,10 +51,14 @@ peipkg-compose build "$work/root.toml" --out "$work/root" \
 # autotools recipe.
 #
 # So the sandbox mints them itself, which is where the responsibility now
-# sits. Deliberately the pre-removal mapping (/lib -> usr/lib), not
-# stratafs-base-topo's (/lib -> usr/lib/<triplet>): this restores the exact
-# shape every package in the farm was built and verified against, and a
-# build root's job is to be that known-good environment. /lib64 is skipped —
+# sits. /lib -> usr/lib, the shape every package in the farm was built and
+# verified against — and now also what the StrataFS hooks mount at runtime.
+# They used to point /lib at usr/lib/<triplet>, which resolved no library the
+# loader could not already find by absolute path, while breaking the two
+# consumers that do use /lib: kmod has /lib/modules compiled in and the
+# kernel's firmware loader searches /lib/firmware. Sandbox and running system
+# agree again, so a package built here sees the paths it will see on a booted
+# system. /lib64 is skipped —
 # fsbase 1.0.0-3 owns it as real package payload.
 for view in bin sbin lib; do
   [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
