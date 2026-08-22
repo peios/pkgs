@@ -29,6 +29,16 @@ cd "$PEKIT_OUT"
   --disable-manpages --with-zlib --with-xz --with-zstd
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# depmod is machine-facing: peipkg runs it as an install side effect and the
+# kernel's `make modules_install` runs it at build time, but there is no
+# documented workflow in which a person invokes it. That puts it in libexec
+# rather than on PATH. kmod dispatches on argv[0]'s basename, so it stays a
+# symlink to the same multicall binary; the target is relative so it resolves
+# both as /usr/libexec/depmod -> /usr/bin/kmod and through the merged views as
+# /libexec/depmod -> /bin/kmod.
+install -d "$PEKIT_OUT/usr/libexec"
+rm -f "$PEKIT_OUT/usr/bin/depmod"
+ln -s ../bin/kmod "$PEKIT_OUT/usr/libexec/depmod"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 rm -rf "$PEKIT_OUT/usr/share/bash-completion" "$PEKIT_OUT/usr/share/fish" \
   "$PEKIT_OUT/usr/share/zsh" "$PEKIT_OUT/etc"

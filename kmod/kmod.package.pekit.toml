@@ -1,5 +1,7 @@
-# kmod — the multicall tool + its depmod/modprobe/insmod/rmmod/lsmod/
-# modinfo compat names (plain symlinks).
+# kmod — the multicall tool + its modprobe/insmod/rmmod/lsmod/modinfo compat
+# names (plain symlinks). depmod is the exception: it is machine-facing —
+# peipkg's install side effect and `make modules_install` call it, people do
+# not — so it ships in usr/libexec rather than on PATH.
 
 [package]
 name        = "kmod"
@@ -13,3 +15,4 @@ libkmod = "{{version}}"
 [files]
 "@source:tools/COPYING" = "usr/share/licenses/kmod/"
 ":usr/bin/**"           = "usr/bin"
+":usr/libexec/**"       = "usr/libexec"
