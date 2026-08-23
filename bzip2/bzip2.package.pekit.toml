@@ -1,5 +1,11 @@
 # bzip2 — the tools + the runtime shared lib.
 
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
 [package]
 name        = "bzip2"
 description = "bzip2 - block-sorting compression (bzip2, bunzip2, bzcat)"

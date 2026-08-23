@@ -6,6 +6,12 @@
 # ":" = the default "main:" build. A glob source ("so.2*") maps to a DIRECTORY;
 # an exact-file source maps to a FULL path.
 
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
 [package]
 description = "Modern password hashing library (libcrypt.so.2)"
 

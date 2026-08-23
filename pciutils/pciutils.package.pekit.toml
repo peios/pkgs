@@ -1,5 +1,11 @@
 # pciutils — the PCI tools (lspci, setpci) and the pci.ids database.
 
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
 [package]
 name        = "pciutils"
 description = "pciutils - PCI bus inspection tools (lspci, setpci) and pci.ids"
