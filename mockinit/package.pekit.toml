@@ -4,7 +4,7 @@ format = "peipkg"
 name         = "mockinit"
 version      = "{{version}}-1"
 architecture = "x86_64"
-description  = "mock PID 1 — a throwaway peinit stand-in for real-root bring-up"
+description  = "mock PID 1 - a throwaway peinit stand-in for real-root bring-up"
 license      = "MIT"
 
 # The build writes the single binary to $PEKIT_OUT/usr/sbin/mockinit; package it
