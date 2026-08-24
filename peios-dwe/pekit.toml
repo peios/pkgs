@@ -1,0 +1,18 @@
+# peios-dwe — the DWE guest service (dwed).
+#
+# Delegate recipe: pdt is self-describing — it commits its own pekit files (the
+# build pipeline in pekit.toml, the package definitions in packages.pekit/), so
+# this recipe is just a pointer.
+#
+# NOT FOR THE PUBLIC REPOSITORY. dwed is unauthenticated SYSTEM access to
+# whatever machine it is installed on. It is built here so a local peios-dwe
+# ISO can be composed; it must never be pushed to pkgs.peios.org. See
+# pdt/SECURITY.md.
+
+out_dir = "out"
+delegate = true
+
+# Local working copy for `--local` (compile the in-dev tree, no tag).
+# Relative to this recipe dir; never used by the farm.
+[source.local]
+path = "../../pdt"
