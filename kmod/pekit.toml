@@ -44,6 +44,22 @@ rm -rf "$PEKIT_OUT/usr/share/bash-completion" "$PEKIT_OUT/usr/share/fish" \
   "$PEKIT_OUT/usr/share/zsh" "$PEKIT_OUT/etc"
 """
 
+# PIP: kmod is TCB. request_module() execs modprobe as a usermodehelper — the
+# kernel acting on its own behalf, at its own authority — and KACS refuses such
+# an exec unless the binary carries PeiosTcb trust (PEI-59). Without this the
+# floor denies every kernel-initiated module load.
+#
+# One entry, because kmod is a multicall binary: modprobe, insmod, rmmod, lsmod,
+# modinfo and depmod are all symlinks to this file, so signing it covers the set.
+# Signing the symlinks would be meaningless anyway — the tier comes from the
+# inode actually exec'd.
+#
+# The tier is decided by which key verified, so naming tcb.priv here is what
+# makes this TCB; there is nothing in the signature expressing intent. Keep this
+# table to files that genuinely belong in the trusted computing base.
+[build.main.sign.pip]
+"usr/bin/kmod" = "tcb.priv"
+
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 pkgconf = "*"
