@@ -7,11 +7,11 @@
 # permissions: the convenience symlinks, the USB identification import, and the
 # DMI vendor/model properties.
 #
-# static_node entries pre-create the node for a module that is not loaded yet
-# (fuse, tun, kvm, loop-control, …), from the kernel's modules.devname, so
-# opening the node is what loads the driver. That is a mknod, which needs
-# SeTcbPrivilege — a privilege the device manager holds anyway for its netlink
-# multicast. The GROUP=/MODE= that accompanied them upstream are gone.
+# static_node entries name the nodes for modules that are loaded on first open
+# (fuse, tun, kvm, loop-control, …). udev does not create them — the coldplug
+# hook does, from the kernel's modules.devname — but naming them here is what
+# lets a rule act on them before their module exists. The GROUP=/MODE= that
+# accompanied them upstream are gone.
 
 ACTION=="remove", GOTO="peios_default_end"
 

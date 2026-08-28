@@ -91,9 +91,16 @@ RULES="$PEKIT_OUT$LIBDIR/udev/rules.d"
 keep="60-autosuspend 60-block 60-cdrom_id 60-evdev 60-input-id 60-persistent-input
       60-persistent-storage 60-sensor 60-serial 70-joystick 70-mouse 70-touchpad
       75-net-description 78-sound-card 80-drivers 80-net-name-slot"
+# One line, space-separated: the match below brackets each name with spaces,
+# and a name at a line end is followed by a newline, not a space — -4 lost
+# 60-persistent-input and 70-touchpad exactly that way.
+keep=$(printf '%s' "$keep" | tr '\n' ' ')
 for f in "$RULES"/*.rules; do
   name=$(basename "$f" .rules)
   case " $keep " in *" $name "*) ;; *) rm -f "$f" ;; esac
+done
+for name in $keep; do
+  [ -f "$RULES/$name.rules" ] || { echo "kept rule missing from payload: $name" >&2; exit 1; }
 done
 # 50-peios-default.rules, udev-coldplug and eudev-service.reg are recipe
 # payload, mapped straight from src/ by the package manifest.

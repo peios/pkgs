@@ -12,7 +12,11 @@ format = "peipkg"
 # -4: hwdb on and the rules that import it; predictable NIC names
 # (80-net-name-slot); static_node pre-creation restored; path_id knows virtio
 # so vdX disks get by-path names.
-version      = "{{version}}-4"
+# -5: the coldplug hook creates the static device nodes from modules.devname;
+# udev only ever adjusted the permissions of nodes that already existed.
+# -6: 60-persistent-input and 70-touchpad actually ship (-4/-5 dropped them
+# by a line-wrap in the keep list); the build now asserts every kept rule.
+version      = "{{version}}-6"
 architecture = "x86_64"
 license      = "LGPL-2.1-or-later"
 homepage     = "https://github.com/eudev-project/eudev"

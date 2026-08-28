@@ -29,6 +29,31 @@ until /bin/udevadm control --reload 2>/dev/null; do
     sleep 0.1
 done
 
+# Static device nodes. The kernel's modules.devname lists the nodes whose
+# module is loaded on first open (tun, fuse, uinput, ppp, ...) — but a node
+# that does not exist cannot be opened, so somebody has to create it before
+# the module is loaded. On systemd that is kmod-static-nodes plus tmpfiles;
+# here it is this loop. udev's own static_node= option only adjusts the
+# permissions of a node that already exists, it does not create one. The
+# mknod needs SeTcbPrivilege, which the service holds.
+#
+# Format: one "<module> <name> <c|b><major>:<minor>" per line, comments with #.
+devname="/lib/modules/$(uname -r)/modules.devname"
+if [ -r "$devname" ]; then
+    while read -r module name devnum; do
+        case "$module" in ''|'#'*) continue ;; esac
+        node="/dev/$name"
+        [ -e "$node" ] && continue
+        kind=${devnum%%[0-9]*}
+        numbers=${devnum#?}
+        major=${numbers%%:*}
+        minor=${numbers#*:}
+        mkdir -p "$(dirname "$node")"
+        mknod "$node" "$kind" "$major" "$minor" \
+            || echo "udev-coldplug: could not create $node for $module" >&2
+    done < "$devname"
+fi
+
 # Subsystems first, so the per-subsystem state (module parameters, the block
 # events poll interval 60-block.rules sets) is in place before the devices
 # that depend on it are processed.
