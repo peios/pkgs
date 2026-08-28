@@ -7,6 +7,7 @@ architecture = "x86_64"
 # AMD's microcode is redistributable as an unmodified binary under the license
 # in amd-ucode/LICENSE.amd-ucode within linux-firmware. No standard SPDX id.
 license      = "LicenseRef-AMD-Microcode"
+license_class = "firmware"
 homepage     = "https://gitlab.com/kernel-firmware/linux-firmware"
 # Consumed by the kernel from the EARLY initramfs region, so it homes in the
 # initramfs root like prelude. mkirf prepends the ++/ tree as the uncompressed

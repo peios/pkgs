@@ -12,4 +12,7 @@ format = "peipkg"
 version = "{{version}}-1"
 architecture = "x86_64"
 license = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND 0BSD AND LicenseRef-Public-Domain"
+# Explicit because the LicenseRef- term makes the expression opaque to
+# tooling: everything here is free software.
+license_class = "free"
 homepage = "https://github.com/besser82/libxcrypt"

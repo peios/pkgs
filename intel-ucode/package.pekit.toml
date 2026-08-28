@@ -8,6 +8,7 @@ architecture = "x86_64"
 # Software License Agreement shipped as LICENSE in the source tree. No standard
 # SPDX id; LicenseRef per SPDX's custom-license convention.
 license      = "LicenseRef-Intel-Microcode"
+license_class = "firmware"
 homepage     = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files"
 # Microcode is consumed by the kernel from the EARLY initramfs region (before
 # secondary CPUs come up), so this package homes in the initramfs root — like
