@@ -7,12 +7,11 @@
 # permissions: the convenience symlinks, the USB identification import, and the
 # DMI vendor/model properties.
 #
-# Left out on purpose:
-#   OPTIONS+="static_node=..."   pre-creates nodes for modules not yet loaded
-#                                (fuse, tun, kvm, loop-control) with mknod,
-#                                which needs SeTcbPrivilege — more than the
-#                                device manager is given
-#   IMPORT{builtin}="hwdb ..."   the hardware database is not built
+# static_node entries pre-create the node for a module that is not loaded yet
+# (fuse, tun, kvm, loop-control, …), from the kernel's modules.devname, so
+# opening the node is what loads the driver. That is a mknod, which needs
+# SeTcbPrivilege — a privilege the device manager holds anyway for its netlink
+# multicast. The GROUP=/MODE= that accompanied them upstream are gone.
 
 ACTION=="remove", GOTO="peios_default_end"
 
@@ -22,12 +21,22 @@ SUBSYSTEM=="virtio-ports", KERNEL=="vport*", ATTR{name}=="?*", SYMLINK+="virtio-
 SUBSYSTEM=="rtc", ATTR{hctosys}=="1", SYMLINK+="rtc"
 SUBSYSTEM=="rtc", KERNEL=="rtc0", SYMLINK+="rtc", OPTIONS+="link_priority=-100"
 
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", IMPORT{builtin}="usb_id"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", IMPORT{builtin}="usb_id", IMPORT{builtin}="hwdb --subsystem=usb"
+ENV{MODALIAS}!="", IMPORT{builtin}="hwdb --subsystem=$env{SUBSYSTEM}"
 
 SUBSYSTEM=="ptp", ATTR{clock_name}=="KVM virtual PTP", SYMLINK+="ptp_kvm"
 SUBSYSTEM=="ptp", ATTR{clock_name}=="hyperv", SYMLINK+="ptp_hyperv"
 
 ACTION!="add", GOTO="peios_default_end"
+
+SUBSYSTEM=="sound", OPTIONS+="static_node=snd/seq", OPTIONS+="static_node=snd/timer"
+KERNEL=="loop-control", OPTIONS+="static_node=loop-control"
+KERNEL=="tun", OPTIONS+="static_node=net/tun"
+KERNEL=="fuse", OPTIONS+="static_node=fuse"
+KERNEL=="kvm", OPTIONS+="static_node=kvm"
+KERNEL=="vfio", OPTIONS+="static_node=vfio/vfio"
+KERNEL=="vhost-vsock", OPTIONS+="static_node=vhost-vsock"
+KERNEL=="vhost-net", OPTIONS+="static_node=vhost-net"
 
 SUBSYSTEM!="dmi", GOTO="peios_default_end"
 ENV{ID_VENDOR}="$attr{sys_vendor}"

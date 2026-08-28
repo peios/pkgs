@@ -9,7 +9,10 @@ format = "peipkg"
 # -3: the service definition names all three privileges udevd needs
 # (SeTcbPrivilege for the netlink multicast, SeCreateSymbolicLinkPrivilege for
 # /dev/disk/by-*), found on the first boot of -2.
-version      = "{{version}}-3"
+# -4: hwdb on and the rules that import it; predictable NIC names
+# (80-net-name-slot); static_node pre-creation restored; path_id knows virtio
+# so vdX disks get by-path names.
+version      = "{{version}}-4"
 architecture = "x86_64"
 license      = "LGPL-2.1-or-later"
 homepage     = "https://github.com/eudev-project/eudev"

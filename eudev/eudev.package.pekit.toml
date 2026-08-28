@@ -25,6 +25,9 @@ libblkid = ">= 2.42"
 # Helpers (ata_id, scsi_id, cdrom_id, ...) and the retained upstream rules.
 ":usr/lib/x86_64-linux-peios/udev/**" = "usr/lib/x86_64-linux-peios/udev"
 ":usr/etc/udev/udev.conf"             = "usr/etc/udev/udev.conf"
+# The hardware database: sources, and the binary udevd actually reads.
+":usr/etc/udev/hwdb.d/**"             = "usr/etc/udev/hwdb.d"
+":usr/etc/udev/hwdb.bin"              = "usr/etc/udev/hwdb.bin"
 "src/50-peios-default.rules"          = "usr/lib/x86_64-linux-peios/udev/rules.d/50-peios-default.rules"
 # The coldplug replay, run as the service's ExecStartPost. libexec because
 # nothing but peinit invokes it.

@@ -15,10 +15,14 @@
 # Autotools from the release tarball, out-of-source via DESTDIR (the m4
 # shape). kmod on, so the `kmod` builtin (what 80-drivers.rules calls per
 # MODALIAS) exists; blkid on, so the `blkid` builtin exists and
-# 60-persistent-storage can produce /dev/disk/by-uuid. hwdb stays off: the
-# hardware database is a separate payload (keyboard quirks, vendor/model
-# names) and nothing here needs it yet — the rules that import it are not
-# shipped. Manpages want xsltproc; selinux is not our model.
+# 60-persistent-storage can produce /dev/disk/by-uuid. hwdb on: the hardware
+# database (keyboard and touchpad quirks, sensor orientation, vendor and model
+# names for PCI/USB ids) is what makes a laptop's input devices behave, and
+# the rules that import it are shipped. Its sources land in /usr/etc/udev/
+# hwdb.d and the compiled hwdb.bin beside them — udevd reads only the binary,
+# and `udevadm hwdb --update` regenerates it from the sources plus anything an
+# operator drops into /etc/udev/hwdb.d. Manpages want xsltproc; selinux is
+# not our model.
 #
 # WHAT UDEV DOES NOT OWN ON PEIOS: device-node permissions. udev's MODE=,
 # GROUP= and OWNER= are POSIX mode, which KACS ignores; access to /dev is the
@@ -29,6 +33,13 @@
 # reader into thinking it meant something.
 
 out_dir = "out"
+
+# patches/series is applied to the extracted tarball. path-id-virtio: eudev's
+# path_id builtin does not know the virtio bus, so a vdX disk has no ID_PATH
+# and no /dev/disk/by-path name; systemd's path_id skips the virtio layer and
+# counts it as a transport, and the patch does the same.
+[source]
+patches = "patches"
 
 [source.url]
 url      = "https://github.com/eudev-project/eudev/releases/download/v{{version}}/eudev-{{version}}.tar.gz"
@@ -47,31 +58,39 @@ cd "$PEKIT_OUT"
 # nothing else under /usr/lib — pack rejects the payload otherwise.
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin \
   --libdir="$LIBDIR" --sysconfdir=/etc \
-  --disable-manpages --disable-hwdb --enable-blkid --enable-kmod \
+  --disable-manpages --enable-hwdb --enable-blkid --enable-kmod \
   --disable-selinux --disable-static
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
 
 # /etc is a StrataFS view over /usr/etc; package payload goes to the latter.
+# The hwdb binary is compiled here, from the sources just installed, with the
+# udevadm just built. --root is prepended to BOTH the source directories and
+# the output path, so -o is given relative to the stage root.
 install -d "$PEKIT_OUT/usr/etc/udev"
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$PEKIT_OUT/usr/bin/udevadm" hwdb --update \
+  --root="$PEKIT_OUT" -o /usr/etc/udev/hwdb.bin
+test -s "$PEKIT_OUT/usr/etc/udev/hwdb.bin"
 mv "$PEKIT_OUT/etc/udev/udev.conf" "$PEKIT_OUT/usr/etc/udev/udev.conf"
+mv "$PEKIT_OUT/etc/udev/hwdb.d" "$PEKIT_OUT/usr/etc/udev/hwdb.d"
 rm -rf "$PEKIT_OUT/etc"
 
 # The rules set. Upstream installs its whole catalogue; replace it with the
 # subset Peios means, plus our own defaults file. What is left out and why:
 #   50-udev-default   almost entirely GROUP=/MODE=; the non-DAC lines are
 #                     rewritten as 50-peios-default.rules
-#   60-evdev, 60-input-id, 60-sensor, 60-serial, 70-mouse, 70-touchpad,
-#   70-joystick, 75-net-description, 60-autosuspend, 78-sound-card
-#                     import the hwdb builtin, which this build lacks
-#   80-net-name-slot  renames NICs to predictable names; a networking
-#                     decision Peios has not taken
 #   64-btrfs, 75-probe_mtd, 60-persistent-storage-tape, 60-fido-id,
 #   60-persistent-alsa, 60-persistent-v4l, 70-camera, 70-memory, 60-drm,
 #   81-net-dhcp       subsystems with no Peios consumer yet
+# 80-net-name-slot is kept deliberately: a NIC is named by its bus position
+# (enp0s3) rather than by probe order (eth0), so a configuration written
+# against a name survives a second card or a driver that probes faster. Taken
+# now, before any networking service exists, so nothing ever learns eth0.
 RULES="$PEKIT_OUT$LIBDIR/udev/rules.d"
-keep="60-block 60-cdrom_id 60-persistent-input 60-persistent-storage 80-drivers"
+keep="60-autosuspend 60-block 60-cdrom_id 60-evdev 60-input-id 60-persistent-input
+      60-persistent-storage 60-sensor 60-serial 70-joystick 70-mouse 70-touchpad
+      75-net-description 78-sound-card 80-drivers 80-net-name-slot"
 for f in "$RULES"/*.rules; do
   name=$(basename "$f" .rules)
   case " $keep " in *" $name "*) ;; *) rm -f "$f" ;; esac
@@ -92,6 +111,8 @@ gperf = "*"
 pkgconf = "*"
 kmod-devel = "*"
 libblkid-devel = "*"
+# libtool's configure shells out to file(1); absent, the run dies mid-way.
+file = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
