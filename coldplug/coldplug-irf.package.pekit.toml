@@ -1,0 +1,36 @@
+# coldplug-irf — the driver-loading hook mkirf packs into the initramfs cpio.
+#
+# Its home is the initramfs root, declared by default_root rather than by an
+# image manifest entry, the way kernel-modules-irf and prelude place
+# themselves: an initramfs composes itself out of the dependency graph, and a
+# package that only makes sense there should say so itself.
+#
+# kmod is the dependency that matters. The hook is `modprobe` fed a list of
+# modaliases; without kmod the initramfs has a module tree (kernel-modules-irf)
+# and nothing that can load from it. As a dep of an initramfs-homed package,
+# kmod — and libkmod, and the decompressors behind it — routes to the initramfs
+# by default, no IN needed.
+#
+# kernel-modules-irf is deliberately NOT a dependency. Which module tree the
+# initramfs carries is the image's decision (the kernel entry in its manifest),
+# and a hook that named a version would have to be republished for every
+# kernel. An initramfs with this hook and no modules loads nothing and says so.
+
+[package]
+default_root = "initramfs"
+description  = "Initramfs coldplug hook: loads drivers for the hardware present at boot"
+
+[dependencies]
+kmod       = ">= 33"
+peiosutils = ">= 0.1.2"
+# The hook declares `contributes` and uses the declined outcome, both of which
+# exist only from hook ABI 2. Against an older prelude the block is rejected at
+# build time rather than misread, and against an older mkirf likewise.
+prelude-hook-abi = ">= 2"
+
+# The hook lives in the packaged hook directory, one of the places mkirf scans
+# when it packs the initramfs cpio. /usr because it is package payload; an
+# operator overriding it drops a file of the same name in
+# /lcl/libexec/prelude/hooks.d, which wins without this one being deleted.
+[files]
+"src/load-drivers.sh" = "usr/libexec/prelude/hooks.d/load-drivers.sh"

@@ -1,0 +1,14 @@
+# coldplug — the initramfs half of device management: load the drivers for
+# the hardware that is already present, so the disk the root lives on exists
+# by the time a root-mount hook goes looking for it (PEI-58, slice 1).
+#
+# BUILDLESS package: nothing is compiled or fetched. The payload is the hook
+# shipped in this recipe's own src/ dir, mapped literally by the package
+# manifest. There is no [build] and no [source] — out_dir is kept only because
+# packaging writes the .peipkg under it.
+#
+# Only an -irf member exists. On the real root the same job — and hotplug, and
+# stable /dev/disk/by-* names — belongs to the device manager (eudev, later
+# slices of PEI-58), which does it continuously rather than once.
+
+out_dir = "out"
