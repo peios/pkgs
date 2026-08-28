@@ -1,0 +1,15 @@
+# linux-firmware — shared defaults for the firmware-<family> members. The
+# members themselves are GENERATED from ../families.toml by
+# tools/gen-members.py; edit that file, not them.
+#
+# noarch: firmware is consumed by the device, not the CPU. Every member is
+# license_class = "firmware" (PSPU §18) with a LicenseRef- expression naming
+# the vendor terms, and ships those licence texts under
+# /usr/share/licenses/firmware-<family>/.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "noarch"
+homepage     = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"

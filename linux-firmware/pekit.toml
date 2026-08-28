@@ -1,0 +1,84 @@
+# linux-firmware — device firmware blobs, split into firmware-<family>
+# packages (PEI-466).
+#
+# Peios shipped no device firmware before this recipe: invisible under QEMU,
+# but on real hardware most Wi-Fi, modern GPUs, many NICs and laptop audio
+# codecs silently fail to probe without it. The kernel loads firmware itself
+# (CONFIG_FW_LOADER_USER_HELPER is off), transparently decompressing .zst,
+# so this is purely a packaging problem: the right file under
+# /usr/lib/firmware when the driver probes.
+#
+# The split is families.toml — read its header. In short: every blob WHENCE
+# lists is assigned to a family or the explicit ignore list, the build fails
+# on anything unclaimed, and the package members under packages.pekit/ are
+# generated from the same file so the two cannot drift. Families are
+# vendor/driver groups of x86-relevant firmware; ARM SoC, datacentre switch
+# and accelerator blobs are ignored rather than packaged. Nothing here is
+# needed to reach a root filesystem, so no family homes in the initramfs.
+#
+# Trust: firmware is loaded unsigned in this release — jack's call on
+# PEI-466; PEI-493 is the PIP-signature verification at load. The upstream
+# tarball's kernel.org signature is over the uncompressed tar, which pekit's
+# [source.url.signature] cannot check against the .xz it downloads, so the
+# lock's sha256 is what pins a release.
+#
+# Not here: Intel Sound Open Firmware (SOF) lives in a separate upstream
+# (thesofproject/sof-bin), not in linux-firmware. The intel-sound family is
+# the older AVS/catpt/SST DSP blobs only.
+
+out_dir = "out"
+
+# No corresponding-source package: there is no source. The blobs ARE the
+# upstream artefact, and a linux-firmware-source package would be the whole
+# 620 MB tarball again, classed firmware, buying nobody anything.
+[source_package]
+enabled = false
+
+[source.url]
+url      = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.xz"
+extract  = true
+root     = "linux-firmware-{{version}}"
+versions = ">= 20260810"
+
+# The members under packages.pekit/ are derived from families.toml. The
+# verify_command is the drift gate: a build with stale members fails before
+# it starts (pekit runs it as a pre-flight for package/publish).
+[gen.members]
+command        = "python3 tools/gen-members.py"
+verify_command = "python3 tools/gen-members.py --check"
+
+# dash: the composed peipkg root has no shell unless a stage asks for one
+# (the same gap as PEI-489), and pekit runs the command through /usr/bin/sh.
+[gen.members.dependencies.peipkg]
+dash    = "*"
+python3 = "*"
+
+[gen.members.dependencies.apt]
+python3 = "*"
+
+[build.main]
+command = """
+set -eu
+python3 "$PEKIT_RECIPE_ROOT/tools/sort-firmware.py" \
+  --families "$PEKIT_RECIPE_ROOT/families.toml" \
+  --source "$(pwd)" \
+  --out "$PEKIT_OUT"
+du -sm "$PEKIT_OUT"/family/* | sort -rn
+"""
+
+# dash for the stage itself and for copy-firmware.sh; coreutils-gnu, findutils,
+# grep and sed for what that script shells out to (install, realpath, find,
+# grep, sed). The peipkg root has nothing a stage does not name.
+[build.main.dependencies.peipkg]
+dash          = "*"
+python3       = "*"
+zstd          = "*"
+coreutils-gnu = "*"
+findutils     = "*"
+grep          = "*"
+sed           = "*"
+
+[build.main.dependencies.apt]
+python3   = "*"
+zstd      = "*"
+coreutils = "*"

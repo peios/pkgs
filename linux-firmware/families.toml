@@ -1,0 +1,183 @@
+# families.toml — how upstream linux-firmware is split into Peios packages.
+#
+# This file is the single source of truth for the split (PEI-466). Two
+# things consume it:
+#
+#   tools/gen-members.py   writes packages.pekit/firmware-<family>.package.pekit.toml
+#                          for every family (run via `pekit gen members`; the
+#                          drift gate fails a build whose members are stale)
+#   tools/sort-firmware.py sorts the WHENCE-listed blobs into per-family
+#                          trees at build time, and FAILS if any blob is not
+#                          claimed by a family or the ignore list, or if a
+#                          family's blobs cite a licence text it does not declare
+#
+# So a new upstream release that adds a driver, a directory or a vendor
+# licence stops the build with a name, and a human adds it here. Derived with
+# a gate, not derived automatically: a new vendor licence is a thing someone
+# should read.
+#
+# Matching. Every WHENCE `Driver:` block is assigned as a whole when its
+# driver name (the text before " - ") fullmatches one of a family's `drivers`
+# regexes; otherwise each of its files is assigned by the first family whose
+# `paths` fnmatch pattern matches the path. Families are tried in file order.
+# A block's Link: entries follow the family of the file they point at.
+#
+# `licenses` is the closed list of upstream LICEN[CS]E.* texts a family's
+# blobs may cite; they are shipped under /usr/share/licenses/firmware-<family>/.
+# `license` is the SPDX expression the package declares; Peios follows SPDX's
+# LicenseRef- convention for vendor terms with no SPDX id, and `license_class`
+# is "firmware" (PSPU §18) unless a family is genuinely free software.
+
+[family.iwlwifi]
+description = "Intel Wireless Wi-Fi (iwlwifi) firmware"
+drivers  = ["iwlwifi"]
+licenses = ["LICENCE.iwlwifi_firmware"]
+license  = "LicenseRef-Intel-Firmware"
+
+[family.atheros]
+description = "Qualcomm Atheros Wi-Fi and Bluetooth firmware (ath9k/10k/11k/12k, ath6kl, ar3k, btqca, wil6210)"
+drivers  = ["ar9170", "ath9k_htc", "ath3k", "ath6kl", "ath10k", "ath11k", "ath12k",
+            "ar5523", "carl9170", "wil6210", "btqca", "qca",
+            "DFU Driver for Atheros bluetooth chipset AR3012",
+            "Atheros AR300x UART HCI Bluetooth Chip driver"]
+licenses = ["LICENCE.atheros_firmware", "LICENCE.open-ath9k-htc-firmware",
+            "LICENSE.QualcommAtheros_ar3k", "LICENSE.QualcommAtheros_ath10k", "LICENSE.qcom"]
+license  = "LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Firmware AND BSD-3-Clause"
+# ath9k_htc's open firmware is BSD-3-Clause built from source (open-ath9k-htc-firmware).
+
+[family.mediatek]
+description = "MediaTek Wi-Fi and Bluetooth firmware (mt76, mt79xx, btmtk)"
+drivers  = ["mt7601u", "btmtk_usb", "btmtk", "mt76x0", "mt76x2e", "mt76x2u", "mt7615e", "mt7622",
+            "mt7663", "mt7915e", "mt7902", "mt7920", "mt7921", "mt7922", "mt7925", "mt7927", "mt7996e",
+            "mtk_wed", "mtk-2p5ge"]
+licenses = ["LICENCE.mediatek", "LICENCE.ralink_a_mediatek_company_firmware"]
+license  = "LicenseRef-MediaTek-Firmware"
+
+[family.ralink]
+description = "Ralink rt2x00 Wi-Fi firmware"
+drivers  = ["rt61pci", "rt73usb", "rt2800pci", "rt2860sta", "rt2800usb", "rt2870sta"]
+licenses = ["LICENCE.ralink-firmware.txt"]
+license  = "LicenseRef-Ralink-Firmware"
+
+[family.realtek]
+description = "Realtek Wi-Fi, Bluetooth, Ethernet and audio codec firmware (rtlwifi, rtw88/89, rtl_bt, r8169, r8152)"
+drivers  = ["r8712u", "rtl8[0-9a-z]+", "rtw88", "rtw89", "r8169", "r8152", "rt1320"]
+paths    = ["rtl_bt/*"]
+licenses = ["LICENCE.rtlwifi_firmware.txt", "LICENSE.r8169", "LICENSE.rt1320"]
+license  = "LicenseRef-Realtek-Firmware"
+
+[family.broadcom]
+description = "Broadcom and Cypress Wi-Fi, Bluetooth and Ethernet firmware (brcmfmac, brcmsmac, tg3, bnx2, bnx2x)"
+drivers  = ["brcmfmac", "brcmsmac", "BCM-0bb4-0306", "tg3", "bnx2", "bnx2x"]
+licenses = ["LICENCE.broadcom_bcm43xx", "LICENCE.cypress", "LICENCE.tigon", "LICENCE.bnx2", "LICENCE.bnx2x"]
+license  = "LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
+
+[family.marvell]
+description = "Marvell and NXP Wi-Fi and Bluetooth firmware (mwifiex, libertas, mwl8k, mwlwifi, btnxpuart)"
+drivers  = ["libertas", "mwl8k", "mwifiex", "mwlwifi", "nxpwifi", "btnxpuart", "nxp-sr1xx"]
+licenses = ["LICENCE.Marvell", "LICENCE.OLPC", "LICENCE.NXP", "LICENSE.nxp"]
+license  = "LicenseRef-Marvell-Firmware AND LicenseRef-NXP-Firmware"
+
+[family.amd-graphics]
+description = "AMD Radeon graphics firmware (amdgpu, radeon, r128)"
+drivers  = ["amdgpu", "radeon", "r128", "isp"]
+licenses = ["LICENSE.amdgpu", "LICENSE.radeon", "LICENSE.amdisp"]
+license  = "LicenseRef-AMD-Firmware"
+
+[family.amd-platform]
+description = "AMD platform firmware: PSP/SEV (ccp), Platform Management Framework, XDNA NPU"
+drivers  = ["ccp", "amd_pmf", "amdxdna"]
+licenses = ["LICENSE.amd-sev", "LICENSE.amd_pmf", "LICENSE.amdnpu"]
+license  = "LicenseRef-AMD-Firmware"
+
+[family.intel-graphics]
+description = "Intel graphics firmware (i915, xe: GuC, HuC, DMC)"
+drivers  = ["i915", "xe"]
+licenses = ["LICENSE.i915", "LICENSE.xe"]
+license  = "LicenseRef-Intel-Firmware"
+
+[family.intel-platform]
+description = "Intel platform firmware: Bluetooth (ibt), ISH sensor hub, IPU cameras, VSC, NPU, QAT, E800 NICs"
+drivers  = ["btusb", "ish", "atomisp", "ipu3-imgu", "intel-ipu6-isys", "intel-ipu7-isys", "mei-vsc-hw",
+            "intel_vpu", "qat", "ice", "e100", "isci"]
+licenses = ["LICENCE.ibt_firmware", "LICENCE.HP", "LICENCE.lenovo", "LICENSE.dell", "LICENSE.intel",
+            "LICENSE.ivsc", "LICENSE.ipu3_firmware", "LICENSE.intel_vpu", "LICENCE.qat_firmware",
+            "LICENSE.ice", "LICENSE.ice_enhanced", "LICENCE.e100"]
+license  = "LicenseRef-Intel-Firmware"
+# btusb's block also lists Realtek Bluetooth blobs (rtl_bt/); the realtek
+# family's path pattern claims those first — see the matching note above.
+
+[family.intel-sound]
+description = "Intel audio DSP firmware (AVS, catpt, Skylake SST). Sound Open Firmware is a separate upstream."
+drivers  = ["snd_soc_sst_acpi", "snd_soc_catpt", "snd_soc_avs", "snd_intel_sst_core", "snd-soc-skl"]
+licenses = ["LICENCE.fw_sst_0f28", "LICENCE.IntcSST2", "LICENCE.adsp_sst"]
+license  = "LicenseRef-Intel-Firmware"
+
+[family.nvidia-graphics]
+description = "NVIDIA GPU firmware for nouveau and nova (GSP)"
+drivers  = ["nouveau"]
+licenses = ["LICENCE.nvidia"]
+license  = "LicenseRef-NVIDIA-Firmware"
+
+[family.audio-codecs]
+description = "Laptop audio codec and amplifier firmware (Cirrus CS35L41/56, CS42L43/45; TI TAS2781/2783/2563; Creative CA0132)"
+drivers  = ["cs35l41", "cs35l56", "cs42l43", "cs42l45", "ti-tas2781", "ti-tas2783", "ti-tas2563", "PCM6240",
+            "snd-hda-codec-ca0132"]
+licenses = ["LICENSE.cirrus", "LICENCE.ti-tspa", "LICENCE.ca0132"]
+license  = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
+
+[family.nic]
+description = "Wired NIC firmware (Chelsio, QLogic qed, Myricom, Tehuti, 3Com, Exar, Alacritech, NetXen, Aeonsemi PHY, legacy USB Ethernet)"
+drivers  = ["cxgb3", "cxgb4", "qed", "myri10ge", "tehuti", "typhoon", "vxge", "slicoss", "sxg", "netxen_nic",
+            "kaweth", "starfire", "as21xxx"]
+licenses = ["LICENCE.cxgb3", "LICENCE.chelsio_firmware", "LICENSE.qed", "LICENCE.myri10ge_firmware",
+            "LICENSE.tehuti", "LICENCE.typhoon", "LICENSE.vxge", "LICENCE.alacritech", "LICENCE.phanfw",
+            "LICENCE.kaweth", "LICENSE.aeonsemi"]
+license  = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
+# starfire's firmware is GPL-2.0-or-later (upstream "LICENSED" marker).
+
+[family.storage]
+description = "Storage HBA firmware (QLogic qla2xxx/qla1280, QLogic BR-series FC, AdvanSys, ENE UB6250 card reader)"
+drivers  = ["qla2xxx", "qla1280", "advansys", "BFA/BNA", "ene-ub6250"]
+licenses = ["LICENCE.qla2xxx", "LICENCE.qla1280", "LICENCE.advansys", "LICENSE.bfa", "LICENCE.ene_firmware"]
+license  = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND LicenseRef-ENE-Firmware"
+
+[family.misc]
+description = "Miscellaneous x86 device firmware: USB serial adapters, DVB/V4L tuners and capture devices, legacy Wi-Fi, PCMCIA CIS, sound cards"
+drivers  = ["keyspan", "keyspan_pda", "emi26", "ti_usb_3410_5052", "whiteheat", "io_edgeport", "io_ti",
+            "mxu11x0", "mxuport", "rp2",
+            "cpia2", "dabusb", "cx231xx", "cx23418", "cx23885", "cx23840", "dvb-ttpci", "xc4000", "xc5000",
+            "dib0700", "drxk", "it9135", "as102", "smsmdtv", "go7007", "s2255drv", "tlg2300",
+            "usbdux/usbduxfast/usbduxsigma",
+            "orinoco", "vt6656", "cw1200", "rsi", "wfx", "wilc1000", "mm81x", "atusb",
+            "pcnet_cs", "3c589_cs", "3c574_cs", "serial_cs", "smc91c92_cs",
+            "snd-sb16-csp", "snd-wavefront", "dsp56k", "bmi260", "Mont-TSSE"]
+licenses = ["LICENCE.keyspan", "LICENCE.emi26", "LICENCE.multitech", "LICENCE.moxa", "LICENSE.rp2",
+            "LICENCE.dabusb", "LICENSE.conexant", "LICENCE.xc4000", "LICENCE.xc5000", "LICENCE.xc5000c",
+            "LICENSE.dib0700", "LICENSE.drxk", "LICENCE.it913x", "LICENCE.Abilis", "LICENCE.siano",
+            "LICENCE.go7007", "LICENCE.sensoray", "LICENSE.tlg2300",
+            "LICENCE.agere", "LICENCE.via_vt6656", "LICENCE.cw1200", "LICENCE.cw1200-sdd", "LICENSE.rsi",
+            "LICENCE.wf200", "LICENSE.atmel", "LICENCE.morsemicro", "LICENSE.bmi260", "LICENSE.montage"]
+license  = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
+
+# Not shipped. Non-x86 SoC firmware, datacentre switch and accelerator blobs,
+# and blobs Peios packages elsewhere. Listed explicitly so that the gate
+# still catches anything genuinely new.
+[ignore]
+drivers = [
+  # Shipped by the amd-ucode package (early-loaded microcode, not this path).
+  "microcode_amd",
+  # Qualcomm SoC, Adreno, remoteproc, video and modem firmware — ARM platforms.
+  "adreno", "venus", "iris", "qcom_q6v5_pas", "qcom_q6v5_mss", "qaic", "qdu100", "qcom-geni-se",
+  "sdx61", "sdx35", "Qualcomm ASoC tplg Firmware",
+  # Other ARM SoCs.
+  "ixp4xx-npe", "imx-sdma", "s5p-mfc", "xhci-rcar", "pcie-rcar-gen4", "xhci-tegra", "tegra-vic",
+  "meson-vdec", "amlogic", "rk3399-dptx", "panthor", "powervr", "knav_qmss_queue", "ti-vpe",
+  "mtk-vpu", "mt8196", "mtk_scp", "mtk-sof", "cdns-mhdp", "amphion", "wave5", "wave6",
+  "lt7911exc", "lt8713sx", "lt9611c", "lt9611uxc", "mscc-phy", "airoha-npu-7581",
+  "airoha-npu-7581-mt7996", "airoha-npu-7583", "en8811h", "an8811hb", "fsl-mc bus",
+  "wl1251", "wl12xx", "wl18xx", "cc33xx", "TI_ST", "ueagle-atm",
+  # Datacentre switches, SmartNICs, InfiniBand/OPA and crypto accelerators.
+  "mlxsw_spectrum", "nfp", "prestera", "rvu_cptpf", "liquidio", "nitrox", "inside-secure",
+  "ib_qib", "hfi1", "mga",
+]
