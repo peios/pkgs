@@ -1,13 +1,32 @@
-# eudev — the autotools-maintained udev fork; packaged ONLY for libudev,
-# which usbip hard-requires (PEI-158 Tier 2, wave 3). systemd's libudev is
-# meson-only, so eudev is the pool's libudev provider until the joint
-# meson adoption revisits this.
+# eudev — the autotools-maintained udev fork. Two things come out of it:
+#
+#   libudev   the device-enumeration library, which usbip hard-requires
+#             (PEI-158 Tier 2, wave 3). systemd's libudev is meson-only, so
+#             eudev is the pool's libudev provider until the joint meson
+#             adoption revisits this.
+#   eudev     the device manager: udevd, udevadm, the *_id helpers, a Peios
+#             rules set, and the peinit service definition (PEI-58). Peios'
+#             answer to "who loads the driver when a device appears, and who
+#             gives a disk a name that survives reboot" — provisional, chosen
+#             over writing our own because the peinit TRM already names eudev
+#             and the hardware-matching corpus is the part that is painful to
+#             finish.
 #
 # Autotools from the release tarball, out-of-source via DESTDIR (the m4
-# shape). Everything optional is off (manpages want xsltproc, hwdb/blkid/
-# kmod/selinux are daemon concerns) — udevd/udevadm build but are
-# deliberately NOT packaged: udev-the-daemon is init-system territory and
-# a separate decision; only libudev + headers ship.
+# shape). kmod on, so the `kmod` builtin (what 80-drivers.rules calls per
+# MODALIAS) exists; blkid on, so the `blkid` builtin exists and
+# 60-persistent-storage can produce /dev/disk/by-uuid. hwdb stays off: the
+# hardware database is a separate payload (keyboard quirks, vendor/model
+# names) and nothing here needs it yet — the rules that import it are not
+# shipped. Manpages want xsltproc; selinux is not our model.
+#
+# WHAT UDEV DOES NOT OWN ON PEIOS: device-node permissions. udev's MODE=,
+# GROUP= and OWNER= are POSIX mode, which KACS ignores; access to /dev is the
+# SD prelude seeds and the per-node exceptions peinit stamps. The shipped
+# rules are therefore a chosen subset of upstream's, and the build asserts
+# that none of them carries a DAC assignment — a rule that names a group that
+# does not exist here would at best warn at every load and at worst mislead a
+# reader into thinking it meant something.
 
 out_dir = "out"
 
@@ -19,24 +38,64 @@ versions = ">= 3.2.14"
 
 [build.main]
 command = """
+set -eu
 SRC="$(pwd)"
 LIBDIR=/usr/lib/x86_64-linux-peios
 cd "$PEKIT_OUT"
+# Helpers and rules.d land in $libdir/udev, upstream's default. That is the
+# triplet directory rather than /usr/lib/udev because PSPU §3.4.2 permits
+# nothing else under /usr/lib — pack rejects the payload otherwise.
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin \
   --libdir="$LIBDIR" --sysconfdir=/etc \
-  --disable-manpages --disable-hwdb --disable-blkid --disable-kmod \
+  --disable-manpages --disable-hwdb --enable-blkid --enable-kmod \
   --disable-selinux --disable-static
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
+
+# /etc is a StrataFS view over /usr/etc; package payload goes to the latter.
+install -d "$PEKIT_OUT/usr/etc/udev"
+mv "$PEKIT_OUT/etc/udev/udev.conf" "$PEKIT_OUT/usr/etc/udev/udev.conf"
+rm -rf "$PEKIT_OUT/etc"
+
+# The rules set. Upstream installs its whole catalogue; replace it with the
+# subset Peios means, plus our own defaults file. What is left out and why:
+#   50-udev-default   almost entirely GROUP=/MODE=; the non-DAC lines are
+#                     rewritten as 50-peios-default.rules
+#   60-evdev, 60-input-id, 60-sensor, 60-serial, 70-mouse, 70-touchpad,
+#   70-joystick, 75-net-description, 60-autosuspend, 78-sound-card
+#                     import the hwdb builtin, which this build lacks
+#   80-net-name-slot  renames NICs to predictable names; a networking
+#                     decision Peios has not taken
+#   64-btrfs, 75-probe_mtd, 60-persistent-storage-tape, 60-fido-id,
+#   60-persistent-alsa, 60-persistent-v4l, 70-camera, 70-memory, 60-drm,
+#   81-net-dhcp       subsystems with no Peios consumer yet
+RULES="$PEKIT_OUT$LIBDIR/udev/rules.d"
+keep="60-block 60-cdrom_id 60-persistent-input 60-persistent-storage 80-drivers"
+for f in "$RULES"/*.rules; do
+  name=$(basename "$f" .rules)
+  case " $keep " in *" $name "*) ;; *) rm -f "$f" ;; esac
+done
+# 50-peios-default.rules, udev-coldplug and eudev-service.reg are recipe
+# payload, mapped straight from src/ by the package manifest.
+# No rule shipped here may assign DAC: it would be inert under KACS and
+# misleading to read.
+if grep -l 'MODE=\\|GROUP=\\|OWNER=' "$RULES"/*.rules; then
+  echo "rules carrying MODE=/GROUP=/OWNER= — not shipped on Peios" >&2
+  exit 1
+fi
 """
 
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 gperf = "*"
 pkgconf = "*"
+kmod-devel = "*"
+libblkid-devel = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 gperf = "*"
 pkg-config = "*"
+libkmod-dev = "*"
+libblkid-dev = "*"

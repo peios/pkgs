@@ -1,0 +1,37 @@
+#!/bin/sh
+# udev-coldplug — replay the uevents that fired before udevd was listening.
+#
+# The kernel enumerates hardware long before PID 1 starts; every device it
+# found emitted a uevent into nobody's socket. udevd only sees what happens
+# after it binds, so at start something has to ask the kernel to say it all
+# again: writing "add" to each device's uevent attribute re-emits the event,
+# and udevd processes the replay exactly as it would a hot-plug.
+#
+# Run as the eudev service's ExecStartPost. peinit releases the service's
+# dependents only once its post-hooks have finished, so a service that
+# Requires eudev starts with the coldplug done and the queue drained — that is
+# the whole of the "devices settled" guarantee, and it costs no second service.
+#
+# Readiness for udevd is Alive — the process exists — which says nothing about
+# its sockets. A trigger that lands before the netlink socket is bound is lost
+# for good, so the first step is to make udevd answer. A control reload is
+# acknowledged from the event loop, and the loop starts after both sockets
+# are bound, so an acknowledged reload is proof the replay will be heard.
+set -u
+
+i=0
+until /bin/udevadm control --reload 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -ge 100 ]; then
+        echo "udev-coldplug: udevd did not answer its control socket within 10s" >&2
+        exit 1
+    fi
+    sleep 0.1
+done
+
+# Subsystems first, so the per-subsystem state (module parameters, the block
+# events poll interval 60-block.rules sets) is in place before the devices
+# that depend on it are processed.
+/bin/udevadm trigger --type=subsystems --action=add
+/bin/udevadm trigger --type=devices --action=add
+exec /bin/udevadm settle --timeout=30

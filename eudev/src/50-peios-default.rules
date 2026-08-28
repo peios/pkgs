@@ -1,0 +1,39 @@
+# 50-peios-default.rules — Peios' rewrite of upstream's 50-udev-default.
+#
+# Upstream's file is almost entirely GROUP= and MODE= assignments: POSIX mode,
+# which KACS does not consult. Access to a device node on Peios is its security
+# descriptor — the inheritable one prelude seeds on /dev, and the per-node
+# exceptions peinit stamps. What survives here is the part that is not
+# permissions: the convenience symlinks, the USB identification import, and the
+# DMI vendor/model properties.
+#
+# Left out on purpose:
+#   OPTIONS+="static_node=..."   pre-creates nodes for modules not yet loaded
+#                                (fuse, tun, kvm, loop-control) with mknod,
+#                                which needs SeTcbPrivilege — more than the
+#                                device manager is given
+#   IMPORT{builtin}="hwdb ..."   the hardware database is not built
+
+ACTION=="remove", GOTO="peios_default_end"
+
+SUBSYSTEM=="virtio-ports", KERNEL=="vport*", ATTR{name}=="?*", SYMLINK+="virtio-ports/$attr{name}"
+
+# The RTC the kernel set the system clock from, if any, otherwise rtc0.
+SUBSYSTEM=="rtc", ATTR{hctosys}=="1", SYMLINK+="rtc"
+SUBSYSTEM=="rtc", KERNEL=="rtc0", SYMLINK+="rtc", OPTIONS+="link_priority=-100"
+
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", IMPORT{builtin}="usb_id"
+
+SUBSYSTEM=="ptp", ATTR{clock_name}=="KVM virtual PTP", SYMLINK+="ptp_kvm"
+SUBSYSTEM=="ptp", ATTR{clock_name}=="hyperv", SYMLINK+="ptp_hyperv"
+
+ACTION!="add", GOTO="peios_default_end"
+
+SUBSYSTEM!="dmi", GOTO="peios_default_end"
+ENV{ID_VENDOR}="$attr{sys_vendor}"
+ENV{ID_SYSFS_ATTRIBUTE_MODEL}=="|product_name", ENV{ID_MODEL}="$attr{product_name}"
+ENV{ID_SYSFS_ATTRIBUTE_MODEL}=="product_version", ENV{ID_MODEL}="$attr{product_version}"
+ENV{ID_VENDOR}=="", ENV{ID_VENDOR}="$attr{board_vendor}"
+ENV{ID_MODEL}=="", ENV{ID_MODEL}="$attr{board_name}"
+
+LABEL="peios_default_end"

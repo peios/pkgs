@@ -92,8 +92,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # Plain native build with the shell gcc + make; the debug split adds debugedit +
 # patchelf (same as gmp).
 [build.main.dependencies.peipkg]
-gcc = "*"
-make = "*"
+build-essentials-c = "*"
 debugedit = "*"
 patchelf = "*"
 

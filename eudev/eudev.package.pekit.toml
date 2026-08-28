@@ -1,0 +1,34 @@
+# eudev — the device manager (PEI-58). udevd, udevadm, the *_id helper
+# programs, the Peios rules set, the coldplug hook and the peinit service seed.
+#
+# Provisional choice over a Peios-native device manager: the peinit TRM
+# already names eudev as phase-2 step 1, and udev's hardware-matching corpus
+# is the part worth not rewriting. What udev does here is load drivers from
+# uevents, replay the enumeration at boot, and keep /dev/disk/by-* current.
+# What it does NOT do on Peios is set device-node permissions — that is the
+# SD on /dev, and the rules are a subset chosen so none tries.
+
+[package]
+name        = "eudev"
+description = "eudev - device manager: driver loading from uevents, coldplug, stable device names"
+
+[dependencies]
+glibc    = ">= 2.43"
+libudev  = "{{version}}"
+libkmod  = ">= 33"
+libblkid = ">= 2.42"
+
+[files]
+"@source:COPYING"                     = "usr/share/licenses/eudev/"
+":usr/bin/udevd"                      = "usr/bin/udevd"
+":usr/bin/udevadm"                    = "usr/bin/udevadm"
+# Helpers (ata_id, scsi_id, cdrom_id, ...) and the retained upstream rules.
+":usr/lib/x86_64-linux-peios/udev/**" = "usr/lib/x86_64-linux-peios/udev"
+":usr/etc/udev/udev.conf"             = "usr/etc/udev/udev.conf"
+"src/50-peios-default.rules"          = "usr/lib/x86_64-linux-peios/udev/rules.d/50-peios-default.rules"
+# The coldplug replay, run as the service's ExecStartPost. libexec because
+# nothing but peinit invokes it.
+"src/udev-coldplug"                   = "usr/libexec/udev-coldplug"
+# The service definition. Inert until an image names it in [registry]
+# autoapply — installing the package grants nothing on its own.
+"src/eudev-service.reg"               = "usr/share/regim/eudev-service.reg"
