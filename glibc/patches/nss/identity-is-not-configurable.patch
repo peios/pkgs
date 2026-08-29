@@ -20,11 +20,12 @@ diff --git a/nss/nss_database.c b/nss/nss_database.c
 index 6997b5bb04..abc125fc17 100644
 --- a/nss/nss_database.c
 +++ b/nss/nss_database.c
-@@ -85,26 +85,73 @@ enum nss_database_default
+@@ -85,26 +85,83 @@ enum nss_database_default
   nss_database_default_nis,    /* "nis".  */
   nss_database_default_nis_nisplus,    /* "nis nisplus".  */
   nss_database_default_none,      /* Empty list.  */
 + nss_database_default_peios,     /* "peios".  Peios: see below.  */
++ nss_database_default_peios_net, /* "peios_net".  Peios: hosts, see below.  */
  
   NSS_DATABASE_DEFAULT_COUNT     /* Number of defaults.  */
  };
@@ -53,7 +54,15 @@ index 6997b5bb04..abc125fc17 100644
 +   gap to paper over.
 +
 +   shadow and gshadow are empty rather than routed: a Peios verifier lives in
-+   its source's store and cannot be read out, so there is no entry to return.  */
++   its source's store and cannot be read out, so there is no entry to return.
++
++   hosts is fixed for the same reason, to a different module.  Name resolution
++   comes from resolvd, the stub resolver, which routes each name to one
++   interface's servers by policy (a VPN's names never leak to the LAN), answers
++   static names and the machine's own name itself, and applies the same policy
++   at every door.  A "files dns" line here would be a second resolver with none
++   of that -- and a second answer to "which address is git.corp".  There is no
++   /etc/hosts: static names live in the registry and resolvd answers them.  */
 +
  /* Databases not listed default to nss_database_default_defconfig.  */
  static const char per_database_defaults[NSS_DATABASE_COUNT] =
@@ -64,7 +73,8 @@ index 6997b5bb04..abc125fc17 100644
 +   [nss_database_group] = nss_database_default_peios,
 +   [nss_database_group_compat] = nss_database_default_none,
 +   [nss_database_gshadow] = nss_database_default_none,
-    [nss_database_hosts] = nss_database_default_dns,
+-   [nss_database_hosts] = nss_database_default_dns,
++   [nss_database_hosts] = nss_database_default_peios_net,
 -   [nss_database_initgroups] = nss_database_default_none,
 +   [nss_database_initgroups] = nss_database_default_peios,
     [nss_database_networks] = nss_database_default_dns,
@@ -93,6 +103,7 @@ index 6997b5bb04..abc125fc17 100644
 +    case nss_database_passwd_compat:
 +    case nss_database_shadow:
 +    case nss_database_shadow_compat:
++    case nss_database_hosts:
 +      return true;
 +    default:
 +      return false;
@@ -102,7 +113,7 @@ index 6997b5bb04..abc125fc17 100644
  static bool
  nss_database_select_default (enum nss_database db, nss_action_list *result)
  {
-@@ -143,6 +190,10 @@ nss_database_select_default (enum nss_database db, nss_action_list *result)
+@@ -143,6 +200,14 @@ nss_database_select_default (enum nss_database db, nss_action_list *result)
        line = "nis nisplus";
        break;
  
@@ -110,10 +121,14 @@ index 6997b5bb04..abc125fc17 100644
 +      line = "peios";
 +      break;
 +
++    case nss_database_default_peios_net:
++      line = "peios_net";
++      break;
++
      case nss_database_default_none:
        /* Very special case: Leave *result as NULL.  */
        return true;
-@@ -349,6 +400,14 @@ nss_database_reload (struct nss_database_data *staging,
+@@ -349,6 +414,14 @@ nss_database_reload (struct nss_database_data *staging,
  	staging->services[nss_database_gshadow] =
  	  staging->services[nss_database_group];
  

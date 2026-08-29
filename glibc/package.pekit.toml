@@ -11,7 +11,7 @@ format = "peipkg"
 # move: the patched library and the unpatched one are materially different, so
 # sharing a version would leave an installed machine unable to say which it has
 # and peipkg unable to see the change as an upgrade.
-version      = "{{version}}-3"
+version      = "{{version}}-4"
 architecture = "x86_64"
 # Library is LGPL-2.1-or-later; bundled programs (ldconfig, locale, ...) are
 # GPL-2.0-or-later. (Full tree also carries assorted permissive licenses.)
