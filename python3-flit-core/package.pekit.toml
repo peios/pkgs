@@ -1,0 +1,23 @@
+format = "peipkg"
+
+[package]
+name         = "python3-flit-core"
+version      = "{{version}}-1"
+# x86_64, not noarch: the one site-packages is inside the triplet
+# directory (no purelib/platlib split), so a pure-Python payload is
+# still installed at an arch-specific path.
+architecture = "x86_64"
+description  = "flit_core - PEP 517 build backend for Flit-based Python projects"
+# flit_core is BSD-3-Clause; it vendors tomli (MIT), whose LICENSE ships in
+# place at flit_core/vendor/tomli-*.dist-info/ inside the payload.
+license      = "BSD-3-Clause AND MIT"
+homepage     = "https://flit.pypa.io"
+
+[dependencies]
+# Bytecode and the site-packages path are bound to the interpreter's
+# feature version: a python3 minor bump is a rebuild of this package.
+python3 = ">= 3.14, < 3.15"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/python3-flit-core/"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"

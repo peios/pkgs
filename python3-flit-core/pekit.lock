@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "4.0.2"
+  url = "https://files.pythonhosted.org/packages/source/f/flit_core/flit_core-4.0.2.tar.gz"
+  sha256 = "b6929defd93884b584d7c87829e0e7b5c26ed6be17b0b873979019314aa841c8"
+  locked_at = "2026-08-30T02:12:03Z"
