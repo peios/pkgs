@@ -24,7 +24,7 @@ peios-release = "{{version}}"
 # The base system. Every entry is a `>=` floor rather than a pin: at this
 # pre-alpha stage the floors let packages move without a repackage of the
 # edition on every change. Production editions pin exactly. The set and the
-# floors are dist/prod/manifest.toml, the composition last known to boot.
+# floors are dist/.old/prod/manifest.toml, the last hand-pinned composition.
 #
 # What that composition has and this deliberately does NOT: live-boot and
 # peios-dwe. They make an image a live medium (and a development
