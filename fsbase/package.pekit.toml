@@ -29,6 +29,12 @@ format = "peipkg"
 # finds them by absolute path and the ELF interpreter comes from /lib64 — while
 # breaking the two consumers that do read /lib: kmod has /lib/modules compiled
 # in, and the kernel's firmware loader searches /lib/firmware.
-version      = "1.0.0-7"
+#
+# -8: fsbase declares the first per-subtree security descriptors on Peios —
+# sd_overrides for /home and /tmp. Until now one inheritable ACL on / was the
+# whole filesystem's access policy, which cannot express "readable system tree,
+# private home directories". Needs a consumer that applies sd_overrides:
+# peipkg 0.x with PEI-557 (install) and PEI-558 (compose).
+version      = "1.0.0-8"
 architecture = "x86_64"
 license      = "MIT"

@@ -92,3 +92,76 @@ special_system_package = true
 ":main/opt" = "opt"
 ":main/mnt" = "mnt"
 ":main/media" = "media"
+
+
+# The first per-subtree security descriptors on Peios (PEI-559).
+#
+# Until now the filesystem's whole access policy was one inheritable ACL,
+# stamped on / at boot: SYSTEM and BUILTIN\Administrators GenericAll, Everyone
+# read+execute, CREATOR OWNER full control of what it makes. That cannot
+# express "readable system tree, private home directories" — one ACL covers
+# /usr and /home alike — so an ordinary account had privacy nowhere and, since
+# nothing grants Everyone FILE_ADD_FILE, nowhere to write either.
+#
+# These two entries are the exception to inheritance, not a replacement for it.
+# Every other path fsbase mints still takes its descriptor from /.
+#
+# Both DACLs are protected (the leading P). Without it the inheritable
+# Everyone read ACE from / is merged in, which would make /home listable by
+# everyone and every file under /tmp world-readable — defeating the point of
+# both entries. Protection is what makes a subtree a new inheritance scope.
+#
+# Absolute SID aliases only: these compile to binary at pack time, on a build
+# host with no domain or machine to resolve against, so DA/EA and friends are
+# an error. CREATOR OWNER has no alias in either vocabulary and is spelled out.
+[sd_overrides]
+
+# /home — only SYSTEM and Administrators may enumerate it.
+#
+# Everyone gets FX: traverse, read attributes, read the descriptor. NOT FR, so
+# a principal can walk through /home to its own directory but cannot list the
+# accounts on the machine. That distinction is the whole entry — traverse and
+# list are one bit apart (KACS_FILE_TRAVERSE == KACS_FILE_EXECUTE) and it is
+# easy to grant both by reflex.
+#
+# The Everyone ACE carries no OI or CI: it applies to /home itself and
+# propagates nowhere. Home directories get their descriptors explicitly from
+# authd at logon, naming the principal that owns them.
+#
+# Note the consequence, which is intended but surprising: a home directory
+# created by anything OTHER than authd inherits only the SYSTEM and
+# Administrators ACEs, and its owner cannot enter it. Creating a home directory
+# by hand needs `sd` afterwards.
+"home" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+
+# /tmp — the sticky directory, expressed as a DACL.
+#
+# Everyone gets 0x1200af, spelled as a bare hex mask because FILE_ADD_FILE and
+# FILE_ADD_SUBDIRECTORY have no two-letter SDDL mnemonic and libp-go's parser
+# rejects a mnemonic and a hex literal in one rights field (libpeios' Rust
+# parser accepts the mixture — PEI-562). It is FR|FX|0x6: list, traverse, read
+# attributes, read the descriptor, create a file, create a subdirectory.
+# Deliberately NOT FILE_DELETE_CHILD (0x40): that is the
+# difference between /tmp and a world-writable directory. A principal deletes
+# its own entry because CREATOR OWNER gave it DELETE on the entry itself, and
+# cannot touch anyone else's because the parent never granted delete-child.
+# Unix spells this 1777; it is also exactly the ACL Windows puts on %TEMP%.
+#
+# The Everyone ACE is not inheritable, and that matters more here than on
+# /home: FILE_ADD_FILE and FILE_WRITE_DATA are the same bit, so an OI ACE would
+# hand Everyone write access to every file in /tmp rather than the right to
+# create one. Files under /tmp are governed by CREATOR OWNER instead, which
+# makes them private to their creator — stricter than Unix, where a 022 umask
+# leaves them world-readable.
+#
+# A consequence worth knowing: a subdirectory a user creates in /tmp is private
+# too, because nothing propagates a right for Everyone into it. Software that
+# expects a shared directory under /tmp (the X11 socket directory is the
+# classic) must set its own descriptor, as its packaging should anyway.
+#
+# This is a plain directory, not a mount. On a live image the overlay upper is
+# tmpfs, so it behaves as one and evaporates on reboot; on an installed system
+# it is disk-backed, which is what Debian shipped for fifteen years. It is
+# therefore neither cleared at boot nor size-limited. PEI-556 makes it a real
+# mount and closes both.
+"tmp" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;0x1200af;;;WD)(A;OICIIO;GA;;;S-1-3-0)"
