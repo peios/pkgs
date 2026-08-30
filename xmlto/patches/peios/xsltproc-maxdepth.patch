@@ -1,0 +1,30 @@
+PEIOS-DIVERGENCE(maxdepth): raise libxslt's template-recursion limit.
+
+DocBook's string.subst (docbook-xsl lib/lib.xsl) substitutes by recursing
+once per match rather than by looping, so the template nesting depth of a
+transform grows with the length of the string being escaped. Real documents
+exceed libxslt's default limit of 3000 and abort with "a potential infinite
+template recursion was detected" -- in the Linux tree, perf-c2c is the first
+page large enough to do it, while the dozens of smaller perf pages render
+fine, which is what distinguishes this from a genuine loop.
+
+libxslt's own diagnostic names --maxdepth as the remedy. It is a
+command-line flag with no environment equivalent, so there is nowhere to set
+it from outside; xmlto has to pass it.
+
+Upstreamable as-is: it raises a ceiling and changes no output.
+
+--- a/xmlto.in
++++ b/xmlto.in
+@@ -227,6 +227,11 @@
+ # Disable network entities
+ XSLTOPTS="$XSLTOPTS --nonet"
+ 
++# Raise the template-recursion limit. DocBook's string.subst recurses once
++# per match, so nesting depth grows with document length and the default of
++# 3000 is reached by ordinary reference pages.
++XSLTOPTS="$XSLTOPTS --maxdepth 20000"
++
+ # The names parameter for the XSLT stylesheet
+ XSLTPARAMS=""
+ 
