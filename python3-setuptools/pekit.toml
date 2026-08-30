@@ -5,14 +5,12 @@
 # is installed — that is the pip world this packaging design exists to
 # avoid.
 #
-# Self-hosting like flit_core: the sdist's own setuptools.build_meta
-# builds its wheel (backend-path = ["."]). The build runs on a COPY of the
-# source tree because setuptools litters build/ and *.egg-info beside the
-# sources, and the fetched tree must stay pristine. Install is extraction;
-# the wheel carries distutils-precedence.pth, a startup hook every distro
-# ships that routes `import distutils` (gone from CPython since 3.12) to
-# setuptools' bundled copy — kept, it is part of upstream's install
-# contract. Bytecode compiled here, checked-hash, shipped.
+# Self-hosting like flit_core: the sdist's own setuptools.build_meta builds
+# its wheel (backend-path = ["."]). The wheel carries
+# distutils-precedence.pth, a startup hook every distro ships that routes
+# `import distutils` (gone from CPython since 3.12) to setuptools' bundled
+# copy — kept, it is part of upstream's install contract. The build and
+# install steps are the workspace helper's; see _pybuild_/README.md.
 #
 # No tests: the upstream suite is pytest plus a dozen plugins.
 #
@@ -28,21 +26,10 @@ versions = ">= 84.0.0"
 
 [build.main]
 command = """
-SRC="$(pwd)"
-SITE="$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-
-cp -r "$SRC" "$PEKIT_OUT/src"
-mkdir -p "$PEKIT_OUT/wheel"
-(cd "$PEKIT_OUT/src" && PYTHONDONTWRITEBYTECODE=1 \
-  python3 -c 'import sys, setuptools.build_meta as b; b.build_wheel(sys.argv[1])' "$PEKIT_OUT/wheel")
-
-mkdir -p "$PEKIT_OUT$SITE"
-python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-  "$PEKIT_OUT"/wheel/setuptools-*.whl "$PEKIT_OUT$SITE"
-
-python3 -m compileall -q --invalidation-mode checked-hash \
-  -s "$PEKIT_OUT" -p / "$PEKIT_OUT$SITE"
-rm -rf "$PEKIT_OUT/wheel" "$PEKIT_OUT/src"
+# --copy-tree: setuptools writes build/ and *.egg-info beside the sources,
+# and the fetched tree must stay pristine for the -source package.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --copy-tree --out "$PEKIT_OUT" "$(pwd)"
 """
 
 [build.main.dependencies.peipkg]

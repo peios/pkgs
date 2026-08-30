@@ -15,12 +15,9 @@
 # application still uses shared libraries; privacy only governs whether
 # its own modules are offered outward.
 #
-# Build: setuptools.build_meta (python3-setuptools) on a copy of the
-# tree, wheel extracted into the private dir. The wheel's data_files land
-# under meson-<ver>.data/data/: the man page moves to /usr/share/man and
-# the polkit policy (for a privileged-install helper Peios does not have)
-# is dropped. Bytecode compiled here, checked-hash, shipped — the private
-# dir included.
+# Built through setuptools.build_meta (python3-setuptools) on a copy of the
+# tree. The build, private install, launcher and bytecode steps are the
+# workspace helper's; see _pybuild_/README.md.
 #
 # Not run here: meson's unit tests want every compiler and tool it has a
 # module for. The proof is the smoke test in the pool: a C project
@@ -38,45 +35,23 @@ versions = ">= 1.12.0"
 
 # Literal TOML string: the launcher text below carries backslash escapes.
 [build.main]
-command = '''
-SRC="$(pwd)"
-PRIV=/usr/lib/x86_64-linux-peios/meson
+command = """
+PRIV="$PEKIT_OUT/usr/lib/x86_64-linux-peios/meson"
 
-cp -r "$SRC" "$PEKIT_OUT/src"
-mkdir -p "$PEKIT_OUT/wheel"
-(cd "$PEKIT_OUT/src" && PYTHONDONTWRITEBYTECODE=1 \
-  python3 -c 'import sys, setuptools.build_meta as b; b.build_wheel(sys.argv[1])' "$PEKIT_OUT/wheel")
+# --private: modules into /usr/lib/<triplet>/meson, and the generated
+# /usr/bin/meson launcher prepends that directory (through the /lib view) to
+# sys.path before importing. Nothing else can import mesonbuild.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --copy-tree --private meson \
+  --out "$PEKIT_OUT" "$(pwd)"
 
-# Install into the private directory, not site-packages.
-mkdir -p "$PEKIT_OUT$PRIV"
-python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-  "$PEKIT_OUT"/wheel/meson-*.whl "$PEKIT_OUT$PRIV"
-
-# data_files: man page out, polkit policy gone, the .data scaffold with it.
-install -Dm644 "$PEKIT_OUT$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
+# data_files ride in the wheel under meson-<ver>.data/: the man page moves to
+# /usr/share/man, and the polkit policy (for a privileged-install helper Peios
+# does not have) goes, taking the .data scaffold with it.
+install -Dm644 "$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
   "$PEKIT_OUT/usr/share/man/man1/meson.1"
-rm -rf "$PEKIT_OUT$PRIV"/meson-*.data
-
-# The launcher: the entry point from setup.cfg (mesonbuild.mesonmain:main),
-# with the private directory put on sys.path first. /bin and /lib are the
-# runtime views every program goes through; the payload names those, never
-# /usr/... directly. meson re-executes itself through this launcher for
-# its --internal helpers, so the path insert covers those too.
-mkdir -p "$PEKIT_OUT/usr/bin"
-cat > "$PEKIT_OUT/usr/bin/meson" <<'PY'
-#!/bin/python3
-import sys
-sys.path.insert(0, '/lib/x86_64-linux-peios/meson')
-from mesonbuild.mesonmain import main
-if __name__ == '__main__':
-    sys.exit(main())
-PY
-chmod 755 "$PEKIT_OUT/usr/bin/meson"
-
-python3 -m compileall -q --invalidation-mode checked-hash \
-  -s "$PEKIT_OUT" -p / "$PEKIT_OUT$PRIV"
-rm -rf "$PEKIT_OUT/wheel" "$PEKIT_OUT/src"
-'''
+rm -rf "$PRIV"/meson-*.data
+"""
 
 [build.main.dependencies.peipkg]
 dash               = "*"

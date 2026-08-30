@@ -1,0 +1,184 @@
+#!/usr/bin/python3
+"""Build a Python project's wheel and install it the way Peios packages it.
+
+Replaces pip in a pekit recipe. Four steps, each of which is policy:
+
+  1. Build the wheel by calling the project's PEP 517 backend directly.
+  2. Install it by extracting the zip -- keeping .dist-info, which
+     importlib.metadata reads at run time.
+  3. Generate the console scripts the wheel declares, with #!/bin/python3:
+     /bin is the runtime view every program is reached through, and a payload
+     never names /usr directly.
+  4. Compile bytecode checked-hash and leave it in the payload. /usr is
+     verified against the package manifest and never written after install,
+     so neither import-time nor install-time pycache generation is available;
+     and checked-hash (rather than timestamp) bytecode is reproducible and
+     defers to a .py an operator shadows through /lcl.
+
+Library or application is the one real choice. A library goes to the
+interpreter's site-packages, which publishes it to every Python program on
+the machine; an application goes to a private directory that only its own
+launcher puts on sys.path, so its internals never become an accidental API.
+
+See: learn -- Developing for Peios / Shipping software / Python packages.
+"""
+
+import argparse
+import configparser
+import os
+import shutil
+import subprocess
+import sys
+import sysconfig
+import tempfile
+import zipfile
+
+TRIPLET = "x86_64-linux-peios"
+
+
+def die(msg):
+    sys.exit("install-wheel: " + msg)
+
+
+def build_wheel(src, backend, outdir, copy_tree):
+    """Call the backend's build_wheel hook, in the source tree it needs."""
+    tree = src
+    tmp = None
+    if copy_tree:
+        # setuptools and friends write build/ and *.egg-info beside the
+        # sources; the fetched tree has to stay pristine for the -source
+        # package, so such backends build from a copy.
+        tmp = tempfile.mkdtemp(prefix="pybuild-src-")
+        tree = os.path.join(tmp, "src")
+        shutil.copytree(src, tree, symlinks=True)
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    # -c runs with the cwd on sys.path, which is what lets an in-tree backend
+    # (flit_core, setuptools) build itself.
+    code = (
+        "import sys, importlib;"
+        "b = importlib.import_module(sys.argv[1]);"
+        "print(b.build_wheel(sys.argv[2]))"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code, backend, outdir],
+        cwd=tree, env=env, check=False,
+    )
+    if tmp:
+        shutil.rmtree(tmp, ignore_errors=True)
+    if proc.returncode != 0:
+        die("backend %s failed to build a wheel" % backend)
+    wheels = [f for f in os.listdir(outdir) if f.endswith(".whl")]
+    if len(wheels) != 1:
+        die("expected exactly one wheel, got %r" % wheels)
+    return os.path.join(outdir, wheels[0])
+
+
+def console_scripts(dest):
+    """[console_scripts] from the installed wheel's entry_points.txt."""
+    infos = [d for d in os.listdir(dest) if d.endswith(".dist-info")]
+    if len(infos) != 1:
+        die("expected exactly one .dist-info, got %r" % infos)
+    path = os.path.join(dest, infos[0], "entry_points.txt")
+    if not os.path.exists(path):
+        return []
+    cp = configparser.ConfigParser()
+    cp.optionxform = str
+    cp.read(path)
+    if not cp.has_section("console_scripts"):
+        return []
+    return list(cp.items("console_scripts"))
+
+
+def write_launchers(scripts, bindir, syspath):
+    if not scripts:
+        return
+    os.makedirs(bindir, exist_ok=True)
+    for name, target in scripts:
+        module, _, attr = target.partition(":")
+        if not attr:
+            die("entry point %s=%s names no callable" % (name, target))
+        top = attr.split(".")[0]
+        lines = ["#!/bin/python3", "import sys"]
+        if syspath:
+            # The one line that makes an application's modules private: they
+            # are importable here and nowhere else. site-packages stays on the
+            # path, so shared libraries still resolve normally.
+            lines.append("sys.path.insert(0, %r)" % syspath)
+        lines += [
+            "from %s import %s" % (module, top),
+            "if __name__ == '__main__':",
+            "    sys.exit(%s())" % attr,
+        ]
+        path = os.path.join(bindir, name)
+        with open(path, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        os.chmod(path, 0o755)
+        print("install-wheel: launcher %s -> %s" % (name, target))
+
+
+def main():
+    ap = argparse.ArgumentParser(description="build and install a Python project the Peios way")
+    ap.add_argument("source", help="the project's source tree")
+    ap.add_argument("--backend", required=True,
+                    help="PEP 517 build backend module, e.g. flit_core.buildapi")
+    ap.add_argument("--out", required=True,
+                    help="the stage directory ($PEKIT_OUT); paths below are relative to it")
+    ap.add_argument("--private", metavar="NAME",
+                    help="install as an APPLICATION into /usr/lib/<triplet>/NAME, "
+                         "importable only through its own launcher")
+    ap.add_argument("--copy-tree", action="store_true",
+                    help="build from a copy (for backends that write into the source tree)")
+    ap.add_argument("--no-scripts", action="store_true",
+                    help="do not generate console scripts")
+    args = ap.parse_args()
+
+    out = os.path.abspath(args.out)
+    src = os.path.abspath(args.source)
+
+    if args.private:
+        # Applications are private; the launcher names the runtime view.
+        installdir = "/usr/lib/%s/%s" % (TRIPLET, args.private)
+        syspath = "/lib/%s/%s" % (TRIPLET, args.private)
+    else:
+        # Libraries go to the interpreter's one site-packages. Ask for it:
+        # platlib is the real one (purelib is patched to match), and hardcoding
+        # it would go stale at the next interpreter version.
+        installdir = sysconfig.get_path("platlib")
+        syspath = None
+    dest = out + installdir
+
+    wheeldir = tempfile.mkdtemp(prefix="pybuild-whl-")
+    try:
+        wheel = build_wheel(src, args.backend, wheeldir, args.copy_tree)
+        os.makedirs(dest, exist_ok=True)
+        with zipfile.ZipFile(wheel) as zf:
+            zf.extractall(dest)
+        print("install-wheel: %s -> %s" % (os.path.basename(wheel), installdir))
+    finally:
+        shutil.rmtree(wheeldir, ignore_errors=True)
+
+    if not args.no_scripts:
+        write_launchers(console_scripts(dest), os.path.join(out, "usr/bin"), syspath)
+
+    # A SEPARATE interpreter, deliberately, rather than compileall in-process:
+    # marshal shares references to objects it has already written, and which
+    # strings are interned depends on what the compiling process imported. Run
+    # in-process, the bytecode would be a function of this script's own imports
+    # (measured: 15 bytes of difference in one meson module). A bare
+    # subprocess makes a .pyc a function of its source and the interpreter,
+    # nothing else.
+    #
+    # -s/-p rewrite the path recorded in each .pyc from the stage directory to
+    # the installed one, so a traceback names /usr/lib/... wherever it was built.
+    rc = subprocess.call([
+        sys.executable, "-m", "compileall", "-q",
+        "--invalidation-mode", "checked-hash",
+        "-s", out, "-p", "/", dest,
+    ])
+    if rc != 0:
+        die("bytecode compilation failed")
+    print("install-wheel: bytecode compiled checked-hash")
+
+
+if __name__ == "__main__":
+    main()

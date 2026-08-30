@@ -5,13 +5,10 @@
 #
 # The first Python package built through a packaged backend: docutils is
 # a flit project, so the wheel comes from python3-flit-core's PEP 517
-# hook called directly — no pip, no build frontend, no isolated env.
-# (pyproject pins flit_core < 4; that bound is enforced only by frontends
-# and 4.x builds it fine.) Install is extraction into the interpreter's
-# site-packages; console scripts are generated from the wheel's entry
-# points exactly as pip would, but with the #!/bin/python3 view path;
-# bytecode is compiled here, checked-hash, and shipped. See the
-# python3-flit-core recipe for the policy behind each step.
+# hook — no pip, no build frontend, no isolated env. (pyproject pins
+# flit_core < 4; that bound is enforced only by frontends, and 4.x builds
+# it fine.) The build, install, launcher and bytecode steps are the
+# workspace helper's, not this recipe's — see _pybuild_/README.md.
 #
 # Classification: a LIBRARY (other packages import docutils), so it lives
 # in site-packages, and its tools ride along in the same package — the
@@ -29,16 +26,10 @@ versions = ">= 0.23"
 
 # Literal TOML string: the shim generator below carries backslash escapes.
 [build.main]
-command = '''
+command = """
 SRC="$(pwd)"
-SITE="$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
 
-# Build the wheel through the backend's PEP 517 hook.
-mkdir -p "$PEKIT_OUT/wheel"
-(cd "$SRC" && PYTHONDONTWRITEBYTECODE=1 \
-  python3 -c 'import sys, flit_core.buildapi as b; b.build_wheel(sys.argv[1])' "$PEKIT_OUT/wheel")
-
-# The upstream suite (unittest, ~1,500 cases across parsers, transforms and
+# The upstream suite (unittest, ~2,300 cases across parsers, transforms and
 # every writer) runs against a copy of the source tree so the fetched tree
 # stays pristine. The library is pure Python, so the tree under test is
 # byte-for-byte what the wheel carries.
@@ -46,32 +37,11 @@ cp -r "$SRC" "$PEKIT_OUT/test-tree"
 (cd "$PEKIT_OUT/test-tree" && PYTHONDONTWRITEBYTECODE=1 python3 test/alltests.py)
 rm -rf "$PEKIT_OUT/test-tree"
 
-# Install = extract into site-packages; .dist-info stays for importlib.metadata.
-mkdir -p "$PEKIT_OUT$SITE"
-python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-  "$PEKIT_OUT"/wheel/docutils-*.whl "$PEKIT_OUT$SITE"
-
-# Console scripts from [console_scripts] in the wheel's entry_points.txt.
-# #!/bin/python3, not /usr/bin: /bin is the runtime view every program goes
-# through; a payload script naming vendor storage directly bypasses it.
-mkdir -p "$PEKIT_OUT/usr/bin"
-python3 - "$PEKIT_OUT$SITE"/docutils-*.dist-info/entry_points.txt "$PEKIT_OUT/usr/bin" <<'PY'
-import configparser, os, sys
-eps, bindir = sys.argv[1], sys.argv[2]
-cp = configparser.ConfigParser(); cp.optionxform = str; cp.read(eps)
-for name, target in cp.items('console_scripts'):
-    mod, _, attr = target.partition(':')
-    top = attr.split('.')[0]
-    path = os.path.join(bindir, name)
-    with open(path, 'w') as f:
-        f.write(f"#!/bin/python3\nimport sys\nfrom {mod} import {top}\nif __name__ == '__main__':\n    sys.exit({attr}())\n")
-    os.chmod(path, 0o755)
-PY
-
-python3 -m compileall -q --invalidation-mode checked-hash \
-  -s "$PEKIT_OUT" -p / "$PEKIT_OUT$SITE"
-rm -rf "$PEKIT_OUT/wheel"
-'''
+# Wheel -> site-packages, launchers, checked-hash bytecode. The workspace
+# helper is the one place that policy lives; see _pybuild_/README.md.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
+"""
 
 [build.main.dependencies.peipkg]
 dash               = "*"

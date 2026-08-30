@@ -9,16 +9,10 @@
 # that installs by extraction. Everything Python above this (docutils,
 # meson, ...) is built by calling a backend's PEP 517 hook the same way.
 #
-# Layout policy (Python packaging design, 2026-08): packaged Python lives
-# in the interpreter's site-packages, /usr/lib/<triplet>/python3.X/site-packages
-# — versioned, so an interpreter minor bump is a declared rebuild of every
-# Python package (the `python3 >= 3.14, < 3.15` runtime pin). Bytecode is
-# compiled HERE, checked-hash (PEP 552), and shipped in the manifest: /usr
-# is verify-checked and never written after install, so neither import-time
-# nor install-time pycache generation is acceptable, and checked-hash pycs
-# are reproducible and survive an operator shadowing a .py through /lcl.
-# -s/-p rewrite the paths recorded in the bytecode from the stage dir to
-# the installed one, so tracebacks name /usr/lib/..., not $PEKIT_OUT.
+# Every step below — call the backend, extract the wheel into the one
+# site-packages, generate launchers, compile checked-hash bytecode — is the
+# workspace helper's, so that the policy lives in one place rather than in
+# each recipe. See _pybuild_/README.md for what it does and why.
 #
 #   pekit publish --version 4.0.2 --env peipkg --keyring dev
 
@@ -35,31 +29,10 @@ versions = ">= 4.0.2"
 
 [build.main]
 command = """
-SRC="$(pwd)"
-# The interpreter's one site-packages, asked rather than assumed. platlib,
-# not purelib: --with-platlibdir moved only platlib into the triplet dir,
-# and CPython's purelib scheme still names /usr/lib/python3.X — a path
-# nothing searches (site.py only adds directories that exist) and PSPU does
-# not permit. Peios keeps a single site-packages; purelib is a python3 wart
-# to patch (purelib = platlib), not a second location.
-SITE="$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-
-# Build the wheel with the backend in its own source tree (-m puts the cwd
-# on sys.path). No bytecode may land in the fetched tree.
-mkdir -p "$PEKIT_OUT/wheel"
-(cd "$SRC" && PYTHONDONTWRITEBYTECODE=1 python3 -m flit_core.wheel --outdir "$PEKIT_OUT/wheel")
-
-# Install = extract into site-packages. The .dist-info (METADATA, RECORD,
-# entry_points) stays: importlib.metadata reads it at runtime.
-mkdir -p "$PEKIT_OUT$SITE"
-python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-  "$PEKIT_OUT"/wheel/flit_core-*.whl "$PEKIT_OUT$SITE"
-
-# Ship bytecode: checked-hash, default optimisation level only.
-python3 -m compileall -q --invalidation-mode checked-hash \
-  -s "$PEKIT_OUT" -p / "$PEKIT_OUT$SITE"
-
-rm -rf "$PEKIT_OUT/wheel"
+# flit_core builds its own wheel: the backend is in the tree being built, and
+# `python3 -c` puts the cwd on sys.path, which is the whole bootstrap.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend flit_core.buildapi --out "$PEKIT_OUT" "$(pwd)"
 """
 
 [build.main.dependencies.peipkg]
