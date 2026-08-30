@@ -87,6 +87,7 @@ bwrap \
   --setenv PATH /usr/bin \
   --setenv HOME /tmp \
   --setenv FORCE_UNSAFE_CONFIGURE 1 \
+  ${PKM_JOBS:+--setenv PKM_JOBS "$PKM_JOBS"} \
   --setenv PKM_LLVM 1 \
   --setenv PKM_HOSTCC gcc \
   --setenv RUST_LIB_SRC /usr/lib/x86_64-linux-peios/rustlib/src/rust/library \
