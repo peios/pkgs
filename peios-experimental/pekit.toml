@@ -60,6 +60,7 @@ cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
 # Peios $PEKIT_VERSION Experimental. Read by peiso and upgrade-peios.
 [registry]
 autoapply = [
+  "port-reservations",
   "eudev-service",
   "authd-service",
   "authd-policy",
@@ -69,6 +70,11 @@ autoapply = [
   "login-console",
   "eventd-config",
   "eventd-service",
+  "netd-service",
+  "netd-default-profile",
+  "resolvd-service",
+  "resolvd-port",
+  "atriumd-service",
 ]
 EOF
 """
