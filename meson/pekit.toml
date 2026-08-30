@@ -1,0 +1,89 @@
+# meson — the build system. Packaged with ninja to close the PEI-158
+# deferral ledger: kmod 34+ is meson-only, and qemu, glib2, pixman and
+# the rest of that era follow.
+#
+# The first Python APPLICATION package, and the model for the rest.
+# Libraries (docutils, flit_core) install into the interpreter's
+# site-packages, which publishes them to every Python program on the
+# machine. meson is a program people run, and its internals were never
+# offered as an API, so it takes the layout's private-library slot
+# instead: /usr/lib/<triplet>/meson/, where nothing can `import
+# mesonbuild` by accident. The one program that knows the address is the
+# launcher at /usr/bin/meson, which prepends that directory to sys.path
+# (through the /lib runtime view) before importing — the whole mechanism
+# is that single line. site-packages stays on the path, so a private
+# application still uses shared libraries; privacy only governs whether
+# its own modules are offered outward.
+#
+# Build: setuptools.build_meta (python3-setuptools) on a copy of the
+# tree, wheel extracted into the private dir. The wheel's data_files land
+# under meson-<ver>.data/data/: the man page moves to /usr/share/man and
+# the polkit policy (for a privileged-install helper Peios does not have)
+# is dropped. Bytecode compiled here, checked-hash, shipped — the private
+# dir included.
+#
+# Not run here: meson's unit tests want every compiler and tool it has a
+# module for. The proof is the smoke test in the pool: a C project
+# configured, built and run in a pristine root with meson + ninja + gcc.
+#
+#   pekit publish --version 1.12.0 --env peipkg --keyring dev
+
+out_dir = "out"
+
+[source.url]
+url      = "https://files.pythonhosted.org/packages/source/m/meson/meson-{{version}}.tar.gz"
+extract  = true
+root     = "meson-{{version}}"
+versions = ">= 1.12.0"
+
+# Literal TOML string: the launcher text below carries backslash escapes.
+[build.main]
+command = '''
+SRC="$(pwd)"
+PRIV=/usr/lib/x86_64-linux-peios/meson
+
+cp -r "$SRC" "$PEKIT_OUT/src"
+mkdir -p "$PEKIT_OUT/wheel"
+(cd "$PEKIT_OUT/src" && PYTHONDONTWRITEBYTECODE=1 \
+  python3 -c 'import sys, setuptools.build_meta as b; b.build_wheel(sys.argv[1])' "$PEKIT_OUT/wheel")
+
+# Install into the private directory, not site-packages.
+mkdir -p "$PEKIT_OUT$PRIV"
+python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+  "$PEKIT_OUT"/wheel/meson-*.whl "$PEKIT_OUT$PRIV"
+
+# data_files: man page out, polkit policy gone, the .data scaffold with it.
+install -Dm644 "$PEKIT_OUT$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
+  "$PEKIT_OUT/usr/share/man/man1/meson.1"
+rm -rf "$PEKIT_OUT$PRIV"/meson-*.data
+
+# The launcher: the entry point from setup.cfg (mesonbuild.mesonmain:main),
+# with the private directory put on sys.path first. /bin and /lib are the
+# runtime views every program goes through; the payload names those, never
+# /usr/... directly. meson re-executes itself through this launcher for
+# its --internal helpers, so the path insert covers those too.
+mkdir -p "$PEKIT_OUT/usr/bin"
+cat > "$PEKIT_OUT/usr/bin/meson" <<'PY'
+#!/bin/python3
+import sys
+sys.path.insert(0, '/lib/x86_64-linux-peios/meson')
+from mesonbuild.mesonmain import main
+if __name__ == '__main__':
+    sys.exit(main())
+PY
+chmod 755 "$PEKIT_OUT/usr/bin/meson"
+
+python3 -m compileall -q --invalidation-mode checked-hash \
+  -s "$PEKIT_OUT" -p / "$PEKIT_OUT$PRIV"
+rm -rf "$PEKIT_OUT/wheel" "$PEKIT_OUT/src"
+'''
+
+[build.main.dependencies.peipkg]
+dash               = "*"
+coreutils-gnu      = "*"
+python3            = ">= 3.14, < 3.15"
+python3-setuptools = "*"
+
+[build.main.dependencies.apt]
+python3            = "*"
+python3-setuptools = "*"
