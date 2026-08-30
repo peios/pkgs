@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "0.23"
+  url = "https://files.pythonhosted.org/packages/source/d/docutils/docutils-0.23.tar.gz"
+  sha256 = "746f5060322511280a1e50eb76846ed6bf2342984b2ac04dc42caa1a8d78799e"
+  locked_at = "2026-08-30T02:17:27Z"

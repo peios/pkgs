@@ -1,0 +1,24 @@
+format = "peipkg"
+
+[package]
+name         = "python3-docutils"
+version      = "{{version}}-1"
+# x86_64, not noarch: the one site-packages is inside the triplet directory.
+architecture = "x86_64"
+description  = "Docutils - reStructuredText processing library and rst2* converters"
+# COPYING.rst: public domain by dedication, with BSD-2-Clause exceptions
+# (smartquotes.py carries SmartyPants' BSD-3-Clause text). rst.el (GPL) is
+# not in the wheel. The LicenseRef- term makes the expression opaque to
+# tooling, so the class is stated: all free software.
+license       = "LicenseRef-Public-Domain AND BSD-2-Clause AND BSD-3-Clause"
+license_class = "free"
+homepage      = "https://docutils.sourceforge.io"
+
+[dependencies]
+python3 = ">= 3.14, < 3.15"
+
+[files]
+"@source:COPYING.rst" = "usr/share/licenses/python3-docutils/"
+"@source:licenses/*"  = "usr/share/licenses/python3-docutils/"
+":usr/bin/**"         = "usr/bin"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"
