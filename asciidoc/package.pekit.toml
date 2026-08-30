@@ -1,0 +1,27 @@
+format = "peipkg"
+
+[package]
+name         = "asciidoc"
+version      = "{{version}}-1"
+# x86_64, not noarch: a private application's modules live under the triplet
+# directory, and its bytecode is bound to this interpreter.
+architecture = "x86_64"
+description  = "AsciiDoc - text document format processor, with a2x"
+license      = "GPL-2.0-or-later"
+homepage     = "https://asciidoc-py.github.io/"
+
+[dependencies]
+python3 = ">= 3.14, < 3.15"
+# a2x renders man pages with xsltproc over the DocBook stylesheets; both are
+# needed at run time, not merely to build this package.
+xsltproc      = ">= 1.1.45"
+docbook-xsl   = ">= 1.79.2-2"
+# a2x validates its generated DocBook with `xmllint --valid` before
+# transforming it, so both the tool and the DTD are runtime requirements.
+libxml2-utils = ">= 2.15.3"
+docbook-xml   = ">= 4.5"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/asciidoc/"
+":usr/bin/**"     = "usr/bin"
+":usr/lib/x86_64-linux-peios/asciidoc/**" = "usr/lib/x86_64-linux-peios/asciidoc"

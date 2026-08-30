@@ -1,0 +1,50 @@
+# libxslt — XSLT 1.0 on top of libxml2, and xsltproc, the processor the
+# DocBook toolchain actually runs. xmlto is a shell script around it; the
+# man pages perf and libperf ship are DocBook XML transformed by the
+# DocBook XSL stylesheets, and this is what does the transforming.
+#
+# Autotools from the GNOME release tarball, out-of-source via DESTDIR (the
+# m4 shape). No Python bindings (same reasoning as libxml2), no crypto
+# extensions (they want libgcrypt, and the DocBook stylesheets do not use
+# EXSLT crypto).
+#
+#   pekit publish --all --version 1.1.45 --env peipkg --keyring dev
+
+out_dir = "out"
+
+[source.url]
+url      = "https://download.gnome.org/sources/libxslt/{{major}}.{{minor}}/libxslt-{{version}}.tar.xz"
+extract  = true
+root     = "libxslt-{{version}}"
+versions = ">= 1.1.45"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --without-python --without-crypto --disable-static
+make -j"$(nproc)"
+# The suite runs every stylesheet in tests/ and diffs the output: the
+# evidence that our xsltproc transforms the same way everyone else's does,
+# which is the whole point of using it to render man pages.
+make check
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/gtk-doc"
+"""
+
+[build.main.dependencies.peipkg]
+dash               = "*"
+coreutils-gnu      = "*"
+build-essentials-c = "*"
+make               = "*"
+pkgconf            = "*"
+"libxml2-devel"    = "*"
+"glibc-gconv-extra" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config      = "*"
+libxml2-dev     = "*"

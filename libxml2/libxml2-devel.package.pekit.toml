@@ -1,0 +1,19 @@
+# libxml2-devel — headers, the .so link, pkg-config metadata and the
+# xml2-config shim older build systems still probe for.
+
+[package]
+name        = "libxml2-devel"
+description = "libxml2 - headers and link library"
+
+[dependencies]
+libxml2 = "{{version}}"
+
+[files]
+# xml2-config: the pre-pkg-config flags shim that older build systems (xmlto
+# among them) still probe for.
+":usr/bin/xml2-config"                     = "usr/bin/xml2-config"
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libxml2.so"   = "usr/lib/x86_64-linux-peios/libxml2.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/cmake/**"     = "usr/lib/x86_64-linux-peios/cmake"
+# No man3: 2.15 ships only the two tool pages, which go with the tools.

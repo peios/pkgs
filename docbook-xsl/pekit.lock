@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.79.2"
+  url = "https://github.com/docbook/xslt10-stylesheets/releases/download/release/1.79.2/docbook-xsl-1.79.2.tar.bz2"
+  sha256 = "316524ea444e53208a2fb90eeb676af755da96e1417835ba5f5eb719c81fa371"
+  locked_at = "2026-08-30T03:48:52Z"

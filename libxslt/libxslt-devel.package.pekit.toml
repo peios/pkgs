@@ -1,0 +1,25 @@
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+# libxslt-devel — headers, the .so links, pkg-config metadata, and the
+# xslt-config shim older build systems probe for.
+
+[package]
+name        = "libxslt-devel"
+description = "libxslt - headers and link libraries"
+
+[dependencies]
+libxslt       = "{{version}}"
+libxml2-devel = ">= 2.15.3"
+
+[files]
+":usr/bin/xslt-config"                      = "usr/bin/xslt-config"
+":usr/include/**"                           = "usr/include"
+":usr/lib/x86_64-linux-peios/libxslt.so"    = "usr/lib/x86_64-linux-peios/libxslt.so"
+":usr/lib/x86_64-linux-peios/libexslt.so"   = "usr/lib/x86_64-linux-peios/libexslt.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"  = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/cmake/**"      = "usr/lib/x86_64-linux-peios/cmake"
+":usr/share/man/man3/**"                    = "usr/share/man/man3"

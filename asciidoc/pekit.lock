@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "10.2.1"
+  url = "https://files.pythonhosted.org/packages/source/a/asciidoc/asciidoc-10.2.1.tar.gz"
+  sha256 = "d9f13c285981b3c7eb660d02ca0a2779981e88d48105de81bb40445e60dddb83"
+  locked_at = "2026-08-30T03:50:48Z"

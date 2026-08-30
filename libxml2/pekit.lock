@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "2.15.3"
+  url = "https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.3.tar.xz"
+  sha256 = "78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07"
+  locked_at = "2026-08-30T03:27:40Z"

@@ -1,0 +1,59 @@
+# docbook-xml — the DocBook XML V4.5 DTD. Data, and the other half of the
+# DocBook toolchain: docbook-xsl says how to render a document, this says
+# what a valid one looks like. asciidoc's a2x validates its generated
+# DocBook with `xmllint --valid` before transforming it, so without the DTD
+# there are no man pages (PEI-535).
+#
+# 4.5 is the last DocBook 4 release and the version the kernel tools'
+# asciidoc sources declare. From OASIS, which is the DTD's home; the
+# docbook.org mirror 404s.
+#
+# No build: unpack the zip and place the DTD beside its catalog. pekit does
+# not extract zips, and Peios packages no unzip, so python3's zipfile does
+# it -- the same reasoning that makes a wheel installable without pip.
+#
+#   pekit publish --version 4.5 --env peipkg --keyring dev
+
+out_dir = "out"
+
+# extract = false: the artifact is a zip, unpacked in the build below.
+[source.url]
+url      = "https://www.oasis-open.org/docbook/xml/{{version}}/docbook-xml-{{version}}.zip"
+extract  = false
+versions = ">= 4.5"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+DTD="$PEKIT_OUT/usr/share/xml/docbook/schema/dtd/$PEKIT_VERSION"
+mkdir -p "$DTD"
+python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+  "$SRC"/docbook-xml-*.zip "$DTD"
+rm -rf "$DTD/docs" "$DTD/ChangeLog"
+
+# Upstream's catalog.xml uses relative rewrites, so it works wherever the
+# tree is placed; it is shipped as-is. The system catalog that delegates to
+# it lives in docbook-xsl, which owns /usr/etc/xml/catalog -- see that
+# recipe for why, and for what would have to change if a third catalog
+# contributor ever appeared.
+test -f "$DTD/catalog.xml" || { echo "docbook-xml: no catalog.xml in the zip" >&2; exit 1; }
+
+# Prove the DTD resolves through its own catalog rather than assuming it.
+resolved=$(xmlcatalog "$DTD/catalog.xml" \
+  "-//OASIS//DTD DocBook XML V$PEKIT_VERSION//EN")
+echo "catalog resolves the DocBook $PEKIT_VERSION public identifier -> $resolved"
+case "$resolved" in
+  *docbookx.dtd) ;;
+  *) echo "docbook-xml: catalog did not resolve the DTD" >&2; exit 1 ;;
+esac
+"""
+
+[build.main.dependencies.peipkg]
+dash            = "*"
+coreutils-gnu   = "*"
+python3         = "*"
+"libxml2-utils" = "*"
+
+[build.main.dependencies.apt]
+python3       = "*"
+libxml2-utils = "*"

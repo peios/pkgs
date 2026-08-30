@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.1.45"
+  url = "https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.45.tar.xz"
+  sha256 = "9acfe68419c4d06a45c550321b3212762d92f41465062ca4ea19e632ee5d216e"
+  locked_at = "2026-08-30T03:41:46Z"

@@ -1,0 +1,19 @@
+# libxml2-utils — xmllint (parse, validate, reformat) and xmlcatalog (query
+# and edit XML catalogs). Separate from the library because a program that
+# links libxml2 has no use for them, and the DocBook toolchain that does need
+# them is a build-time concern.
+
+[package]
+name        = "libxml2-utils"
+description = "libxml2 - xmllint and xmlcatalog command-line tools"
+
+[dependencies]
+glibc   = ">= 2.43"
+libxml2 = "{{version}}"
+
+# Named rather than globbed: xml2-config is also in usr/bin and belongs with
+# the headers it reports flags for. 2.15 ships no man pages at all.
+[files]
+"@source:Copyright" = "usr/share/licenses/libxml2-utils/"
+":usr/bin/xmllint"    = "usr/bin/xmllint"
+":usr/bin/xmlcatalog" = "usr/bin/xmlcatalog"

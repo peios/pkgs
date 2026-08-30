@@ -1,0 +1,58 @@
+# libxml2 — the XML parser and toolkit. Here for one job: the DocBook
+# toolchain that turns perf's and libperf's asciidoc sources into man
+# pages (PEI-535). xsltproc is libxslt on top of this, and both read the
+# XML catalogs that map DocBook's canonical URIs onto local files.
+#
+# Autotools from the GNOME release tarball, out-of-source via DESTDIR (the
+# m4 shape). Bindings off: --without-python (the Python bindings are a C
+# extension we have no consumer for, and they would tie libxml2's revision
+# to the interpreter's), --without-icu (we package no ICU). zlib and lzma
+# ON — they are already in the pool, and without them libxml2 silently
+# cannot read compressed documents.
+#
+#   pekit publish --all --version 2.15.3 --env peipkg --keyring dev
+
+out_dir = "out"
+
+[source.url]
+url      = "https://download.gnome.org/sources/libxml2/{{major}}.{{minor}}/libxml2-{{version}}.tar.xz"
+extract  = true
+root     = "libxml2-{{version}}"
+versions = ">= 2.15.3"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --without-python --without-icu --with-zlib --with-lzma \
+  --disable-static
+make -j"$(nproc)"
+# The suite is libxml2's own regression corpus: parser, XPath, schemas,
+# catalogs. It is the evidence this parser is correct, and it is cheap.
+make check
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/gtk-doc"
+"""
+
+[build.main.dependencies.peipkg]
+dash               = "*"
+coreutils-gnu      = "*"
+build-essentials-c = "*"
+make               = "*"
+pkgconf            = "*"
+"zlib-devel"       = "*"
+"xz-devel"         = "*"
+# The suite parses documents in a dozen legacy encodings; the base glibc
+# carries only a core set of gconv modules and the rest are here. Without it
+# sixteen cases fail on "Unsupported encoding" -- a property of the build
+# root, not of the parser.
+"glibc-gconv-extra" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config      = "*"
+zlib1g-dev      = "*"
+liblzma-dev     = "*"

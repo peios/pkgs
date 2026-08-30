@@ -1,0 +1,53 @@
+# asciidoc — the original AsciiDoc processor (asciidoc-py), and a2x, its
+# front-end for the toolchain that turns a document into a man page. Here
+# because the kernel tools write their documentation in AsciiDoc: kvm_stat's
+# man page is built by a2x, and perf's and libperf's by asciidoc feeding
+# xmlto (PEI-535).
+#
+# Upstream calls this "a legacy processor" and points at Asciidoctor for new
+# work. That is the right advice for new documents and irrelevant here: the
+# kernel's sources are AsciiDoc-the-original, and Asciidoctor is Ruby, which
+# Peios does not package.
+#
+# A private Python APPLICATION: nothing should `import asciidoc`, so the
+# modules go to /usr/lib/<triplet>/asciidoc and only the generated
+# /usr/bin/asciidoc and /usr/bin/a2x put that directory on sys.path. See
+# _pybuild_/README.md.
+#
+# a2x renders man pages by running xsltproc over its own DocBook
+# customisation layer, which imports the DocBook XSL stylesheets by their
+# canonical URI -- so docbook-xsl and its catalog are runtime dependencies,
+# not just build ones, and a consumer must have XML_CATALOG_FILES pointed at
+# that catalog (or be on a booted system, where /etc/xml/catalog is it).
+#
+#   pekit publish --version 10.2.1 --env peipkg --keyring dev
+
+out_dir = "out"
+
+[source.url]
+url      = "https://files.pythonhosted.org/packages/source/a/asciidoc/asciidoc-{{version}}.tar.gz"
+extract  = true
+root     = "asciidoc-{{version}}"
+versions = ">= 10.2.1"
+
+[build.main]
+command = """
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --copy-tree --private asciidoc \
+  --out "$PEKIT_OUT" "$(pwd)"
+
+# Nothing else to do: asciidoc's configuration -- asciidoc.conf, the backend
+# definitions, and the docbook-xsl customisation layers a2x applies -- ships
+# inside the wheel as package data under asciidoc/resources/, which is where
+# asciidoc's own lookup expects it relative to the module.
+"""
+
+[build.main.dependencies.peipkg]
+dash                 = "*"
+coreutils-gnu        = "*"
+python3              = ">= 3.14, < 3.15"
+"python3-setuptools" = "*"
+
+[build.main.dependencies.apt]
+python3            = "*"
+python3-setuptools = "*"

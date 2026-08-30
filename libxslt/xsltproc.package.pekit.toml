@@ -1,0 +1,19 @@
+# xsltproc — the command-line XSLT processor. Its own package, because the
+# DocBook toolchain needs the program while a program linking libxslt does
+# not.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "xsltproc"
+description = "libxslt - the xsltproc command-line XSLT processor"
+
+[dependencies]
+glibc   = ">= 2.43"
+libxml2 = ">= 2.15.3"
+libxslt = "{{version}}"
+
+[files]
+"@source:Copyright"      = "usr/share/licenses/xsltproc/"
+":usr/bin/xsltproc"      = "usr/bin/xsltproc"
+":usr/share/man/man1/**" = "usr/share/man/man1"

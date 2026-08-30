@@ -1,0 +1,16 @@
+format = "peipkg"
+
+[package]
+name         = "docbook-xsl"
+# -2: the system catalog also delegates to the DocBook DTD (docbook-xml).
+version      = "{{version}}-2"
+# Stylesheets are XML text: the same bytes on every architecture.
+architecture = "noarch"
+description  = "DocBook XSL stylesheets - XSLT for rendering DocBook XML"
+license      = "MIT"
+homepage     = "https://github.com/docbook/xslt10-stylesheets"
+
+[files]
+"@source:COPYING"    = "usr/share/licenses/docbook-xsl/"
+":usr/share/xml/**"  = "usr/share/xml"
+":usr/etc/xml/**"    = "usr/etc/xml"
