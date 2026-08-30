@@ -8,9 +8,9 @@ side_effects = ["man-db"]
 
 [package]
 name         = "python3"
-# -2: purelib = platlib patch, checked-hash stdlib bytecode, EXTERNALLY-MANAGED
-# (PEI-535).
-version      = "{{version}}-2"
+# -3: shared libpython, so C extension modules link (PEI-535). -2: purelib =
+# platlib patch, checked-hash stdlib bytecode, EXTERNALLY-MANAGED.
+version      = "{{version}}-3"
 architecture = "x86_64"
 description  = "Python 3 - the CPython interpreter and standard library"
 license      = "PSF-2.0"
@@ -23,9 +23,10 @@ zlib  = ">= 2.3.3"
 [files]
 "@source:LICENSE"   = "usr/share/licenses/python3/"
 ":usr/bin/**"       = "usr/bin"
-# stdlib + include/python3.x headers + the static libpython in
-# lib/python3.x/config-*/ — one package; a -devel split can come when
-# something builds C extensions out of tree.
+# stdlib + include/python3.x headers + libpython (shared, plus the static
+# library and Makefile under lib/python3.x/config-*/) — one package; a -devel
+# split can come when something builds C extensions out of tree.
 ":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libpython3*"  = "usr/lib/x86_64-linux-peios"
 ":usr/include/**"   = "usr/include"
 ":usr/share/man/**" = "usr/share/man"

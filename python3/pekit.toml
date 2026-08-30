@@ -13,7 +13,17 @@
 # we don't declare (ssl/ffi/sqlite/readline/...) skip themselves — only
 # zlib is declared, so the zlib/gzip modules build. --with-platlibdir puts
 # the stdlib inside the triplet dir per §3.4.2 (the perl lesson, applied
-# up front). Static libpython (no --enable-shared); nothing embeds.
+# up front).
+#
+# --enable-shared: libpython is a shared library. The recipe used to build it
+# static on the grounds that nothing embeds -- which stopped being true at
+# PEI-535, when perf's importable `perf` module became buildable. A C
+# extension links against libpython, and a static libpython is built without
+# PIC, so the link fails outright ("relocation R_X86_64_TPOFF32 ... can not be
+# used when making a shared object"). Every distribution ships a shared
+# libpython for this reason. --libdir is needed alongside --with-platlibdir:
+# platlibdir places the stdlib, libdir places the library itself, and only
+# the triplet directory is on the loader's default search path.
 #
 # PEIOS-DIVERGENCE(purelib): --with-platlibdir moves only platlib, and
 # CPython's purelib scheme still names /usr/lib/python3.X/site-packages
@@ -43,6 +53,8 @@ SRC="$(pwd)"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --with-platlibdir=lib/x86_64-linux-peios \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-shared \
   --without-ensurepip --disable-test-modules
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT" COMPILEALL_OPTS="-j0 --invalidation-mode checked-hash"
