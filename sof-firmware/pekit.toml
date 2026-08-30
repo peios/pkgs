@@ -66,6 +66,11 @@ cp LICENCE.Intel "$lic/"
 du -sm "$dest"
 """
 
+# TCB-signed like linux-firmware (PEI-493): sidecar per blob and
+# topology, symlinks skipped.
+[build.main.sign.pip]
+"usr/lib/firmware/**" = "tcb.priv"
+
 [build.main.dependencies.peipkg]
 dash          = "*"
 coreutils-gnu = "*"

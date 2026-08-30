@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name          = "firmware-intel-sof"
-version       = "{{version}}-2"
+version       = "{{version}}-3"
 architecture  = "noarch"
 description   = "Intel Sound Open Firmware: audio DSP firmware and topologies (IPC3 and IPC4)"
 # Intel-signed DSP images under the SOF firmware release licence

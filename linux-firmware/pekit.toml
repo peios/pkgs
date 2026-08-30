@@ -66,6 +66,15 @@ python3 "$PEKIT_RECIPE_ROOT/tools/sort-firmware.py" \
 du -sm "$PEKIT_OUT"/family/* | sort -rn
 """
 
+# Every blob is signed with the TCB key (PEI-493): the kernel verifies
+# firmware before it reaches a device, and firmware runs with kernel
+# privilege on the far side of a bus, so no lower tier is fit to supply
+# it. Blobs are not ELF, so each gets a `<blob>.peios.sig` sidecar that
+# peipkg turns into the security.peios.sig xattr at install; the
+# version-alias symlinks are skipped (signed through their targets).
+[build.main.sign.pip]
+"family/*/usr/lib/firmware/**" = "tcb.priv"
+
 # dash for the stage itself and for copy-firmware.sh; coreutils-gnu, findutils,
 # grep and sed for what that script shells out to (install, realpath, find,
 # grep, sed). The peipkg root has nothing a stage does not name.
