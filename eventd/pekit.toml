@@ -1,0 +1,19 @@
+# eventd — Peios's durable event, log and metric daemon.
+#
+# Delegate recipe: eventd is self-describing (pekit.toml and packages.pekit/
+# in its own tree), so this recipe is only a catalogue pointer, like authd's.
+# The delegated package includes its registry masters, regman fragment and
+# protected /var/state/eventd directory skeleton.
+#
+# Like authd, the Rust workspace currently uses sibling peios-rs path
+# dependencies. Build with --local against the development tree until those
+# crates are publishable or vendored; a detached farm checkout would not have
+# the required sibling.
+
+out_dir = "out"
+delegate = true
+
+# Local working copy for `--local` (compile the in-development tree, no tag).
+# Relative to this recipe directory; never used by the farm.
+[source.local]
+path = "../../eventd"
