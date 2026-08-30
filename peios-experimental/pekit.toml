@@ -74,6 +74,7 @@ autoapply = [
   "netd-default-profile",
   "resolvd-service",
   "resolvd-port",
+  "trustd-service",
   "atriumd-service",
 ]
 EOF

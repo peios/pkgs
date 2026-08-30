@@ -54,8 +54,12 @@ extract = false
 command = """
 set -eu
 
-SRC="$(pwd)"
-CERTDATA="$(ls "$PEKIT_SRC"/certdata.txt 2>/dev/null || echo "$PEKIT_SRC")"
+# The working directory is where the URL source was downloaded; the
+# recipe's own files (the converter, the previous bundle) are under
+# PEKIT_RECIPE_ROOT.
+SRC="$PEKIT_RECIPE_ROOT"
+CERTDATA="$(pwd)/certdata.txt"
+test -f "$CERTDATA" || { echo "certdata.txt was not fetched" >&2; exit 1; }
 
 mkdir -p "$PEKIT_OUT/usr/share/ca-certificates"
 

@@ -4,6 +4,6 @@
 format = "peipkg"
 
 [package]
-version      = "{{version}}"
+version      = "{{version}}-1"
 architecture = "noarch"
 license      = "MPL-2.0"

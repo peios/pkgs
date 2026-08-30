@@ -7,7 +7,7 @@
 # store to /etc/ssl from here. To change what this machine trusts, use
 # `trust add` and `trust distrust`.
 #
-# Source: test
+# Source: certdata.txt from the Firefox release branch, {{version}}
 # Only roots whose CKA_TRUST_SERVER_AUTH is CKT_NSS_TRUSTED_DELEGATOR
 # are included: 121 of them.
 
