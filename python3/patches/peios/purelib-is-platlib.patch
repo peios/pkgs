@@ -1,0 +1,30 @@
+PEIOS-DIVERGENCE(purelib): one site-packages, inside the triplet directory.
+
+--with-platlibdir moves only platlib; the purelib scheme still names
+{base}/lib/python3.X/site-packages, a directory nothing on Peios searches
+(site.py adds only existing directories) and PSPU does not permit under
+/usr. Peios keeps a single site-packages for pure and platform-specific
+Python alike, so purelib is the same path as platlib -- for the prefix
+scheme and the venv scheme that mirrors it. Debian carries the same shape
+as a distributor patch; upstream's comment above posix_venv invites it.
+
+--- a/Lib/sysconfig/__init__.py
++++ b/Lib/sysconfig/__init__.py
+@@ -29,7 +29,7 @@
+     'posix_prefix': {
+         'stdlib': '{installed_base}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+         'platstdlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+-        'purelib': '{base}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++        'purelib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'platlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'include':
+             '{installed_base}/include/{implementation_lower}{py_version_short}{abiflags}',
+@@ -79,7 +79,7 @@
+     'posix_venv': {
+         'stdlib': '{installed_base}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+         'platstdlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+-        'purelib': '{base}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++        'purelib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'platlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'include':
+             '{installed_base}/include/{implementation_lower}{py_version_short}{abiflags}',

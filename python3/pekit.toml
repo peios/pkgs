@@ -14,6 +14,17 @@
 # zlib is declared, so the zlib/gzip modules build. --with-platlibdir puts
 # the stdlib inside the triplet dir per §3.4.2 (the perl lesson, applied
 # up front). Static libpython (no --enable-shared); nothing embeds.
+#
+# PEIOS-DIVERGENCE(purelib): --with-platlibdir moves only platlib, and
+# CPython's purelib scheme still names /usr/lib/python3.X/site-packages
+# — unsearched, and not a PSPU destination. Patched so purelib = platlib:
+# Peios has ONE site-packages, inside the triplet dir (PEI-535).
+#
+# Python packaging policy (PEI-535), applied to the interpreter itself:
+# the stdlib's bytecode is compiled checked-hash (COMPILEALL_OPTS; the
+# Makefile's default is timestamp mode) and shipped; and the stdlib carries
+# PEP 668's EXTERNALLY-MANAGED marker, so any pip an operator sideloads
+# refuses to write into /usr and points at /lcl or a venv instead.
 
 out_dir = "out"
 
@@ -34,7 +45,16 @@ cd "$PEKIT_OUT"
   --with-platlibdir=lib/x86_64-linux-peios \
   --without-ensurepip --disable-test-modules
 make -j"$(nproc)"
-make install DESTDIR="$PEKIT_OUT"
+make install DESTDIR="$PEKIT_OUT" COMPILEALL_OPTS="-j0 --invalidation-mode checked-hash"
+# (dash does not glob a redirection target; resolve the stdlib dir first.)
+STDLIB="$(echo "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*)"
+cat > "$STDLIB/EXTERNALLY-MANAGED" <<'EOM'
+[externally-managed]
+Error=This Python is managed by peipkg. /usr is package-owned and verified;
+ pip must not write into it. Install Python software as Peios packages, or
+ for local work use a virtual environment (python3 -m venv) or the operator
+ tree under /lcl.
+EOM
 # tkinter is never built (no tk); drop the pure-python shells that need it.
 PYLIB="$PEKIT_OUT/usr/lib/x86_64-linux-peios"/python3.*
 rm -rf $PYLIB/idlelib $PYLIB/turtledemo $PYLIB/tkinter $PYLIB/turtle.py
