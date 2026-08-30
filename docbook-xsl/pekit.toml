@@ -3,8 +3,15 @@
 # rest. Here for the man pages perf, libperf and kvm_stat write as asciidoc
 # (PEI-535).
 #
-# The namespaced ("nons" is the other) 1.79.2 release, which is what every
-# distribution ships and what asciidoc's own customisation layers import.
+# The NON-namespaced ("nons") 1.79.2 release, which is what Debian and Fedora
+# ship as their docbook-xsl. DocBook 4.x documents -- which is what asciidoc
+# emits and what the kernel tools' sources are -- carry no namespace, and the
+# namespaced stylesheets handle them by converting the whole document first.
+# That conversion is not free: it feeds much longer strings through
+# lib.xsl's string.subst, which recurses once per match, and perf's larger
+# pages then blow libxslt's 3000-deep template limit outright ("a potential
+# infinite template recursion was detected"). The nons stylesheets process
+# DocBook 4 directly and the pages render.
 #
 # No build: unpack, trim, and write a catalog. The catalog is the whole
 # point of the package. A DocBook stylesheet is referenced by a canonical
@@ -15,16 +22,18 @@
 # resolves only if an XML catalog rewrites that URI onto a local file --
 # otherwise xsltproc goes to the network, which a build root has none of.
 # Upstream's own catalog.xml covers only the newer cdn.docbook.org form, so
-# this recipe writes one covering both, exactly as Fedora and Debian do.
+# this recipe writes one covering both -- and pointing the classic
+# `.../release/xsl/...` names at this nons tree, which is exactly the mapping
+# Debian and Fedora publish.
 #
 #   pekit publish --version 1.79.2 --env peipkg --keyring dev
 
 out_dir = "out"
 
 [source.url]
-url      = "https://github.com/docbook/xslt10-stylesheets/releases/download/release/{{version}}/docbook-xsl-{{version}}.tar.bz2"
+url      = "https://github.com/docbook/xslt10-stylesheets/releases/download/release/{{version}}/docbook-xsl-nons-{{version}}.tar.bz2"
 extract  = true
-root     = "docbook-xsl-{{version}}"
+root     = "docbook-xsl-nons-{{version}}"
 versions = ">= 1.79.2"
 
 [build.main]
