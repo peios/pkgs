@@ -12,11 +12,16 @@
 # PKCS7 signature display; libkmod gains libcrypto). buildtype=plain so
 # the distro CFLAGS/LDFLAGS are the only flags.
 #
-# Test suite NOT run: it compiles a module playground against the RUNNING
-# kernel's headers (/lib/modules/$(uname -r)/build) as test data, which a
-# pristine root cannot have. Pointing it at a pool kernel-devel is a
-# possible follow-up; the kernel's own modules_install/depmod is the
-# effective integration test today.
+# Test suite NOT run, and the reason is one file. It builds a playground of
+# dummy modules and drives depmod/modprobe/modinfo over a fake rootfs with
+# LD_PRELOAD shims -- real coverage for a TCB binary, and it works: point its
+# KDIR at our own kernel-devel (its Makefile honours KDIR, so no patch) with
+# LLVM=1 for our clang-built kernel, and the playground compiles. It then
+# stops at `objtool: not found`, because kernel-devel does not ship
+# tools/objtool/objtool, and cannot while the kernel is staged from the
+# Debian container: that objtool links libopcodes-2.44-system.so, which no
+# Peios package provides. Re-enable when build.kernel is staged on the rung.
+# See pkm/packages.pekit/kernel-devel.package.pekit.toml.
 
 out_dir = "out"
 
@@ -25,6 +30,17 @@ url      = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.
 extract  = true
 root     = "kmod-{{version}}"
 versions = ">= 34.2"
+
+# kernel.org publishes a detached signature by the kmod maintainer over the
+# DECOMPRESSED tar (PEI-150's `of = "decompressed"`), so the first pin of any
+# version is checked against the maintainer's key rather than merely recorded.
+# Worth the ten minutes for a TCB binary: TOFU alone attests that later fetches
+# match the first one, not that the first one was upstream's.
+[source.url.signature]
+key_files    = ["keys/kmod-maintainer.asc"]
+url          = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.tar.sign"
+fingerprints = ["EAB33C9690013C733916AC839BA2A5A630CBEA53"]
+of           = "decompressed"
 
 [build.main]
 command = """

@@ -5,19 +5,8 @@
 schema = 1
 
 [[source]]
-  version = "33"
-  url = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-33.tar.xz"
-  sha256 = "dc768b3155172091f56dc69430b5481f2d76ecd9ccb54ead8c2540dbcf5ea9bc"
-  locked_at = "2026-08-11T09:00:33Z"
-
-[[source]]
-  version = "34"
-  url = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-34.tar.xz"
-  sha256 = "12e7884484151fbd432b6a520170ea185c159f4393c7a2c2a886ab820313149a"
-  locked_at = "2026-08-11T08:59:02Z"
-
-[[source]]
   version = "34.2"
   url = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-34.2.tar.xz"
   sha256 = "5a5d5073070cc7e0c7a7a3c6ec2a0e1780850c8b47b3e3892226b93ffcb9cb54"
-  locked_at = "2026-08-30T02:48:29Z"
+  signature_key = "eab33c9690013c733916ac839ba2a5a630cbea53"
+  locked_at = "2026-08-30T03:09:17Z"
