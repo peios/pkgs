@@ -32,6 +32,12 @@ make -j"$(nproc)"
 make check
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
+# xsltConf.sh is a pre-pkg-config shell fragment that a build system was meant
+# to source for XSLT_LIBS/XSLT_INCLUDEDIR. It is a third way to answer what
+# libxslt.pc and xslt-config already answer, nothing in the corpus sources it,
+# and upstream keeps it only for compatibility -- dropped, like the libtool
+# archives above.
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/xsltConf.sh"
 rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/gtk-doc"
 """
 
