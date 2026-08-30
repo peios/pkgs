@@ -1,7 +1,15 @@
-# util-linux-lib — the util-linux *library* family, built libraries-only (no
-# tools: Peios ships its own mount/umount in peiosutils, so the util-linux CLI
-# programs are deliberately not built). One source build that fans out into
-# per-library packages, the same model Fedora/Debian use for src:util-linux.
+# util-linux-lib — the util-linux library family, plus the one CLI tool Peios
+# has no other source for. One source build that fans out into per-library
+# packages, the same model Fedora/Debian use for src:util-linux.
+#
+# The rule for programs is: a util-linux tool is NOT built here when
+# peiosutils provides it, which is nearly all of them -- mount, umount, lsblk
+# and the rest are peiosutils applets, and a second implementation competing
+# on PATH would be a bug, not a feature. `getopt` is the exception: nothing
+# else provides it, and it is what xmlto uses to parse its own arguments, so
+# without it the DocBook man-page toolchain does not run (PEI-535). It has no
+# Peios-specific surface to speak of -- argv in, shell-quoted argv out, no
+# files, no privileges -- so there is nothing a peiosutils rewrite would add.
 #
 # Today it ships libblkid (filesystem/partition signature probing + tag
 # resolution) — the only piece peiosutils needs (the `mount` tool dlopens
@@ -30,7 +38,8 @@ versions   = ">= 2.40"
 # toolchain bootstrap itself, e.g. binutils). Layout per PSD-009 §3.4: arch libs
 # under /usr/lib/<triplet>.
 #
-#   --disable-all-programs  : build no CLI tools (Peios uses peiosutils' mount).
+#   --disable-all-programs  : build no CLI tools. getopt is built by a second
+#       configure below rather than re-enabled here -- see that block for why.
 #   --enable-libblkid       : the one library we ship today.
 #   --disable-lib{uuid,mount,fdisk,smartcols} : the other util-linux libs are
 #       off until a concrete consumer appears (then: flip to --enable-* and add
@@ -42,6 +51,7 @@ versions   = ">= 2.40"
 [build.main]
 command = """
 SRC="$(pwd)"
+mkdir -p "$PEKIT_OUT/getopt-build"
 cd "$PEKIT_OUT"
 
 # CC carries -g so the debug-split pipeline below has DWARF to separate out.
@@ -87,6 +97,54 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   cp "$ROOT/$rel" "usr/src/debug/util-linux/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+
+# --- getopt -----------------------------------------------------------------
+# A second configure, in its own build directory, because --disable-all-programs
+# cannot be overridden for this program. Its help text says "might be overridden
+# by --enable-<name>", and for most tools that holds -- but getopt is declared
+# UL_BUILD_INIT([getopt], [yes]), and that form takes the global default state
+# unconditionally, so --disable-all-programs wins and --enable-getopt is not
+# even a registered option (configure warns "unrecognized"). Rather than list
+# the ~100 other programs to disable individually, configure with the defaults
+# and build the single target; nothing else is compiled.
+cd "$PEKIT_OUT/getopt-build"
+"$SRC/configure" CC="gcc -g" \
+  --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios \
+  --disable-nls --without-python --disable-shared --enable-static
+# The automake program is named `getopt` and lands at the build root (this is
+# a non-recursive automake tree; the source path is not the target name).
+make getopt
+install -D -m755 getopt "$PEKIT_OUT/usr/bin/getopt"
+install -D -m644 "$SRC/misc-utils/getopt.1" "$PEKIT_OUT/usr/share/man/man1/getopt.1"
+cd "$PEKIT_OUT"
+
+# getopt gets the same debug treatment as the libraries above: scrub build
+# paths, split the symbols out build-id-indexed, strip.
+debugedit -b "$ROOT" -d /usr/src/debug/util-linux -n usr/bin/getopt 2>/dev/null || true
+patchelf --remove-rpath usr/bin/getopt 2>/dev/null || true
+
+# Move getopt's separated debug info out of the shared tree, so that each
+# -debuginfo package owns exactly its own binary's symbols. libblkid-debuginfo
+# asks for this split in its own note; build-ids cannot be globbed statically,
+# so the file is relocated to a staging path the getopt-debuginfo member maps
+# from instead. The debug SOURCES stay shared -- they are the util-linux tree
+# either way, which is why libblkid-debugsource is named for the source.
+gbid=$(readelf -n usr/bin/getopt 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+if [ -n "$gbid" ]; then
+  gp2=$(printf %s "$gbid" | cut -c1-2)
+  grest=$(printf %s "$gbid" | cut -c3-)
+  mkdir -p "$PEKIT_OUT/getopt-debug/usr/lib/debug/.build-id/$gp2"
+  objcopy --only-keep-debug usr/bin/getopt \
+    "$PEKIT_OUT/getopt-debug/usr/lib/debug/.build-id/$gp2/$grest.debug"
+  chmod 0644 "$PEKIT_OUT/getopt-debug/usr/lib/debug/.build-id/$gp2/$grest.debug"
+fi
+strip usr/bin/getopt
+
+# Sanity: the whole point of the package is that xmlto can parse its options.
+usr/bin/getopt --test >/dev/null 2>&1 || rc=$?
+[ "${rc:-0}" = 4 ] || { echo "getopt: --test did not report enhanced mode (rc=${rc:-0})" >&2; exit 1; }
+echo "getopt: enhanced getopt(1) confirmed"
+rm -rf "$PEKIT_OUT/getopt-build"
 """
 
 # Plain native build with the shell gcc + make; the debug split adds debugedit +

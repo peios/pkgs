@@ -1,0 +1,31 @@
+# getopt — the enhanced getopt(1): parses a command line according to a
+# getopt_long(3) spec and prints it back rewritten and shell-quoted, so that a
+# shell script can support long options without writing a parser.
+#
+# Peios has exactly one consumer today, and it is a good illustration: xmlto
+# is a shell script, and this is how it reads its own arguments. Without it
+# there is no xmlto, and without xmlto perf's and libperf's man pages cannot
+# be rendered from their DocBook (PEI-535).
+#
+# usr/bin, not usr/libexec, even though a person never types it: shell scripts
+# invoke it as a bare word, so PATH resolution IS its interface. That is the
+# distinction from depmod, whose callers know where it lives.
+
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+[package]
+description = "getopt - parse command options for shell scripts"
+# The libraries here are LGPL; util-linux's programs are GPL, and getopt.c
+# carries its own notice (Frodo Looijaard, GPL-2.0-or-later).
+license     = "GPL-2.0-or-later"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+":usr/bin/getopt"              = "usr/bin/getopt"
+":usr/share/man/man1/getopt.1" = "usr/share/man/man1/getopt.1"

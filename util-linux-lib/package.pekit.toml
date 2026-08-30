@@ -3,7 +3,10 @@
 # These libraries are built from the util-linux source tree (libblkid/libmount/
 # libuuid/libsmartcols/libfdisk all live there). The shared libraries are
 # LGPL-2.1-or-later — dynamically linked by MIT/other consumers without
-# relicensing them. (util-linux's *programs*, not built here, are GPL.)
+# relicensing them, which is why that is the default here.
+#
+# util-linux's *programs* are GPL, so the one program built here (getopt)
+# overrides this with its own licence rather than inheriting.
 
 format = "peipkg"
 
