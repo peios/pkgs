@@ -29,5 +29,6 @@ docbook-xml   = ">= 4.5"
 [files]
 "@source:COPYING"   = "usr/share/licenses/xmlto/"
 ":usr/bin/**"       = "usr/bin"
+":usr/libexec/**"   = "usr/libexec"
 ":usr/share/xmlto/**" = "usr/share/xmlto"
 ":usr/share/man/**" = "usr/share/man"
