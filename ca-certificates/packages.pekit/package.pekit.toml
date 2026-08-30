@@ -1,0 +1,9 @@
+# Versioned by the date of the certdata.txt commit this was built from, as
+# Debian and curl both do — the file carries no version of its own.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}"
+architecture = "noarch"
+license      = "MPL-2.0"

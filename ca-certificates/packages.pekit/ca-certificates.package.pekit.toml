@@ -1,0 +1,11 @@
+# The Mozilla root store as package data.
+#
+# Installing this package does not, on its own, change what anything trusts:
+# trustd composes the machine's store from this file and the registry, and
+# renders it. A machine without trustd has this file and no /etc/ssl.
+
+[package]
+description = "Mozilla CA root certificates - input to the Peios trust store"
+
+[files]
+":usr/share/ca-certificates/mozilla.crt" = "usr/share/ca-certificates/mozilla.crt"

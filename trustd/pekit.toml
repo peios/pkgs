@@ -1,0 +1,11 @@
+# trustd — the Peios trust store — and trust.
+#
+# Delegate recipe: trustd is self-describing (pekit.toml and packages.pekit/
+# in its own tree), so this is just a pointer, like netd's and resolvd's.
+
+out_dir = "out"
+delegate = true
+
+# Local working copy for `--local` (compile the in-dev tree, no tag).
+[source.local]
+path = "../../trustd"
