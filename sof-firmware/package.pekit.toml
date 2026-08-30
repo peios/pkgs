@@ -1,0 +1,17 @@
+format = "peipkg"
+
+[package]
+name          = "firmware-intel-sof"
+version       = "{{version}}-1"
+architecture  = "noarch"
+description   = "Intel Sound Open Firmware: audio DSP firmware and topologies (IPC3 and IPC4)"
+# Intel-signed DSP images under the SOF firmware release licence
+# (redistributable binary, no SPDX id); the topology files are BSD-3-Clause,
+# built from thesofproject sources.
+license       = "LicenseRef-Intel-Firmware AND BSD-3-Clause"
+license_class = "firmware"
+homepage      = "https://github.com/thesofproject/sof-bin"
+
+[files]
+":usr/lib/firmware/intel/**"   = "usr/lib/firmware/intel"
+":usr/share/licenses/**"       = "usr/share/licenses"
