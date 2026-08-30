@@ -4,6 +4,7 @@
 format = "peipkg"
 
 [package]
-version      = "{{version}}-3"
+# 34.2-1: first meson-built release (PEI-535); openssl on; kmod.pc from datadir.
+version      = "{{version}}-1"
 architecture = "x86_64"
 homepage     = "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"

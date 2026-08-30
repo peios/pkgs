@@ -12,6 +12,8 @@ glibc   = ">= 2.43"
 zlib    = ">= 2.3.3"
 liblzma = ">= 5.8"
 libzstd = ">= 1.5.7"
+# openssl on: modinfo PKCS7 signature display (libcrypto).
+libssl  = ">= 3.5.7"
 
 [files]
 "@source:libkmod/COPYING" = "usr/share/licenses/libkmod/"

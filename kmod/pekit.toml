@@ -1,16 +1,22 @@
 # kmod — kernel module tools (depmod/modprobe/...) + libkmod; the kernel's
 # `make modules_install` runs depmod over the staged module tree.
 #
-# PEI-158 kernel-tooling leaf: autotools from the release tarball, out-of-
-# source via DESTDIR (the m4 shape). Pinned to 33, the last properly
-# dist'd autotools release: kmod is meson-first from 33 on, and 34's
-# tarball ships build-aux/* and m4/* as ABSOLUTE symlinks into the
-# maintainer's /usr/share (pekit's unsafe_archive guard rejects it) —
-# moving past 33 means taking the meson+ninja decision. Manpages off
-# (they want scdoc). Compressed-module support wired to our zlib/xz/zstd;
-# --with-openssl (modinfo PKCS7 signature display) re-enables when openssl
-# lands (PEI-158 item 6). The depmod/modprobe/... compat names are made by
-# kmod's own install hook, plain symlinks beside kmod in bindir.
+# PEI-158 kernel-tooling leaf, now on kmod's meson build (34.2; PEI-535
+# brought meson + ninja to the pool). 33 had been pinned as the last
+# properly dist'd autotools release — 34.0's tarball shipped build-aux/*
+# and m4/* as absolute symlinks — and 34.2's tarball is clean again.
+# --sbindir=bin puts the modprobe/insmod/... compat names beside kmod in
+# bindir (kmod's install script makes them relative symlinks to the
+# multicall binary). Manpages off (scdoc). Compressed-module support wired
+# to our zlib/xz/zstd; openssl ON now that it is in the pool (modinfo's
+# PKCS7 signature display; libkmod gains libcrypto). buildtype=plain so
+# the distro CFLAGS/LDFLAGS are the only flags.
+#
+# Test suite NOT run: it compiles a module playground against the RUNNING
+# kernel's headers (/lib/modules/$(uname -r)/build) as test data, which a
+# pristine root cannot have. Pointing it at a pool kernel-devel is a
+# possible follow-up; the kernel's own modules_install/depmod is the
+# effective integration test today.
 
 out_dir = "out"
 
@@ -18,17 +24,19 @@ out_dir = "out"
 url      = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.tar.xz"
 extract  = true
 root     = "kmod-{{version}}"
-versions = ">= 33, < 34"
+versions = ">= 34.2"
 
 [build.main]
 command = """
 SRC="$(pwd)"
-cd "$PEKIT_OUT"
-"$SRC/configure" --prefix=/usr --bindir=/usr/bin --sysconfdir=/etc \
-  --libdir=/usr/lib/x86_64-linux-peios --mandir=/usr/share/man \
-  --disable-manpages --with-zlib --with-xz --with-zstd
-make -j"$(nproc)"
-make install DESTDIR="$PEKIT_OUT"
+meson setup "$PEKIT_OUT/build" "$SRC" --prefix=/usr --bindir=bin --sbindir=bin \
+  --libdir=lib/x86_64-linux-peios --sysconfdir=/etc --buildtype=plain \
+  -Dmanpages=false -Dbashcompletiondir=no -Dfishcompletiondir=no \
+  -Dzshcompletiondir=no -Dopenssl=enabled -Dzlib=enabled -Dxz=enabled \
+  -Dzstd=enabled
+meson compile -C "$PEKIT_OUT/build"
+DESTDIR="$PEKIT_OUT" meson install -C "$PEKIT_OUT/build" --no-rebuild
+rm -rf "$PEKIT_OUT/build"
 # depmod is machine-facing: peipkg runs it as an install side effect and the
 # kernel's `make modules_install` runs it at build time, but there is no
 # documented workflow in which a person invokes it. That puts it in libexec
@@ -39,9 +47,7 @@ make install DESTDIR="$PEKIT_OUT"
 install -d "$PEKIT_OUT/usr/libexec"
 rm -f "$PEKIT_OUT/usr/bin/depmod"
 ln -s ../bin/kmod "$PEKIT_OUT/usr/libexec/depmod"
-find "$PEKIT_OUT/usr" -name '*.la' -delete
-rm -rf "$PEKIT_OUT/usr/share/bash-completion" "$PEKIT_OUT/usr/share/fish" \
-  "$PEKIT_OUT/usr/share/zsh" "$PEKIT_OUT/etc"
+rm -rf "$PEKIT_OUT/etc"
 """
 
 # PIP: kmod is TCB. request_module() execs modprobe as a usermodehelper — the
@@ -61,15 +67,23 @@ rm -rf "$PEKIT_OUT/usr/share/bash-completion" "$PEKIT_OUT/usr/share/fish" \
 "usr/bin/kmod" = "tcb.priv"
 
 [build.main.dependencies.peipkg]
+dash = "*"
+coreutils-gnu = "*"
 build-essentials-c = "*"
 pkgconf = "*"
+meson = "*"
+ninja = "*"
 "zlib-devel" = "*"
 "xz-devel" = "*"
 "zstd-devel" = "*"
+"openssl-devel" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 pkg-config = "*"
+meson = "*"
+ninja-build = "*"
 zlib1g-dev = "*"
 liblzma-dev = "*"
 libzstd-dev = "*"
+libssl-dev = "*"

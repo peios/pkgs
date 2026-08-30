@@ -13,3 +13,6 @@ libkmod = "{{version}}"
 ":usr/include/**"                          = "usr/include"
 ":usr/lib/x86_64-linux-peios/libkmod.so"   = "usr/lib/x86_64-linux-peios/libkmod.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+# kmod.pc (tool paths + module_compressions, no library) is data: meson puts
+# it under datadir.
+":usr/share/pkgconfig/**"                  = "usr/share/pkgconfig"
