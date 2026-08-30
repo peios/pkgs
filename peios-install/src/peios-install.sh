@@ -62,12 +62,16 @@ die() {
 # Is NAME a block device the kernel knows about?
 #
 # Asks /proc/partitions rather than testing `[ -b /dev/NAME ]`, because the
-# obvious test does not work on Peios. `[ -b ]` stats the node, and the
-# descriptor KACS synthesises for a devtmpfs node grants 0xF — READ_DATA,
-# WRITE_DATA, APPEND_DATA, READ_EA — with no READ_ATTRIBUTES, which
-# kacs/file_access.c requires on every open. So stat is refused on a device
-# that can be read and written perfectly well, and `[ -b ]` reports "not a
-# block device" for a disk that is plainly present (PEI-196).
+# obvious test does not work on Peios. `[ -b ]` stats the node, and stat on a
+# device node is refused even to a caller that can read and write the device
+# perfectly well — so `[ -b ]` reports "not a block device" for a disk that is
+# plainly present in /proc/partitions (PEI-196).
+#
+# Why the stat is refused is still open. It is NOT the access mask, though an
+# earlier revision of this comment claimed so: `sd show` prints masks in short
+# form, and the `f` on those descriptors is the composite FILE_ALL
+# (0x001F01FF) — full access — not hex 0xF. That misreading became a confident
+# root cause in four places before it was caught.
 #
 # The failure is worse than an error, because `[ -b ]` cannot distinguish
 # "absent" from "denied": both are false. An installer that says "/dev/vdb is
@@ -93,16 +97,29 @@ is_block_device() {
 }
 
 # The security descriptor stamped on the new root at format time. Byte-for-byte
-# what seed-sd writes onto the live system's tmpfs upper (prelude's
-# build_seed_sd): SYSTEM and BUILTIN\Administrators, GenericAll, both ACEs
-# inheritable. Deliberately the same answer rather than a second one — an
-# installed system should not silently have a different access policy from the
-# live system it was copied from.
+# what the live system's root carries: SYSTEM and BUILTIN\Administrators
+# GenericAll, Everyone read+execute, every ACE inheritable. Deliberately the
+# same answer rather than a second one — an installed system should not
+# silently have a different access policy from the live system it was copied
+# from.
+#
+# Everyone needs the execute bit, not just read: execute is traverse
+# (KACS_FILE_TRAVERSE == KACS_FILE_EXECUTE), and an explicit chdir does not get
+# the SeChangeNotifyPrivilege traverse bypass, so a service that is not SYSTEM
+# cannot enter its own working directory without it (PEI-546). SYSTEM and
+# Administrators keep GenericAll rather than read/write/execute because GA
+# carries WRITE_DAC, WRITE_OWNER and DELETE, which re-stamping descriptors
+# needs.
+#
+# The two other copies that must agree are the live root's mount hook
+# (live-boot's mount-root.sh) and peinit's PHASE1_SEED_SDDL. NOT seed-sd's
+# built-in default, which stays narrower on purpose: that one also stamps /dev,
+# where every ACE is inherited by the next hot-plugged block device.
 #
 # Note the limit this inherits along with it: one inheritable ACL is the whole
 # tree's policy. It cannot express "readable system tree, private home
 # directories"; that needs per-subtree descriptors, which nothing produces yet.
-ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)'
+ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)'
 
 # The repository on the installation medium, and the package swap it exists
 # for. A live image cannot carry disk-boot: live-boot-irf conflicts with

@@ -41,6 +41,18 @@ format = "peipkg"
 # device by the only reliable test, so relocating that mount is strictly
 # better than any later rescan. Non-fatal: a boot that reaches a prompt with
 # an unreachable medium beats no boot.
-version      = "1.0.0-12"
+#
+# -13: the tmpfs upper is seeded with an explicit descriptor granting Everyone
+# read+execute, rather than with seed-sd's built-in default. That default is a
+# *bootstrap* descriptor (SYSTEM and Administrators only) and it is also what
+# stamps /dev, where every ACE is inherited by the next hot-plugged block
+# device — so it must stay narrow and could not be widened in place. But it
+# was, in effect, the access policy of the entire system: KACS's missing-SD
+# synthesis prefers inheritance from the parent over the mount template, and
+# the whole SD-less squashfs inherits up a chain that terminates at this
+# descriptor. The result was that no service running as anything but SYSTEM
+# could chdir to its own working directory, because execute is the traverse
+# bit and an explicit chdir gets no SeChangeNotifyPrivilege bypass (PEI-546).
+version      = "1.0.0-13"
 architecture = "x86_64"
 license      = "MIT"

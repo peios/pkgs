@@ -73,10 +73,46 @@ mount -o loop,ro,policy=synth-ephemeral -t squashfs /mnt/medium/rootfs.squashfs 
 mount -t tmpfs tmpfs /mnt/rootfs.rw
 
 # A freshly-mounted tmpfs root has no SD xattr; under KACS DENY_MISSING
-# the mkdirs immediately below would fail. Seed the SYSTEM-owned default
-# first; the OI|CI ACE on it makes KACS inheritance derive a child SD
-# for every directory and file we create here.
-seed-sd /mnt/rootfs.rw
+# the mkdirs immediately below would fail. Seed one first; the OI|CI ACEs on
+# it make KACS inheritance derive a child SD for every directory and file we
+# create here.
+#
+# This is the access policy of the whole running system, and it reaches
+# further than it looks. The upper is the root of the merged tree, so `/`
+# takes its descriptor from here. And KACS's missing-SD synthesis prefers
+# inheritance from the parent over the mount template (see
+# build_synthesized_file_sd_bytes): every SD-less inode in the squashfs below
+# inherits from its parent, and that chain terminates here. One descriptor,
+# the entire filesystem.
+#
+# Hence Everyone read+execute. Execute is the traverse bit
+# (KACS_FILE_TRAVERSE == KACS_FILE_EXECUTE), and an explicit chdir does not
+# get the SeChangeNotifyPrivilege traverse bypass, so without GX no
+# non-administrator process can chdir to its own working directory — which is
+# every service that is not SYSTEM (PEI-546). GR alone would let it list `/`
+# and still fail to enter it.
+#
+# SYSTEM and Administrators keep GenericAll rather than read/write/execute:
+# GA carries WRITE_DAC, WRITE_OWNER and DELETE, and peinit re-stamps
+# descriptors all over /run while seed-sd re-stamps /dev. RWX would take that
+# away.
+#
+# NOT seed-sd's built-in default, and not a widening of it. That default also
+# stamps /dev, where every ACE is inherited by the next hot-plugged block
+# device, and a read ACE for Everyone there is every filesystem ACL on this
+# machine bypassed by opening the raw disk. The bootstrap descriptor stays
+# narrow; the running system's policy is named here, where it is visible.
+#
+# Two other copies of this descriptor exist and must agree: peinit's
+# PHASE1_SEED_SDDL (src/init/linux/mounts.rs), for the tmpfs and cgroup2
+# mounts it makes, and peios-install's ROOT_SDDL, for an installed system's
+# root. They drifted once before (PEI-223).
+#
+# It is a stopgap in one respect: one inheritable ACL still cannot say
+# "readable system tree, private home directories". That needs per-subtree
+# descriptors shipped by packages (PSPU §5.20), at which point real SDs win
+# over synthesis and this descriptor governs only what it actually owns.
+seed-sd --sddl 'O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)' /mnt/rootfs.rw
 
 mkdir /mnt/rootfs.rw/upper /mnt/rootfs.rw/work
 mount -t overlay overlay \
