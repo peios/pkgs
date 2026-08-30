@@ -43,8 +43,11 @@ for d in sof sof-ipc4 sof-ipc4-lib sof-ipc4-tplg sof-ace-tplg sof-tplg; do
   [ -e "$d" ] || { echo "sof-firmware: $d missing from the release" >&2; exit 1; }
   cp -a "$d" "$dest/"
 done
-rm -rf "$dest/sof/community"
+# community/ dirs exist per platform under sof-ipc4/ and sof-ipc4-lib/ too.
+find "$dest" -type d -name community -prune -exec rm -rf {} +
 find "$dest" -name 'sof-imx*' -delete
+left=$(find "$dest" -path '*community*' -o -name 'sof-imx*')
+[ -z "$left" ] || { echo "sof-firmware: not dropped:" "$left" >&2; exit 1; }
 # Compress regular files, then repoint every symlink at the .zst name — the
 # kernel tries <name>.zst for the link itself, so the link must carry the
 # suffix and resolve to the compressed target.
