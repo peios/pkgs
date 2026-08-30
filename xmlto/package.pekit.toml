@@ -1,0 +1,33 @@
+format = "peipkg"
+
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+[package]
+name         = "xmlto"
+version      = "{{version}}-1"
+# x86_64: mostly shell, but xmlif is a compiled filter.
+architecture = "x86_64"
+description  = "xmlto - convert DocBook XML to man pages and other formats"
+license      = "GPL-2.0-or-later"
+homepage     = "https://pagure.io/xmlto"
+
+[dependencies]
+glibc = ">= 2.43"
+# The script's own toolchain. Everything here is named in the generated
+# script or by a format script, so none of it is optional.
+bash          = "*"
+getopt        = ">= 2.42.2"
+xsltproc      = ">= 1.1.45"
+libxml2-utils = ">= 2.15.3"
+docbook-xsl   = ">= 1.79.2-2"
+docbook-xml   = ">= 4.5"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/xmlto/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/xmlto/**" = "usr/share/xmlto"
+":usr/share/man/**" = "usr/share/man"

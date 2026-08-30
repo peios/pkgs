@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "0.0.29"
+  url = "https://releases.pagure.org/xmlto/xmlto-0.0.29.tar.bz2"
+  sha256 = "6000d8e8f0f9040426c4f85d7ad86789bc88d4aeaef585c4d4110adb0b214f21"
+  locked_at = "2026-08-30T10:42:21Z"
