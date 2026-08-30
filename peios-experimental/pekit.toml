@@ -1,36 +1,74 @@
-# peios-release-meta — Peios OS release identity.
+# peios-experimental — the Peios Experimental edition.
 #
-# Ships the freedesktop os-release file that the external ecosystem (tooling,
-# install scripts, telemetry, humans) reads to identify the OS. Peios keeps
-# system state in the registry, but os-release is a foreign-facing compat
-# surface, not Peios config, so it is a static build artifact rather than a
-# registry projection. The package version IS the OS version (2026.6), so the
-# release is tracked in the peipkg database and is upgradable.
+# This package IS the release. Its version is the OS version (2026.8), its
+# dependency closure is the base system, and installing it into an empty root
+# yields a bootable Peios. peiso builds an ISO by installing this package plus
+# the live/installer overlay; an installed system moves to the next release by
+# upgrading this one package. It absorbed the former peios-release-meta, so it
+# also owns OS identity.
+#
+# "Experimental" is an EDITION, not a channel: it marks that Peios is not yet
+# production-ready. It carries no cadence. Once enough exists for the split to
+# make sense it is replaced by peios-pro / peios-minimal / peios-desktop, each
+# shipping its own os-release and providing `peios-release`.
+#
+# Identity ships as the freedesktop os-release file that the external ecosystem
+# (tooling, install scripts, telemetry, humans) reads. Peios keeps system state
+# in the registry, but os-release is a foreign-facing compat surface, not Peios
+# config, so it is a static build artifact rather than a registry projection.
 #
 # Canonical file at /usr/lib/os-release — immutable, riding the read-only
 # squashfs, which is the safe home given Peios treats /etc as a generated
 # merged view — with /usr/etc/os-release a compat symlink to it, so tools that
-# look in /etc still resolve through the view and find it. No BUILD_ID: it is the one field a package cannot supply (it is
-# compose-time) and is optional; VERSION_ID plus the package revision answer
-# "which build" through the database. ID_LIKE is deliberately omitted: Peios is
-# not derived from another distribution, and a false family would mislead
-# package-manager detection (Peios uses peipkg/pkm).
+# look in /etc still resolve through the view and find it. No BUILD_ID: it is
+# the one field a package cannot supply (it is compose-time) and is optional;
+# VERSION_ID plus the package revision answer "which build" through the
+# database. ID_LIKE is deliberately omitted: Peios is not derived from another
+# distribution, and a false family would mislead package-manager detection
+# (Peios uses peipkg/pkm).
+#
+# release.toml is what this release asks of the system beyond its packages,
+# as data. peiso reads it when composing an image and upgrade-peios when
+# moving an installed system; peipkg never acts on it, because a package must
+# not be able to change system policy by being installed. registry.autoapply
+# names seed masters (/usr/share/regim/<name>.reg) shipped by packages in this
+# edition's closure; listing one here is what opts it in.
 
 out_dir = "out"
 
 [build]
 command = """
 set -eu
-mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/etc"
+mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/etc" "$PEKIT_OUT/usr/share/peios"
 cat > "$PEKIT_OUT/usr/lib/os-release" <<EOF
 NAME="Peios"
 ID=peios
 VERSION_ID="$PEKIT_VERSION"
-PRETTY_NAME="Peios $PEKIT_VERSION"
+VERSION="$PEKIT_VERSION (Experimental)"
+VARIANT="Experimental"
+VARIANT_ID=experimental
+PRETTY_NAME="Peios $PEKIT_VERSION Experimental"
+DOCUMENTATION_URL="https://learn.peios.org/"
 EOF
 # Compat symlink so tools checking /etc/os-release first still resolve to the
 # immutable vendor file. It ships in the vendor config layer (/usr/etc), the
 # bottom of the /etc merge — packages never write /etc directly. Relative, so
 # it is correct under any root prefix.
 ln -s ../lib/os-release "$PEKIT_OUT/usr/etc/os-release"
+
+cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
+# Peios $PEKIT_VERSION Experimental. Read by peiso and upgrade-peios.
+[registry]
+autoapply = [
+  "eudev-service",
+  "authd-service",
+  "authd-policy",
+  "lpsd-service",
+  "lpsd-authd-registration",
+  "lpsd-first-account",
+  "login-console",
+  "eventd-config",
+  "eventd-service",
+]
+EOF
 """
