@@ -4,8 +4,9 @@
 format = "peipkg"
 
 [package]
+# 34.2-3: the upstream testsuite runs in the build.
 # 34.2-2: the tarball is now verified against the maintainer's signature.
 # 34.2-1: first meson-built release (PEI-535); openssl on.
-version      = "{{version}}-2"
+version      = "{{version}}-3"
 architecture = "x86_64"
 homepage     = "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
