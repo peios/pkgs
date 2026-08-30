@@ -1,0 +1,20 @@
+format = "peipkg"
+
+[package]
+name         = "python3-setuptools"
+version      = "{{version}}-1"
+# x86_64, not noarch: the one site-packages is inside the triplet directory.
+architecture = "x86_64"
+description  = "setuptools - PEP 517 build backend for Python projects (build-time library)"
+# setuptools itself is MIT. It vendors its dependencies with their
+# dist-info LICENSE files in place: packaging (Apache-2.0 OR BSD-2-Clause),
+# importlib_metadata (Apache-2.0), autocommand (LGPL-3.0-only), the rest MIT.
+license      = "MIT AND Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause) AND LGPL-3.0-only"
+homepage     = "https://github.com/pypa/setuptools"
+
+[dependencies]
+python3 = ">= 3.14, < 3.15"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/python3-setuptools/"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"

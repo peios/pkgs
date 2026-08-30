@@ -1,0 +1,50 @@
+# ninja — the small build executor meson drives. Packaged with meson
+# (PEI-158 deferral ledger: kmod 34, qemu, and the meson-era libraries all
+# converge on the pair); nothing else in the pool wants it.
+#
+# Built with upstream's configure.py --bootstrap rather than CMake: it
+# needs only python3 and a C++ compiler, compiles every source once by
+# hand to get a first ninja, then uses that ninja to rebuild itself —
+# so the shipped binary is one ninja has already built. configure.py
+# honours CXX/CFLAGS/CXXFLAGS/LDFLAGS from the environment, so the distro
+# flags arrive without patching (it appends ours after its own
+# -fno-exceptions/-fno-rtti; -fexceptions wins, harmlessly).
+#
+# Test suite NOT run: since 1.12 ninja_test needs a GoogleTest source tree
+# (GTEST_SOURCE_DIR), and Peios packages no googletest. A future
+# googletest package would let `./ninja ninja_test && ./ninja_test` run
+# here. Docs: the manual is asciidoc, so no man page ships (docs-off
+# policy, same chain as perf's).
+#
+#   pekit publish --version 1.13.2 --env peipkg --keyring dev
+
+out_dir = "out"
+
+# GitHub's tag-archive URL: stable, templated, TOFU-locked. Upstream signs
+# nothing.
+[source.url]
+url      = "https://github.com/ninja-build/ninja/archive/refs/tags/v{{version}}.tar.gz"
+extract  = true
+root     = "ninja-{{version}}"
+versions = ">= 1.13.2"
+
+[build.main]
+command = """
+SRC="$(pwd)"
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+python3 "$SRC/configure.py" --bootstrap
+./ninja --version
+install -Dm755 ninja "$PEKIT_OUT/usr/bin/ninja"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+[build.main.dependencies.peipkg]
+dash                   = "*"
+coreutils-gnu          = "*"
+"build-essentials-c++" = "*"
+python3                = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+python3         = "*"

@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.13.2"
+  url = "https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz"
+  sha256 = "974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17"
+  locked_at = "2026-08-30T02:21:48Z"

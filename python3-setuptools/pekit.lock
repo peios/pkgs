@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "84.0.0"
+  url = "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-84.0.0.tar.gz"
+  sha256 = "f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73"
+  locked_at = "2026-08-30T02:22:54Z"
