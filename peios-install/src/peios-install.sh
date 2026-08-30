@@ -111,6 +111,11 @@ is_block_device() {
 # carries WRITE_DAC, WRITE_OWNER and DELETE, which re-stamping descriptors
 # needs.
 #
+# CREATOR OWNER, inherit-only, gives whoever creates an object full control of
+# it. Without it a non-SYSTEM principal can create a file it cannot read back:
+# the inherited SYSTEM and Administrators ACEs are a non-empty DACL, and the
+# token's default DACL is only consulted when inheritance yields nothing.
+#
 # The two other copies that must agree are the live root's mount hook
 # (live-boot's mount-root.sh) and peinit's PHASE1_SEED_SDDL. NOT seed-sd's
 # built-in default, which stays narrower on purpose: that one also stamps /dev,
@@ -119,7 +124,7 @@ is_block_device() {
 # Note the limit this inherits along with it: one inheritable ACL is the whole
 # tree's policy. It cannot express "readable system tree, private home
 # directories"; that needs per-subtree descriptors, which nothing produces yet.
-ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)'
+ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO;GA;;;S-1-3-0)'
 
 # The repository on the installation medium, and the package swap it exists
 # for. A live image cannot carry disk-boot: live-boot-irf conflicts with

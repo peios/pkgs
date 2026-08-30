@@ -112,7 +112,14 @@ mount -t tmpfs tmpfs /mnt/rootfs.rw
 # "readable system tree, private home directories". That needs per-subtree
 # descriptors shipped by packages (PSPU §5.20), at which point real SDs win
 # over synthesis and this descriptor governs only what it actually owns.
-seed-sd --sddl 'O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)' /mnt/rootfs.rw
+# The last ACE is CREATOR OWNER: whoever creates an object gets full control of
+# it. Without it a non-SYSTEM service can create a file it cannot then read
+# back, because the inherited SYSTEM and Administrators ACEs are a non-empty
+# DACL and the token's default DACL is only consulted when inheritance yields
+# nothing at all. Inherit-only, so it grants nothing on the directory it sits
+# on; KACS resolves it per created object and carries the rule onward down each
+# container (PEI-546).
+seed-sd --sddl 'O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO;GA;;;S-1-3-0)' /mnt/rootfs.rw
 
 mkdir /mnt/rootfs.rw/upper /mnt/rootfs.rw/work
 mount -t overlay overlay \

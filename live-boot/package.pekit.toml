@@ -53,6 +53,12 @@ format = "peipkg"
 # descriptor. The result was that no service running as anything but SYSTEM
 # could chdir to its own working directory, because execute is the traverse
 # bit and an explicit chdir gets no SeChangeNotifyPrivilege bypass (PEI-546).
-version      = "1.0.0-13"
+#
+# -14: and a CREATOR OWNER ACE, inherit-only, so whoever creates an object gets
+# full control of it. Without it a non-SYSTEM service can create a file it
+# cannot read back: the inherited SYSTEM and Administrators ACEs are a
+# non-empty DACL, and a token's default DACL is only consulted when inheritance
+# yields nothing at all.
+version      = "1.0.0-14"
 architecture = "x86_64"
 license      = "MIT"

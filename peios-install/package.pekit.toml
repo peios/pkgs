@@ -6,6 +6,12 @@
 #
 # x86_64 rather than noarch: the payload is a script, but it depends on the
 # x86_64 userspace, and §4.1.3 makes arch-dependence transitive through deps.
+# -4: the root descriptor written at format time grants Everyone read and
+# execute and adds an inherit-only CREATOR OWNER ACE, matching the live root
+# byte for byte (PEI-546). Execute is the traverse bit, so without it no
+# non-administrator can enter a directory; without CREATOR OWNER a principal
+# can create a file it cannot read back.
+
 format = "peipkg"
 
 [package]
@@ -52,16 +58,20 @@ name         = "peios-install"
 # boot what the installer produces" — true of the image, but the wrong system:
 # what has to carry disk-boot is the machine being INSTALLED, and the installer
 # now puts it there.
+# -3: correct the -2 note and the matching script comment. The cause given
+# below was wrong: `sd show` renders masks in short form and that `f` is the
+# composite FILE_ALL (0x001F01FF), not hex 0xF, so the descriptor granted full
+# access all along. The denial is real and still unexplained (PEI-196); only
+# the explanation was invented. Payload-affecting, hence a revision.
 # -2: device checks ask /proc/partitions instead of `[ -b ]`. Stat on a
 # devtmpfs node is refused even to a principal that can read and write it
-# (PEI-196: the synthesised descriptor grants 0xF, with no READ_ATTRIBUTES,
-# which kacs/file_access.c demands on every open), so `[ -b /dev/vdb ]` was
+# (PEI-196 — cause still open), so `[ -b /dev/vdb ]` was
 # false for an attached 8G disk and the installer reported it "not a block
 # device". `[ -b ]` cannot tell absent from denied — both are false — so the
 # message sent the operator hunting a hardware fault. `part` had already hit
 # this and moved to sysfs; this script should not have been written with the
 # check it knew did not work.
-version      = "0.3.0-2"
+version      = "0.3.0-4"
 architecture = "x86_64"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"
