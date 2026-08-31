@@ -82,6 +82,7 @@ autoapply = [
   "timed-service",
   "timed-policy",
   "atriumd-service",
+  "pnpd-service",
 ]
 EOF
 """

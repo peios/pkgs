@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "peios-experimental"
-version      = "{{version}}-3"
+version      = "{{version}}-4"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -112,6 +112,11 @@ clock = ">= 0.1.0"
 
 # The web session host.
 atriumd = ">= 0.0.24"
+
+# The PNP viewer (PEI-598): network observation, starting as the packet
+# viewer. Experimental-edition development tooling; whether it survives into
+# production editions is a PNP-shipping decision.
+pnpd = ">= 0.1.0"
 
 # Device firmware (PEI-466). Unconditional: see above.
 firmware-iwlwifi         = ">= 20260810"
