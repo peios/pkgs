@@ -1,0 +1,35 @@
+# peios-kernel-only — the edition the kernel conformance testsets boot.
+#
+# NOT FOR THE PUBLIC REPOSITORY. This is a test fixture, not a Peios
+# anyone should install: it has no init, no userspace, and no way to
+# reach a login. It is built here, alongside the kernel it pins, so the
+# two cannot drift — a test edition kept in the test repository would
+# need its own build of a package it does not own.
+#
+# It exists because peiso composes an *edition*, and composing a testset
+# VM the same way a release is composed is the point: a kernel test that
+# passed against a hand-assembled tree would be testing a tree no user
+# ever boots.
+#
+# The whole edition is one package. stratafs is builtin
+# (fs/stratafs/stratafs.ko in modules.builtin), as are vsock, the virtio
+# vsock transport, virtio_console and virtio_pci — so the kernel alone
+# can carry both the filesystem under test and provium's transport to
+# it, with nothing to load and nothing to load it with.
+
+out_dir = "out"
+
+[build]
+command = """
+set -eu
+mkdir -p "$PEKIT_OUT/usr/share/peios"
+# What this release asks of the system beyond its packages: nothing.
+# There are no services in a kernel-only root, so there is nothing to
+# seed. The file ships anyway because peiso's ISO path requires one, and
+# an empty list is a better answer there than a missing file.
+cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
+# Peios $PEKIT_VERSION Kernel Only. Read by peiso.
+[registry]
+autoapply = []
+EOF
+"""

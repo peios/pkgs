@@ -1,0 +1,26 @@
+format = "peipkg"
+
+[package]
+name         = "peios-kernel-only"
+version      = "{{version}}-1"
+architecture = "noarch"
+description  = "Peios Kernel Only edition: a kernel and nothing else, for conformance testsets"
+license      = "MIT"
+
+# Any edition satisfies `peios-release`; peiso resolves the edition
+# named in a spec's baseline to "peios-" plus its slug.
+[provides]
+peios-release = "{{version}}"
+
+# The kernel, and deliberately nothing else — no modules package, no
+# kmod, no coldplug, no init. A test VM built from this edition has
+# whatever the kernel carries builtin and not one thing more, which is
+# what makes a failure attributable to the kernel.
+#
+# The floor tracks peios-experimental's so the two editions cannot be
+# built against different kernels.
+[dependencies]
+kernel = ">= 0.20.1-rc12"
+
+[files]
+":usr/share/peios/release.toml" = "usr/share/peios/release.toml"
