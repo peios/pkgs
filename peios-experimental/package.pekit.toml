@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "peios-experimental"
-version      = "{{version}}-2"
+version      = "{{version}}-3"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -101,6 +101,14 @@ nss-peios-net = ">= 0.1.0"
 trustd          = ">= 0.1.0"
 trust           = ">= 0.1.0"
 ca-certificates = ">= 20260830"
+
+# Time. timed is the only process permitted to set the clock; clock is its
+# operator command. There is deliberately no NTP server here — that is a
+# separate, future, unprivileged package which subscribes to timed for its
+# state, because the client holds the privilege and listens on nothing
+# while a server is exposed to the whole domain and needs no privilege.
+timed = ">= 0.1.0"
+clock = ">= 0.1.0"
 
 # The web session host.
 atriumd = ">= 0.0.24"

@@ -75,6 +75,12 @@ autoapply = [
   "resolvd-service",
   "resolvd-port",
   "trustd-service",
+  # Two seeds, because a privilege grant is a different kind of statement
+  # from a service definition and an image may reasonably review or
+  # withhold it. Without timed-policy the daemon starts, measures, and
+  # cannot act.
+  "timed-service",
+  "timed-policy",
   "atriumd-service",
 ]
 EOF
