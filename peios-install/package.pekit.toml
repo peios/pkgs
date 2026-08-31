@@ -71,7 +71,7 @@ name         = "peios-install"
 # message sent the operator hunting a hardware fault. `part` had already hit
 # this and moved to sysfs; this script should not have been written with the
 # check it knew did not work.
-version      = "0.3.0-4"
+version      = "0.3.0-5"
 architecture = "x86_64"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"

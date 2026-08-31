@@ -265,7 +265,7 @@ done
 # A pre-flight only: the archive that ends up on the target is rebuilt from
 # the target's own initramfs root after the package swap. This checks the live
 # system is the shape the copy below assumes.
-[ -r /system/boot/initramfs.cpio.gz ] || die "missing /system/boot/initramfs.cpio.gz"
+[ -r /system/boot/initramfs.cpio.zst ] || die "missing /system/boot/initramfs.cpio.zst"
 
 echo "$progname: kernel     $kernel"
 echo "$progname: ESP        $esp_part"
@@ -536,9 +536,9 @@ target_hooks="$ROOT_MNT/boot/initramfs/usr/libexec/prelude/hooks.d"
 [ ! -f "$target_hooks/mount-root.sh" ] \
     || die "the target's initramfs still carries live-boot's root-mount hook"
 
-target_initramfs="$ROOT_MNT/system/boot/initramfs.cpio.gz"
+target_initramfs="$ROOT_MNT/system/boot/initramfs.cpio.zst"
 echo "$progname: rebuilding the target's initramfs"
-mkirf "$ROOT_MNT/boot/initramfs" "$target_initramfs" \
+mkirf "$ROOT_MNT/boot/initramfs" "$target_initramfs" --compress zstd \
       --exclude var/state/peipkg \
       --exclude lcl/conf/peipkg \
     || die "could not rebuild the target's initramfs"

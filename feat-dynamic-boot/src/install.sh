@@ -27,7 +27,7 @@ fi
 reg apply - <<'EOF'
 { "keys": [ { "path": "Machine/System/Services/mkirf-watch", "values": [
   { "name": "ImagePath", "type": "sz", "data": "/bin/mkirf" },
-  { "name": "Arguments", "type": "multi", "data": ["--watch", "/boot/initramfs", "/system/boot/initramfs.cpio.gz"] },
+  { "name": "Arguments", "type": "multi", "data": ["--watch", "--compress", "zstd", "/boot/initramfs", "/system/boot/initramfs.cpio.zst"] },
   { "name": "Type", "type": "dword", "data": 0 },
   { "name": "Readiness", "type": "dword", "data": 1 },
   { "name": "Triggers", "type": "multi", "data": ["boot"] },
@@ -42,7 +42,7 @@ EOF
 reg apply - <<EOF
 { "keys": [ { "path": "Machine/System/Services/mkuki-watch", "values": [
   { "name": "ImagePath", "type": "sz", "data": "/bin/mkuki" },
-  { "name": "Arguments", "type": "multi", "data": ["--watch", "--kernel", "$kernel", "--initramfs", "/system/boot/initramfs.cpio.gz", "--cmdline-file", "/usr/share/live-boot/cmdline", "--out", "/boot/efi/EFI/BOOT/BOOTX64.EFI"] },
+  { "name": "Arguments", "type": "multi", "data": ["--watch", "--kernel", "$kernel", "--initramfs", "/system/boot/initramfs.cpio.zst", "--cmdline-file", "/usr/share/live-boot/cmdline", "--out", "/boot/efi/EFI/BOOT/BOOTX64.EFI"] },
   { "name": "Type", "type": "dword", "data": 0 },
   { "name": "Readiness", "type": "dword", "data": 1 },
   { "name": "Triggers", "type": "multi", "data": ["boot"] },
