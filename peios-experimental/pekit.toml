@@ -61,6 +61,10 @@ cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
 [registry]
 autoapply = [
   "port-reservations",
+  # PNP dev-baseline packet policy (PEI-598): listing it here is what arms
+  # firewall enforcement on this edition (generation 1 at boot). jack
+  # approved the rule set 2026-09-01.
+  "pnp-rules",
   "eudev-service",
   "authd-service",
   "authd-policy",

@@ -2,7 +2,9 @@ format = "peipkg"
 
 [package]
 name         = "peios-experimental"
-version      = "{{version}}-4"
+# -5: autoapply the PNP dev-baseline packet policy (pnp-rules, PEI-598) —
+# arms firewall enforcement on this edition.
+version      = "{{version}}-5"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
