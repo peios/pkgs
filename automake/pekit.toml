@@ -25,7 +25,7 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 
 [build.main.dependencies.peipkg]
 build-essentials = "*"
-autoconf = "*"
+"org.gnu.autoconf" = "*"
 perl = "*"
 
 [build.main.dependencies.apt]

@@ -1,0 +1,56 @@
+# GNU Autoconf — configure-script generator; usbip's in-tree autogen.sh
+# runs it (PEI-158 Tier 2, wave 3).
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). Pure Perl + M4 scripts at runtime — both declared. The release
+# archive, rather than the Git tag, is intentional: it contains the generated
+# configure and Makefile.in files needed to bootstrap Autoconf without an
+# existing Autotools stack.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/autoconf/autoconf-{{version}}.tar.xz"
+extract  = true
+root     = "autoconf-{{version}}"
+# Soft maintenance floor: automatic sweeps follow every newer stable GNU
+# release; older history is intentionally outside this recipe.
+versions = ">= 2.72"
+
+# GNU publishes a detached signature beside every stable release. Pinning the
+# maintainer key closes the trust-on-first-use gap when an unattended sweep
+# discovers a version that is not in pekit.lock yet.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/zack-weinberg.asc"]
+fingerprints = ["82F854F3CE73174B8B63174091FCC32B6769AA64"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
+make -j"$(nproc)"
+# The release tarball is already bootstrapped, so the core suite has no
+# dependency cycle through Automake or Libtool. Their integration cases (and
+# Gettext's autopoint cases) skip cleanly when those optional tools are absent.
+make check
+make install DESTDIR="$PEKIT_OUT"
+# Peios does not currently ship an Info reader; the manual remains available
+# online and in the corresponding-source package.
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+bash                     = "*"
+m4                       = ">= 1.4.16"
+perl                     = ">= 5.6"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bash  = "*"
+m4    = ">= 1.4.16"
+perl  = ">= 5.6"

@@ -28,7 +28,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
-autoconf = "*"
+"org.gnu.autoconf" = "*"
 automake = "*"
 
 [build.main.dependencies.apt]

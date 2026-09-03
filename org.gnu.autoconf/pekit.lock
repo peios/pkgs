@@ -5,7 +5,15 @@
 schema = 1
 
 [[source]]
+  version = "2.72"
+  url = "https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz"
+  sha256 = "ba885c1319578d6c94d46e9b0dceb4014caafe2490e437a0dbca3f270a223f5a"
+  signature_key = "82f854f3ce73174b8b63174091fcc32b6769aa64"
+  locked_at = "2026-09-03T21:59:12Z"
+
+[[source]]
   version = "2.73"
   url = "https://ftp.gnu.org/gnu/autoconf/autoconf-2.73.tar.xz"
   sha256 = "9fd672b1c8425fac2fa67fa0477b990987268b90ff36d5f016dae57be0d6b52e"
-  locked_at = "2026-08-11T13:23:14Z"
+  signature_key = "82f854f3ce73174b8b63174091fcc32b6769aa64"
+  locked_at = "2026-09-03T21:59:12Z"

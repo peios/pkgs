@@ -7,19 +7,21 @@ format = "peipkg"
 side_effects = ["man-db"]
 
 [package]
-name         = "autoconf"
+name         = "org.gnu.autoconf"
 version      = "{{version}}-1"
-architecture = "x86_64"
-description  = "GNU autoconf - configure script generator"
-license      = "GPL-3.0-or-later"
+architecture = "noarch"
+description  = "GNU Autoconf - configure script generator"
+license      = "GPL-2.0-or-later AND GPL-3.0-or-later AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND GFDL-1.3-or-later AND FSFAP AND X11 AND LicenseRef-Public-Domain"
+license_class = "free"
 homepage     = "https://www.gnu.org/software/autoconf/"
 
 [dependencies]
-m4   = ">= 1.4"
-perl = ">= 5.44"
+m4   = ">= 1.4.16"
+perl = ">= 5.6"
 
 [files]
-"@source:COPYING"          = "usr/share/licenses/autoconf/"
+"@source:COPYING*"         = "usr/share/licenses/org.gnu.autoconf/"
+"@source:doc/fdl.texi"     = "usr/share/licenses/org.gnu.autoconf/GFDL-1.3.texi"
 ":usr/bin/**"              = "usr/bin"
 ":usr/share/autoconf/**"   = "usr/share/autoconf"
 ":usr/share/man/**"        = "usr/share/man"
