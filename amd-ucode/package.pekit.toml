@@ -20,9 +20,7 @@ description  = "AMD CPU microcode update, early-loaded from the initramfs"
 # aligned, in the uncompressed leading region — merging with intel-ucode's
 # segment and de-duplicating the shared kernel/x86/microcode/ parents (§10.1).
 [files]
-# License text (distro convention: /usr/share/licenses/<package-name>/).
-"@source:LICENSES/LICENSE.amd-ucode" = "usr/share/licenses/com.amd.amd-ucode/"
-# Upstream's loading and container-format notes (distro convention:
-# /usr/share/doc/<package-name>/).
-"@source:amd-ucode/README" = "usr/share/doc/com.amd.amd-ucode/"
+# The build normalises upstream's historical licence layouts and carries the
+# README on releases that provide it.
+":usr/share/**" = "usr/share/"
 ":++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin" = "++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"

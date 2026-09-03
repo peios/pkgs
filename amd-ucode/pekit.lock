@@ -5,6 +5,498 @@
 schema = 1
 
 [[source]]
+  version = "2019.03.12"
+  ref = "20190312"
+  commit = "b0d9583f9528890dfcb28d338fe70b50371084bf"
+  locked_at = "2026-09-03T15:42:51Z"
+
+[[source]]
+  version = "2019.04.16"
+  ref = "20190416"
+  commit = "260cb35b11a968e7896f911565b75e411636ad69"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.05.14"
+  ref = "20190514"
+  commit = "711d3297bac870af42088a467459a0634c1970ca"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.06.18"
+  ref = "20190618"
+  commit = "acb56f2fae3235195bc99ecb7d09742fb4b65e63"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.07.17"
+  ref = "20190717"
+  commit = "bf13a71b18af229b4c900b321ef1f8443028ded8"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.08.15"
+  ref = "20190815"
+  commit = "07b925b450bfb4cf3e141c612ec5b104658cd020"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.09.23"
+  ref = "20190923"
+  commit = "417a9c6e197a8d3eec792494efc87a2b42f76324"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.10.22"
+  ref = "20191022"
+  commit = "2b016afc348ba4b5fb2016ffcb2822f4a293da0c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2019.12.15"
+  ref = "20191215"
+  commit = "eefb5f7410150c00d0ab5c41c5d817ae9bf449b3"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.01.22"
+  ref = "20200122"
+  commit = "1eb2408c6feacccd10b02a49214745f15d1c6fb7"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.03.16"
+  ref = "20200316"
+  commit = "8eb0b281511d6455ca9151e52f694dc982193251"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.04.21"
+  ref = "20200421"
+  commit = "78c0348458c035cf1de6093555db5431cc8c1268"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.05.19"
+  ref = "20200519"
+  commit = "8ba6fa665c52093ddc0d81137fc3c82cee2c5ef8"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.06.19"
+  ref = "20200619"
+  commit = "e96c1212f0c61505f3efe6e9db324735b15fd290"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.07.21"
+  ref = "20200721"
+  commit = "2b823fc2568fc354551a63c37f5f5490d70a53d1"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.08.17"
+  ref = "20200817"
+  commit = "7a30af16115959cf5a817ae51429e72c0084fc0c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.09.18"
+  ref = "20200918"
+  commit = "00a84c516078defb76fbd57543b8d5c674a9a2be"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.10.22"
+  ref = "20201022"
+  commit = "dae4b4cd084102cd49c37aa8b579b208028ab025"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.11.18"
+  ref = "20201118"
+  commit = "2ea86675db1349235e9af0a9d0372b72da4db259"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2020.12.18"
+  ref = "20201218"
+  commit = "646f159690e2e00fdb829faeed35e23217ac944c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.02.08"
+  ref = "20210208"
+  commit = "b79d2396bc630bfd9b4058459d3e82d7c3428599"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.03.15"
+  ref = "20210315"
+  commit = "3568f962908cd9be9128de5cb732f4f58880a41f"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.05.11"
+  ref = "20210511"
+  commit = "7685cf49917b281b8799ba822e97595eeecb26b5"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.07.16"
+  ref = "20210716"
+  commit = "b7c134f0d3491113958276d631b4e69771a6c5be"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.08.18"
+  ref = "20210818"
+  commit = "c46b8c364b820e5676212134fd8453a0dca055c6"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.09.19"
+  ref = "20210919"
+  commit = "d526e044bddaa2c2ad855c7296147e49be0ab03c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.10.27"
+  ref = "20211027"
+  commit = "1d00989a65968d3d8fb2f6f727582f91b1cfa885"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2021.12.16"
+  ref = "20211216"
+  commit = "514cc566cb3b2edfb14690ba11123c3776f67b61"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.02.09"
+  ref = "20220209"
+  commit = "6342082c115e76ab5efe3f93c4c1ac6d01a3c7d0"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.03.10"
+  ref = "20220310"
+  commit = "cd01f857da28abc170ebf19216945873ec7d5fec"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.04.11"
+  ref = "20220411"
+  commit = "705f19ac52c81fdc7f62e8221a1938189be69ebc"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.05.09"
+  ref = "20220509"
+  commit = "b19cbdca78ab2adfd210c91be15a22568e8b8cae"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.06.10"
+  ref = "20220610"
+  commit = "7b71b75be8fb0fa7cceeb3dc22f97920a6be28bd"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.07.08"
+  ref = "20220708"
+  commit = "be7798e0cf106bfa10c3e9bdffe5c15e6b0d7ae9"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.08.15"
+  ref = "20220815"
+  commit = "8413c63c7a539a912be8851ce941eea32dcd1786"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.09.13"
+  ref = "20220913"
+  commit = "f09bebf31b0590bdc875d7236aa705279510cfd0"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.10.12"
+  ref = "20221012"
+  commit = "8b07c1fb1d8de4259611a0cccaeda893d792cd91"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.11.09"
+  ref = "20221109"
+  commit = "60310c2deb8c67948a38310ac5f15cf3abcc30e7"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2022.12.14"
+  ref = "20221214"
+  commit = "f3c283e198d3fb69f5183b8dea4fd32b8c3cbe76"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.01.17"
+  ref = "20230117"
+  commit = "7e4f0eda76d58024f78ac68d4ffd6f87d63a3a29"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.02.10"
+  ref = "20230210"
+  commit = "bf4115c1aa2bee686ec675595271da50611684b5"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.03.10"
+  ref = "20230310"
+  commit = "588dd07134daf4b0f6f74698f24eeb74ebe90012"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.04.04"
+  ref = "20230404"
+  commit = "2e92a49f90f73c8edc44b25c6e669d5e70893c90"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.05.15"
+  ref = "20230515"
+  commit = "512909428e46953e4ade391387aef1305f52029c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.06.25"
+  ref = "20230625"
+  commit = "ee91452dac5abfc4c5b9827cf55e701d8c0ca678"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.08.04"
+  ref = "20230804"
+  commit = "7be2766de1f45a494a3e913f2e9fb77191a8ddb5"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.09.19"
+  ref = "20230919"
+  commit = "3672ccab9237315db2f3a28a47f8ac1062a5a35e"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.10.30"
+  ref = "20231030"
+  commit = "2b304bfecb274d53f38b676d85b43bcb83db30dd"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.11.11"
+  ref = "20231111"
+  commit = "74158e7ac86dfaae97a04811434f8425b1a50ff1"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2023.12.11"
+  ref = "20231211"
+  commit = "f2e52a1c5861fde69aee517ffaf798b630bdf36b"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.01.15"
+  ref = "20240115"
+  commit = "9b6d0b0842b5fd99be6df3fcb238be10940e3704"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.02.20"
+  ref = "20240220"
+  commit = "97b693d243f0bb464819fa3f8326edd4091032e4"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.03.12"
+  ref = "20240312"
+  commit = "3b128b6069267b60a46a4074c383183177ee6e6d"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.04.10"
+  ref = "20240410"
+  commit = "1addd7dca2d953a5484c3e3c08dbd7dc253058dd"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.05.13"
+  ref = "20240513"
+  commit = "b9d2bf23459e7dea7811b867ad189359ad0e4409"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.06.10"
+  ref = "20240610"
+  commit = "9c10a2083c3663828e7c06554dfbb3929085b5bd"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.07.09"
+  ref = "20240709"
+  commit = "e94a2a3bc8bdfc6a4a7b05eed7803b64a409c9f5"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.08.11"
+  ref = "20240811"
+  commit = "594600762910b4bbe8a88d0dc6495521366c880c"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.09.09"
+  ref = "20240909"
+  commit = "552ed9b8d523588116adf4193bb4a40813bc0fc7"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.10.17"
+  ref = "20241017"
+  commit = "22a6c7dcc1d90b6026c56e168aad2d812e3bf54b"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.11.10"
+  ref = "20241110"
+  commit = "b5885ec543f4d40938d8e1c054865456c6144b38"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2024.12.10"
+  ref = "20241210"
+  commit = "b00a7f7e525095e5aae663945253fc8c709cc084"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.01.09"
+  ref = "20250109"
+  commit = "7673dffd5e3324a726caf8bfc0f1a005862f5f16"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.02.11"
+  ref = "20250211"
+  commit = "5bc5868b7ee5a243abdd73cfcd3bbf7166f4f42f"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.03.11"
+  ref = "20250311"
+  commit = "b69d4b74c98611d4c1bdd1d1a767791b451a3f38"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.04.10"
+  ref = "20250410"
+  commit = "c1a774f36657e30e28a83002a8ebf5add44e02aa"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.05.09"
+  ref = "20250509"
+  commit = "788aadc8f73d93908cf8545b2fc770fb6580a3f2"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.06.13"
+  ref = "20250613"
+  commit = "12fe085fa4096dedd82a9af0901fb8721379011f"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.06.27"
+  ref = "20250627"
+  commit = "f40eafe216833d083f4e5598b7f45e894c373ad1"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.07.08"
+  ref = "20250708"
+  commit = "99d64b4f788c16e81b6550ef94f43c6b91cfad2d"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.08.08"
+  ref = "20250808"
+  commit = "1ce2da4d7b91140cc3ac8698747fddb677cdf91a"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.09.17"
+  ref = "20250917"
+  commit = "add225168d0d1ba4c174d5eb15272b53de01ad5a"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.10.11"
+  ref = "20251011"
+  commit = "49fafa182b23577825976524a3aef8e1bc8878bf"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.10.21"
+  ref = "20251021"
+  commit = "6a0152a5d1a9d7699e13ca7ed81df2caa1262a77"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.11.11"
+  ref = "20251111"
+  commit = "6fc940781a013ad837ed8fea326d2b897467bbc3"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2025.11.25"
+  ref = "20251125"
+  commit = "4ee5122b3f58e4c07951746c4425e2f4f42e860f"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.01.10"
+  ref = "20260110"
+  commit = "06a743fd69999590e88199bb9edba9d5b73d6ad1"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.02.21"
+  ref = "20260221"
+  commit = "599764611a8ac213c6aa6dad17c941c2f46b53cb"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.03.09"
+  ref = "20260309"
+  commit = "c822cbbb14ce5b8ee1f27346220640ac350bbf34"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.04.10"
+  ref = "20260410"
+  commit = "dc85ccedc9c973682fbcf4d628ca61174bcc3120"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.05.19"
+  ref = "20260519"
+  commit = "d962a6a309b78778f458dc94713845eee105be14"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
+  version = "2026.06.22"
+  ref = "20260622"
+  commit = "b2722d241309a1872446c1d00c2e812bad055f89"
+  locked_at = "2026-09-03T15:45:33Z"
+
+[[source]]
   version = "2026.08.10"
   ref = "20260810"
   commit = "2135b2f7714a3a514c989b9728f51f36144cab6f"

@@ -24,6 +24,11 @@ url = "https://gitlab.com/kernel-firmware/linux-firmware.git"
 # mirror cache makes later refreshes incremental.
 ref       = "{{major}}{{minor}}{{patch}}"
 tag_regex = '^(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
+# Soft history floor for routine selection: keep the published catalogue
+# focused on 2026 onward. This is not an upstream compatibility boundary;
+# older releases remain pinned in pekit.lock and can be re-enabled by lowering
+# or removing this cap.
+versions  = ">=2026.0.0"
 
 # Concatenate the per-family AMD containers into the one blob the early loader
 # scans, in LC_ALL=C order for a byte-deterministic build.
@@ -32,11 +37,32 @@ command = """
 set -eu
 SRC="$(pwd)"
 DEST="$PEKIT_OUT/++/amd-ucode/kernel/x86/microcode"
-mkdir -p "$DEST"
+PKG_SHARE="$PEKIT_OUT/usr/share"
+LICENSE_DIR="$PKG_SHARE/licenses/com.amd.amd-ucode"
+DOC_DIR="$PKG_SHARE/doc/com.amd.amd-ucode"
+mkdir -p "$DEST" "$LICENSE_DIR"
 find "$SRC/amd-ucode" -maxdepth 1 -type f -name 'microcode_amd*.bin' -print0 \
   | LC_ALL=C sort -z \
   | xargs -0r cat > "$DEST/AuthenticAMD.bin"
 test -s "$DEST/AuthenticAMD.bin"
+
+# linux-firmware moved firmware licences into LICENSES/ in 2026. Normalise
+# both layouts so historical dated tags remain packageable.
+if test -f "$SRC/LICENSES/LICENSE.amd-ucode"; then
+  cp "$SRC/LICENSES/LICENSE.amd-ucode" "$LICENSE_DIR/"
+elif test -f "$SRC/LICENSE.amd-ucode"; then
+  cp "$SRC/LICENSE.amd-ucode" "$LICENSE_DIR/"
+else
+  echo "amd-ucode licence file is missing" >&2
+  exit 1
+fi
+
+# The dedicated README first appeared upstream in 2022; carry it whenever the
+# selected snapshot provides it without excluding older firmware releases.
+if test -f "$SRC/amd-ucode/README"; then
+  mkdir -p "$DOC_DIR"
+  cp "$SRC/amd-ucode/README" "$DOC_DIR/"
+fi
 """
 
 # The peipkg build root contains only declared tools. The apt provider keeps
