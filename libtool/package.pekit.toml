@@ -17,7 +17,7 @@ homepage     = "https://www.gnu.org/software/libtool/"
 [dependencies]
 glibc              = ">= 2.43"
 "org.gnu.autoconf" = ">= 2.72"
-automake           = ">= 1.18"
+"org.gnu.automake" = ">= 1.18"
 
 [files]
 "@source:COPYING"        = "usr/share/licenses/libtool/"

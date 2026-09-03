@@ -1,0 +1,63 @@
+# GNU Automake — Makefile.in generator; usbip's in-tree autogen.sh runs it
+# (PEI-158 Tier 2, wave 3).
+#
+# Autotools from the release tarball, out-of-source via DESTDIR (the m4
+# shape). Pure Perl scripts at runtime; Autoconf is declared because aclocal
+# and automake drive it. The release archive is intentional: it contains the
+# generated configure and Makefile.in files needed to build without an
+# existing Automake installation.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/automake/automake-{{version}}.tar.xz"
+extract  = true
+root     = "automake-{{version}}"
+# Soft maintenance floor: automatic sweeps follow every newer stable GNU
+# release; older history is intentionally outside this recipe.
+versions = ">= 1.18"
+
+# GNU publishes a detached signature beside every stable release. Pinning the
+# maintainer key closes the trust-on-first-use gap when an unattended sweep
+# discovers a version that is not in pekit.lock yet.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/karl-berry.asc"]
+fingerprints = ["17D3311B14BC0F248267BF020716748A30D155AD"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
+make -j"$(nproc)"
+# The core suite exercises generated C and C++ projects. Optional integrations
+# for tools such as Libtool, Gettext, DejaGnu and Vala skip cleanly when those
+# tools are absent, avoiding bootstrap cycles in the package set.
+# Peipkg builds in a rootless UID namespace whose apparent root cannot restore
+# arbitrary archive owners. Avoid GNU tar's root-only owner preservation while
+# the suite unpacks its prebuilt amhello fixture.
+TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+# Peios does not currently ship an Info reader; the manual and other upstream
+# documentation remain available in the corresponding-source package.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+bash                     = "*"
+gzip                     = "*"
+"org.gnu.autoconf"      = ">= 2.72"
+perl                     = ">= 5.6"
+tar                      = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bash           = "*"
+gzip           = "*"
+autoconf       = ">= 2.72"
+perl           = ">= 5.6"
+tar            = "*"
