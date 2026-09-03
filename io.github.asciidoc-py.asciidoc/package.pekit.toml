@@ -7,8 +7,8 @@ format = "peipkg"
 side_effects = ["man-db"]
 
 [package]
-name         = "asciidoc"
-version      = "{{version}}-2"
+name         = "io.github.asciidoc-py.asciidoc"
+version      = "{{version}}-1"
 # x86_64, not noarch: a private application's modules live under the triplet
 # directory, and its bytecode is bound to this interpreter.
 architecture = "x86_64"
@@ -28,7 +28,7 @@ libxml2-utils = ">= 2.15.3"
 docbook-xml   = ">= 4.5"
 
 [files]
-"@source:LICENSE"                         = "usr/share/licenses/asciidoc/"
+"@source:LICENSE"                         = "usr/share/licenses/io.github.asciidoc-py.asciidoc/"
 ":usr/bin/**"                             = "usr/bin"
 ":usr/share/man/man1/*.1"                 = "usr/share/man/man1"
 ":usr/lib/x86_64-linux-peios/asciidoc/**" = "usr/lib/x86_64-linux-peios/asciidoc"

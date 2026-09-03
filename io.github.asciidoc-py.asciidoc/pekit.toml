@@ -1,4 +1,5 @@
-# asciidoc — the original AsciiDoc processor (asciidoc-py), and a2x, its
+# io.github.asciidoc-py.asciidoc — the original AsciiDoc processor
+# (asciidoc-py), and a2x, its
 # front-end for the toolchain that turns a document into a man page. Here
 # because the kernel tools write their documentation in AsciiDoc: kvm_stat's
 # man page is built by a2x, and perf's and libperf's by asciidoc feeding
