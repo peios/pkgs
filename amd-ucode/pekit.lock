@@ -5,7 +5,7 @@
 schema = 1
 
 [[source]]
-  version = "20260810"
+  version = "2026.08.10"
   ref = "20260810"
   commit = "2135b2f7714a3a514c989b9728f51f36144cab6f"
-  locked_at = "2026-09-03T14:41:46Z"
+  locked_at = "2026-09-03T15:28:20Z"

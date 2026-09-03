@@ -17,12 +17,13 @@ enabled = false
 
 [source.git]
 url = "https://gitlab.com/kernel-firmware/linux-firmware.git"
-# linux-firmware tags dated snapshots (YYYYMMDD); the package version is that
-# date. The full checkout is a deliberate cost: Git tag enumeration makes
-# unattended --latest updates reliable, while pekit's mirror cache makes later
-# refreshes incremental.
-ref       = "{{version}}"
-tag_regex = '^\d{8}$'
+# linux-firmware tags dated snapshots as YYYYMMDD. Named captures expose them
+# as the Peios version YYYY.MM.DD; the ref template maps that dotted version
+# back to the compact upstream tag. The full checkout is a deliberate cost: Git
+# tag enumeration makes unattended --latest updates reliable, while pekit's
+# mirror cache makes later refreshes incremental.
+ref       = "{{major}}{{minor}}{{patch}}"
+tag_regex = '^(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
 
 # Concatenate the per-family AMD containers into the one blob the early loader
 # scans, in LC_ALL=C order for a byte-deterministic build.
