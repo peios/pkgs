@@ -22,4 +22,7 @@ description  = "AMD CPU microcode update, early-loaded from the initramfs"
 [files]
 # License text (distro convention: /usr/share/licenses/<name>/).
 "@source:LICENSES/LICENSE.amd-ucode" = "usr/share/licenses/amd-ucode/"
+# Upstream's loading and container-format notes (distro convention:
+# /usr/share/doc/<name>/).
+"@source:amd-ucode/README" = "usr/share/doc/amd-ucode/"
 ":++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin" = "++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"

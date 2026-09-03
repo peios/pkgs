@@ -9,22 +9,43 @@
 
 out_dir = "out"
 
+# The linux-firmware artefact is itself the distributable firmware. Emitting a
+# corresponding-source package would duplicate the entire upstream repository
+# without providing rebuildable source for the microcode blobs.
+[source_package]
+enabled = false
+
 [source.git]
 url = "https://gitlab.com/kernel-firmware/linux-firmware.git"
 # linux-firmware tags dated snapshots (YYYYMMDD); the package version is that
-# date. NOTE: the full linux-firmware tree is large for one subdirectory — a
-# real build should sparse-checkout amd-ucode/ (or mirror just that subtree)
-# rather than clone the whole repo. Left as a plain clone here for clarity.
+# date. The full checkout is a deliberate cost: Git tag enumeration makes
+# unattended --latest updates reliable, while pekit's mirror cache makes later
+# refreshes incremental.
 ref       = "{{version}}"
 tag_regex = '^\d{8}$'
 
 # Concatenate the per-family AMD containers into the one blob the early loader
-# scans, in LC_ALL=C order for a byte-deterministic build. Only coreutils.
+# scans, in LC_ALL=C order for a byte-deterministic build.
 [build.main]
 command = """
+set -eu
 SRC="$(pwd)"
 DEST="$PEKIT_OUT/++/amd-ucode/kernel/x86/microcode"
 mkdir -p "$DEST"
-find "$SRC/amd-ucode" -name 'microcode_amd*.bin' | LC_ALL=C sort | xargs cat > "$DEST/AuthenticAMD.bin"
+find "$SRC/amd-ucode" -maxdepth 1 -type f -name 'microcode_amd*.bin' -print0 \
+  | LC_ALL=C sort -z \
+  | xargs -0r cat > "$DEST/AuthenticAMD.bin"
 test -s "$DEST/AuthenticAMD.bin"
 """
+
+# The peipkg build root contains only declared tools. The apt provider keeps
+# the same recipe usable on the bootstrap/development rung.
+[build.main.dependencies.peipkg]
+dash          = "*"
+coreutils-gnu = "*"
+findutils     = "*"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+findutils = "*"

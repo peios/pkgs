@@ -19,3 +19,11 @@
 #   future targets, e.g.:  [[publish.r2]] \n bucket = "..." \n remote = "..."
 [[publish.localdir]]
 path = "_pkgsOut_"
+
+# Complete signed package repository. Individual recipes inherit this target;
+# the keyring selects environment-specific key custody without putting a key
+# path or private material in version control.
+[publish.peipkg]
+path = "_peipkgRepo_"
+name = "peios"
+signing_key = "keyring:signing.repository_key"
