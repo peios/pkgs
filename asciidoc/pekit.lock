@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "10.2.1"
-  url = "https://files.pythonhosted.org/packages/source/a/asciidoc/asciidoc-10.2.1.tar.gz"
+  url = "https://files.pythonhosted.org/packages/1d/e7/315a82f2d256e9270977aa3c15e8fe281fd7c40b8e2a0b97e0cb61ca8fa0/asciidoc-10.2.1.tar.gz"
   sha256 = "d9f13c285981b3c7eb660d02ca0a2779981e88d48105de81bb40445e60dddb83"
-  locked_at = "2026-08-30T03:50:48Z"
+  locked_at = "2026-09-03T16:38:36Z"

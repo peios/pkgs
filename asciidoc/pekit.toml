@@ -24,22 +24,48 @@
 
 out_dir = "out"
 
-[source.url]
-url      = "https://files.pythonhosted.org/packages/source/a/asciidoc/asciidoc-{{version}}.tar.gz"
-extract  = true
-root     = "asciidoc-{{version}}"
+[source.pypi]
+project  = "asciidoc"
+artifact = "sdist"
+# Soft maintenance floor: automatic sweeps follow every newer compatible
+# upstream release; older history is intentionally outside this recipe.
 versions = ">= 10.2.1"
 
 [build.main]
 command = """
+SRC="$(pwd)"
 python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
   --backend setuptools.build_meta --copy-tree --private asciidoc \
-  --out "$PEKIT_OUT" "$(pwd)"
+  --out "$PEKIT_OUT" "$SRC"
 
-# Nothing else to do: asciidoc's configuration -- asciidoc.conf, the backend
-# definitions, and the docbook-xsl customisation layers a2x applies -- ships
-# inside the wheel as package data under asciidoc/resources/, which is where
-# asciidoc's own lookup expects it relative to the module.
+# Asciidoc's configuration -- asciidoc.conf, the backend definitions, and the
+# docbook-xsl customisation layers a2x applies -- ships inside the wheel as
+# package data under asciidoc/resources/, where its own lookup expects it
+# relative to the module.
+
+# The PyPI sdist does not carry the pytest suite, but it does carry upstream's
+# doctests. Run those, then exercise the complete a2x -> DocBook -> xmllint ->
+# xsltproc path by building the two man pages upstream added to the 10.2.1
+# sdist for distributors. Peios build roots expose the catalog at its package
+# path while Debian-family build roots use the conventional /etc path.
+python3 -m asciidoc.asciidoc --doctest
+MAN="$PEKIT_OUT/usr/share/man/man1"
+mkdir -p "$MAN"
+if [ -f /usr/etc/xml/catalog ]; then
+  export XML_CATALOG_FILES=/usr/etc/xml/catalog
+elif [ -f /etc/xml/catalog ]; then
+  export XML_CATALOG_FILES=/etc/xml/catalog
+else
+  echo "asciidoc: no DocBook XML catalog found" >&2
+  exit 1
+fi
+for page in asciidoc a2x; do
+  python3 -m asciidoc.a2x -f manpage -D "$MAN" "$SRC/doc/$page.1.txt"
+  test -s "$MAN/$page.1" || {
+    echo "asciidoc: a2x produced no $page(1) page" >&2
+    exit 1
+  }
+done
 """
 
 [build.main.dependencies.peipkg]
@@ -47,7 +73,15 @@ dash                 = "*"
 coreutils-gnu        = "*"
 python3              = ">= 3.14, < 3.15"
 "python3-setuptools" = "*"
+xsltproc             = "*"
+"libxml2-utils"      = "*"
+"docbook-xsl"        = "*"
+"docbook-xml"        = "*"
 
 [build.main.dependencies.apt]
 python3            = "*"
 python3-setuptools = "*"
+xsltproc           = "*"
+libxml2-utils      = "*"
+docbook-xsl        = "*"
+docbook-xml        = "*"
