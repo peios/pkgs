@@ -1,0 +1,71 @@
+# dev.peios.peios-installer — the Peios installer: installerd (the engine)
+# and install-tui (its terminal surface).
+#
+# This is the successor to `peios-install`, the single shell script, and the
+# two coexist deliberately while the new one is proven: the script is what
+# `make boot-install` still drives, and nothing is retired until this has
+# installed a system that boots.
+#
+# What changed is the shape, not the steps. installerd owns the same phases
+# the script ran -- partition, format, copy, boot -- and speaks MSIP (PGSS §3)
+# so that any number of surfaces can drive and watch one installation. The
+# surface holds no privilege: it draws and collects, and everything that needs
+# SYSTEM happens in the daemon.
+#
+# Built from the `installer` working tree, which references the sibling `msip`
+# tree by path. Both are outside pkgs/, so this builds with --local until they
+# have tags to fetch.
+#
+# musl and static, as prelude does, and for a simpler reason: neither binary
+# links libpeios or peios-sys -- the installer drives Peios through its
+# command-line tools, not its C ABI -- so there is nothing to link against a
+# sysroot for, and a static binary removes the build's dependency on a
+# matching glibc entirely. Worth revisiting if either binary ever grows a
+# libpeios dependency, at which point it should link dynamically like authd.
+
+out_dir = "out"
+
+# Local working copy for `--local`. Relative to this recipe dir.
+[source.local]
+path = "../../installer"
+
+[build]
+command = """
+set -eu
+
+SRC="$(pwd)"
+REPO_ROOT="$(cd "$SRC/.." && pwd)"
+
+for tool in cargo rustc; do
+  command -v "$tool" >/dev/null || { echo "missing required build tool: $tool" >&2; exit 1; }
+done
+
+# msip is a sibling repository referenced by path from the workspace's
+# Cargo.toml. Checked explicitly, because cargo's own error for a missing
+# path dependency does not say which tree it expected to find.
+[ -f "$REPO_ROOT/msip/Cargo.toml" ] || {
+  echo "msip not found at $REPO_ROOT/msip -- the installer workspace needs it as a sibling" >&2
+  exit 1
+}
+
+# The target comes from the tree's own .cargo/config.toml; naming it here too
+# would let the two disagree silently.
+cargo build --release --locked --manifest-path "$SRC/Cargo.toml"
+
+BIN="$SRC/target/x86_64-unknown-linux-musl/release"
+
+# /usr/sbin for the daemon (it appears in a service definition), /usr/bin for
+# the surface (a person runs it). The same split peios-install's own recipe
+# reasons about, landing on the other side of it because this package ships
+# both kinds of program.
+install -D -m 0755 "$BIN/installerd"  "$PEKIT_OUT/usr/sbin/installerd"
+install -D -m 0755 "$BIN/install-tui" "$PEKIT_OUT/usr/bin/install-tui"
+
+# The seed master. Inert until an edition names it in [registry] autoapply --
+# a package must not be able to arm a service by being installed.
+install -D -m 0644 "$SRC/registry.d/installerd-service.reg" \
+                   "$PEKIT_OUT/usr/share/regim/installerd-service.reg"
+
+install -D -m 0644 "$SRC/LICENSE" \
+                   "$PEKIT_OUT/usr/share/licenses/dev.peios.peios-installer/LICENSE"
+"""

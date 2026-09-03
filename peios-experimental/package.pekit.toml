@@ -71,6 +71,12 @@ dash          = ">= 0.5.12"
 peipkg        = ">= 0.1.1"
 peios-install = ">= 0.3.0"
 
+# The installer proper: installerd (the engine, a SYSTEM service) and
+# install-tui (its terminal surface). Ships alongside peios-install, not
+# instead of it, until it has installed a system that boots -- the script is
+# still what `make boot-install` drives.
+"dev.peios.peios-installer" = ">= 0.1.0"
+
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 prelude = { constraint = ">= 0.0.1", root = "initramfs" }
 peinit  = ">= 0.0.1"

@@ -87,6 +87,9 @@ autoapply = [
   "timed-policy",
   "atriumd-service",
   "pnpd-service",
+  # The installer engine. Idles until a surface opens a conversation, so it
+  # costs a process and nothing else on a system nobody is installing from.
+  "installerd-service",
 ]
 EOF
 """

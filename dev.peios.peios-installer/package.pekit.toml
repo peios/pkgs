@@ -1,0 +1,28 @@
+format = "peipkg"
+
+[package]
+name          = "dev.peios.peios-installer"
+version       = "{{version}}-1"
+architecture  = "x86_64"
+description   = "Peios installer - installerd engine and the install-tui surface"
+license       = "MIT"
+license_class = "free"
+
+# The tools installerd drives. It shells out to them rather than linking
+# anything: `part` and the filesystem tools come from peiosutils and its
+# siblings, peipkg performs the boot-package swap on the target, and mkirf
+# and mkuki rebuild the initramfs and the UKI. Each one is a phase that
+# fails loudly if the tool is absent, so they are dependencies in the real
+# sense rather than a convenience list.
+[dependencies]
+peiosutils = ">= 0.1.4"
+peipkg     = ">= 0.1.1"
+dosfstools = ">= 4.2"
+e2fsprogs  = ">= 1.47.0"
+prelude    = ">= 0.0.1"
+
+[files]
+":usr/sbin/installerd"      = "usr/sbin"
+":usr/bin/install-tui"      = "usr/bin"
+":usr/share/regim/**"       = "usr/share/regim"
+":usr/share/licenses/**"    = "usr/share/licenses"
