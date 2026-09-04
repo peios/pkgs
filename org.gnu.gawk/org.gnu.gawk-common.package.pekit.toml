@@ -1,0 +1,11 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.gawk-common"
+architecture = "noarch"
+description  = "GNU Awk libraries and command manuals"
+
+[files]
+"@source:COPYING"    = "usr/share/licenses/org.gnu.gawk-common/"
+":usr/share/awk/**"  = "usr/share/awk"
+":usr/share/man/**"  = "usr/share/man"

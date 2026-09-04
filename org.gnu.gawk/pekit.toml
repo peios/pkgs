@@ -1,0 +1,168 @@
+# GNU Gawk — GNU's awk implementation and extension runtime.
+#
+# Loadable modules live under the architecture-qualified Peios library root.
+# Readline support is intentionally disabled until PEI-613 supplies a
+# production Readline package; batch awk and the debugger otherwise remain
+# fully functional.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/gawk/gawk-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gawk/"
+extract     = true
+root        = "gawk-{{version}}"
+file_regex  = 'gawk-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 5.x releases
+# automatically; a future major line requires a compatibility review.
+versions    = ">= 5.4.1, < 6"
+
+# Gawk releases are signed by the maintainer. Pin Arnold Robbins's exact
+# primary fingerprint from Savannah's official Gawk project keyring.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/arnold-robbins.asc"]
+fingerprints = ["D1967C63788713177D861ED7DF597815937EC0D2"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --disable-nls \
+  --enable-extensions \
+  --enable-pma \
+  --with-mpfr=/usr \
+  --without-readline
+
+make -j"$(nproc)"
+# Run the complete native regression suite before accepting an upstream
+# release. This covers the language, locale handling, MPFR mode, persistent
+# arrays, debugger and loadable extensions. Pekit's build namespace has no
+# usable network and maps the builder to uid 0, so accept only the two probes
+# that exercise precisely those unavailable facilities.
+if ! PAGER=cat make -j"$(nproc)" check; then
+  actual=$(find test -maxdepth 1 -type f -name '_*' -printf '%f\n' \
+    | LC_ALL=C sort)
+  expected=$(printf '%s\n' _nonfatal3 _pma)
+  [ "$actual" = "$expected" ]
+  test "$(cat test/_pma)" = \
+    'gawk: fatal: using persistent memory is not allowed when running as root.'
+  test "$(wc -l < test/_nonfatal3)" -eq 2
+  grep -Fqx '1' test/_nonfatal3
+  grep -Fqx \
+    'gawk: nonfatal3.awk:4: warning: remote host and port information (localhost, 0) invalid: System error' \
+    test/_nonfatal3
+fi
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios has no Info reader. Avoid libtool archives, and normalize the bug
+# reporter's shell path for the /usr-native filesystem contract.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc" \
+       "$PEKIT_OUT/usr/etc"
+find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -name '*.la' -delete
+sed -i '1s|^#!/bin/sh|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/gawkbug"
+
+BIN="$PEKIT_OUT/usr/bin/gawk"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk"
+test -x "$BIN"
+test "$(readlink "$PEKIT_OUT/usr/bin/awk")" = gawk
+test "$PEKIT_OUT/usr/bin/gawk-$PEKIT_VERSION" -ef "$BIN"
+test -f "$PEKIT_OUT/usr/include/gawkapi.h"
+test -f "$LIBDIR/ordchr.so"
+
+# Exercise the installed language, arbitrary precision arithmetic, the awk
+# library search path and dynamic extension loader from the staged tree.
+SMOKE="$PEKIT_OUT/.gawk-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' 'alpha 2' 'beta 3' > "$SMOKE/input"
+"$BIN" '{ total += $2 } END { print total }' "$SMOKE/input" \
+  > "$SMOKE/basic.out"
+test "$(cat "$SMOKE/basic.out")" = 5
+test "$("$BIN" -M 'BEGIN { print 2^128 }')" = \
+  340282366920938463463374607431768211456
+AWKPATH="$PEKIT_OUT/usr/share/awk" \
+  "$BIN" '@include "assert.awk"; BEGIN { assert(1, "staged awk library") }'
+AWKLIBPATH="$LIBDIR" "$BIN" -l ordchr 'BEGIN { print ord("A") }' \
+  > "$SMOKE/extension.out"
+test "$(cat "$SMOKE/extension.out")" = 65
+"$PEKIT_OUT/usr/libexec/awk/pwcat" \
+  | "$BIN" -F: 'NF && NF != 7 { exit 1 }'
+"$PEKIT_OUT/usr/libexec/awk/grcat" \
+  | "$BIN" -F: 'NF && NF != 4 { exit 1 }'
+"$BIN" --version | head -2 | grep -F "$PEKIT_VERSION"
+"$BIN" --version | grep -F 'GNU MPFR'
+"$BIN" --version | grep -F 'GNU MP'
+
+# All shipped code must retain the distro hardening contract and carry no
+# build-tree search path. The executable is PIE; extension modules are DSOs.
+find "$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk" -type f -name '*.so' \
+  | LC_ALL=C sort > "$SMOKE/extensions"
+test -s "$SMOKE/extensions"
+printf '%s\n' "$BIN" \
+  "$PEKIT_OUT/usr/libexec/awk/grcat" \
+  "$PEKIT_OUT/usr/libexec/awk/pwcat" \
+  | cat - "$SMOKE/extensions" > "$SMOKE/elfs"
+while IFS= read -r elf; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done < "$SMOKE/elfs"
+
+# Produce conventional build-ID debuginfo and exact DWARF-referenced source
+# for the interpreter and every installed extension module.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+while IFS= read -r absolute; do
+  elf=${absolute#"$PEKIT_OUT/"}
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gawk \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done < "$SMOKE/elfs"
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.gawk/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gawk/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+glibc-bin          = ">= 2.43"
+glibc-langpack-el  = ">= 2.43"
+glibc-langpack-en  = ">= 2.43"
+glibc-langpack-fr  = ">= 2.43"
+glibc-langpack-ja  = ">= 2.43"
+glibc-langpack-ru  = ">= 2.43"
+mpfr-devel         = ">= 4.2.2"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+locales-all     = "*"
+libmpfr-dev     = "*"
+patchelf        = "*"

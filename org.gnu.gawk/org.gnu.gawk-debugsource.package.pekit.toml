@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gawk-debugsource"
+description = "GNU Awk interpreter, helper and extension debug sources"
+
+[dependencies]
+"org.gnu.gawk-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

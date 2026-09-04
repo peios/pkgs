@@ -1,0 +1,23 @@
+[package]
+name        = "org.gnu.gawk"
+description = "GNU pattern scanning and processing language"
+
+[provides]
+gawk = "{{version}}"
+awk  = "{{version}}"
+
+[dependencies]
+glibc                 = ">= 2.43"
+gmp                   = ">= 6.3.0"
+mpfr                  = ">= 4.2.2"
+dash                  = "*"
+"org.gnu.gawk-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                         = "usr/share/licenses/org.gnu.gawk/"
+":usr/bin/gawk"                           = "usr/bin/gawk"
+":usr/bin/gawk-*"                         = "usr/bin"
+":usr/bin/awk"                            = "usr/bin/awk"
+":usr/bin/gawkbug"                        = "usr/bin/gawkbug"
+":usr/lib/x86_64-linux-peios/gawk/**"     = "usr/lib/x86_64-linux-peios/gawk"
+":usr/libexec/awk/**"                     = "usr/libexec/awk"

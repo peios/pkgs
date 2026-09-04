@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gawk-devel"
+description = "GNU Awk loadable extension development interface"
+
+[dependencies]
+"org.gnu.gawk" = "{{version}}-1"
+
+[files]
+":usr/include/gawkapi.h" = "usr/include/gawkapi.h"
