@@ -66,6 +66,17 @@ printf '%s\n' \
 cc -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
   -o "$SMOKE/smoke" "$SMOKE/smoke.c" -lcapstone
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/smoke"
+printf '%s\n' \
+  'cmake_minimum_required(VERSION 3.15)' \
+  'project(capstone_consumer C)' \
+  'find_package(capstone CONFIG REQUIRED)' \
+  'add_executable(capstone_consumer smoke.c)' \
+  'target_link_libraries(capstone_consumer PRIVATE capstone::capstone_shared)' \
+  > "$SMOKE/CMakeLists.txt"
+cmake -S "$SMOKE" -B "$SMOKE/cmake-build" \
+  -Dcapstone_DIR="$LIBDIR/cmake/capstone"
+cmake --build "$SMOKE/cmake-build" --parallel "$(nproc)"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cmake-build/capstone_consumer"
 rm -rf "$SMOKE"
 
 # Distribution debug split.
