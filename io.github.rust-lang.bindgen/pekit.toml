@@ -1,0 +1,88 @@
+# bindgen — the C-to-Rust bindings generator; the kernel's Rust side runs
+# it over kernel headers through libclang (PEI-158 item 9).
+#
+# Pinned exactly to 0.65.1: pkm's build/toolchain.lock is the authority and
+# kernel bindgen requirements are strict. A kernel-toolchain update must move
+# both pins together; this package must not independently follow newer bindgen.
+#
+# Source is the published crate from static.crates.io (a tar.gz). crates.io
+# does not sign artifacts, so this is lock-only TOFU. crates.io versions are
+# immutable, the lock hash matches its sparse index, and the crate's Cargo.lock
+# supplies per-dependency hashes that cargo verifies while vendoring.
+#
+# Two-stage shape: [build.vendor] materialises the Cargo.lock closure in the
+# workspace's source-fetch environment; [build.main] consumes it with cargo's
+# network-disabled `--offline --locked` mode. Package in one invocation with
+# `--env=peipkg-net`; only the vendor stage makes network requests.
+#
+# clang-sys stays on its default runtime-loading feature, so libclang is
+# a RUNTIME dep (dlopen), not a build dep — the clang package carries
+# libclang.so + the resource headers.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://static.crates.io/crates/bindgen-cli/bindgen-cli-{{version}}.crate"
+extract  = true
+root     = "bindgen-cli-{{version}}"
+versions = "= 0.65.1"
+
+[build.vendor]
+command = """
+set -eu
+SRC="$(pwd)"
+export CARGO_HOME=/tmp/cargo
+mkdir -p "$CARGO_HOME" "$PEKIT_OUT"
+cd "$SRC"
+cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
+"""
+
+[build.vendor.dependencies.peipkg]
+build-essentials = "*"
+rust = "*"
+
+[build.vendor.dependencies.apt]
+cargo = "*"
+ca-certificates = "*"
+
+[build.main]
+needs = ["vendor"]
+command = """
+set -eu
+SRC="$(pwd)"
+export CARGO_HOME=/tmp/cargo
+mkdir -p "$CARGO_HOME"
+cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+cd "$SRC"
+cargo build --release --offline --locked --target-dir "$PEKIT_OUT/target"
+test "$("$PEKIT_OUT/target/release/bindgen" --version)" = "bindgen $PEKIT_VERSION"
+
+# Exercise the actual libclang-loading path and validate a stable fragment of
+# generated Rust, not merely that the statically linked CLI starts.
+printf 'struct peios_bindgen_smoke { unsigned long value; };\n' \
+  > "$PEKIT_OUT/smoke.h"
+LIBCLANG_SO="$(find /usr/lib -name libclang.so -print -quit)"
+test -n "$LIBCLANG_SO"
+export LIBCLANG_PATH="${LIBCLANG_SO%/*}"
+"$PEKIT_OUT/target/release/bindgen" \
+  --allowlist-type peios_bindgen_smoke \
+  --no-layout-tests \
+  "$PEKIT_OUT/smoke.h" > "$PEKIT_OUT/smoke.rs"
+grep -q 'peios_bindgen_smoke' "$PEKIT_OUT/smoke.rs"
+grep -q 'c_ulong' "$PEKIT_OUT/smoke.rs"
+
+mkdir -p "$PEKIT_OUT/usr/bin"
+cp "$PEKIT_OUT/target/release/bindgen" "$PEKIT_OUT/usr/bin/bindgen"
+rm -rf "$PEKIT_OUT/target" "$PEKIT_OUT/smoke.h" "$PEKIT_OUT/smoke.rs"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+rust = "*"
+clang = ">= 18.1.8, < 19"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cargo = "*"
+clang-18 = "*"
+libclang-18-dev = "*"

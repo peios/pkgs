@@ -1,11 +1,12 @@
 format = "peipkg"
 
 [package]
-name         = "bindgen"
+name         = "io.github.rust-lang.bindgen"
 version      = "{{version}}-1"
 architecture = "x86_64"
 description  = "bindgen - C-to-Rust FFI bindings generator (the bindgen-cli crate)"
 license      = "BSD-3-Clause"
+license_class = "free"
 homepage     = "https://github.com/rust-lang/rust-bindgen"
 
 [dependencies]
@@ -15,5 +16,5 @@ glibc = ">= 2.43"
 clang = ">= 18.1.8, < 19"
 
 [files]
-"@source:LICENSE" = "usr/share/licenses/bindgen/"
+"@source:LICENSE" = "usr/share/licenses/io.github.rust-lang.bindgen/"
 ":usr/bin/bindgen" = "usr/bin/bindgen"
