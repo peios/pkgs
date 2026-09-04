@@ -1,0 +1,19 @@
+[package]
+name        = "com.darwinsys.file-libmagic"
+description = "file - libmagic runtime library"
+
+[provides]
+libmagic = "{{version}}"
+
+[dependencies]
+glibc                         = ">= 2.43"
+"com.darwinsys.file-magic"   = "{{version}}-1"
+zlib                          = "*"
+"org.sourceware.bzip2-libs"  = "*"
+liblzma                       = "*"
+libzstd                       = "*"
+
+[files]
+"@source:COPYING"                                  = "usr/share/licenses/com.darwinsys.file-libmagic/"
+":usr/lib/x86_64-linux-peios/libmagic.so.1"        = "usr/lib/x86_64-linux-peios/libmagic.so.1"
+":usr/lib/x86_64-linux-peios/libmagic.so.1.*"      = "usr/lib/x86_64-linux-peios"

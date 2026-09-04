@@ -1,0 +1,13 @@
+# Shared metadata for file/libmagic. BSD-2-Clause-Darwin is the project's
+# notice-placement variant; fallback sources in the generated source package
+# additionally carry ordinary BSD-2-Clause, BSD-3-Clause and ISC terms.
+# One tiny compatibility source is explicitly public domain and adds no terms.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-2-Clause-Darwin AND BSD-2-Clause AND BSD-3-Clause AND ISC"
+license_class = "free"
+homepage      = "https://www.darwinsys.com/file/"

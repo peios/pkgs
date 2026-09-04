@@ -1,0 +1,175 @@
+# file — the standard file-type identifier, its libmagic API, and the magic
+# database that gives both their breadth.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://astron.com/pub/file/file-{{version}}.tar.gz"
+listing_url = "https://astron.com/pub/file/"
+extract     = true
+root        = "file-{{version}}"
+file_regex  = 'file-[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor: automatically accept every newer stable signed
+# release. Older 5.x history remains outside routine publication.
+versions    = ">= 5.48"
+
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/christos-zoulas.asc"]
+fingerprints = ["BE04995BA8F90ED0C0C176C471112AB16CB33B3A"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+BIN="$PEKIT_OUT/usr/bin/file"
+DB="$PEKIT_OUT/usr/share/misc/magic.mgc"
+
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --disable-static \
+  --enable-fsect-man5 \
+  --enable-zlib \
+  --enable-bzlib \
+  --enable-xzlib \
+  --enable-zstdlib \
+  --disable-lzlib \
+  --disable-libseccomp \
+  --enable-landlock
+
+# These are intentional production features, not best-effort autodetection.
+for macro in ZLIBSUPPORT BZLIBSUPPORT XZLIBSUPPORT ZSTDLIBSUPPORT \
+             HAVE_LINUX_LANDLOCK_H; do
+  grep -Fx "#define $macro 1" config.h
+done
+
+make -j"$(nproc)"
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+find "$LIBDIR" -name '*.la' -delete
+
+# libtool records the final Peios library directory while linking the command
+# against the just-built libmagic. The loader already searches that directory,
+# so keep the executable policy-free and reject any other embedded path below.
+patchelf --remove-rpath "$BIN"
+
+# Exercise the staged command, database and public C ABI. MAGIC points the
+# staged executable at the database before it is placed at its final root.
+test -s "$DB"
+export MAGIC="$DB"
+export LD_LIBRARY_PATH="$LIBDIR"
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+
+SMOKE="$PEKIT_OUT/.file-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' 'Peios file identification' > "$SMOKE/plain"
+test "$("$BIN" -b --mime-type "$SMOKE/plain")" = text/plain
+"$BIN" -b "$BIN" | grep -F 'ELF 64-bit'
+
+# Prove each compiled-in decompressor through the installed CLI, not merely
+# through configure output or a DT_NEEDED entry.
+gzip -c "$SMOKE/plain" > "$SMOKE/plain.gz"
+xz -c "$SMOKE/plain" > "$SMOKE/plain.xz"
+zstd -q -c "$SMOKE/plain" > "$SMOKE/plain.zst"
+for compressed in "$SMOKE/plain.gz" "$SMOKE/plain.xz" \
+                  "$SMOKE/plain.zst"; do
+  "$BIN" -z -b "$compressed" | grep -F 'ASCII text'
+done
+
+cat > "$SMOKE/libmagic.c" <<'EOF'
+#include <magic.h>
+#include <string.h>
+
+int main(int argc, char **argv) {
+  magic_t m;
+  const char *result;
+  if (argc != 2) return 1;
+  m = magic_open(MAGIC_MIME_TYPE);
+  if (!m) return 2;
+  if (magic_load(m, argv[1]) != 0) return 3;
+  result = magic_buffer(m, "Peios\\n", 6);
+  if (!result || strcmp(result, "text/plain") != 0) return 4;
+  magic_close(m);
+  return 0;
+}
+EOF
+cc ${CFLAGS:-} -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" ${LDFLAGS:-} \
+  -o "$SMOKE/libmagic" "$SMOKE/libmagic.c" -lmagic
+"$SMOKE/libmagic" "$DB"
+rm -rf "$SMOKE"
+
+LIB="$LIBDIR/libmagic.so.1.0.0"
+readelf -d "$LIB" | grep -F 'Library soname: [libmagic.so.1]'
+for soname in libz.so.1 libbz2.so.1 liblzma.so.5 libzstd.so.1; do
+  readelf -d "$LIB" | grep -F "Shared library: [$soname]"
+done
+
+# Enforce the workspace hardening contract and reject embedded build paths.
+for elf in "$BIN" "$LIB"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+# Conventional build-ID debuginfo and the exact DWARF-referenced sources.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in usr/bin/file usr/lib/x86_64-linux-peios/libmagic.so.1.0.0; do
+  debugedit -b "$ROOT" -d /usr/src/debug/com.darwinsys.file \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/com.darwinsys.file/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/com.darwinsys.file/$rel"
+    done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c              = "*"
+zlib-devel                      = "*"
+"org.sourceware.bzip2-devel"   = "*"
+xz-devel                        = "*"
+zstd-devel                      = "*"
+gzip                            = "*"
+xz                              = "*"
+zstd                            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+coreutils       = "*"
+diffutils       = "*"
+sed             = "*"
+zlib1g-dev      = "*"
+libbz2-dev      = "*"
+liblzma-dev     = "*"
+libzstd-dev     = "*"
+gzip            = "*"
+bzip2           = "*"
+xz-utils        = "*"
+zstd            = "*"
+debugedit       = "*"
+patchelf        = "*"

@@ -1,0 +1,9 @@
+[package]
+name        = "com.darwinsys.file-debugsource"
+description = "file and libmagic - debug sources"
+
+[dependencies]
+"com.darwinsys.file-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

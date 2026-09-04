@@ -1,0 +1,17 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "com.darwinsys.file"
+description = "file - identify file formats from content"
+
+[provides]
+file = "{{version}}"
+
+[dependencies]
+glibc                         = ">= 2.43"
+"com.darwinsys.file-libmagic" = "{{version}}-1"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/com.darwinsys.file/"
+":usr/bin/file"          = "usr/bin/file"
+":usr/share/man/man1/**" = "usr/share/man/man1"

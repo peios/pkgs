@@ -1,0 +1,14 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "com.darwinsys.file-magic"
+architecture = "noarch"
+description  = "file - compiled file-format identification database"
+
+[provides]
+libmagic-mgc = "{{version}}"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/com.darwinsys.file-magic/"
+":usr/share/misc/**"     = "usr/share/misc"
+":usr/share/man/man5/**" = "usr/share/man/man5"

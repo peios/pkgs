@@ -1,0 +1,10 @@
+[package]
+name        = "com.darwinsys.file-debuginfo"
+description = "file and libmagic - debugging symbols"
+
+[dependencies]
+"com.darwinsys.file"          = "{{version}}-1"
+"com.darwinsys.file-libmagic" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

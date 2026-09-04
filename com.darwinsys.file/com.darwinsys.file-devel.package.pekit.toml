@@ -1,0 +1,19 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "com.darwinsys.file-devel"
+description = "file - libmagic header, linker input and pkg-config metadata"
+
+[provides]
+file-devel     = "{{version}}"
+libmagic-devel = "{{version}}"
+
+[dependencies]
+"com.darwinsys.file-libmagic" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                                  = "usr/share/licenses/com.darwinsys.file-devel/"
+":usr/include/magic.h"                             = "usr/include/magic.h"
+":usr/lib/x86_64-linux-peios/libmagic.so"          = "usr/lib/x86_64-linux-peios/libmagic.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libmagic.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libmagic.pc"
+":usr/share/man/man3/**"                           = "usr/share/man/man3"
