@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.findutils-common"
+architecture = "noarch"
+description  = "GNU Findutils command manuals"
+
+[files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.findutils-common/"
+":usr/share/man/**" = "usr/share/man"

@@ -1,0 +1,144 @@
+# GNU Findutils — find and xargs for the bootstrap and development userland.
+#
+# PEIOS-DIVERGENCE(permissions): find's -perm/-user/-group predicates expose
+# the normalized POSIX metadata carried by Peipkg. They are not KACS policy
+# queries and therefore have no authorization meaning on an installed Peios
+# system. locate/updatedb are deliberately omitted: maintaining a global file
+# index is a separately designed service concern, not a build-base side effect.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/findutils/findutils-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/findutils/"
+extract     = true
+root        = "findutils-{{version}}"
+file_regex  = 'findutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 4.x releases
+# automatically; a future major line is an intentional compatibility review.
+versions    = ">= 4.11.0, < 5"
+
+# GNU's 4.11.0 release is signed by Findutils maintainer James Youngman. The
+# exact primary fingerprint from Savannah's official project keyring is pinned
+# so unattended discovery never turns into trust-on-first-use.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/james-youngman.asc"]
+fingerprints = ["0CF4E8D871593224842832B888DD9E08C5DDACB9"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libexecdir=/usr/lib/x86_64-linux-peios/findutils \
+  --mandir=/usr/share/man \
+  --disable-nls \
+  --without-selinux
+
+make -j"$(nproc)"
+# The package suite and the 424-test Gnulib suite run in full. One aggregate
+# help/version probe invokes the unshipped locate command, whose startup tries
+# to drop group privileges. Pekit's single-ID namespace deliberately cannot do
+# that; accept only this exact environment failure and its exact diagnostic.
+if ! make -j"$(nproc)" check; then
+  actual=$(find . -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result#./}"
+  done | LC_ALL=C sort)
+  [ "$actual" = tests/misc/help-version.trs ]
+  grep -F "locate: 'failed to drop group privileges': Operation not permitted" \
+    tests/test-suite.log
+fi
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. It also has no locate database service;
+# retain that complete source and documentation in the source package without
+# installing commands whose index would necessarily be stale.
+rm -rf "$PEKIT_OUT/usr/share/info" \
+       "$PEKIT_OUT/usr/lib/x86_64-linux-peios/findutils" \
+       "$PEKIT_OUT/usr/var"
+rm -f "$PEKIT_OUT/usr/bin/locate" "$PEKIT_OUT/usr/bin/updatedb" \
+      "$PEKIT_OUT/usr/share/man/man1/locate.1" \
+      "$PEKIT_OUT/usr/share/man/man1/updatedb.1" \
+      "$PEKIT_OUT/usr/share/man/man5/locatedb.5"
+find "$PEKIT_OUT/usr/share/man" -depth -type d -empty -delete
+test "$(find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f | wc -l)" -eq 2
+test -x "$PEKIT_OUT/usr/bin/find"
+test -x "$PEKIT_OUT/usr/bin/xargs"
+
+# Exercise path selection, printf formatting, NUL-safe handoff and xargs's
+# argument grouping through the staged binaries.
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.findutils-smoke"
+mkdir -p "$SMOKE/tree/a" "$SMOKE/tree/b"
+printf '%s\n' alpha > "$SMOKE/tree/a/one.txt"
+printf '%s\n' beta > "$SMOKE/tree/b/two.log"
+printf '%s\n' gamma > "$SMOKE/tree/b/three.txt"
+"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -printf '%f\n' \
+  | sort > "$SMOKE/found"
+printf '%s\n' one.txt three.txt > "$SMOKE/expected"
+cmp "$SMOKE/expected" "$SMOKE/found"
+"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -print0 \
+  | "$BIN/xargs" -0 -n1 basename | sort > "$SMOKE/xargs"
+cmp "$SMOKE/expected" "$SMOKE/xargs"
+printf '%s\\0' "$SMOKE/tree/a" "$SMOKE/tree/b" > "$SMOKE/roots"
+"$BIN/find" -files0-from "$SMOKE/roots" -maxdepth 0 -printf '%f\n' \
+  | sort > "$SMOKE/roots-found"
+printf '%s\n' a b > "$SMOKE/roots-expected"
+cmp "$SMOKE/roots-expected" "$SMOKE/roots-found"
+
+for elf in "$BIN/find" "$BIN/xargs"; do
+  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
+
+# Conventional build-ID debuginfo and the exact DWARF-referenced sources.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in usr/bin/find usr/bin/xargs; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.findutils \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.findutils/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.findutils/$rel"
+    done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"

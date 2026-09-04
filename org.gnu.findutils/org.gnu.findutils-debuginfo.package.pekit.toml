@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.findutils-debuginfo"
+description = "GNU Findutils debugging symbols"
+
+[dependencies]
+"org.gnu.findutils" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

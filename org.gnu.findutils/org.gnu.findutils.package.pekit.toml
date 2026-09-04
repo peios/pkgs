@@ -1,0 +1,15 @@
+[package]
+name        = "org.gnu.findutils"
+description = "GNU file-search and argument-building utilities"
+
+[provides]
+findutils = "{{version}}"
+
+[dependencies]
+glibc                       = ">= 2.43"
+"org.gnu.findutils-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.findutils/"
+":usr/bin/find"    = "usr/bin/find"
+":usr/bin/xargs"   = "usr/bin/xargs"
