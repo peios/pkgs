@@ -1,0 +1,12 @@
+[package]
+name         = "org.cmake.cmake-data"
+architecture = "noarch"
+description  = "CMake - modules, templates, and editor integration"
+
+[files]
+":usr/share/cmake-*/**" = "usr/share"
+":usr/share/aclocal/**" = "usr/share/aclocal"
+":usr/share/bash-completion/**" = "usr/share/bash-completion"
+":usr/share/emacs/**" = "usr/share/emacs"
+":usr/share/vim/**" = "usr/share/vim"
+":usr/share/licenses/org.cmake.cmake-data/**" = "usr/share/licenses/org.cmake.cmake-data"

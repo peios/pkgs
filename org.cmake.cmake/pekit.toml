@@ -1,33 +1,142 @@
-# cmake — the CMake build system; zlib-ng's closure rebuild feeds on it.
+# CMake — cross-platform build-system generator.
 #
-# Phase-2a tool (PEI-155): bootstrap build (cmake builds itself; C++ —
-# the first consumer of build-essentials-c++), out-of-source via DESTDIR.
-# --no-system-libs: every third-party lib (curl, zlib, ...) is the bundled
-# copy, keeping the dependency claim at glibc + libstdc++; the bundled
-# curl builds without TLS, which only matters for https file(DOWNLOAD) —
-# not a build-root concern. No sphinx => no man/html docs, by design.
+# Bootstrap with the upstream-bundled support libraries to keep this early
+# build tool's dependency closure small and deterministic. OpenSSL is the one
+# system integration: HTTPS is production functionality for file(DOWNLOAD)
+# and FetchContent, so the bundled curl is built with TLS rather than silently
+# producing a network-limited CMake.
 
 out_dir = "out"
 
-[source.url]
-url      = "https://github.com/Kitware/CMake/releases/download/v{{version}}/cmake-{{version}}.tar.gz"
-extract  = true
-root     = "cmake-{{version}}"
-versions = ">= 4.4"
+[source.git]
+url       = "https://gitlab.kitware.com/cmake/cmake.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>4\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Stable CMake 4.x point/minor releases are automatic;
+# a future major transition remains an intentional packaging review point.
+versions  = ">= 4.4.3, < 5"
 
 [build.main]
 command = """
+set -eu
 SRC="$(pwd)"
-cd "$PEKIT_OUT"
+BUILD="$PEKIT_OUT/build"
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -fPIE"
+CXXFLAGS_COMMON="$CFLAGS_COMMON"
+LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+export CFLAGS="$CFLAGS_COMMON"
+export CXXFLAGS="$CXXFLAGS_COMMON"
+export LDFLAGS="$LDFLAGS_COMMON"
+
 "$SRC/bootstrap" --prefix=/usr --parallel="$(nproc)" --no-system-libs \
-  -- -DCMAKE_BUILD_TYPE=Release -DCMAKE_USE_OPENSSL=OFF
+  -- -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_USE_OPENSSL=ON -DBUILD_TESTING=ON \
+  "-DCMAKE_EXE_LINKER_FLAGS=$LDFLAGS_COMMON -pie" \
+  "-DCMAKE_SHARED_LINKER_FLAGS=$LDFLAGS_COMMON" \
+  "-DCMAKE_MODULE_LINKER_FLAGS=$LDFLAGS_COMMON"
 make -j"$(nproc)"
+
+# Fast, dependency-closed upstream core coverage. The complete 600+ test set
+# probes optional generators, toolchains, networks, and host facilities that
+# intentionally are not part of this bootstrap environment.
+"$BUILD/bin/ctest" -j"$(nproc)" --output-on-failure \
+  -R '^(SystemInformationNew|kwsys\\.|kwiml\\.test|CMake\\.Copyright|CommandLineTest|StringFileTest|MathTest|Simple|COnly|CxxOnly|TryCompile)$'
+
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/doc" "$PEKIT_OUT/usr/share/doc"
+
+# Preserve CMake and every bundled component's redistribution notices with
+# collision-free names. The discovery keeps future bundled-library changes
+# visible in package diffs without a hand-maintained file list.
+LICENSEDIR="$PEKIT_OUT/usr/share/licenses/org.cmake.cmake"
+mkdir -p "$LICENSEDIR"
+install -m 0644 "$SRC/LICENSE.rst" "$LICENSEDIR/CMake-LICENSE.rst"
+find "$SRC/Licenses" "$SRC/Utilities" -type f \
+  \\( -iname 'license*' -o -iname 'copying*' -o -iname 'copyright*' \\) | \
+  LC_ALL=C sort | while IFS= read -r notice; do
+    rel=${notice#"$SRC/"}
+    name=$(printf '%s' "$rel" | tr '/ ' '__')
+    install -m 0644 "$notice" "$LICENSEDIR/$name"
+  done
+cp -a "$LICENSEDIR" "$PEKIT_OUT/usr/share/licenses/org.cmake.cmake-data"
+
+# Exercise the installed cmake/ctest/cpack triplet against a real C project.
+SMOKE="$PEKIT_OUT/.cmake-smoke"
+mkdir -p "$SMOKE/src"
+printf '%s\n' \
+  '#include <stdio.h>' \
+  'int main(void) { puts("cmake-smoke"); return 0; }' \
+  > "$SMOKE/src/main.c"
+printf '%s\n' \
+  'cmake_minimum_required(VERSION 3.20)' \
+  'project(cmake_smoke C)' \
+  'add_executable(cmake-smoke main.c)' \
+  'enable_testing()' \
+  'add_test(NAME runs COMMAND cmake-smoke)' \
+  'install(TARGETS cmake-smoke DESTINATION bin)' \
+  'set(CPACK_PACKAGE_NAME cmake-smoke)' \
+  'set(CPACK_PACKAGE_VERSION 1.0.0)' \
+  'set(CPACK_GENERATOR TGZ)' \
+  'include(CPack)' \
+  > "$SMOKE/src/CMakeLists.txt"
+"$PEKIT_OUT/usr/bin/cmake" -S "$SMOKE/src" -B "$SMOKE/build"
+"$PEKIT_OUT/usr/bin/cmake" --build "$SMOKE/build" --parallel "$(nproc)"
+"$PEKIT_OUT/usr/bin/ctest" --test-dir "$SMOKE/build" --output-on-failure
+mkdir -p "$SMOKE/packages"
+"$PEKIT_OUT/usr/bin/cpack" --config "$SMOKE/build/CPackConfig.cmake" \
+  -B "$SMOKE/packages" -G TGZ
+test -s "$SMOKE/packages/cmake-smoke-1.0.0-Linux.tar.gz"
+grep -F 'CMAKE_USE_OPENSSL:BOOL=ON' "$BUILD/CMakeCache.txt"
+
+# Installed executable hardening and distribution debug split.
+for tool in cmake ctest cpack; do
+  elf="$PEKIT_OUT/usr/bin/$tool"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr/bin -type f ! -type l | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.cmake.cmake/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.cmake.cmake/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$SMOKE" "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
+openssl-devel = "*"
+debugedit = "*"
+patchelf = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
+libssl-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"

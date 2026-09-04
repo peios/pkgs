@@ -164,7 +164,7 @@ rm -rf "$PEKIT_OUT/build-compat" "$PEKIT_OUT/build-native"
 # No external library deps.
 [build.main.dependencies.peipkg]
 "build-essentials-c" = "*"
-cmake = "*"
+"org.cmake.cmake" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

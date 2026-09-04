@@ -103,7 +103,7 @@ rm -rf "$PEKIT_OUT/usr/libexec" "$PEKIT_OUT/usr/share"
 
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
-cmake = "*"
+"org.cmake.cmake" = "*"
 python3 = "*"
 "zlib-devel" = "*"
 "zstd-devel" = "*"

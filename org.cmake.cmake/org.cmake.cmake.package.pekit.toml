@@ -1,0 +1,15 @@
+# CMake's executable tools. Architecture-independent modules and editor
+# integration live in the exact-version data package.
+
+[package]
+name        = "org.cmake.cmake"
+description = "CMake - cross-platform build system generator"
+
+[dependencies]
+"org.cmake.cmake-data" = "{{version}}-1"
+
+[files]
+":usr/bin/cmake" = "usr/bin/cmake"
+":usr/bin/cpack" = "usr/bin/cpack"
+":usr/bin/ctest" = "usr/bin/ctest"
+":usr/share/licenses/org.cmake.cmake/**" = "usr/share/licenses/org.cmake.cmake"

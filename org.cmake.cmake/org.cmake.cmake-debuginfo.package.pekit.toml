@@ -1,0 +1,9 @@
+[package]
+name        = "org.cmake.cmake-debuginfo"
+description = "CMake - debugging symbols"
+
+[dependencies]
+"org.cmake.cmake" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

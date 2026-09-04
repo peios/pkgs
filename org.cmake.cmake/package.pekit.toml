@@ -1,19 +1,12 @@
+# Metadata shared by the CMake package family.
+
 format = "peipkg"
 
 [package]
-name         = "cmake"
-version      = "{{version}}-1"
-architecture = "x86_64"
-description  = "CMake - cross-platform build system generator"
-license      = "BSD-3-Clause"
-homepage     = "https://cmake.org/"
-
-[dependencies]
-glibc = ">= 2.43"
-
-[files]
-"@source:LICENSE.rst" = "usr/share/licenses/cmake/"
-":usr/bin/**"           = "usr/bin"
-# The modules/templates tree cmake reads at runtime.
-":usr/share/cmake-*/**" = "usr/share"
-":usr/share/aclocal/**" = "usr/share/aclocal"
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# CMake links its deliberately bundled bootstrap libraries into the tools.
+# This expression covers CMake plus the notices installed from Utilities/.
+license       = "BSD-3-Clause AND BSD-2-Clause AND MIT-open-group AND MIT AND Zlib AND Apache-2.0 AND 0BSD AND curl AND bzip2-1.0.6"
+license_class = "free"
+homepage      = "https://cmake.org/"

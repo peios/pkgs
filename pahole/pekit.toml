@@ -38,7 +38,7 @@ rm -rf "$PEKIT_OUT/build"
 
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
-cmake = "*"
+"org.cmake.cmake" = "*"
 "elfutils-devel" = "*"
 "zlib-devel" = "*"
 

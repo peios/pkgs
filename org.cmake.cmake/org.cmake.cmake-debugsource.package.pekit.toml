@@ -1,0 +1,9 @@
+[package]
+name        = "org.cmake.cmake-debugsource"
+description = "CMake - debug sources"
+
+[dependencies]
+"org.cmake.cmake-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"
