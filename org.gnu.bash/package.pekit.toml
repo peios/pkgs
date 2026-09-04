@@ -30,6 +30,7 @@ glibc = ">= 2.43"
 libncurses = ">= 6.6"
 
 [files]
-"@source:COPYING"   = "usr/share/licenses/org.gnu.bash/"
-":usr/bin/**"       = "usr/bin"
-":usr/share/man/**" = "usr/share/man"
+"@source:COPYING"      = "usr/share/licenses/org.gnu.bash/"
+":usr/bin/**"          = "usr/bin"
+":usr/share/locale/**" = "usr/share/locale"
+":usr/share/man/**"    = "usr/share/man"
