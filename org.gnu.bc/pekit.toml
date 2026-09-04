@@ -1,0 +1,74 @@
+# bc — GNU bc/dc arbitrary-precision calculators; kbuild's timeconst.bc
+# (kernel HZ table generation) feeds on bc.
+#
+# PEI-158 kernel-tooling leaf: autotools from the signed release tarball,
+# out-of-source via DESTDIR (the m4 shape). Readline support is deliberately
+# deferred to PEI-613 because Peios does not yet package the library; bc and dc
+# remain fully functional for non-interactive use. The tarball ships generated
+# scanner/parser sources but its documentation build still needs makeinfo, so
+# texinfo is a build dependency even though Peios does not yet ship Info files.
+# dc rides along (one tarball, one package).
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/bc/bc-{{version}}.tar.gz"
+extract  = true
+root     = "bc-{{version}}"
+# Soft maintenance floor: automatic sweeps follow every newer stable GNU
+# release; the older 1.07 line remains outside routine publication.
+versions = ">= 1.08.0"
+# GNU has historically used both two- and three-component stable versions.
+file_regex = 'bc-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/ken-pizzini.asc"]
+fingerprints = ["325B54E4653F935A25CF32BDA186278D426A38E9"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --infodir=/usr/share/info
+make -j"$(nproc)"
+
+# Upstream's Automake `make check` target only rebuilds the programs, so run
+# the shipped mathematical corpus and focused command-line regressions here.
+make check
+"$PEKIT_OUT/bc/bc" -l "$SRC/Test/checklib.b" </dev/null > checklib.out
+grep -q '^Total failures: 0$' checklib.out
+! grep -Eq '^Total failures: [1-9][0-9]*$' checklib.out
+"$PEKIT_OUT/bc/bc" "$SRC/Test/signum" </dev/null > signum.out
+grep -q '^end of tests$' signum.out
+! grep -q '^x=' signum.out
+test "$(printf 'scale=2; 1/2\n' | "$PEKIT_OUT/bc/bc" -sq)" = ".50"
+test "$(printf '2 3 + p\n' | "$PEKIT_OUT/dc/dc")" = "5"
+# Fedora's long-standing dc radix correction retains a single digit's literal
+# value but clamps an invalid digit when it is part of a multi-digit number.
+test "$(printf '8 i 9 p\n' | "$PEKIT_OUT/dc/dc")" = "9"
+test "$(printf '8 i 19 p\n' | "$PEKIT_OUT/dc/dc")" = "15"
+# A calculator used to generate build inputs must not report success after
+# losing its output (Debian #488735; dc already handles this upstream).
+if printf '1+1\n' | "$PEKIT_OUT/bc/bc" > /dev/full 2>/dev/null; then
+  echo "bc accepted a failed standard-output write" >&2
+  exit 1
+fi
+
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+texinfo = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+texinfo = "*"

@@ -1,0 +1,67 @@
+From: Fedora bc maintainers
+Subject: Make dc handle out-of-radix digits consistently with bc
+
+Single-digit input retains its literal value. In a multi-digit number, clamp
+digits outside ibase to ibase-1, matching GNU bc's documented behaviour.
+
+Origin: Fedora, bc-1.06-dc_ibase.patch
+
+diff --git a/dc/numeric.c b/dc/numeric.c
+--- a/dc/numeric.c
++++ b/dc/numeric.c
+@@ -256,6 +256,8 @@ dc_getnum DC_DECLARG((input, ibase, readahead),
+ 	int		digit;
+ 	int		decimal;
+ 	int		c;
++	int		c_buff = 0;
++	int		multi = 0;
+ 
+ 	bc_init_num(&tmp);
+ 	bc_init_num(&build);
+@@ -275,6 +277,9 @@ dc_getnum DC_DECLARG((input, ibase, readahead),
+ 	}
+ 	while (isspace(c))
+ 		c = (*input)();
++	c_buff = (*input)();
++	if (isdigit(c_buff) || ('A' <= c_buff && c_buff <= 'F') || c_buff == '.')
++		multi = 1;
+ 	for (;;){
+ 		if (isdigit(c))
+ 			digit = c - '0';
+@@ -282,10 +287,15 @@ dc_getnum DC_DECLARG((input, ibase, readahead),
+ 			digit = 10 + c - 'A';
+ 		else
+ 			break;
+-		c = (*input)();
++		digit = multi ? (digit >= ibase ? ibase - 1 : digit) : digit;
+ 		bc_int2num(&tmp, digit);
+ 		bc_multiply(result, base, &result, 0);
+ 		bc_add(result, tmp, &result, 0);
++		if (c_buff) {
++			c = c_buff;
++			c_buff = 0;
++		} else
++			c = (*input)();
+ 	}
+ 	if (c == '.'){
+ 		bc_free_num(&build);
+@@ -294,13 +304,18 @@ dc_getnum DC_DECLARG((input, ibase, readahead),
+ 		build = bc_copy_num(_zero_);
+ 		decimal = 0;
+ 		for (;;){
+-			c = (*input)();
++			if (c_buff) {
++				c = c_buff;
++				c_buff = 0;
++			} else
++				c = (*input)();
+ 			if (isdigit(c))
+ 				digit = c - '0';
+ 			else if ('A' <= c && c <= 'F')
+ 				digit = 10 + c - 'A';
+ 			else
+ 				break;
++			digit = digit >= ibase ? ibase - 1 : digit;
+ 			bc_int2num(&tmp, digit);
+ 			bc_multiply(build, base, &build, 0);
+ 			bc_add(build, tmp, &build, 0);

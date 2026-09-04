@@ -1,0 +1,26 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "1.08.0"
+  url = "https://ftp.gnu.org/gnu/bc/bc-1.08.0.tar.gz"
+  sha256 = "7db49996cbe16d7602936fef586e69e492c3df65765c0a891841025a1ad741ef"
+  signature_key = "325b54e4653f935a25cf32bda186278d426a38e9"
+  locked_at = "2026-09-04T10:25:16Z"
+
+[[source]]
+  version = "1.08.1"
+  url = "https://ftp.gnu.org/gnu/bc/bc-1.08.1.tar.gz"
+  sha256 = "b71457ffeb210d7ea61825ff72b3e49dc8f2c1a04102bbe23591d783d1bfe996"
+  signature_key = "325b54e4653f935a25cf32bda186278d426a38e9"
+  locked_at = "2026-09-04T10:25:16Z"
+
+[[source]]
+  version = "1.08.2"
+  url = "https://ftp.gnu.org/gnu/bc/bc-1.08.2.tar.gz"
+  sha256 = "ae470fec429775653e042015edc928d07c8c3b2fc59765172a330d3d87785f86"
+  signature_key = "325b54e4653f935a25cf32bda186278d426a38e9"
+  locked_at = "2026-09-04T10:25:16Z"

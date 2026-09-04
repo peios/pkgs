@@ -1,0 +1,49 @@
+From: Peios package maintainers
+Subject: Make bc fail when its standard output cannot be written
+
+GNU dc 1.08.2 diagnoses flushing and closing failures, but bc still exits zero
+after writes to a full device. Check the stream on bc's common exit path so a
+failed generated result cannot be mistaken for success.
+
+Inspired-by: Debian 05_notice_read_write_errors.diff
+
+diff --git a/bc/util.c b/bc/util.c
+--- a/bc/util.c
++++ b/bc/util.c
+@@ -29,6 +29,7 @@
+ /* util.c: Utility routines for bc. */
+ 
+ #include "bcdefs.h"
++#include <errno.h>
+ #ifndef VARARGS
+ #include <stdarg.h>
+ #else
+@@ -830,10 +831,28 @@ rt_warn (const char *mesg)
+ 
+ void bc_exit(int val)
+ {
++  int output_errno;
++
+ #if defined(LIBEDIT)
+   if (edit != NULL)
+     el_end(edit);
+ #endif
++
++  output_errno = 0;
++  if (fflush(stdout) == EOF)
++    output_errno = errno;
++  else if (ferror(stdout))
++    output_errno = EIO;
++  else if (fclose(stdout) == EOF)
++    output_errno = errno;
++
++  if (output_errno != 0)
++    {
++      errno = output_errno;
++      perror("bc: standard output");
++      val = 1;
++    }
++
+   exit(val);
+   /*NOTREACHED*/
+ }

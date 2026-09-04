@@ -7,17 +7,18 @@ format = "peipkg"
 side_effects = ["man-db"]
 
 [package]
-name         = "bc"
+name         = "org.gnu.bc"
 version      = "{{version}}-1"
 architecture = "x86_64"
 description  = "GNU bc - arbitrary-precision calculator language (bc and dc)"
 license      = "GPL-3.0-or-later"
+license_class = "free"
 homepage     = "https://www.gnu.org/software/bc/"
 
 [dependencies]
 glibc = ">= 2.43"
 
 [files]
-"@source:COPYING"   = "usr/share/licenses/bc/"
+"@source:COPYING*"   = "usr/share/licenses/org.gnu.bc/"
 ":usr/bin/**"       = "usr/bin"
 ":usr/share/man/**" = "usr/share/man"
