@@ -1,0 +1,13 @@
+# Public PO-file manipulation ABI. It is GPL, unlike glibc's LGPL libintl.
+
+[package]
+name        = "libgettextpo"
+description = "GNU Gettext PO-file manipulation library"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/libgettextpo/COPYING"
+":usr/lib/x86_64-linux-peios/libgettextpo.so.0*" = "usr/lib/x86_64-linux-peios"

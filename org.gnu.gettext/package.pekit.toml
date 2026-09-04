@@ -1,0 +1,12 @@
+# Metadata shared by the GNU Gettext package family. The expression includes
+# the native tools and public libraries as well as bundled Gnulib, libxml2 and
+# tree-sitter code carried by the corresponding-source package.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT"
+license_class = "free"
+homepage     = "https://www.gnu.org/software/gettext/"

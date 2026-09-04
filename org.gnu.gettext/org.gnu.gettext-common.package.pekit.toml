@@ -1,0 +1,18 @@
+# Architecture-independent catalogs, extraction rules, project templates and
+# manuals consumed by the native tools and development helpers.
+
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.gettext-common"
+architecture = "noarch"
+description  = "GNU Gettext common data and manuals"
+license      = "GPL-3.0-or-later AND LGPL-2.1-or-later"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gettext-common/COPYING"
+"@source:gettext-runtime/intl/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext-common/COPYING.LIB"
+":usr/share/gettext/**" = "usr/share/gettext"
+":usr/share/gettext-{{version}}/**" = "usr/share/gettext-{{version}}"
+":usr/share/locale/**" = "usr/share/locale"
+":usr/share/man/**" = "usr/share/man"

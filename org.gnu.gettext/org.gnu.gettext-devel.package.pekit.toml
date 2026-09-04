@@ -1,0 +1,39 @@
+# Project-integration commands, public headers, shared-library link names and
+# Autoconf glue. Static archives are deliberately not shipped.
+
+[package]
+name        = "org.gnu.gettext-devel"
+description = "GNU Gettext project integration and development files"
+license     = "GPL-3.0-or-later AND LGPL-2.1-or-later"
+
+[provides]
+"libasprintf-devel" = "{{version}}"
+"libgettextpo-devel" = "{{version}}"
+"libtextstyle-devel" = "{{version}}"
+
+[dependencies]
+dash              = "*"
+gzip              = "*"
+libasprintf       = "{{version}}"
+libgettextpo      = "{{version}}"
+libtextstyle      = "{{version}}"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.gettext"   = "{{version}}-1"
+grep              = "*"
+sed               = "*"
+tar               = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gettext-devel/COPYING"
+"@source:gettext-runtime/libasprintf/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext-devel/COPYING.LIB"
+":usr/bin/autopoint" = "usr/bin/autopoint"
+":usr/bin/gettextize" = "usr/bin/gettextize"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/libasprintf.so" = "usr/lib/x86_64-linux-peios/libasprintf.so"
+":usr/lib/x86_64-linux-peios/libgettextpo.so" = "usr/lib/x86_64-linux-peios/libgettextpo.so"
+":usr/lib/x86_64-linux-peios/libtextstyle.so" = "usr/lib/x86_64-linux-peios/libtextstyle.so"
+":usr/share/aclocal/**" = "usr/share/aclocal"

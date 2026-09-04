@@ -1,0 +1,6 @@
+[package]
+name        = "org.gnu.gettext-debugsource"
+description = "Debug source for GNU Gettext tools and libraries"
+
+[files]
+":usr/src/debug/org.gnu.gettext/**" = "usr/src/debug/org.gnu.gettext"

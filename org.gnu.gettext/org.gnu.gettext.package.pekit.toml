@@ -1,0 +1,37 @@
+# Native catalog tools and their private implementation libraries.
+
+excludes = [
+  ":usr/bin/autopoint",
+  ":usr/bin/gettextize",
+]
+
+[package]
+name        = "org.gnu.gettext"
+description = "GNU message catalog translation and runtime tools"
+license     = "GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT"
+
+[provides]
+gettext = "{{version}}"
+
+[dependencies]
+dash                     = "*"
+glibc                    = ">= 2.43"
+grep                     = "*"
+libtextstyle             = "{{version}}"
+"org.gnu.coreutils"      = "*"
+"org.gnu.gettext-common" = "{{version}}-1"
+sed                      = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gettext/COPYING"
+"@source:gettext-runtime/intl/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext/COPYING.LIB"
+"@source:gettext-tools/tree-sitter-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter.LICENSE"
+"@source:gettext-tools/tree-sitter-d-0.8.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-d.LICENSE"
+"@source:gettext-tools/tree-sitter-go-0.23.4/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-go.LICENSE"
+"@source:gettext-tools/tree-sitter-ocaml-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-ocaml.LICENSE"
+"@source:gettext-tools/tree-sitter-rust-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-rust.LICENSE"
+"@source:gettext-tools/tree-sitter-typescript-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-typescript.LICENSE"
+":usr/bin/**" = "usr/bin"
+":usr/libexec/gettext/**" = "usr/libexec/gettext"
+":usr/lib/x86_64-linux-peios/libgettextlib-{{version}}.so" = "usr/lib/x86_64-linux-peios/libgettextlib-{{version}}.so"
+":usr/lib/x86_64-linux-peios/libgettextsrc-{{version}}.so" = "usr/lib/x86_64-linux-peios/libgettextsrc-{{version}}.so"

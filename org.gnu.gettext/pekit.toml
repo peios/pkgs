@@ -1,0 +1,199 @@
+# GNU Gettext — the message-catalog toolchain and its public libraries.
+#
+# Java, C#, Emacs and terminal styling integrations are deliberately disabled;
+# the native C tools, gettextize/autopoint data, libasprintf, libgettextpo and
+# the unstyled libtextstyle ABI remain complete. Glibc supplies libintl on
+# Peios, so the upstream preloadable replacement is not shipped. Gettext 1.0's
+# optional po-fetch and AI-assisted spit helpers are omitted until their wget/
+# unzip and Python Requests/Ollama runtime closures exist in the catalogue.
+#
+# gnulib/glibc-const-generics: 1.0's bundled gnulib still predates the upstream
+# fix (2025-11-23, df17f4f3) for glibc >= 2.43's _Generic const-correctness
+# macros; the same #undef patch as m4's, replicated per bundled gnulib copy.
+# Drop when a gettext release bundles a fixed gnulib.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/gettext/gettext-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gettext/"
+extract     = true
+root        = "gettext-{{version}}"
+file_regex  = 'gettext-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 1.x releases
+# automatically; a future major line requires a compatibility review.
+versions    = ">= 1.0, < 2"
+
+# GNU publishes detached signatures for every release. Pin the exact primary
+# fingerprint named in the 1.0 release announcement; unattended discovery is
+# therefore authenticated rather than trust-on-first-use.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/bruno-haible.asc"]
+fingerprints = ["E0FFBD975397F77A32AB76ECB6301D9E1BBEAC08"]
+
+# Gettext's bundled libcroco intentionally adds -Wno-format. GCC rejects the
+# workspace's -Werror=format-security when format checking is disabled, before
+# compiling any source. Keep both diagnostics enabled for the package but make
+# format-security non-fatal, as GCC's own production recipe does for upstream
+# code that cannot consume the workspace error policy verbatim.
+[env]
+CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Wformat -Wformat-security -Wp,-D_FORTIFY_SOURCE=3 -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
+CXXFLAGS = "-O2 -g -pipe -fexceptions -Wall -Wformat -Wformat-security -Wp,-D_FORTIFY_SOURCE=3 -fstack-clash-protection -fcf-protection -grecord-gcc-switches -Wp,-D_GLIBCXX_ASSERTIONS"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --disable-java --disable-csharp --disable-curses \
+  --without-emacs --disable-openmp --disable-rpath \
+  --disable-more-warnings
+make -s -j"$(nproc)"
+# All release tests run inside Pekit's deliberately network-isolated build
+# sandbox. Gnulib's test-getaddrinfo reaches public DNS names and recognizes
+# EAI_AGAIN as offline, but glibc reports the sandbox denial as EAI_SYSTEM with
+# EBUSY. Accept only that one exact non-hermetic failure; any other failed test
+# or failure signature remains fatal.
+set +e
+make -s -j"$(nproc)" check
+check_status=$?
+set -e
+if [ "$check_status" -ne 0 ]; then
+  failures=$(find . -name test-suite.log -exec sed -n 's/^FAIL: //p' {} + \
+    | LC_ALL=C sort -u)
+  test "$failures" = "test-getaddrinfo"
+  gai_log=gettext-tools/gnulib-tests/test-getaddrinfo.log
+  grep -F 'system error: Device or resource busy' "$gai_log"
+  grep -F 'expected 0, got -11' "$gai_log"
+fi
+make -s install DESTDIR="$PEKIT_OUT"
+
+# Peios has no Info reader, and glibc supplies the libintl implementation.
+# Static and libtool archives are intentionally omitted; consumers link the
+# supported shared ABIs instead.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/preloadable_libintl.so"
+rm -f "$PEKIT_OUT/usr/bin/po-fetch" "$PEKIT_OUT/usr/bin/spit"
+rm -f "$PEKIT_OUT/usr/share/gettext/javaversion.class"
+find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" \
+  \\( -name '*.la' -o -name '*.a' \\) -delete
+# These are internal convenience-library link names, not supported ABIs.
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libgettextlib.so" \
+      "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libgettextsrc.so"
+
+# Normalize upstream's installed shell entry points to Peios's usr-merge view.
+# Keep this list explicit so binary tools are never rewritten as text.
+for script in \
+  "$PEKIT_OUT/usr/bin/autopoint" \
+  "$PEKIT_OUT/usr/bin/gettextize" \
+  "$PEKIT_OUT/usr/libexec/gettext/user-email"; do
+  [ ! -f "$script" ] || sed -i '1s|^#! */bin/sh|#!/usr/bin/sh|' "$script"
+done
+
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.gettext-smoke"
+export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/messages.po" <<'EOF'
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\\n"
+
+msgid "hello"
+msgstr "bonjour"
+EOF
+"$BIN/msgfmt" --check --output-file="$SMOKE/messages.mo" "$SMOKE/messages.po"
+"$BIN/msgunfmt" "$SMOKE/messages.mo" > "$SMOKE/roundtrip.po"
+grep -F 'msgid "hello"' "$SMOKE/roundtrip.po"
+grep -F 'msgstr "bonjour"' "$SMOKE/roundtrip.po"
+printf '%s\n' 'const char *s = _("catalogued");' > "$SMOKE/input.c"
+"$BIN/xgettext" --keyword=_ --language=C --output="$SMOKE/extracted.po" "$SMOKE/input.c"
+grep -F 'msgid "catalogued"' "$SMOKE/extracted.po"
+test "$(printf '%s\n' '$name' | name=Peios "$BIN/envsubst")" = Peios
+"$BIN/msgfmt" --version | head -1 | grep -F "$PEKIT_VERSION"
+test -x "$BIN/autopoint"
+test -x "$BIN/gettextize"
+test -d "$PEKIT_OUT/usr/share/gettext"
+test -f "$PEKIT_OUT/usr/include/gettext-po.h"
+test -f "$PEKIT_OUT/usr/include/textstyle.h"
+
+# Harden every installed ELF, including gettext's private tool libraries and
+# libexec helpers, then emit conventional build-ID debuginfo and the exact
+# DWARF-referenced corresponding source.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.elfs"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | LC_ALL=C sort | while IFS= read -r elf; do
+    readelf -h "$elf" >/dev/null 2>&1 || continue
+    patchelf --remove-rpath "$elf" 2>/dev/null || true
+    patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+    printf '%s\n' "$elf" >> "$PEKIT_OUT/.elfs"
+    readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+    readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+    readelf -d "$elf" | grep -F 'BIND_NOW'
+    readelf -d "$elf" | grep -F 'RELR'
+    if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+  done
+test -s "$PEKIT_OUT/.elfs"
+
+: > "$PEKIT_OUT/.srclist"
+while IFS= read -r elf; do
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gettext \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done < "$PEKIT_OUT/.elfs"
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.gettext/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gettext/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.srclist"
+"""
+
+# gzip: gettext-tools/misc creates autopoint's version archive at build time;
+# the development package ships and consumes that archive.
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+glibc-gconv-extra = "*"
+glibc-langpack-de = "*"
+glibc-langpack-en = "*"
+glibc-langpack-fr = "*"
+glibc-langpack-ja = "*"
+glibc-langpack-zh = "*"
+gzip = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.bash" = "*"
+perl = "*"
+
+[build.main.dependencies.apt]
+autoconf = "*"
+automake = "*"
+"bash" = "*"
+build-essential = "*"
+"g++" = "*"
+gzip = "*"
+locales-all = "*"
+perl = "*"
+debugedit = "*"
+patchelf = "*"

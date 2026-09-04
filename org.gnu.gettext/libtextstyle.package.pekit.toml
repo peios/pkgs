@@ -1,0 +1,13 @@
+# Public text styling ABI used by Gettext's native tools.
+
+[package]
+name        = "libtextstyle"
+description = "GNU text styling library"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:libtextstyle/COPYING" = "usr/share/licenses/libtextstyle/COPYING"
+":usr/lib/x86_64-linux-peios/libtextstyle.so.0*" = "usr/lib/x86_64-linux-peios"
