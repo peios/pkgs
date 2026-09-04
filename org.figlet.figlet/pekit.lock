@@ -1,0 +1,11 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "2.2.5"
+  ref = "2.2.5"
+  commit = "38518633367046425e63fc3328888352ccaae9a3"
+  locked_at = "2026-09-04T19:54:46Z"

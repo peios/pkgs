@@ -1,0 +1,26 @@
+# Commands, scripts, fonts, control files and manuals intentionally remain a
+# single small runtime unit: the scripts and default command consume the font
+# catalogue directly, and splitting it would add policy without useful savings.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.figlet.figlet"
+description = "FIGlet - terminal banner-text renderer and font catalogue"
+
+[provides]
+figlet = "{{version}}"
+
+[dependencies]
+glibc               = ">= 2.43"
+sh                  = ">= 1"
+"org.gnu.coreutils" = "*"
+sed                 = "*"
+
+[files]
+"@source:LICENSE"      = "usr/share/licenses/org.figlet.figlet/"
+"@source:inflate.c"    = "usr/share/licenses/org.figlet.figlet/MIT-inflate.c"
+"@source:utf8.c"       = "usr/share/licenses/org.figlet.figlet/ISC-utf8.c"
+":usr/bin/**"          = "usr/bin"
+":usr/share/figlet/**" = "usr/share/figlet"
+":usr/share/man/**"    = "usr/share/man"

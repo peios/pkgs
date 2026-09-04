@@ -1,0 +1,116 @@
+# FIGlet — render ordinary text as terminal-friendly banner lettering.
+#
+# Upstream has a small, stable hand-written Makefile. It does not support
+# out-of-tree builds and overrides distribution flags by default, so build a
+# private source copy and pass every compiler/linker setting explicitly.
+
+out_dir = "out"
+
+[source.git]
+url    = "https://github.com/cmatsuoka/figlet.git"
+ref    = "{{version}}"
+# Soft maintenance floor: retain the current production baseline and follow
+# every newer stable upstream tag automatically. The release tags are not
+# signed; Pekit's git lock still pins each accepted tag to its exact commit.
+versions = ">= 2.2.5"
+
+[build.main]
+command = """
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+BUILD="$PEKIT_OUT/build"
+FONTDIR="$PEKIT_OUT/usr/share/figlet"
+BIN="$PEKIT_OUT/usr/bin"
+
+mkdir -p "$BUILD"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+# Upstream hardcodes gcc, -O2/-g and empty linker flags. Command-line
+# assignments preserve the workspace's compiler and hardening contract.
+make -j"$(nproc)" \
+  SHELL=/usr/bin/sh CC=cc LD=cc \
+  CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
+  DEFAULTFONTDIR=/usr/share/figlet
+
+# All 26 upstream rendering regressions, including every shipped font,
+# control files, TLF input, layout modes and right-to-left rendering.
+make check \
+  SHELL=/usr/bin/sh CC=cc LD=cc \
+  CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
+  DEFAULTFONTDIR=/usr/share/figlet
+
+make install \
+  SHELL=/usr/bin/sh CC=cc LD=cc \
+  CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
+  DESTDIR="$PEKIT_OUT" BINDIR=/usr/bin MANDIR=/usr/share/man \
+  DEFAULTFONTDIR=/usr/share/figlet
+
+# Peios places the POSIX shell at /usr/bin/sh.
+sed -i '1s|^#!/bin/sh -$|#!/usr/bin/sh -|' \
+  "$BIN/figlist" "$BIN/showfigfonts"
+
+# Exercise all four installed commands against the staged font catalogue.
+test "$("$BIN/figlet" -I1)" = 20205
+test "$("$BIN/figlet" -I2)" = /usr/share/figlet
+printf '%s\n' Peios | FIGLET_FONTDIR="$FONTDIR" "$BIN/figlet" \
+  | grep -F '____'
+find "$FONTDIR" -type f -name '*.flf' -print | LC_ALL=C sort \
+  | while IFS= read -r font; do "$BIN/chkfont" "$font"; done
+"$BIN/figlist" -d "$FONTDIR" | grep -Fx standard
+"$BIN/showfigfonts" -d "$FONTDIR" Peios > "$PEKIT_OUT/.figlet-fonts"
+grep -F 'standard :' "$PEKIT_OUT/.figlet-fonts"
+grep -F 'Peios' "$PEKIT_OUT/.figlet-fonts"
+rm -f "$PEKIT_OUT/.figlet-fonts"
+
+# Enforce the workspace hardening contract before stripping the executables.
+for elf in "$BIN/figlet" "$BIN/chkfont"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+# Conventional build-ID debuginfo plus the exact source files referenced by
+# DWARF, with the private build path rewritten to the canonical namespace.
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+for elf in usr/bin/figlet usr/bin/chkfont; do
+  debugedit -b "$BUILD" -d /usr/src/debug/org.figlet.figlet \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$BUILD/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.figlet.figlet/$(dirname "$rel")"
+      cp "$BUILD/$rel" "usr/src/debug/org.figlet.figlet/$rel"
+    done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$BUILD"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c   = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.diffutils" = "*"
+sed                  = "*"
+debugedit            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+coreutils       = "*"
+diffutils       = "*"
+sed             = "*"
+debugedit       = "*"

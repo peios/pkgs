@@ -1,0 +1,9 @@
+[package]
+name        = "org.figlet.figlet-debuginfo"
+description = "FIGlet - debugging symbols"
+
+[dependencies]
+"org.figlet.figlet" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

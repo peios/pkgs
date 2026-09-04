@@ -1,0 +1,13 @@
+# Metadata shared by the FIGlet binary, debuginfo, debugsource and generated
+# source packages. WTFPL applies only to an upstream regression fixture, but
+# remains in this conservative family-wide expression so the source package
+# never understates its contents.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-3-Clause AND MIT AND ISC AND Unicode-DFS-2015 AND WTFPL"
+license_class = "free"
+homepage      = "https://www.figlet.org/"
