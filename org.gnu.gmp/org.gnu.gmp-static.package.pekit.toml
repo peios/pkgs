@@ -1,10 +1,14 @@
-# gmp-static — static archives for statically linking gmp/gmpxx.
+# org.gnu.gmp-static — static archives for statically linking gmp and gmpxx.
 
 [package]
+name        = "org.gnu.gmp-static"
 description = "GNU Multiple Precision Arithmetic Library - static libraries"
 
+[provides]
+"gmp-static" = "{{version}}"
+
 [dependencies]
-gmp-devel = "{{version}}"
+"org.gnu.gmp-devel" = "{{version}}-1"
 
 [files]
 ":usr/lib/x86_64-linux-peios/libgmp.a"   = "usr/lib/x86_64-linux-peios/libgmp.a"

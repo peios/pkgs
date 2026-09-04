@@ -1,16 +1,19 @@
-# gmp — runtime: the C library (libgmp.so.10), and only that. The C++ wrapper
-# (libgmpxx.so.4) is the separate gmp-c++ package; headers and dev symlinks are
-# gmp-devel; the static archives are gmp-static.
+# org.gnu.gmp — runtime: the C library (libgmp.so.10), and only that. The C++
+# wrapper is separate; headers/dev symlinks and static archives are siblings.
 #
 # A glob source ("so.10*") maps to a DIRECTORY.
 
 [package]
+name        = "org.gnu.gmp"
 description = "GNU Multiple Precision Arithmetic Library"
 # The C++ wrapper used to live here, which the old comment justified as "the
 # Fedora model" — Fedora in fact splits it as gmp-c++, and the reason is the
 # dependency rather than tidiness: libgmpxx links libstdc++, so bundling it put
 # libstdc++ in the install closure of EVERYTHING that uses libgmp. gcc's cc1
 # links libgmp, as will nettle/gnutls; none of them touch the C++ API.
+
+[provides]
+gmp = "{{version}}"
 
 [dependencies]
 glibc = ">= 2.43"
@@ -20,7 +23,6 @@ glibc = ">= 2.43"
 # which licence applies to what), COPYINGv2 + COPYINGv3 (GPL) and
 # COPYING.LESSERv3 (LGPL). Ship the set — under "LGPLv3+ or GPLv2+" the choice
 # is the recipient's, so they need all of it to make one.
-"@source:COPYING*" = "usr/share/licenses/gmp/"
-# SONAME symlink + real object. The dev .so symlink is gmp-devel's, the static
-# .a is gmp-static's.
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gmp/"
+# SONAME symlink + real object. Development and static files are siblings.
 ":usr/lib/x86_64-linux-peios/libgmp.so.10*" = "usr/lib/x86_64-linux-peios"

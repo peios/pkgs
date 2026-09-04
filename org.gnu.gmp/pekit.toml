@@ -1,4 +1,4 @@
-# gmp — GNU Multiple Precision Arithmetic Library. First of the toolchain
+# GNU GMP — GNU Multiple Precision Arithmetic Library. First of the toolchain
 # bignums: gcc's cc1/cc1plus link libgmp for compile-time constant folding, and
 # it's a Tier-4 dependency of gnutls/nettle too. Ships libgmp (C) + libgmpxx (C++).
 #
@@ -7,9 +7,6 @@
 # download + extract, enumerating versions by parsing the ftp.gnu.org directory
 # index (file_regex keeps three-component .tar.xz releases; `versions` caps the line).
 #
-# Build deps come from the nix-shell (see _flake#gmp), e.g.:
-#   nix develop ./_flake#gmp -c pekit build --version 6.3.0
-
 out_dir = "out"
 
 [source]
@@ -17,11 +14,22 @@ patches = "patches"
 
 [source.url]
 # ftp.gnu.org mirrors gmp's signed releases (gmp itself is not GNU-VCS-hosted).
-url        = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
-root       = "gmp-{{version}}"
-extract    = true
-file_regex = '^gmp-\d+\.\d+\.\d+\.tar\.xz$'
-versions   = ">= 6.3"
+url         = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gmp/"
+root        = "gmp-{{version}}"
+extract     = true
+file_regex  = '^gmp-\d+\.\d+\.\d+\.tar\.xz$'
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# a source/build incompatibility is the point at which automation should stop.
+versions    = ">= 6.3"
+
+# GMP publishes detached signatures for release archives. The exact primary
+# fingerprint is published on gmplib.org's download page.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/gmp-release.asc"]
+fingerprints = ["343C2FF0FBEE5EC2EDBEF399F3599FF828C67298"]
 
 # Out-of-source build (configure from $SRC into $PEKIT_OUT, stage via DESTDIR) —
 # same shape as glibc. Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
@@ -57,9 +65,28 @@ versions   = ">= 6.3"
 #     Peios has no packages for. Arch takes exactly this -z shstk route.
 [build.main]
 command = """
+set -eu
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
-"$SRC/configure" LDFLAGS="$LDFLAGS -Wl,-z,shstk" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-cxx --enable-fat
+"$SRC/configure" \
+  LDFLAGS="$LDFLAGS -Wl,-z,shstk" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  ABI=64 \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-silent-rules \
+  --enable-cxx \
+  --enable-fat
+
+# GMP 6.3's fat-build setup can leak the detected build CPU into longlong.h,
+# enabling BMI2/MULX in generic code even though the runtime dispatcher is
+# meant to make the result portable. An explicit generic tuple prevents that;
+# reject any future configure change that reintroduces a specific CPU macro.
+grep -Eq 'Host type:[[:space:]]+x86_64-pc-linux-gnu' config.log
+test "$(grep '^#define HAVE_HOST_CPU_' config.h \
+  | grep -Fv '#define HAVE_HOST_CPU_FAMILY_x86_64 1' \
+  | wc -l)" -eq 0
 
 # libtool appends -Wl,--as-needed AFTER the libraries on the link line, where
 # it has no effect on anything preceding it. Fedora and Arch both rewrite the
@@ -71,7 +98,7 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
     -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
     -i libtool
 
-make -j"$(nproc)"
+make -s -j"$(nproc)"
 
 # gmp is a correctness-critical library that gcc folds constants with, so the
 # suite is not optional. Fedora, Debian and Arch all run it.
@@ -84,7 +111,7 @@ make -j"$(nproc)"
 # in %check (as `pwd`/.libs) for precisely this reason; taking their sed
 # without their export is how this recipe first shipped a green suite that had
 # never touched the new code.
-LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -j"$(nproc)" check
+LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -s -j"$(nproc)" check
 
 make install DESTDIR="$PEKIT_OUT"
 
@@ -95,39 +122,112 @@ find "$PEKIT_OUT/usr" -name '*.la' -delete
 # in the staging tree.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-# Post-install debug pipeline (identical to glibc/zlib): debugedit scrubs build
-# paths (-> /usr/src/debug/gmp), split debug build-id-indexed, strip, stage the
-# referenced sources. Static *.a get --strip-debug (no build-id to index).
+# Validate both installed public interfaces against the staged shared and
+# static libraries. The upstream suite exercises the build tree; these tests
+# catch an install layout, linker-name or libgmpxx dependency regression.
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+GMP_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmp.so.*' | LC_ALL=C sort)
+GMPXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmpxx.so.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$GMP_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$GMPXX_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libgmp.so"
+test -L "$LIBDIR/libgmp.so.10"
+test -L "$LIBDIR/libgmpxx.so"
+test -L "$LIBDIR/libgmpxx.so.4"
+test -f "$LIBDIR/pkgconfig/gmp.pc"
+test -f "$LIBDIR/pkgconfig/gmpxx.pc"
+readelf -d "$GMP_SO" | grep -Eq 'SONAME.*[[]libgmp[.]so[.]10[]]'
+readelf -d "$GMPXX_SO" | grep -Eq 'SONAME.*[[]libgmpxx[.]so[.]4[]]'
+
+SMOKE="$PEKIT_OUT/.gmp-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/c.c" <<'EOF'
+#include <gmp.h>
+
+int main(void)
+{
+  mpz_t value;
+  mpz_init_set_ui(value, 2);
+  mpz_pow_ui(value, value, 256);
+  int ok = mpz_sizeinbase(value, 2) == 257 && mpz_tstbit(value, 256);
+  mpz_clear(value);
+  return ok ? 0 : 1;
+}
+EOF
+cat > "$SMOKE/cxx.cc" <<'EOF'
+#include <gmpxx.h>
+
+int main()
+{
+  mpz_class base = 2;
+  mpz_class value;
+  mpz_pow_ui(value.get_mpz_t(), base.get_mpz_t(), 128);
+  return value.get_str() == "340282366920938463463374607431768211456"
+    ? 0 : 1;
+}
+EOF
+cc "$SMOKE/c.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lgmp -o "$SMOKE/c-shared"
+g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lgmpxx -lgmp -o "$SMOKE/cxx-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
+cc "$SMOKE/c.c" -I"$INCLUDEDIR" "$LIBDIR/libgmp.a" \
+  -o "$SMOKE/c-static"
+g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" \
+  "$LIBDIR/libgmpxx.a" "$LIBDIR/libgmp.a" -o "$SMOKE/cxx-static"
+"$SMOKE/c-static"
+"$SMOKE/cxx-static"
+
+# Produce build-ID-indexed debug files and the exact DWARF-referenced source.
+# Static archives have no build ID, so retain code while dropping their debug.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
   case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.a) strip --strip-debug "$f"; continue;;
     *.o) continue;;
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
   # libtool gives libgmpxx an rpath to the install libdir (so it finds libgmp);
   # that dir is in Peios's default loader search, so the rpath is redundant —
   # strip it (Fedora/Debian policy: no rpath into standard dirs).
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/gmp -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
+  patchelf --remove-rpath "$f"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gmp \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
   strip "$f"
 done
 tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   [ -n "$rel" ] || continue
   case "$rel" in */) continue;; esac
   [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/gmp/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/gmp/$rel"
+  mkdir -p "usr/src/debug/org.gnu.gmp/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.gmp/$rel"
 done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find usr/src/debug/org.gnu.gmp -type f -print -quit)"
+
+# Assert the properties of the stripped objects that will actually ship.
+for elf in "$GMP_SO" "$GMPXX_SO"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
@@ -139,11 +239,13 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
+"com.darwinsys.file" = "*"
 m4 = "*"
 "org.gnu.bison" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
+file = "*"
 m4 = "*"
 bison = "*"
 debugedit = "*"

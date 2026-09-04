@@ -1,15 +1,19 @@
-# gmp-devel — headers, dev .so symlinks, and pkg-config files for building
-# against gmp/gmpxx. Static archives are gmp-static.
+# org.gnu.gmp-devel — headers, linker names and pkg-config metadata for gmp and
+# gmpxx. Static archives are in org.gnu.gmp-static.
 
 [package]
+name        = "org.gnu.gmp-devel"
 description = "GNU Multiple Precision Arithmetic Library - development files"
 
+[provides]
+"gmp-devel" = "{{version}}"
+
 [dependencies]
-gmp = "{{version}}"
+"org.gnu.gmp" = "{{version}}-1"
 # gmpxx.h and the libgmpxx.so dev symlink live here, so the runtime they
 # resolve against has to come too. Fedora's gmp-devel Requires gmp-c++ for the
 # same reason.
-"gmp-c++" = "{{version}}"
+"org.gnu.gmp-c++" = "{{version}}-1"
 
 [files]
 ":usr/include/gmp.h"                          = "usr/include/gmp.h"

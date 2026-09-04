@@ -1,12 +1,14 @@
-# gmp-debuginfo — separated debug symbols for libgmp/libgmpxx, build-id-indexed
+# org.gnu.gmp-debuginfo — symbols for libgmp/libgmpxx, build-ID-indexed
 # under /usr/lib/debug/.build-id/ (gdb/debuginfod locate them by the binary's
 # build-id). Static-archive debug is discarded at build time (no build-id).
 
 [package]
+name        = "org.gnu.gmp-debuginfo"
 description = "GNU Multiple Precision Arithmetic Library - debugging symbols"
 
 [dependencies]
-gmp = "{{version}}"
+"org.gnu.gmp" = "{{version}}-1"
+"org.gnu.gmp-c++" = "{{version}}-1"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"
