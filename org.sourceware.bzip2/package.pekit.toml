@@ -1,0 +1,10 @@
+# Metadata shared by the bzip2 package family.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-4-Clause"
+license_class = "free"
+homepage      = "https://sourceware.org/bzip2/"

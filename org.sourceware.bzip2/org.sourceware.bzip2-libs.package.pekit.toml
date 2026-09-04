@@ -1,0 +1,14 @@
+# The ABI library is independent of the command-line utilities so applications
+# can consume bzip2 data without pulling in shell wrapper dependencies.
+
+[package]
+name        = "org.sourceware.bzip2-libs"
+description = "bzip2 - libbz2 runtime library"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE"                          = "usr/share/licenses/org.sourceware.bzip2-libs/"
+":usr/lib/x86_64-linux-peios/libbz2.so.1"  = "usr/lib/x86_64-linux-peios/libbz2.so.1"
+":usr/lib/x86_64-linux-peios/libbz2.so.1.*" = "usr/lib/x86_64-linux-peios"

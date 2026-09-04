@@ -1,0 +1,10 @@
+[package]
+name        = "org.sourceware.bzip2-static"
+description = "bzip2 - static libbz2 archive"
+
+[dependencies]
+"org.sourceware.bzip2-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENSE"                      = "usr/share/licenses/org.sourceware.bzip2-static/"
+":usr/lib/x86_64-linux-peios/libbz2.a" = "usr/lib/x86_64-linux-peios/libbz2.a"

@@ -1,0 +1,168 @@
+# bzip2 — the Sourceware block-sorting compressor and libbz2 ABI.
+#
+# Upstream 1.0.x uses hand-written Makefiles and has no out-of-source mode, so
+# the signed release tree is copied into the target stage. Its shared-library
+# Makefile embeds the release number; relinking from its PIC objects lets Pekit
+# track newer releases without a version-literal downstream patch.
+
+out_dir = "out"
+
+[source.url]
+url        = "https://sourceware.org/pub/bzip2/bzip2-{{version}}.tar.gz"
+extract    = true
+root       = "bzip2-{{version}}"
+# Soft maintenance floor: automatic sweeps accept every newer stable 1.x
+# release. Older history is intentionally outside routine publication.
+versions   = ">= 1.0.8"
+
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/mark-wielaard.asc"]
+fingerprints = ["EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+
+CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64"
+LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+
+# Shared ABI and dynamically linked command-line implementation.
+make -f Makefile-libbz2_so -j"$(nproc)" \
+  SHELL=/usr/bin/sh \
+  CFLAGS="$CFLAGS_COMMON -fPIC" \
+  LDFLAGS="$LDFLAGS_COMMON"
+SHARED_OBJECTS="blocksort.o huffman.o crctable.o randtable.o compress.o decompress.o bzlib.o"
+cc $CFLAGS_COMMON -fPIC $LDFLAGS_COMMON -shared -Wl,-soname,libbz2.so.1 \
+  -o "libbz2.so.$PEKIT_VERSION" $SHARED_OBJECTS
+cc $CFLAGS_COMMON $LDFLAGS_COMMON -o bzip2-shared bzip2.c \
+  "./libbz2.so.$PEKIT_VERSION"
+
+# Rebuild ordinary objects without PIC, exercise upstream's reference vectors,
+# and retain the resulting static archive and recovery tool.
+rm -f ./*.o
+make -j"$(nproc)" \
+  SHELL=/usr/bin/sh \
+  CFLAGS="$CFLAGS_COMMON" \
+  LDFLAGS="$LDFLAGS_COMMON"
+
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+BINDIR="$PEKIT_OUT/usr/bin"
+MANDIR="$PEKIT_OUT/usr/share/man/man1"
+DOCDIR="$PEKIT_OUT/usr/share/doc/org.sourceware.bzip2-devel"
+mkdir -p "$LIBDIR/pkgconfig" "$BINDIR" "$MANDIR" "$DOCDIR" "$PEKIT_OUT/usr/include"
+
+install -m 0755 bzip2-shared "$BINDIR/bzip2"
+install -m 0755 bzip2recover "$BINDIR/bzip2recover"
+ln -s bzip2 "$BINDIR/bunzip2"
+ln -s bzip2 "$BINDIR/bzcat"
+
+# Keep the wrappers whose dependency closure Peios can satisfy today. bzmore
+# and bzless remain omitted until a packaged pager exists.
+install -m 0755 bzgrep bzdiff "$BINDIR/"
+sed -i '1s|^#!/bin/sh$|#!/usr/bin/sh|' "$BINDIR/bzgrep" "$BINDIR/bzdiff"
+sed -i 's|/usr/bin:/bin:|/usr/bin:|' "$BINDIR/bzdiff"
+sed -i 's|/bin/rm|/usr/bin/rm|' "$BINDIR/bzdiff"
+ln -s bzgrep "$BINDIR/bzegrep"
+ln -s bzgrep "$BINDIR/bzfgrep"
+ln -s bzdiff "$BINDIR/bzcmp"
+
+install -m 0755 "libbz2.so.$PEKIT_VERSION" "$LIBDIR/libbz2.so.$PEKIT_VERSION"
+ln -s "libbz2.so.$PEKIT_VERSION" "$LIBDIR/libbz2.so.1"
+ln -s libbz2.so.1 "$LIBDIR/libbz2.so"
+install -m 0644 libbz2.a "$LIBDIR/libbz2.a"
+install -m 0644 bzlib.h "$PEKIT_OUT/usr/include/bzlib.h"
+
+printf '%s\n' \
+  'prefix=/usr' \
+  'exec_prefix=${prefix}' \
+  'libdir=${prefix}/lib/x86_64-linux-peios' \
+  'includedir=${prefix}/include' \
+  '' \
+  'Name: bzip2' \
+  'Description: A file compression library' \
+  "Version: $PEKIT_VERSION" \
+  'Libs: -L${libdir} -lbz2' \
+  'Cflags: -I${includedir}' > "$LIBDIR/pkgconfig/bzip2.pc"
+
+install -m 0644 bzip2.1 bzdiff.1 bzgrep.1 "$MANDIR/"
+ln -s bzip2.1 "$MANDIR/bzip2recover.1"
+ln -s bzip2.1 "$MANDIR/bunzip2.1"
+ln -s bzip2.1 "$MANDIR/bzcat.1"
+ln -s bzdiff.1 "$MANDIR/bzcmp.1"
+ln -s bzgrep.1 "$MANDIR/bzegrep.1"
+ln -s bzgrep.1 "$MANDIR/bzfgrep.1"
+install -m 0644 manual.html manual.pdf "$DOCDIR/"
+
+# Installed CLI and ABI integration gate.
+readelf -d "$LIBDIR/libbz2.so.$PEKIT_VERSION" | grep -F 'Library soname: [libbz2.so.1]'
+SMOKE="$PEKIT_OUT/.bzip2-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' 'Peios bzip2 round-trip' > "$SMOKE/input"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -9c "$SMOKE/input" > "$SMOKE/input.bz2"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -dc "$SMOKE/input.bz2" > "$SMOKE/output"
+cmp "$SMOKE/input" "$SMOKE/output"
+printf '%s\n' \
+  '#include <bzlib.h>' \
+  '#include <string.h>' \
+  'int main(void) {' \
+  '  char in[] = "libbz2 integration"; char compressed[128]; char out[128];' \
+  '  unsigned int clen = sizeof compressed, olen = sizeof out;' \
+  '  if (BZ2_bzBuffToBuffCompress(compressed, &clen, in, strlen(in) + 1, 9, 0, 30) != BZ_OK) return 1;' \
+  '  if (BZ2_bzBuffToBuffDecompress(out, &olen, compressed, clen, 0, 0) != BZ_OK) return 2;' \
+  '  return strcmp(in, out) != 0;' \
+  '}' > "$SMOKE/libbz2.c"
+cc -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
+  -o "$SMOKE/libbz2" "$SMOKE/libbz2.c" -lbz2
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libbz2"
+head -1 "$BINDIR/bzgrep" | grep -Fx '#!/usr/bin/sh'
+head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
+rm -rf "$SMOKE"
+
+# Distribution debug split: scrub build paths, index detached symbols by GNU
+# build ID, strip installed ELF payloads, and retain referenced source files.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.bzip2 -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.sourceware.bzip2/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.sourceware.bzip2/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit      = "*"
+patchelf       = "*"

@@ -1,0 +1,21 @@
+# Command-line compressor, recovery tool, and supported shell conveniences.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.sourceware.bzip2"
+description = "bzip2 - block-sorting compression tools"
+
+[dependencies]
+"org.sourceware.bzip2-libs" = "{{version}}-1"
+# bzgrep and bzdiff are POSIX shell frontends over these standard tools.
+dash          = "*"
+coreutils-gnu = "*"
+diffutils     = "*"
+grep          = "*"
+sed           = "*"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/org.sourceware.bzip2/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"
