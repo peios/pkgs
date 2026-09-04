@@ -2,9 +2,9 @@ format = "peipkg"
 
 [package]
 name          = "dev.peios.peios-installer"
-version       = "{{version}}-1"
+version       = "{{version}}-5"
 architecture  = "x86_64"
-description   = "Peios installer - installerd engine and the install-tui surface"
+description   = "Peios installer - installerd engine, the install-tui surface and msip-drive"
 license       = "MIT"
 license_class = "free"
 
@@ -21,8 +21,11 @@ dosfstools = ">= 4.2"
 e2fsprogs  = ">= 1.47.0"
 prelude    = ">= 0.0.1"
 
+# Globs, not single paths: a one-file source maps its destination as a file
+# name rather than a directory, which collides with the directory the root
+# already has.
 [files]
-":usr/sbin/installerd"      = "usr/sbin"
-":usr/bin/install-tui"      = "usr/bin"
-":usr/share/regim/**"       = "usr/share/regim"
-":usr/share/licenses/**"    = "usr/share/licenses"
+":usr/sbin/**"           = "usr/sbin"
+":usr/bin/**"            = "usr/bin"
+":usr/share/regim/**"    = "usr/share/regim"
+":usr/share/licenses/**" = "usr/share/licenses"

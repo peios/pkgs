@@ -61,6 +61,11 @@ BIN="$SRC/target/x86_64-unknown-linux-musl/release"
 install -D -m 0755 "$BIN/installerd"  "$PEKIT_OUT/usr/sbin/installerd"
 install -D -m 0755 "$BIN/install-tui" "$PEKIT_OUT/usr/bin/install-tui"
 
+# A surface with no user, for scripts and for asking a running daemon what
+# it is showing. Generic MSIP, not installer-specific; it ships here because
+# this is the package that has an MSIP daemon in it.
+install -D -m 0755 "$BIN/msip-drive"  "$PEKIT_OUT/usr/bin/msip-drive"
+
 # The seed master. Inert until an edition names it in [registry] autoapply --
 # a package must not be able to arm a service by being installed.
 install -D -m 0644 "$SRC/registry.d/installerd-service.reg" \
