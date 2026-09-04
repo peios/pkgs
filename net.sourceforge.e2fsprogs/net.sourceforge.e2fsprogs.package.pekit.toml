@@ -19,20 +19,21 @@ excludes = [
 side_effects = ["man-db"]
 
 [package]
+name        = "net.sourceforge.e2fsprogs"
 description = "Ext2/3/4 filesystem utilities"
-license     = "GPL-2.0-or-later"
 
 [dependencies]
 glibc      = ">= 2.43"
-libcom-err = "{{version}}"
-libss      = "{{version}}"
-libext2fs  = "{{version}}"
-libe2p     = "{{version}}"
-libuuid    = "{{version}}"
+"net.sourceforge.e2fsprogs-libcom-err" = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libss"      = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libe2p"     = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libuuid"    = "{{version}}-1"
 # libblkid.so.1 comes from util-linux-lib (e2fsprogs' bundled copy is unshipped).
 libblkid   = "*"
 
 [files]
+"@source:NOTICE"          = "usr/share/licenses/net.sourceforge.e2fsprogs/"
 # Everything lands in usr/bin: the recipe passes --sbindir=/usr/bin, because
 # /sbin is for daemons and these are privileged binaries a person runs.
 ":usr/bin/**"             = "usr/bin"

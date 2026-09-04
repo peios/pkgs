@@ -9,3 +9,10 @@ schema = 1
   ref = "v1.47.2"
   commit = "c3cce4a07efefc62bc7fc57a678cb870af27d0f2"
   locked_at = "2026-08-10T13:02:51Z"
+
+[[source]]
+  version = "1.47.4"
+  url = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v1.47.4/e2fsprogs-1.47.4.tar.xz"
+  sha256 = "fd5bf388cbdbe006a3d3b318d983b2948382440acc85a87f1e7d108653e8db0b"
+  signature_key = "3ab057b7e78d945c8c5591fbd36f769bc11804f0"
+  locked_at = "2026-09-04T17:47:21Z"

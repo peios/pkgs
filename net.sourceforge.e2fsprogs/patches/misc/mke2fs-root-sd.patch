@@ -1,5 +1,5 @@
 diff --git a/misc/Makefile.in b/misc/Makefile.in
-index 2d5be8c..da0a093 100644
+index 0e3bed66..6b87bb71 100644
 --- a/misc/Makefile.in
 +++ b/misc/Makefile.in
 @@ -281,7 +281,7 @@ mklost+found: $(MKLPF_OBJS)
@@ -12,10 +12,10 @@ index 2d5be8c..da0a093 100644
  		$(SYSLIBS) $(LIBMAGIC) $(LIBARCHIVE)
  
 diff --git a/misc/mke2fs.c b/misc/mke2fs.c
-index f24076b..199f965 100644
+index dd8c53d9..fc777a74 100644
 --- a/misc/mke2fs.c
 +++ b/misc/mke2fs.c
-@@ -52,6 +52,7 @@ extern int optind;
+@@ -55,6 +55,7 @@ extern int optind;
  
  #include "ext2fs/ext2_fs.h"
  #include "ext2fs/ext2fsP.h"
@@ -23,16 +23,16 @@ index f24076b..199f965 100644
  #include "uuid/uuid.h"
  #include "util.h"
  #include "support/nls-enable.h"
-@@ -92,6 +93,8 @@ static int	num_backups = 2; /* number of backup bg's for sparse_super2 */
- static uid_t	root_uid;
+@@ -96,6 +97,8 @@ static uid_t	root_uid;
  static mode_t 	root_perms = (mode_t)-1;
  static gid_t	root_gid;
+ static char	*root_selinux = NULL;
 +static void	*root_sd;		/* binary Security Descriptor for the root dir */
 +static size_t	root_sd_len;
  int	journal_size;
  int	journal_flags;
  int	journal_fc_size;
-@@ -490,6 +493,108 @@ static void write_inode_tables(ext2_filsys fs, int lazy_flag, int itable_zeroed)
+@@ -473,6 +476,108 @@ static void write_inode_tables(ext2_filsys fs, int lazy_flag, int itable_zeroed)
  		write_reserved_inodes(fs);
  }
  
@@ -141,16 +141,15 @@ index f24076b..199f965 100644
  static void create_root_dir(ext2_filsys fs)
  {
  	errcode_t		retval;
-@@ -533,6 +638,8 @@ static void create_root_dir(ext2_filsys fs)
+@@ -545,6 +650,7 @@ static void create_root_dir(ext2_filsys fs)
  			exit(1);
  		}
  	}
-+
 +	stamp_root_sd(fs, EXT2_ROOT_INO);
  }
  
  static void create_lost_and_found(ext2_filsys fs)
-@@ -571,6 +678,8 @@ static void create_lost_and_found(ext2_filsys fs)
+@@ -583,6 +689,8 @@ static void create_lost_and_found(ext2_filsys fs)
  			exit(1);
  		}
  	}
@@ -159,9 +158,9 @@ index f24076b..199f965 100644
  }
  
  static void create_bad_block_inode(ext2_filsys fs, badblocks_list bb_list)
-@@ -1104,6 +1213,12 @@ static void parse_extended_opts(struct ext2_super_block *param,
- 			if (arg) {
- 				root_perms = strtoul(arg, &p, 8);
+@@ -1134,6 +1242,12 @@ static void parse_extended_opts(struct ext2_super_block *param,
+ 				badopt = token;
+ 				continue;
  			}
 +		} else if (!strcmp(token, "root_sddl")) {
 +			if (arg)
@@ -172,10 +171,10 @@ index f24076b..199f965 100644
  		} else if (!strcmp(token, "discard")) {
  			discard = 1;
  		} else if (!strcmp(token, "nodiscard")) {
-@@ -1189,6 +1304,8 @@ static void parse_extended_opts(struct ext2_super_block *param,
- 			"\tlazy_journal_init=<0 to disable, 1 to enable>\n"
+@@ -1220,6 +1334,8 @@ static void parse_extended_opts(struct ext2_super_block *param,
  			"\troot_owner=<uid of root dir>:<gid of root dir>\n"
  			"\troot_perms=<octal root directory permissions>\n"
+ 			"\troot_selinux=<selinux root directory label>\n"
 +			"\troot_sddl=<SDDL security descriptor for root dir>\n"
 +			"\troot_sd_file=<file with SDDL for root dir>\n"
  			"\ttest_fs\n"

@@ -1,0 +1,15 @@
+# e2fsprogs-debugsource — the e2fsprogs sources referenced by the debug info,
+# under /usr/src/debug/net.sourceforge.e2fsprogs, so gdb/debuginfod can show
+# source lines. Pairs
+# with e2fsprogs-debuginfo (symbols without source are half-blind).
+
+[package]
+name        = "net.sourceforge.e2fsprogs-debugsource"
+description = "Ext2/3/4 filesystem utilities - debug sources"
+
+[dependencies]
+"net.sourceforge.e2fsprogs-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:NOTICE"    = "usr/share/licenses/net.sourceforge.e2fsprogs-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

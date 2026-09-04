@@ -1,13 +1,15 @@
 # libe2p — runtime shared library from the e2fsprogs source tree.
 
 [package]
+name        = "net.sourceforge.e2fsprogs-libe2p"
 description = "Ext2 attribute manipulation runtime library (libe2p)"
-license     = "LGPL-2.0-or-later"
+license     = "LGPL-2.0-only"
 
 [dependencies]
 glibc = ">= 2.43"
 
 [files]
+"@source:NOTICE" = "usr/share/licenses/net.sourceforge.e2fsprogs-libe2p/"
 # Versioned runtime lib + soname symlink; the unversioned dev .so is -devel's,
 # the static .a is -static's.
 ":usr/lib/x86_64-linux-peios/libe2p.so.*" = "usr/lib/x86_64-linux-peios"

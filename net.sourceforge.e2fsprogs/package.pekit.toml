@@ -11,14 +11,10 @@
 format = "peipkg"
 
 [package]
-# -3: dropped the ext4 `quota` feature from the compiled-in profile — the
-# kernel lacks CONFIG_QFMT_V2, so every filesystem carrying it was unmountable.
-# -2: tools moved out of usr/sbin (--sbindir=/usr/bin), fsck.<type> backends
-# relocated to usr/libexec/fsck/, and the multicall aliases changed from hard
-# links to relative symlinks.
-version      = "{{version}}-3"
-architecture = "x86_64"
+version       = "{{version}}-1"
+architecture  = "x86_64"
 # Mixed: the programs are GPL-2.0; libext2fs/libe2p are LGPL-2.0; libcom_err/
 # libss are MIT; libuuid is BSD-3-Clause. Per-package members narrow this.
-license      = "GPL-2.0-or-later AND LGPL-2.0-or-later AND BSD-3-Clause AND MIT"
-homepage     = "http://e2fsprogs.sourceforge.net/"
+license       = "GPL-2.0-only AND LGPL-2.0-only AND BSD-3-Clause AND MIT"
+license_class = "free"
+homepage      = "https://e2fsprogs.sourceforge.net/"

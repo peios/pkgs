@@ -5,10 +5,12 @@
 # util-linux-lib; split per-binary-package (Fedora model) only if needed later.
 
 [package]
+name        = "net.sourceforge.e2fsprogs-debuginfo"
 description = "Ext2/3/4 filesystem utilities - debugging symbols"
 
 [dependencies]
-e2fsprogs = "{{version}}"
+"net.sourceforge.e2fsprogs" = "{{version}}-1"
 
 [files]
+"@source:NOTICE"   = "usr/share/licenses/net.sourceforge.e2fsprogs-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

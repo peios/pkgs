@@ -2,12 +2,14 @@
 # Excludes libblkid.a (util-linux-lib's).
 
 [package]
+name        = "net.sourceforge.e2fsprogs-static"
 description = "Ext2/3/4 filesystem utilities - static libraries"
 
 [dependencies]
-e2fsprogs-devel = "{{version}}"
+"net.sourceforge.e2fsprogs-devel" = "{{version}}-1"
 
 [files]
+"@source:NOTICE"                              = "usr/share/licenses/net.sourceforge.e2fsprogs-static/"
 ":usr/lib/x86_64-linux-peios/libcom_err.a" = "usr/lib/x86_64-linux-peios/libcom_err.a"
 ":usr/lib/x86_64-linux-peios/libss.a"      = "usr/lib/x86_64-linux-peios/libss.a"
 ":usr/lib/x86_64-linux-peios/libext2fs.a"  = "usr/lib/x86_64-linux-peios/libext2fs.a"

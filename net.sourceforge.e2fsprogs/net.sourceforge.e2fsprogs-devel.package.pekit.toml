@@ -3,16 +3,18 @@
 # blkid header/.pc/.so — those are util-linux-lib's (libblkid-devel).
 
 [package]
+name        = "net.sourceforge.e2fsprogs-devel"
 description = "Ext2/3/4 filesystem utilities - development files"
 
 [dependencies]
-libcom-err = "{{version}}"
-libss      = "{{version}}"
-libext2fs  = "{{version}}"
-libe2p     = "{{version}}"
-libuuid    = "{{version}}"
+"net.sourceforge.e2fsprogs-libcom-err" = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libss"      = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libe2p"     = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libuuid"    = "{{version}}-1"
 
 [files]
+"@source:NOTICE"           = "usr/share/licenses/net.sourceforge.e2fsprogs-devel/"
 ":usr/include/et/**"        = "usr/include/et"
 ":usr/include/com_err.h"    = "usr/include/com_err.h"
 ":usr/include/ss/**"        = "usr/include/ss"

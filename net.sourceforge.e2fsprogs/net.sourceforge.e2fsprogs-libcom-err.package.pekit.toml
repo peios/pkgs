@@ -1,6 +1,7 @@
 # libcom_err — runtime shared library from the e2fsprogs source tree.
 
 [package]
+name        = "net.sourceforge.e2fsprogs-libcom-err"
 description = "Common error-table runtime library (libcom_err)"
 license     = "MIT"
 
@@ -8,6 +9,7 @@ license     = "MIT"
 glibc = ">= 2.43"
 
 [files]
+"@source:NOTICE" = "usr/share/licenses/net.sourceforge.e2fsprogs-libcom-err/"
 # Versioned runtime lib + soname symlink; the unversioned dev .so is -devel's,
 # the static .a is -static's.
 ":usr/lib/x86_64-linux-peios/libcom_err.so.*" = "usr/lib/x86_64-linux-peios"

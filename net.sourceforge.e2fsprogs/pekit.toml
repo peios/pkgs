@@ -24,26 +24,35 @@
 # /etc/mke2fs.conf exists. That is why the package deliberately ships no conf
 # file (see e2fsprogs.package.pekit.toml).
 #
-# Patch dev: `pekit lock --version 1.47.2` materialises the patched checkout
+# Patch dev: `pekit lock --latest` materialises the patched release
 # under out/ (pekit applies patches/series during source materialisation);
 # edit there and regenerate diffs into patches/. pekit applies strictly — no
 # fuzz — so on a version bump a stale patch fails loudly; rebase it manually
 # against the new tag.
 #
-#   pekit publish --version 1.47.2 --env peipkg --keyring dev --all
+#   pekit publish --latest --env peipkg --keyring dev --all
 
 out_dir = "out"
 
-# Pinned upstream: v{{version}} tags on the canonical kernel.org repo, the
-# resolved commit TOFU-pinned in pekit.lock. patches/series is applied to the
-# checkout before any build target runs.
+# Follow the canonical kernel.org release archive.  Releases are enumerated
+# from its version-directory index, authenticated with Theodore Ts'o's
+# detached signature, and then hash-pinned in pekit.lock.  The version floor is
+# maintenance policy, not a compatibility claim.
 [source]
 patches = "patches"
 
-[source.git]
-url = "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git"
-ref = "v{{version}}"
-tag_regex = '^v\d+\.\d+(\.\d+)?$'
+[source.url]
+url        = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v{{version}}/e2fsprogs-{{version}}.tar.xz"
+extract    = true
+root       = "e2fsprogs-{{version}}"
+file_regex = 'v[0-9]+\.[0-9]+(\.[0-9]+)?/'
+versions   = ">= 1.47.4"
+
+[source.url.signature]
+key_files    = ["keys/theodore-tso.asc"]
+url          = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v{{version}}/e2fsprogs-{{version}}.tar.sign"
+fingerprints = ["3AB057B7E78D945C8C5591FBD36F769BC11804F0"]
+of           = "decompressed"
 
 # --- main: out-of-source configure/make/install -----------------------------
 #   --enable-elf-shlibs : build the shared support libraries.
@@ -93,8 +102,67 @@ cd "$PEKIT_OUT"
   --without-crond-dir --without-systemd-unit-dir --without-udev-rules-dir \
   --enable-elf-shlibs --disable-nls
 make -j"$(nproc)"
+make check
 make install DESTDIR="$PEKIT_OUT"
 make install-libs DESTDIR="$PEKIT_OUT"
+
+# Exercise both Peios-specific behavior patches, not merely upstream's stock
+# suite.  The helper creates the portable user.peios.sd staging xattr and also
+# computes the expected binary descriptors independently through libpeios.
+export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+SMOKE="$PEKIT_OUT/.peios-sd-smoke"
+mkdir -p "$SMOKE/tree/dir"
+touch "$SMOKE/tree/file"
+cc -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
+  "$PEKIT_RECIPE_ROOT/tests/sd-fixture.c" -lpeios
+
+ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)'
+CHILD_SDDL='O:BAG:BAD:(A;;GR;;;BA)'
+printf '%s\n' "$ROOT_SDDL" > "$SMOKE/root.sddl"
+"$SMOKE/sd-fixture" parse "$ROOT_SDDL" "$SMOKE/root.expected"
+"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/dir"
+"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/file"
+"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 1 \
+  "$SMOKE/dir.expected"
+"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 0 \
+  "$SMOKE/file.expected"
+
+truncate -s 32M "$SMOKE/file-option.img"
+misc/mke2fs -q -t ext4 -d "$SMOKE/tree" \
+  -E "root_sd_file=$SMOKE/root.sddl" "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get <2> security.peios.sd -f $SMOKE/root.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /lost+found security.peios.sd -f $SMOKE/lost.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /dir security.peios.sd -f $SMOKE/dir.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /file security.peios.sd -f $SMOKE/file.actual" \
+  "$SMOKE/file-option.img"
+cmp "$SMOKE/root.expected" "$SMOKE/root.actual"
+cmp "$SMOKE/root.expected" "$SMOKE/lost.actual"
+cmp "$SMOKE/dir.expected" "$SMOKE/dir.actual"
+cmp "$SMOKE/file.expected" "$SMOKE/file.actual"
+
+# Cover the inline option separately; root_sd_file above also proves trailing
+# newline handling.  A malformed descriptor must be rejected rather than
+# silently creating an unstamped filesystem.
+truncate -s 32M "$SMOKE/inline-option.img"
+misc/mke2fs -q -t ext4 -E "root_sddl=$ROOT_SDDL" \
+  "$SMOKE/inline-option.img"
+debugfs/debugfs -R \
+  "ea_get <2> security.peios.sd -f $SMOKE/inline.actual" \
+  "$SMOKE/inline-option.img"
+cmp "$SMOKE/root.expected" "$SMOKE/inline.actual"
+truncate -s 32M "$SMOKE/invalid.img"
+if misc/mke2fs -q -t ext4 -E root_sddl=not-sddl "$SMOKE/invalid.img"; then
+  echo "mke2fs accepted an invalid root_sddl" >&2
+  exit 1
+fi
+rm -rf "$SMOKE"
 
 # Drop libtool archives (hardcoded paths + overlink; DT_NEEDED supersedes).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
@@ -131,7 +199,7 @@ for t in ext2 ext3 ext4; do
 done
 
 # Debug split (same shape as util-linux-lib/gmp/glibc): debugedit scrubs the
-# build path (-> /usr/src/debug/e2fsprogs) and records referenced sources;
+# build path (-> /usr/src/debug/net.sourceforge.e2fsprogs) and records referenced sources;
 # split debug info build-id-indexed under usr/lib/debug/.build-id; strip the
 # shipped ELF; stage the referenced sources. The .c sources live in
 # $PEKIT_SOURCE_ROOT (the compiler saw absolute paths to it).
@@ -145,7 +213,7 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
-  debugedit -b "$SRCROOT" -d /usr/src/debug/e2fsprogs -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$SRCROOT" -d /usr/src/debug/net.sourceforge.e2fsprogs -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
@@ -160,8 +228,8 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   [ -n "$rel" ] || continue
   case "$rel" in */) continue;; esac
   [ -f "$SRCROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/e2fsprogs/$(dirname "$rel")"
-  cp "$SRCROOT/$rel" "usr/src/debug/e2fsprogs/$rel"
+  mkdir -p "usr/src/debug/net.sourceforge.e2fsprogs/$(dirname "$rel")"
+  cp "$SRCROOT/$rel" "usr/src/debug/net.sourceforge.e2fsprogs/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
@@ -180,6 +248,15 @@ pkgconf = "*"
 # bridge the recipe used before libpeios published (deps/README.md).
 libpeios = "*"
 libpeios-devel = "*"
+
+# The upstream regression suite stores several filesystem images as compressed
+# fixtures and unpacks them with the command-line tools.  `which` is used by
+# its feature probes; declare all four instead of inheriting them accidentally
+# from a developer's build root.
+"org.sourceware.bzip2" = "*"
+gzip = "*"
+tar = "*"
+which = "*"
 
 # No [build.main.dependencies.apt]: this recipe is rung-2 only. Debian has no
 # libpeios, so the apt provider cannot satisfy the patchset's link dependency

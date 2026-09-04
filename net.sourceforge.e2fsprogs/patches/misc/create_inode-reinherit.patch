@@ -1,5 +1,5 @@
 diff --git a/debugfs/Makefile.in b/debugfs/Makefile.in
-index 9b402f0..8731db3 100644
+index 689bf0c4..c3cad4fc 100644
 --- a/debugfs/Makefile.in
 +++ b/debugfs/Makefile.in
 @@ -65,7 +65,7 @@ all:: $(PROGS) $(MANPAGES)
@@ -11,11 +11,24 @@ index 9b402f0..8731db3 100644
  
  debugfs.static: $(DEBUG_OBJS) $(STATIC_DEPLIBS)
  	$(E) "	LD $@"
+diff --git a/lib/ext2fs/Makefile.in b/lib/ext2fs/Makefile.in
+index 0caa5948..3bc8626d 100644
+--- a/lib/ext2fs/Makefile.in
++++ b/lib/ext2fs/Makefile.in
+@@ -511,7 +511,7 @@ tst_libext2fs: $(DEBUG_OBJS) \
+ 	$(DEPSTATIC_LIBSS) $(STATIC_LIBE2P) $(DEPLIBUUID) libext2fs.a \
+ 	$(DEPLIBBLKID) $(DEPSTATIC_LIBCOM_ERR) $(DEPLIBSUPPORT)
+ 	$(E) "	LD $@"
+-	$(Q) $(CC) -o tst_libext2fs $(ALL_LDFLAGS) -DDEBUG $(DEBUG_OBJS) \
++	$(Q) $(CC) -o tst_libext2fs $(ALL_LDFLAGS) -DDEBUG $(DEBUG_OBJS) -lpeios \
+ 		$(STATIC_LIBSS) $(STATIC_LIBE2P) $(LIBSUPPORT) \
+ 		$(STATIC_LIBEXT2FS) $(LIBBLKID) $(LIBUUID) $(LIBMAGIC) \
+ 		$(STATIC_LIBCOM_ERR) $(SYSLIBS) $(LIBARCHIVE) -I $(top_srcdir)/debugfs
 diff --git a/misc/create_inode.c b/misc/create_inode.c
-index 4e292a2..d1c645b 100644
+index 31c99961..a5a71f2a 100644
 --- a/misc/create_inode.c
 +++ b/misc/create_inode.c
-@@ -37,6 +37,7 @@
+@@ -42,6 +42,7 @@
  
  #include "create_inode.h"
  #include "support/nls-enable.h"
@@ -23,7 +36,7 @@ index 4e292a2..d1c645b 100644
  
  #include "create_inode_libarchive.h"
  
-@@ -201,6 +202,13 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
+@@ -202,6 +203,13 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
  		const char *name = &list[i];
  		char *value;
  
@@ -37,7 +50,7 @@ index 4e292a2..d1c645b 100644
  		value_size = lgetxattr(filename, name, NULL, 0);
  		if (value_size == -1) {
  			retval = errno;
-@@ -245,6 +253,108 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
+@@ -246,6 +254,108 @@ static errcode_t set_inode_xattr(ext2_filsys fs, ext2_ino_t ino,
  	}
  	return retval;
  }
@@ -146,7 +159,7 @@ index 4e292a2..d1c645b 100644
  #else /* HAVE_LLISTXATTR */
  static errcode_t set_inode_xattr(ext2_filsys fs EXT2FS_ATTR((unused)),
  				 ext2_ino_t ino EXT2FS_ATTR((unused)),
-@@ -252,6 +362,15 @@ static errcode_t set_inode_xattr(ext2_filsys fs EXT2FS_ATTR((unused)),
+@@ -253,6 +363,15 @@ static errcode_t set_inode_xattr(ext2_filsys fs EXT2FS_ATTR((unused)),
  {
  	return 0;
  }
@@ -162,7 +175,7 @@ index 4e292a2..d1c645b 100644
  #endif  /* HAVE_LLISTXATTR */
  
  #ifndef _WIN32
-@@ -970,6 +1089,17 @@ find_lnf:
+@@ -1102,6 +1221,17 @@ find_lnf:
  				com_err(name, retval, 0);
  					goto out;
  			}
@@ -179,9 +192,9 @@ index 4e292a2..d1c645b 100644
 +			}
  			/* Populate the dir recursively*/
  			retval = __populate_fs(fs, ino, name, root, hdlinks,
- 					       target, fs_callbacks);
-@@ -1008,6 +1138,15 @@ find_lnf:
- 			goto out;
+ 					       target, flags, fs_callbacks);
+@@ -1143,6 +1273,15 @@ find_lnf:
+ 			}
  		}
  
 +		retval = set_inode_sd(fs, ino, parent_ino, name,
