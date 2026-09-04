@@ -1,0 +1,14 @@
+[package]
+name        = "org.sourceware.elfutils-static"
+description = "elfutils - static ELF, DWARF, and assembler libraries"
+license     = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+
+[dependencies]
+"org.sourceware.elfutils-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING-GPLV2"  = "usr/share/licenses/org.sourceware.elfutils-static/"
+"@source:COPYING-LGPLV3" = "usr/share/licenses/org.sourceware.elfutils-static/"
+":usr/lib/x86_64-linux-peios/libelf.a" = "usr/lib/x86_64-linux-peios/libelf.a"
+":usr/lib/x86_64-linux-peios/libdw.a"  = "usr/lib/x86_64-linux-peios/libdw.a"
+":usr/lib/x86_64-linux-peios/libasm.a" = "usr/lib/x86_64-linux-peios/libasm.a"

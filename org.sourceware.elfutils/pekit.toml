@@ -1,0 +1,194 @@
+# elfutils — libelf/libdw/libasm plus the eu-* ELF and DWARF tools.
+#
+# This is the core, offline-capable elfutils family. debuginfod remains a
+# separate future package because its client and server introduce the network,
+# HTTP, archive and database stack; the ELF/DWARF libraries themselves retain
+# every recommended compression format. There are no downstream patches.
+
+out_dir = "out"
+
+[source.url]
+url        = "https://sourceware.org/elfutils/ftp/{{version}}/elfutils-{{version}}.tar.bz2"
+extract    = true
+root       = "elfutils-{{version}}"
+file_regex = '[0-9]+\.[0-9]+/'
+# Soft maintenance floor: follow authenticated stable releases automatically.
+versions   = ">= 0.196"
+
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/aaron-merey.asc"]
+fingerprints = ["6C2B631563B8D330578D3CB474FD3FA2779E7073"]
+
+[build.main]
+command = """
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --program-prefix=eu- \
+  --with-bzlib \
+  --with-lzma \
+  --with-zstd \
+  --enable-deterministic-archives \
+  --enable-demangler \
+  --enable-textrelcheck \
+  --enable-symbol-versioning \
+  --disable-debuginfod \
+  --disable-libdebuginfod \
+  --disable-stackprof \
+  --disable-nls
+
+# Upstream labels these as the recommended production feature set. Test the
+# configured result so a missing or renamed dependency cannot silently reduce
+# the library's format support on a future rebuild.
+grep -Fx '#define USE_ZLIB 1' config.h
+grep -Fx '#define USE_BZLIB 1' config.h
+grep -Fx '#define USE_LZMA 1' config.h
+grep -Fx '#define USE_ZSTD 1' config.h
+grep -Fx '#define USE_ZSTD_COMPRESS 1' config.h
+grep -Fx '#define USE_DEMANGLE 1' config.h
+grep -Fx '#define DEFAULT_AR_DETERMINISTIC true' config.h
+
+make -j"$(nproc)"
+# Test fixtures carry their original numeric owners. Pekit's unprivileged
+# build namespace cannot restore those IDs, so extract their content while
+# retaining the builder's ownership; this is also our Automake test policy.
+TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# The disabled debuginfod and stackprof components still install reference
+# pages. Do not advertise commands, an ABI or services that are not shipped.
+rm -f \
+  "$PEKIT_OUT/usr/share/man/man1/debuginfod-find.1" \
+  "$PEKIT_OUT/usr/share/man/man1/eu-stackprof.1" \
+  "$PEKIT_OUT/usr/share/man/man3/debuginfod_"*.3 \
+  "$PEKIT_OUT/usr/share/man/man7/debuginfod-client-config.7" \
+  "$PEKIT_OUT/usr/share/man/man8/debuginfod.8" \
+  "$PEKIT_OUT/usr/share/man/man8/debuginfod.service.8"
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/etc"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# Installed command and library integration gate. This executes from the
+# staged tree, independently of any elfutils installation on the build host.
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+BINDIR="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.elfutils-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/probe.c" <<'EOF'
+#include <fcntl.h>
+#include <unistd.h>
+#include <gelf.h>
+#include <elfutils/libdw.h>
+
+int main(int argc, char **argv) {
+  GElf_Ehdr ehdr;
+  if (argc != 2 || elf_version(EV_CURRENT) == EV_NONE) return 1;
+  int fd = open(argv[1], O_RDONLY);
+  if (fd < 0) return 2;
+  Elf *elf = elf_begin(fd, ELF_C_READ, 0);
+  if (!elf || elf_kind(elf) != ELF_K_ELF || !gelf_getehdr(elf, &ehdr)) return 3;
+  elf_end(elf);
+  Dwarf *dw = dwarf_begin(fd, DWARF_C_READ);
+  if (!dw) return 4;
+  dwarf_end(dw);
+  close(fd);
+  return ehdr.e_machine == EM_X86_64 ? 0 : 5;
+}
+EOF
+cc $CFLAGS -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" $LDFLAGS \
+  -o "$SMOKE/probe" "$SMOKE/probe.c" -ldw -lelf
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/probe" "$SMOKE/probe"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-readelf" -h "$SMOKE/probe" \
+  | grep -F 'ELF64'
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-nm" "$SMOKE/probe" \
+  | grep -E '^main[[:space:]]'
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-elflint" --gnu-ld "$SMOKE/probe"
+
+# Preserve the workspace hardening contract and prohibit build-tree loader
+# paths. Static archives retain symbols but discard compiler-only debug data.
+find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$f" | grep -F 'BIND_NOW'
+  if readelf -d "$f" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
+
+# Conventional build-id debug packages. debugedit rewrites source paths to a
+# stable package namespace before detached symbols are produced and the
+# installed ELF files are stripped.
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in *.a|*.o) continue;; esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  debugedit -b "$SRC" -d /usr/src/debug/org.sourceware.elfutils \
+    -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null \
+    && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$SRC/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.sourceware.elfutils/$(dirname "$rel")"
+  cp "$SRC/$rel" "usr/src/debug/org.sourceware.elfutils/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++"        = "*"
+m4                            = "*"
+pkgconf                       = "*"
+zlib-devel                    = "*"
+"org.sourceware.bzip2-devel" = "*"
+xz-devel                      = "*"
+zstd-devel                    = "*"
+"org.sourceware.bzip2"       = "*"
+"org.gnu.bash"               = "*"
+glibc-bin                    = "*"
+tar                          = "*"
+xz                            = "*"
+zstd                          = "*"
+which                         = "*"
+debugedit                     = "*"
+patchelf                      = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+"g++" = "*"
+m4 = "*"
+pkg-config = "*"
+zlib1g-dev = "*"
+libbz2-dev = "*"
+liblzma-dev = "*"
+libzstd-dev = "*"
+bzip2 = "*"
+bash = "*"
+libc-bin = "*"
+tar = "*"
+xz-utils = "*"
+zstd = "*"
+debugedit = "*"
+patchelf = "*"

@@ -15,8 +15,8 @@ license      = "GPL-3.0-or-later"
 homepage     = "https://sourceware.org/debugedit/"
 
 [dependencies]
-glibc    = ">= 2.43"
-elfutils = ">= 0.193"
+glibc                              = ">= 2.43"
+"org.sourceware.elfutils-libs"   = ">= 0.196"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/debugedit/"

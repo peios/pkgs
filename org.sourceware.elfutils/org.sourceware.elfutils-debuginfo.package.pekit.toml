@@ -1,0 +1,9 @@
+[package]
+name        = "org.sourceware.elfutils-debuginfo"
+description = "elfutils - debugging symbols"
+
+[dependencies]
+"org.sourceware.elfutils" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

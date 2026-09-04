@@ -1,0 +1,21 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.sourceware.elfutils-devel"
+description = "elfutils - headers, linker inputs, pkg-config metadata, and API manuals"
+license     = "(GPL-2.0-or-later OR LGPL-3.0-or-later) AND GFDL-1.3-no-invariants-or-later"
+
+[dependencies]
+"org.sourceware.elfutils-libelf" = "{{version}}-1"
+"org.sourceware.elfutils-libs"   = "{{version}}-1"
+
+[files]
+"@source:COPYING-GPLV2"    = "usr/share/licenses/org.sourceware.elfutils-devel/"
+"@source:COPYING-LGPLV3"   = "usr/share/licenses/org.sourceware.elfutils-devel/"
+"@source:doc/COPYING-GFDL" = "usr/share/licenses/org.sourceware.elfutils-devel/"
+":usr/include/**"          = "usr/include"
+":usr/lib/x86_64-linux-peios/libelf.so" = "usr/lib/x86_64-linux-peios/libelf.so"
+":usr/lib/x86_64-linux-peios/libdw.so"  = "usr/lib/x86_64-linux-peios/libdw.so"
+":usr/lib/x86_64-linux-peios/libasm.so" = "usr/lib/x86_64-linux-peios/libasm.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"   = "usr/share/man/man3"

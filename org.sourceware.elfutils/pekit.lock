@@ -9,3 +9,10 @@ schema = 1
   url = "https://sourceware.org/elfutils/ftp/0.194/elfutils-0.194.tar.bz2"
   sha256 = "09e2ff033d39baa8b388a2d7fbc5390bfde99ae3b7c67c7daaf7433fbcf0f01e"
   locked_at = "2026-08-10T19:47:24Z"
+
+[[source]]
+  version = "0.196"
+  url = "https://sourceware.org/elfutils/ftp/0.196/elfutils-0.196.tar.bz2"
+  sha256 = "fd5cc6b77ad6773cac93cb3f415f9318ac3b3455eecf801f6b4a742c4f6c7209"
+  signature_key = "6c2b631563b8d330578d3cb474fd3fa2779e7073"
+  locked_at = "2026-09-04T18:22:34Z"

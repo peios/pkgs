@@ -90,7 +90,7 @@ cd "$PEKIT_OUT"
 #   --with-sysroot=/        : the shipped ld searches the real root at run time.
 #   --with-system-zlib      : link the root's libz (zlib-ng compat), not a
 #       bundled copy — matches the declared zlib-devel build dependency.
-#   --without-debuginfod    : elfutils is in the pool but its libdebuginfod
+#   --without-debuginfod    : org.sourceware.elfutils is in the pool, but its libdebuginfod
 #       needs libcurl, which is not packaged yet (Phase 3).
 #   --enable-plugins        : ld plugin API (gcc LTO needs the linker plugin).
 #   --enable-deterministic-archives : `ar` omits timestamps/uids by default —

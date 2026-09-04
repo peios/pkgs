@@ -15,9 +15,9 @@ license      = "GPL-2.0-only"
 homepage     = "https://git.kernel.org/pub/scm/devel/pahole/pahole.git"
 
 [dependencies]
-glibc    = ">= 2.43"
-elfutils = ">= 0.193"
-zlib     = ">= 2.3.3"
+glibc                            = ">= 2.43"
+"org.sourceware.elfutils-libs" = ">= 0.196"
+zlib                             = ">= 2.3.3"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/pahole/"

@@ -2,7 +2,7 @@
 # generation (CONFIG_DEBUG_INFO_BTF) runs pahole over vmlinux.
 #
 # PEI-158 kernel-tooling leaf: our cmake's first out-of-tree consumer,
-# built against our elfutils-devel (libdw/libelf). The release tarball
+# built against our org.sourceware.elfutils-devel (libdw/libelf). The release tarball
 # vendors libbpf (lib/bpf) and LIBBPF_EMBEDDED defaults ON — the embedded
 # copy is the point: no system libbpf in the seed. CMAKE_BUILD_TYPE
 # defaults to Debug upstream, so Release is passed explicitly;
@@ -39,7 +39,7 @@ rm -rf "$PEKIT_OUT/build"
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 "org.cmake.cmake" = "*"
-"elfutils-devel" = "*"
+"org.sourceware.elfutils-devel" = "*"
 "zlib-devel" = "*"
 
 [build.main.dependencies.apt]

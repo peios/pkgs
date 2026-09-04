@@ -1,0 +1,19 @@
+# The eu-* command-line tools. Libraries and development files remain
+# separately installable for consumers that do not need the utilities.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.sourceware.elfutils"
+description = "elfutils - ELF and DWARF inspection and manipulation tools"
+license     = "GPL-3.0-or-later AND GFDL-1.3-no-invariants-or-later"
+
+[dependencies]
+"org.sourceware.elfutils-libelf" = "{{version}}-1"
+"org.sourceware.elfutils-libs"   = "{{version}}-1"
+
+[files]
+"@source:COPYING"          = "usr/share/licenses/org.sourceware.elfutils/"
+"@source:doc/COPYING-GFDL" = "usr/share/licenses/org.sourceware.elfutils/"
+":usr/bin/**"              = "usr/bin"
+":usr/share/man/man1/**"   = "usr/share/man/man1"

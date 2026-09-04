@@ -1,0 +1,16 @@
+[package]
+name        = "org.sourceware.elfutils-libs"
+description = "elfutils - DWARF and assembler runtime libraries"
+license     = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+
+[dependencies]
+glibc = ">= 2.43"
+"org.sourceware.elfutils-libelf" = "{{version}}-1"
+
+[files]
+"@source:COPYING-GPLV2"  = "usr/share/licenses/org.sourceware.elfutils-libs/"
+"@source:COPYING-LGPLV3" = "usr/share/licenses/org.sourceware.elfutils-libs/"
+":usr/lib/x86_64-linux-peios/libasm-*.so" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libasm.so.1" = "usr/lib/x86_64-linux-peios/libasm.so.1"
+":usr/lib/x86_64-linux-peios/libdw-*.so"  = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libdw.so.1"  = "usr/lib/x86_64-linux-peios/libdw.so.1"

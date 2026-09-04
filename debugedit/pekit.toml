@@ -27,7 +27,7 @@ make install DESTDIR="$PEKIT_OUT"
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 pkgconf = "*"
-elfutils-devel = "*"
+"org.sourceware.elfutils-devel" = "*"
 xxhash-devel = "*"
 
 [build.main.dependencies.apt]
