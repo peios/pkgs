@@ -1,0 +1,115 @@
+# GNU gperf — a perfect-hash-function generator.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/gperf/gperf-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/gperf/"
+extract     = true
+root        = "gperf-{{version}}"
+file_regex  = 'gperf-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance floor. Follow authenticated stable 3.x releases
+# automatically; stop at a new major line for output-compatibility review.
+versions    = ">= 3.3, < 4"
+
+# GNU gperf 3.3 is signed by maintainer Bruno Haible. Pin the complete primary
+# fingerprint from the release announcement so discovery remains authenticated.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/bruno-haible.asc"]
+fingerprints = ["E0FFBD975397F77A32AB76ECB6301D9E1BBEAC08"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man
+
+make -j"$(nproc)"
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. The complete manuals remain in the
+# corresponding-source package; installed users receive the command man page.
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/info"
+
+# Generate, compile and execute a representative C lookup table with both a
+# successful lookup and a miss. This catches broken generators independently
+# of the upstream regression suite.
+BIN="$PEKIT_OUT/usr/bin/gperf"
+SMOKE="$PEKIT_OUT/.gperf-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/keywords.gperf" <<'EOF'
+%{
+#include <stddef.h>
+#include <string.h>
+%}
+struct keyword { const char *name; int value; };
+%language=C
+%readonly-tables
+%struct-type
+%define lookup-function-name keyword_lookup
+%%
+alpha, 1
+beta, 2
+EOF
+"$BIN" "$SMOKE/keywords.gperf" > "$SMOKE/keywords.c"
+cat >> "$SMOKE/keywords.c" <<'EOF'
+int main (void)
+{
+  const struct keyword *hit = keyword_lookup ("beta", 4);
+  return !(hit != NULL && hit->value == 2
+           && keyword_lookup ("gamma", 5) == NULL);
+}
+EOF
+cc -O2 "$SMOKE/keywords.c" -o "$SMOKE/lookup"
+"$SMOKE/lookup"
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+
+# Enforce the workspace hardening contract and emit conventional build-ID
+# debuginfo plus the exact source files named by the binary's DWARF records.
+patchelf --remove-rpath "$BIN" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gperf \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/gperf
+bid=$(readelf -n usr/bin/gperf | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/gperf "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/gperf
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.gperf/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gperf/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"

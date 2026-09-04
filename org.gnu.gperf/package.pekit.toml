@@ -1,0 +1,10 @@
+# Metadata shared by the GNU gperf package family.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "GPL-3.0-or-later"
+license_class = "free"
+homepage     = "https://www.gnu.org/software/gperf/"

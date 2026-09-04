@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gperf-debuginfo"
+description = "GNU gperf debugging symbols"
+
+[dependencies]
+"org.gnu.gperf" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/.build-id/**" = "usr/lib/debug/.build-id"

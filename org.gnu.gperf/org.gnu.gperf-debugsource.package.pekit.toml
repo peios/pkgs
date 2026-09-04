@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gperf-debugsource"
+description = "GNU gperf debug source"
+
+[dependencies]
+"org.gnu.gperf-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/org.gnu.gperf/**" = "usr/src/debug/org.gnu.gperf"

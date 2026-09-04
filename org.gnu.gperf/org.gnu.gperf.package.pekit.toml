@@ -1,0 +1,17 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.gperf"
+description = "GNU perfect hash function generator"
+
+[provides]
+gperf = "{{version}}"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/org.gnu.gperf/COPYING"
+":usr/bin/gperf"    = "usr/bin/gperf"
+":usr/share/man/**" = "usr/share/man"
