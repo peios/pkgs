@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.grep-debuginfo"
+description = "GNU Grep debugging symbols"
+
+[dependencies]
+"org.gnu.grep" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

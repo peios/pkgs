@@ -1,0 +1,20 @@
+[package]
+name        = "org.gnu.grep"
+description = "GNU line-oriented pattern matching utility"
+license     = "GPL-3.0-or-later"
+
+[provides]
+grep  = "{{version}}"
+egrep = "{{version}}"
+fgrep = "{{version}}"
+
+[dependencies]
+dash                  = "*"
+glibc                 = ">= 2.43"
+"org.gnu.grep-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.grep/COPYING"
+":usr/bin/grep"    = "usr/bin/grep"
+":usr/bin/egrep"   = "usr/bin/egrep"
+":usr/bin/fgrep"   = "usr/bin/fgrep"

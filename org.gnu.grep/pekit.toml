@@ -1,0 +1,174 @@
+# GNU Grep — GNU's line-oriented pattern matching utility.
+#
+# PCRE matching remains deliberately disabled until Peios has a production
+# PCRE2 package. BRE, ERE and fixed-string matching are complete; the staged
+# smoke test below makes the temporary absence of `grep -P` explicit.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/grep/grep-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/grep/"
+extract     = true
+root        = "grep-{{version}}"
+file_regex  = 'grep-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 3.x releases
+# automatically; a future major line requires a compatibility review.
+versions    = ">= 3.12, < 4"
+
+# GNU Grep releases are signed by maintainer Jim Meyering. Pin his complete
+# primary fingerprint from the 3.12 release announcement so unattended
+# discovery must authenticate each new release before Pekit can lock it.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/jim-meyering.asc"]
+fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-rpath \
+  --disable-perl-regexp
+
+make -j"$(nproc)"
+# Run the complete release suite, including upstream's opt-in large-file and
+# performance cases. Automake's declared XFAILs remain visible in the summary
+# but do not mask any new failure or error.
+make -j"$(nproc)" check RUN_EXPENSIVE_TESTS=yes
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. The corresponding-source package keeps
+# the complete Texinfo manual. Normalize compatibility wrappers to usr-merge.
+rm -rf "$PEKIT_OUT/usr/share/info"
+for wrapper in "$PEKIT_OUT/usr/bin/egrep" "$PEKIT_OUT/usr/bin/fgrep"; do
+  test -f "$wrapper"
+  sed -i '1s|^#!/bin/sh|#!/usr/bin/sh|' "$wrapper"
+done
+
+BIN="$PEKIT_OUT/usr/bin"
+GREP="$BIN/grep"
+SMOKE="$PEKIT_OUT/.grep-smoke"
+PATH="$BIN:$PATH"
+export PATH
+mkdir -p "$SMOKE/tree/keep" "$SMOKE/tree/skip"
+test -x "$GREP"
+
+# Exercise BRE, ERE and fixed-string matching through the staged binary.
+printf '%s\n' alpha beta-42 'gamma[1]' > "$SMOKE/input"
+"$GREP" -x 'beta-[0-9][0-9]' "$SMOKE/input" > "$SMOKE/bre"
+test "$(cat "$SMOKE/bre")" = beta-42
+"$GREP" -E -x 'alpha|gamma\\[1\\]' "$SMOKE/input" > "$SMOKE/ere"
+printf '%s\n' alpha 'gamma[1]' > "$SMOKE/ere.expected"
+cmp "$SMOKE/ere.expected" "$SMOKE/ere"
+"$GREP" -F -x 'gamma[1]' "$SMOKE/input" > "$SMOKE/fixed"
+test "$(cat "$SMOKE/fixed")" = 'gamma[1]'
+
+# Recursive include/exclude handling must neither miss the selected file nor
+# descend into an explicitly excluded directory.
+printf '%s\n' needle > "$SMOKE/tree/keep/match.txt"
+printf '%s\n' needle > "$SMOKE/tree/keep/ignored.log"
+printf '%s\n' needle > "$SMOKE/tree/skip/hidden.txt"
+"$GREP" -r -l -F --include='*.txt' --exclude-dir=skip needle \
+  "$SMOKE/tree" > "$SMOKE/recursive"
+test "$(cat "$SMOKE/recursive")" = "$SMOKE/tree/keep/match.txt"
+
+# Cover NUL-delimited records and a multibyte locale's case folding.
+printf 'zero\\0needle\\0' > "$SMOKE/nul-input"
+"$GREP" -z -F -x needle "$SMOKE/nul-input" > "$SMOKE/nul-output"
+printf 'needle\\0' > "$SMOKE/nul-expected"
+cmp "$SMOKE/nul-expected" "$SMOKE/nul-output"
+printf '%s\n' 'Äpfel' > "$SMOKE/locale-input"
+LC_ALL=de_DE.UTF-8 "$GREP" -i -F -x 'äpfel' "$SMOKE/locale-input" \
+  > "$SMOKE/locale-output"
+test "$(cat "$SMOKE/locale-output")" = 'Äpfel'
+
+# Upstream retains egrep and fgrep as warning compatibility wrappers. PATH is
+# rooted at the staged tree above, so both wrappers execute this staged grep.
+"$BIN/egrep" -x 'alpha|beta-42' "$SMOKE/input" > "$SMOKE/egrep" \
+  2> "$SMOKE/egrep.err"
+printf '%s\n' alpha beta-42 > "$SMOKE/egrep.expected"
+cmp "$SMOKE/egrep.expected" "$SMOKE/egrep"
+"$BIN/fgrep" -x 'gamma[1]' "$SMOKE/input" > "$SMOKE/fgrep" \
+  2> "$SMOKE/fgrep.err"
+test "$(cat "$SMOKE/fgrep")" = 'gamma[1]'
+
+# PCRE2 is not yet in the catalogue: prove -P is unavailable instead of
+# silently shipping a feature whose state is untested.
+status=0
+"$GREP" -P needle "$SMOKE/input" > "$SMOKE/pcre.out" \
+  2> "$SMOKE/pcre.err" || status=$?
+test "$status" -eq 2
+grep -F 'Perl matching not supported in a --disable-perl-regexp build' \
+  "$SMOKE/pcre.err"
+
+# Enforce the inherited distribution hardening contract on the sole ELF.
+patchelf --remove-rpath "$GREP" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$GREP" 2>/dev/null || true
+"$GREP" --version | head -1 | grep -F "$PEKIT_VERSION"
+readelf -h "$GREP" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$GREP" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$GREP" | grep -F 'BIND_NOW'
+readelf -d "$GREP" | grep -F 'RELR'
+if readelf -d "$GREP" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'grep.mo' -print -quit)"
+
+# Produce conventional build-ID debuginfo and exact DWARF-referenced source.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.grep \
+  -l "$PEKIT_OUT/.dl" -n usr/bin/grep
+cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+bid=$(readelf -n usr/bin/grep \
+  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/grep \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/grep
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.grep/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.grep/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+glibc-bin          = ">= 2.43"
+glibc-gconv-extra  = ">= 2.43"
+glibc-langpack-cs  = ">= 2.43"
+glibc-langpack-de  = ">= 2.43"
+glibc-langpack-el  = ">= 2.43"
+glibc-langpack-en  = ">= 2.43"
+glibc-langpack-fr  = ">= 2.43"
+glibc-langpack-ja  = ">= 2.43"
+glibc-langpack-ru  = ">= 2.43"
+glibc-langpack-tr  = ">= 2.43"
+glibc-langpack-zh  = ">= 2.43"
+"org.gnu.gettext" = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+gettext         = "*"
+locales-all     = "*"
+patchelf        = "*"
+perl            = "*"
