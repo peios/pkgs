@@ -45,7 +45,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
-bash                     = "*"
+"org.gnu.bash"           = "*"
 m4                       = ">= 1.4.16"
 perl                     = ">= 5.6"
 

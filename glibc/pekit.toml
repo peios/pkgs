@@ -183,7 +183,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
-bash = "*"
+"org.gnu.bash" = "*"
 bison = "*"
 python3 = "*"
 perl = "*"

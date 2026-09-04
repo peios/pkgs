@@ -1,0 +1,68 @@
+# GNU Bash — the system's full-featured interactive shell and the shell that
+# glibc's build scripts require. Dash separately holds the lean POSIX `sh`
+# role; Bash holds `ish`.
+#
+# Phase-2a tool (PEI-155): autotools from the release tarball, out-of-source
+# via DESTDIR (the m4 shape). Uses the bundled Readline, as Debian does, while
+# linking its terminal interface against Peios' wide-character ncurses. The
+# built-in Bash allocator predates and misbehaves with modern glibc, so it is
+# disabled in line with Fedora and Debian.
+#
+# GNU maintains each major.minor release through incremental signed patches.
+# Pekit's remote patch series maps base 5.3 plus patches 001..N to version
+# 5.3.N and discovers future patchlevels without recipe maintenance.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://ftp.gnu.org/gnu/bash/bash-{{version}}.tar.gz"
+extract  = true
+root     = "bash-{{version}}"
+# Soft maintenance floor: automatic sweeps follow newer stable base releases
+# and every upstream patchlevel; older Bash lines are intentionally omitted.
+versions = ">= 5.3.0"
+file_regex = 'bash-[0-9]+\.[0-9]+\.tar\.gz'
+
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/chet-ramey.asc"]
+fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
+
+[source.url.patch_series]
+url         = "https://ftp.gnu.org/gnu/bash/bash-{{major}}.{{minor}}-patches/bash{{major}}{{minor}}-{{patch}}"
+patch_width = 3
+strip       = 0
+
+[source.url.patch_series.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/chet-ramey.asc"]
+fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --without-bash-malloc
+make -j"$(nproc)"
+make tests
+make install DESTDIR="$PEKIT_OUT"
+# Interpreter only: drop the loadable-builtin apparatus (lib/bash + headers
+# + bash.pc), the bashbug mailer script, and info/doc trees.
+rm -rf "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/include" \
+  "$PEKIT_OUT/usr/bin/bashbug" "$PEKIT_OUT/usr/share/info" \
+  "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/man/man1/bashbug.1"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+gettext = "*"
+ncurses-devel = ">= 6.6"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gettext = "*"
+libncurses-dev = "*"

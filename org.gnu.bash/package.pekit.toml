@@ -7,17 +7,29 @@ format = "peipkg"
 side_effects = ["man-db"]
 
 [package]
-name         = "bash"
+name         = "org.gnu.bash"
 version      = "{{version}}-1"
 architecture = "x86_64"
 description  = "GNU Bash - the Bourne-Again Shell"
 license      = "GPL-3.0-or-later"
+license_class = "free"
 homepage     = "https://www.gnu.org/software/bash/"
+
+# Bash holds the preferred interactive-shell role. Dash remains the separate
+# `sh` provider for POSIX scripts; consumers that explicitly want an
+# interactive shell depend on `ish` and receive /usr/bin/ish.
+[provides]
+ish = "1"
+
+[claims.provides.ish.usrbin]
+target = "/usr/bin/bash"
+path   = "/usr/bin/ish"
 
 [dependencies]
 glibc = ">= 2.43"
+libncurses = ">= 6.6"
 
 [files]
-"@source:COPYING"   = "usr/share/licenses/bash/"
+"@source:COPYING"   = "usr/share/licenses/org.gnu.bash/"
 ":usr/bin/**"       = "usr/bin"
 ":usr/share/man/**" = "usr/share/man"

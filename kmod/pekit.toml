@@ -103,7 +103,7 @@ dash = "*"
 coreutils-gnu = "*"
 # The testsuite's harness is bash, and its module playground is an out-of-tree
 # kbuild against our own clang-built kernel.
-bash = "*"
+"org.gnu.bash" = "*"
 # The harness is a set of shell scripts: it rewrites fixture paths with sed,
 # walks the rootfs with find, and the test selection below filters with grep.
 # find worked without being declared, which means it arrived transitively --
