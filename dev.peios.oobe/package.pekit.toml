@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name          = "dev.peios.oobe"
-version       = "{{version}}-4"
+version       = "{{version}}-5"
 architecture  = "x86_64"
 description   = "Peios first-boot setup - the oobed engine and its console surface"
 license       = "MIT"
