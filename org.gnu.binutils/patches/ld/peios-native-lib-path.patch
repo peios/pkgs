@@ -1,0 +1,25 @@
+ld: do not add GNU tooldir library paths on Peios
+
+Peios has one architecture-specific runtime library directory:
+/usr/lib/x86_64-linux-peios.  The native linker's generic tooldir fallback
+adds /usr/x86_64-linux-peios/lib64 and /usr/x86_64-linux-peios/lib even when
+--with-lib-path supplies the distribution path.  Neither tooldir exists in
+the Peios filesystem layout, so compiling them into every linker script is
+both misleading and wasted lookup work.
+
+Keep the normal GNU behaviour for every upstream target and suppress the
+fallback only for the Peios target.  The explicit --with-lib-path remains
+the sole SEARCH_DIR.
+
+diff -ur a/ld/genscripts.sh b/ld/genscripts.sh
+--- a/ld/genscripts.sh
++++ b/ld/genscripts.sh
+@@ -248,6 +248,7 @@
+ # Always search $(tooldir)/lib, aka /usr/local/TARGET/lib when native
+ # except when LIB_PATH=":".
+-if [ "${LIB_PATH}" != ":" ] ; then
++# Peios has no tooldir library tree; --with-lib-path is authoritative there.
++if [ "${LIB_PATH}" != ":" ] && [ "${target##*-}" != peios ] ; then
+   libs=
+   if [ "x${TOOL_LIB}" = "x" ] ; then
+     if [ "x${NATIVE}" = "xyes" ] ; then

@@ -9,10 +9,11 @@ excludes = [
 ]
 
 [package]
+name        = "org.gnu.binutils-devel"
 description = "GNU binary utilities - development files"
 
 [dependencies]
-binutils = "{{version}}"
+"org.gnu.binutils" = "{{version}}"
 
 [files]
 ":usr/include/**"                                = "usr/include"

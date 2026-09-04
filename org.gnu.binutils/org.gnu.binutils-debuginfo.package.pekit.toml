@@ -2,10 +2,11 @@
 # build-id-indexed.
 
 [package]
+name        = "org.gnu.binutils-debuginfo"
 description = "GNU binary utilities - debugging symbols"
 
 [dependencies]
-binutils = "{{version}}"
+"org.gnu.binutils" = "{{version}}"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

@@ -11,11 +11,15 @@
 # their own directory rather than beside the ordinary shared libraries.
 
 [package]
+name        = "org.gnu.binutils-gprofng"
 description = "GNU Next Generation Profiler for analysing application performance"
 
 [dependencies]
 # Programs and libraries built against this binutils; libgprofng links libbfd.
-binutils = "{{version}}"
+"org.gnu.binutils" = "{{version}}"
+# gprofng is C++, and gprofng-display-html is an installed Perl program.
+"libstdc++" = "*"
+perl = ">= 5.6"
 
 [files]
 # Drivers plus the gp-* compatibility names. Those five are symlinks onto the

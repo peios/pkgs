@@ -12,7 +12,7 @@ description = "Build environment for C - compiler, binutils, libc and kernel hea
 [dependencies]
 build-essentials = "*"
 gcc              = "*"
-binutils         = "*"
+"org.gnu.binutils" = "*"
 glibc-devel      = "*"
 "linux-kernel-headers" = "*"
 debugedit        = "*"

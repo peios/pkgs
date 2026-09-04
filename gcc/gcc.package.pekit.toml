@@ -37,11 +37,11 @@ target = "/usr/bin/gcc"
 path   = "/usr/bin/cc"
 
 [dependencies]
-# cc1 lives in cpp; as/ld come from binutils; the startup objects + libgcc are
+# cc1 lives in cpp; as/ld come from org.gnu.binutils; the startup objects + libgcc are
 # the compiler's own runtime; compiling C needs the libc + kernel headers.
 cpp             = "{{version}}"
 libgcc          = "{{version}}"
-binutils        = ">= 2.46"
+"org.gnu.binutils" = ">= 2.46"
 "glibc-devel"   = ">= 2.43"
 # The Linux UAPI, by its virtual name rather than the package's. The package
 # that ships it is versioned on pkm's SemVer (the PKM/KACS ABI), which says
@@ -81,4 +81,3 @@ binutils        = ">= 2.46"
 ":usr/share/man/man1/gcov-tool.1" = "usr/share/man/man1/gcov-tool.1"
 ":usr/share/man/man1/lto-dump.1"  = "usr/share/man/man1/lto-dump.1"
 ":usr/share/man/man7/**"          = "usr/share/man/man7"
-

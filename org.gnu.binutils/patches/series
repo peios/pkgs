@@ -1,3 +1,4 @@
 # Peios binutils patch series — applied in order by pekit during source
 # materialisation (`patches = "patches"` in pekit.toml).
 gprofng/posix-sh-compat-symlinks.patch  # gp-* symlink loop uses bash brace expansion; dash /bin/sh leaves it literal
+ld/peios-native-lib-path.patch          # Peios has one triplet libdir; omit nonexistent native tooldir fallbacks

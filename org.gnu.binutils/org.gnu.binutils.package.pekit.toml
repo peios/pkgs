@@ -14,7 +14,11 @@ excludes = [
   ":usr/bin/gp-*",
 ]
 
+# PSPU §5.24: this payload carries the command manuals.
+side_effects = ["man-db"]
+
 [package]
+name        = "org.gnu.binutils"
 description = "GNU binary utilities (assembler, linker, object tools)"
 
 [dependencies]
@@ -23,8 +27,12 @@ glibc = ">= 2.43"
 zlib = ">= 2.3.3"
 
 [files]
+# License texts are supplied once by the runtime package; every sibling has an
+# exact dependency chain back to it.
+"@source:COPYING*"                                      = "usr/share/licenses/org.gnu.binutils/"
 # All the command-line tools.
 ":usr/bin/**"                                          = "usr/bin"
+":usr/share/man/**"                                    = "usr/share/man"
 # Shared libraries: libbfd/libopcodes are version-named (libbfd-2.46.1.so, no
 # .so.N); libctf/libctf-nobfd/libsframe carry normal sonames. The
 # unversioned dev *.so symlinks and the static *.a are binutils-devel's.
