@@ -7,8 +7,8 @@ name        = "org.gnu.gmp-debuginfo"
 description = "GNU Multiple Precision Arithmetic Library - debugging symbols"
 
 [dependencies]
-"org.gnu.gmp" = "{{version}}-1"
-"org.gnu.gmp-c++" = "{{version}}-1"
+"org.gnu.gmp" = "{{version}}-2"
+"org.gnu.gmp-c++" = "{{version}}-2"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

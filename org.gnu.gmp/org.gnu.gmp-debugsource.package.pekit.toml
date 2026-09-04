@@ -6,7 +6,7 @@ name        = "org.gnu.gmp-debugsource"
 description = "GNU Multiple Precision Arithmetic Library - debug sources"
 
 [dependencies]
-"org.gnu.gmp-debuginfo" = "{{version}}-1"
+"org.gnu.gmp-debuginfo" = "{{version}}-2"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

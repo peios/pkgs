@@ -16,7 +16,7 @@ description = "GNU Multiple Precision Arithmetic Library - C++ bindings"
 
 [dependencies]
 # Wraps libgmp of exactly this build (the two are one source and share internals).
-"org.gnu.gmp" = "{{version}}-1"
+"org.gnu.gmp" = "{{version}}-2"
 glibc = ">= 2.43"
 # libgmpxx.so.4 links libstdc++.so.6 (DT_NEEDED); floor = the libstdc++ Peios
 # ships (ABI is forward-compatible, so any newer also satisfies it).
