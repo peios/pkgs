@@ -1,0 +1,129 @@
+# GNU Diffutils — diff, cmp, diff3 and sdiff.
+
+out_dir = "out"
+
+[source.url]
+url        = "https://ftp.gnu.org/gnu/diffutils/diffutils-{{version}}.tar.xz"
+extract    = true
+root       = "diffutils-{{version}}"
+file_regex = 'diffutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow signed stable 3.x releases automatically;
+# stop at a new major line for command-output and build-interface review.
+versions   = ">= 3.11, < 4"
+
+# GNU Diffutils releases are signed by maintainer Jim Meyering. The complete
+# primary-key fingerprint from the 3.12 release announcement is pinned so a
+# newly discovered version must authenticate before pekit will lock it.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/jim-meyering.asc"]
+fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-nls
+
+make -j"$(nproc)"
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. The source package retains the complete
+# Texinfo documentation; installed users receive the command manual pages.
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+# Exercise each staged command through representative successful and
+# difference-reporting paths. Exit status 1 is data for these utilities, not a
+# failed executable, and is checked explicitly.
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.diffutils-smoke"
+mkdir -p "$SMOKE/left/sub" "$SMOKE/right/sub"
+printf '%s\n' alpha beta > "$SMOKE/left/file"
+printf '%s\n' alpha gamma > "$SMOKE/right/file"
+printf '%s\n' same > "$SMOKE/left/sub/same"
+cp "$SMOKE/left/sub/same" "$SMOKE/right/sub/same"
+
+"$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/left/file"
+status=0
+"$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/right/file" || status=$?
+[ "$status" -eq 1 ]
+
+status=0
+"$BIN/diff" -u "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/unified" || status=$?
+[ "$status" -eq 1 ]
+grep -F -- '-beta' "$SMOKE/unified"
+grep -F -- '+gamma' "$SMOKE/unified"
+
+status=0
+"$BIN/diff" -r "$SMOKE/left" "$SMOKE/right" > "$SMOKE/recursive" || status=$?
+[ "$status" -eq 1 ]
+grep -F 'file' "$SMOKE/recursive"
+
+printf '%s\n' base > "$SMOKE/base"
+printf '%s\n' ours > "$SMOKE/ours"
+printf '%s\n' theirs > "$SMOKE/theirs"
+status=0
+"$BIN/diff3" -m "$SMOKE/ours" "$SMOKE/base" "$SMOKE/theirs" > "$SMOKE/merged" || status=$?
+[ "$status" -eq 1 ]
+grep -F '<<<<<<<' "$SMOKE/merged"
+grep -F '>>>>>>>' "$SMOKE/merged"
+
+status=0
+"$BIN/sdiff" --suppress-common-lines "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/side" || status=$?
+[ "$status" -eq 1 ]
+grep -F '|' "$SMOKE/side"
+
+for elf in "$BIN/cmp" "$BIN/diff" "$BIN/diff3" "$BIN/sdiff"; do
+  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
+
+# Produce conventional debuginfo and debugsource payloads.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr/bin -type f -print | LC_ALL=C sort | while IFS= read -r elf; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.diffutils -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.diffutils/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.diffutils/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"

@@ -1,0 +1,13 @@
+[package]
+name        = "org.gnu.diffutils"
+description = "GNU file comparison utilities"
+
+[provides]
+diffutils = "{{version}}"
+
+[dependencies]
+"org.gnu.diffutils-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.diffutils/"
+":usr/bin/**"      = "usr/bin"

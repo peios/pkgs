@@ -8,4 +8,5 @@ schema = 1
   version = "3.12"
   url = "https://ftp.gnu.org/gnu/diffutils/diffutils-3.12.tar.xz"
   sha256 = "7c8b7f9fc8609141fdea9cece85249d308624391ff61dedaf528fcb337727dfd"
-  locked_at = "2026-08-10T19:45:57Z"
+  signature_key = "155d3fc500c834486d1eea677fd9fccb000beeee"
+  locked_at = "2026-09-04T16:48:55Z"

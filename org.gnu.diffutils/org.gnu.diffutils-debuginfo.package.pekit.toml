@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.diffutils-debuginfo"
+description = "GNU file comparison utilities - debugging symbols"
+
+[dependencies]
+"org.gnu.diffutils" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

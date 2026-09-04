@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.diffutils-common"
+architecture = "noarch"
+description  = "GNU file comparison utilities - command manuals"
+
+[files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.diffutils-common/"
+":usr/share/man/**" = "usr/share/man"
