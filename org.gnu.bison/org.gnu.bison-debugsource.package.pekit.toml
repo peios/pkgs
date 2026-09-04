@@ -3,7 +3,7 @@ name        = "org.gnu.bison-debugsource"
 description = "GNU Bison - debug sources"
 
 [dependencies]
-"org.gnu.bison-debuginfo" = "{{version}}-1"
+"org.gnu.bison-debuginfo" = "{{version}}-2"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

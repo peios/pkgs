@@ -9,6 +9,8 @@ description = "GNU Bison - parser generator and yacc-compatible frontend"
 
 [dependencies]
 glibc = ">= 2.43"
+# The yacc compatibility frontend is an installed POSIX shell script.
+dash = "*"
 # Bison executes m4 whenever it expands a parser skeleton.
 m4 = ">= 1.4"
 
