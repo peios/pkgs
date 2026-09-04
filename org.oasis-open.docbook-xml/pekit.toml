@@ -1,0 +1,115 @@
+# OASIS DocBook XML V4.5 DTD.
+#
+# DocBook 4.5 is intentionally fixed rather than merely a maintenance floor:
+# it is the final DocBook 4 DTD. DocBook 5 is a distinct, namespace-aware
+# RELAX NG schema line and cannot replace this package for DocBook 4 consumers.
+
+out_dir = "out"
+
+# OASIS publishes the normative archive without a detached signature or
+# checksum file. The canonical HTTPS origin and pekit.lock's SHA-256 pin the
+# immutable 2007 standard archive.
+[source.url]
+url      = "https://docs.oasis-open.org/docbook/xml/{{version}}/docbook-xml-{{version}}.zip"
+extract  = false
+versions = "= 4.5"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+DTD="$PEKIT_OUT/usr/share/xml/docbook/schema/dtd/$PEKIT_VERSION"
+ARCHIVE="$SRC/docbook-xml-$PEKIT_VERSION.zip"
+mkdir -p "$DTD"
+
+# Refuse unsafe archive member names before extraction even though the source
+# bytes are hash-pinned. This also keeps a future repin from writing outside
+# the staged package root.
+python3 - "$ARCHIVE" "$DTD" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+archive, destination = sys.argv[1:]
+with zipfile.ZipFile(archive) as source:
+    for member in source.infolist():
+        path = pathlib.PurePosixPath(member.filename)
+        if path.is_absolute() or ".." in path.parts or "\\\\" in member.filename:
+            raise SystemExit(f"unsafe zip member: {member.filename!r}")
+    source.extractall(destination)
+PY
+
+# Keep the schema, public catalog, and upstream README. The historical change
+# log and bundled documentation are retained by the corresponding source
+# package and are not needed by validators.
+rm -rf "$DTD/docs"
+rm -f "$DTD/ChangeLog"
+
+test -s "$DTD/docbookx.dtd"
+test -s "$DTD/catalog.xml"
+test -s "$DTD/dbpoolx.mod"
+test -s "$DTD/ent/isoamsa.ent"
+
+# Prove the public identifier resolves to the staged driver and that a normal
+# DocBook 4.5 article validates entirely offline, including module/entity
+# expansion through the archive's catalog.
+resolved=$(xmlcatalog "$DTD/catalog.xml" \
+  "-//OASIS//DTD DocBook XML V$PEKIT_VERSION//EN")
+case "$resolved" in
+  *docbookx.dtd) ;;
+  *) echo "docbook-xml: catalog did not resolve the 4.5 DTD" >&2; exit 1 ;;
+esac
+test -f "$resolved"
+
+SMOKE="$PEKIT_OUT/.docbook-xml-smoke.xml"
+cat > "$SMOKE" <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <title>Peios DocBook validation smoke test</title>
+  <para>The installed OASIS catalog resolves this document offline.</para>
+</article>
+XML
+XML_CATALOG_FILES="$DTD/catalog.xml" xmllint --nonet --noout --valid "$SMOKE"
+rm -f "$SMOKE"
+
+# Surface both notices that govern the payload in the conventional package
+# license directory. The DocBook modules use the OASIS notice; the bundled
+# ISO 8879 entity sets carry their own copying notice.
+LICENSES="$PEKIT_OUT/usr/share/licenses/org.oasis-open.docbook-xml"
+mkdir -p "$LICENSES"
+python3 - "$DTD/docbookx.dtd" "$LICENSES/OASIS-DocBook-DTD.txt" \
+  "$DTD/ent/isoamsa.ent" "$LICENSES/ISO-8879.txt" <<'PY'
+import pathlib
+import sys
+
+
+def write_notice(source_name, destination_name, marker):
+    text = pathlib.Path(source_name).read_text(encoding="utf-8")
+    marker_at = text.index(marker)
+    start = text.rfind("<!--", 0, marker_at)
+    end = text.index("-->", marker_at) + 3
+    pathlib.Path(destination_name).write_text(text[start:end] + "\\n", encoding="utf-8")
+
+
+write_notice(sys.argv[1], sys.argv[2], "Copyright 1992-2006")
+write_notice(sys.argv[3], sys.argv[4], "International Organization for Standardization 1986")
+PY
+
+# Normalise data permissions so archive metadata cannot make the payload
+# unexpectedly writable or executable.
+find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
+find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
+"""
+
+[build.main.dependencies.peipkg]
+dash                = "*"
+"org.gnu.coreutils" = "*"
+findutils           = "*"
+python3             = "*"
+"libxml2-utils"     = "*"
+
+[build.main.dependencies.apt]
+python3       = "*"
+libxml2-utils = "*"

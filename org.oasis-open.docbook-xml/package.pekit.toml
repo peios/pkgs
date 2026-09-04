@@ -1,0 +1,19 @@
+format = "peipkg"
+
+[package]
+name          = "org.oasis-open.docbook-xml"
+version       = "{{version}}-1"
+architecture  = "noarch"
+description   = "OASIS DocBook XML V4.5 document type definition"
+license       = "LicenseRef-OASIS-DocBook-DTD AND LicenseRef-ISO-8879"
+license_class = "free"
+homepage      = "https://docs.oasis-open.org/docbook/"
+
+[provides]
+docbook-xml       = "{{version}}"
+docbook-dtd-xml   = "{{version}}"
+docbook-dtd45-xml = "{{version}}"
+
+[files]
+":usr/share/licenses/**" = "usr/share/licenses"
+":usr/share/xml/**"      = "usr/share/xml"

@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "4.5"
-  url = "https://www.oasis-open.org/docbook/xml/4.5/docbook-xml-4.5.zip"
+  url = "https://docs.oasis-open.org/docbook/xml/4.5/docbook-xml-4.5.zip"
   sha256 = "4e4e037a2b83c98c6c94818390d4bdd3f6e10f6ec62dd79188594e26190dc7b4"
-  locked_at = "2026-08-30T03:54:27Z"
+  locked_at = "2026-09-04T17:06:39Z"
