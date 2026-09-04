@@ -3,7 +3,7 @@ name        = "org.gnu.bison-debuginfo"
 description = "GNU Bison - debugging symbols"
 
 [dependencies]
-"org.gnu.bison" = "{{version}}-2"
+"org.gnu.bison" = "{{version}}-3"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

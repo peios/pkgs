@@ -6,7 +6,7 @@ name        = "org.gnu.bison-devel"
 description = "GNU Bison - traditional liby development library"
 
 [dependencies]
-"org.gnu.bison" = "{{version}}-2"
+"org.gnu.bison" = "{{version}}-3"
 
 [files]
 ":usr/lib/x86_64-linux-peios/liby.a" = "usr/lib/x86_64-linux-peios/liby.a"

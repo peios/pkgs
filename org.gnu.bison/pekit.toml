@@ -49,6 +49,11 @@ make -j"$(nproc)"
 make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
+# Peios is /usr-native and deliberately has no legacy /bin alias. Upstream's
+# generated yacc frontend retains a /bin/sh shebang, so normalize it to the
+# shell path supplied by the declared dash runtime dependency.
+sed -i '1s|^#! /bin/sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/yacc"
+
 # Peios does not yet ship an Info reader. Keep the command manuals and Autoconf
 # macros, which are live developer interfaces, while dropping orphaned docs.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
@@ -80,6 +85,7 @@ cc -o "$SMOKE/parser" "$SMOKE/parser.c"
 # /usr/bin/bison, which is not mounted over the host's /usr during this staged
 # check. Exercise the identical compatibility mode directly here and verify the
 # wrapper target; the post-package composed-root test executes the wrapper.
+head -1 "$PEKIT_OUT/usr/bin/yacc" | grep -Fx '#!/usr/bin/sh'
 grep -F 'exec "$bindir/bison" -y' "$PEKIT_OUT/usr/bin/yacc"
 "$PEKIT_OUT/usr/bin/bison" -y -d -o "$SMOKE/yacc-parser.c" "$SMOKE/parser.y"
 cc -o "$SMOKE/yacc-parser" "$SMOKE/yacc-parser.c"
