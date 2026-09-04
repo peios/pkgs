@@ -1,0 +1,26 @@
+format = "peipkg"
+
+[package]
+name          = "com.intel.intel-ucode"
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# Intel's microcode is redistributable as an unmodified binary under the Intel
+# Software License Agreement shipped as `license` in the source tree.
+license       = "LicenseRef-Intel-Microcode"
+license_class = "firmware"
+homepage      = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files"
+# Microcode is consumed before secondary CPUs come up, so it belongs to the
+# uncompressed early-cpio initramfs region assembled by mkirf.
+default_root  = "initramfs"
+description   = "Intel CPU microcode update, early-loaded from the initramfs"
+
+# Preserve existing dependency edges while consumers migrate to the globally
+# qualified package identity.
+[provides]
+intel-ucode = "{{version}}"
+
+# mkirf strips the ++/ segment label and emits the kernel ABI path
+# kernel/x86/microcode/GenuineIntel.bin with the required alignment.
+[files]
+":usr/share/**" = "usr/share/"
+":++/intel-ucode/kernel/x86/microcode/GenuineIntel.bin" = "++/intel-ucode/kernel/x86/microcode/GenuineIntel.bin"

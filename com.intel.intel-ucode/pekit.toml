@@ -1,0 +1,226 @@
+# com.intel.intel-ucode — Intel CPU microcode, assembled into the single
+# container the kernel's early loader scans in the initramfs early-cpio region.
+#
+# Upstream ships one or more update records in each intel-ucode/ signature file.
+# This build validates every record before concatenation; mkirf remains
+# responsible for cpio framing and the loader's 16-byte alignment.
+
+out_dir = "out"
+
+# The upstream artefact is itself the redistributable binary firmware. A source
+# package would only duplicate those blobs, not provide rebuildable source.
+[source_package]
+enabled = false
+
+[source.git]
+url = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files.git"
+# Intel's release tags are unsigned lightweight tags. Until authenticated Git
+# sources land under PEI-665, retrieval therefore relies on HTTPS and pekit's
+# immutable commit lock: a moved tag cannot silently change locked source.
+# Named captures present microcode-YYYYMMDD as the Peios version YYYY.MM.DD.
+# PEI-671 blocks production publication: Pekit cannot yet map Intel's
+# corrective `-revN` and letter-suffixed tags to versions that sort after the
+# base date while retaining this public version convention. Keep the exact
+# regex so corrections are not accidentally ordered as prereleases.
+ref       = "microcode-{{major}}{{minor}}{{patch}}"
+tag_regex = '^microcode-(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
+# Soft catalogue floor for routine unattended selection, not a compatibility
+# boundary. Older releases can be admitted by lowering/removing this constraint.
+versions  = ">=2026.0.0"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+DEST="$PEKIT_OUT/++/intel-ucode/kernel/x86/microcode"
+LICENSE_DIR="$PEKIT_OUT/usr/share/licenses/com.intel.intel-ucode"
+DOC_DIR="$PEKIT_OUT/usr/share/doc/com.intel.intel-ucode"
+FILE_LIST="$PEKIT_OUT/.intel-ucode-files"
+HEADER_TMP="$PEKIT_OUT/.intel-microcode-header"
+RECORD_TMP="$PEKIT_OUT/.intel-microcode-record"
+BLOB="$DEST/GenuineIntel.bin"
+BLOB_CHECK="$PEKIT_OUT/.GenuineIntel.bin.check"
+
+fail_microcode() {
+  printf '%s\n' "intel microcode validation failed: $*" >&2
+  exit 1
+}
+
+validate_checksum_region() {
+  region_file="$1"
+  region_offset="$2"
+  region_size="$3"
+  dd if="$region_file" of="$RECORD_TMP" bs=4 skip=$((region_offset / 4)) \
+    count=$((region_size / 4)) status=none
+  test "$(wc -c < "$RECORD_TMP")" -eq "$region_size" || return 1
+  od -An -v -tu4 -w4 "$RECORD_TMP" \
+    | awk '{ sum += $1; while (sum >= 4294967296) sum -= 4294967296 }
+           END { exit(sum == 0 ? 0 : 1) }'
+}
+
+# Intel update files may contain multiple records. Validate each record's
+# header, optional extended-signature table, declared sizes and little-endian
+# 32-bit additive checksums. Current Intel data uses formerly-reserved main
+# header words, so those words are intentionally left opaque, as Linux does.
+validate_microcode_file() {
+  file="$1"
+  file_size="$(wc -c < "$file")"
+  test "$file_size" -gt 0 || fail_microcode "$file is empty"
+  test $((file_size % 4)) -eq 0 \
+    || fail_microcode "$file is not a sequence of 32-bit words"
+
+  offset=0
+  records=0
+  while test "$offset" -lt "$file_size"; do
+    remaining=$((file_size - offset))
+    test "$remaining" -ge 48 \
+      || fail_microcode "$file has a truncated header at byte $offset"
+
+    dd if="$file" of="$HEADER_TMP" bs=4 skip=$((offset / 4)) count=12 status=none
+    set -- $(od -An -v -tu4 "$HEADER_TMP")
+    test "$#" -eq 12 \
+      || fail_microcode "$file has an unreadable header at byte $offset"
+
+    header_version="$1"
+    update_revision="$2"
+    processor_signature="$4"
+    main_checksum="$5"
+    loader_revision="$6"
+    processor_flags="$7"
+    data_size="$8"
+    total_size="$9"
+
+    test "$header_version" -eq 1 \
+      || fail_microcode "$file record at byte $offset has header version $header_version"
+    test "$loader_revision" -eq 1 \
+      || fail_microcode "$file record at byte $offset has loader revision $loader_revision"
+    test "$update_revision" -ne 0 \
+      || fail_microcode "$file record at byte $offset has revision zero"
+    test "$processor_signature" -ne 0 \
+      || fail_microcode "$file record at byte $offset has processor signature zero"
+    if test "$data_size" -eq 0; then
+      test "$total_size" -eq 0 \
+        || fail_microcode "$file legacy record at byte $offset has an inconsistent total size"
+      record_size=2048
+      base_size=2048
+      extension_size=0
+    else
+      test $((data_size % 4)) -eq 0 \
+        || fail_microcode "$file record at byte $offset has an unaligned data size"
+      test "$total_size" -ge $((48 + data_size)) \
+        || fail_microcode "$file record at byte $offset is smaller than its data"
+      test $((total_size % 1024)) -eq 0 \
+        || fail_microcode "$file record at byte $offset is not 1-KiB aligned"
+      record_size="$total_size"
+      base_size=$((48 + data_size))
+      extension_size=$((record_size - base_size))
+    fi
+
+    test "$record_size" -le "$remaining" \
+      || fail_microcode "$file record at byte $offset overruns the file"
+    if test "$extension_size" -gt 0; then
+      test "$extension_size" -ge 20 \
+        || fail_microcode "$file record at byte $offset has a truncated extended-signature header"
+      test $(((extension_size - 20) % 12)) -eq 0 \
+        || fail_microcode "$file record at byte $offset has a malformed extended-signature table"
+      extension_offset=$((offset + base_size))
+      dd if="$file" of="$HEADER_TMP" bs=4 skip=$((extension_offset / 4)) \
+        count=5 status=none
+      set -- $(od -An -v -tu4 "$HEADER_TMP")
+      test "$#" -eq 5 \
+        || fail_microcode "$file record at byte $offset has an unreadable extended-signature header"
+      signature_count="$1"
+      test "$signature_count" -eq $(((extension_size - 20) / 12)) \
+        || fail_microcode "$file record at byte $offset has an inconsistent extended-signature count"
+      test "$3" -eq 0 -a "$4" -eq 0 -a "$5" -eq 0 \
+        || fail_microcode "$file record at byte $offset has nonzero extended-signature reserved fields"
+      # Match Linux's per-entry validation as well as the table checksum. Each
+      # alternate signature replaces the main header's signature, platform
+      # flags and checksum, so those three dwords must retain the same sum.
+      main_signature_sum=$(((processor_signature + processor_flags + main_checksum) % 4294967296))
+      signature_index=0
+      while test "$signature_index" -lt "$signature_count"; do
+        signature_offset=$((extension_offset + 20 + signature_index * 12))
+        dd if="$file" of="$HEADER_TMP" bs=4 skip=$((signature_offset / 4)) \
+          count=3 status=none
+        set -- $(od -An -v -tu4 "$HEADER_TMP")
+        test "$#" -eq 3 \
+          || fail_microcode "$file record at byte $offset has an unreadable extended signature"
+        extended_signature_sum=$((($1 + $2 + $3) % 4294967296))
+        test "$extended_signature_sum" -eq "$main_signature_sum" \
+          || fail_microcode "$file record at byte $offset has a bad extended-signature checksum"
+        signature_index=$((signature_index + 1))
+      done
+      validate_checksum_region "$file" "$offset" "$base_size" \
+        || fail_microcode "$file record at byte $offset has a bad update checksum"
+      validate_checksum_region "$file" "$extension_offset" "$extension_size" \
+        || fail_microcode "$file record at byte $offset has a bad extended-signature checksum"
+    else
+      validate_checksum_region "$file" "$offset" "$record_size" \
+        || fail_microcode "$file record at byte $offset has a bad 32-bit checksum"
+    fi
+
+    offset=$((offset + record_size))
+    records=$((records + 1))
+  done
+
+  test "$offset" -eq "$file_size" \
+    || fail_microcode "$file did not end on a record boundary"
+  printf 'validated %s (%s records)\n' "$file" "$records"
+}
+
+mkdir -p "$DEST" "$LICENSE_DIR" "$DOC_DIR"
+find "$SRC/intel-ucode" -maxdepth 1 -type f \
+  -name '[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]' \
+  -print | LC_ALL=C sort > "$FILE_LIST"
+test -s "$FILE_LIST" || fail_microcode "no production microcode files found"
+test "$(wc -l < "$FILE_LIST")" -eq \
+     "$(find "$SRC/intel-ucode" -maxdepth 1 -type f -print | wc -l)" \
+  || fail_microcode "a production microcode file has an unexpected name"
+
+while IFS= read -r file; do
+  case "$file" in
+    "$SRC/intel-ucode/"*) ;;
+    "$SRC/intel-ucode-with-caveats/"*)
+      fail_microcode "$file from intel-ucode-with-caveats was selected"
+      ;;
+    *) fail_microcode "$file is outside the production microcode directory" ;;
+  esac
+  validate_microcode_file "$file"
+done < "$FILE_LIST"
+
+# Build twice from the sorted manifest and compare their SHA-256 digests. This
+# makes ordering explicit and guards the final blob against accidental inputs.
+: > "$BLOB"
+: > "$BLOB_CHECK"
+while IFS= read -r file; do cat "$file" >> "$BLOB"; done < "$FILE_LIST"
+while IFS= read -r file; do cat "$file" >> "$BLOB_CHECK"; done < "$FILE_LIST"
+test -s "$BLOB"
+test "$(sha256sum "$BLOB" | awk '{ print $1 }')" = \
+     "$(sha256sum "$BLOB_CHECK" | awk '{ print $1 }')" \
+  || fail_microcode "independent deterministic concatenations differ"
+validate_microcode_file "$BLOB"
+
+test -f "$SRC/license" || fail_microcode "upstream license is missing"
+test -f "$SRC/README.md" || fail_microcode "upstream README.md is missing"
+test -f "$SRC/releasenote.md" || fail_microcode "upstream releasenote.md is missing"
+test -f "$SRC/security.md" || fail_microcode "upstream security.md is missing"
+cp "$SRC/license" "$LICENSE_DIR/LICENSE"
+cp "$SRC/README.md" "$SRC/releasenote.md" "$SRC/security.md" "$DOC_DIR/"
+
+rm -f "$FILE_LIST" "$HEADER_TMP" "$RECORD_TMP" "$BLOB_CHECK"
+"""
+
+# The peipkg build root contains only declared tools. Apt retains a usable
+# bootstrap/development path; production inherits the workspace peipkg env.
+[build.main.dependencies.peipkg]
+dash                = "*"
+"org.gnu.coreutils" = "*"
+findutils           = "*"
+"org.gnu.gawk"      = "*"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+findutils = "*"
+gawk      = "*"
