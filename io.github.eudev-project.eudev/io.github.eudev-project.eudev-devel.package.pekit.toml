@@ -1,11 +1,12 @@
 # libudev-devel — libudev.h, the .so link, and pkg-config metadata.
 
 [package]
-name        = "libudev-devel"
+name        = "io.github.eudev-project.eudev-devel"
 description = "libudev - headers and link library (eudev)"
+license     = "LGPL-2.1-or-later"
 
 [dependencies]
-libudev = "{{version}}"
+"io.github.eudev-project.eudev-libudev" = "{{version}}-1"
 
 [files]
 ":usr/include/libudev.h"                   = "usr/include/libudev.h"

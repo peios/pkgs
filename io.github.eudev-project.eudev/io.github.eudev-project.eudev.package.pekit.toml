@@ -8,18 +8,22 @@
 # What it does NOT do on Peios is set device-node permissions — that is the
 # SD on /dev, and the rules are a subset chosen so none tries.
 
+side_effects = ["man-db"]
+
 [package]
-name        = "eudev"
+name        = "io.github.eudev-project.eudev"
 description = "eudev - device manager: driver loading from uevents, coldplug, stable device names"
 
 [dependencies]
-glibc    = ">= 2.43"
-libudev  = "{{version}}"
-libkmod  = ">= 33"
-libblkid = ">= 2.42"
+glibc                                         = ">= 2.43"
+"io.github.eudev-project.eudev-libudev"      = "{{version}}-1"
+libkmod                                       = ">= 33"
+libblkid                                      = ">= 2.42"
+sh                                            = ">= 1"
+"org.gnu.coreutils"                          = "*"
 
 [files]
-"@source:COPYING"                     = "usr/share/licenses/eudev/"
+"@source:COPYING"                     = "usr/share/licenses/io.github.eudev-project.eudev/"
 ":usr/bin/udevd"                      = "usr/bin/udevd"
 ":usr/bin/udevadm"                    = "usr/bin/udevadm"
 # Helpers (ata_id, scsi_id, cdrom_id, ...) and the retained upstream rules.
@@ -35,3 +39,8 @@ libblkid = ">= 2.42"
 # The service definition. Inert until an image names it in [registry]
 # autoapply — installing the package grants nothing on its own.
 "src/eudev-service.reg"               = "usr/share/regim/eudev-service.reg"
+"@source:man/hwdb.7"                  = "usr/share/man/man7/hwdb.7"
+"@source:man/udev.7"                  = "usr/share/man/man7/udev.7"
+"@source:man/udev.conf.5"             = "usr/share/man/man5/udev.conf.5"
+"@source:man/udevadm.8"               = "usr/share/man/man8/udevadm.8"
+"@source:man/udevd.8"                 = "usr/share/man/man8/udevd.8"

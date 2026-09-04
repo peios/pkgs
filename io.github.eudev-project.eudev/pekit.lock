@@ -8,4 +8,5 @@ schema = 1
   version = "3.2.14"
   url = "https://github.com/eudev-project/eudev/releases/download/v3.2.14/eudev-3.2.14.tar.gz"
   sha256 = "8da4319102f24abbf7fff5ce9c416af848df163b29590e666d334cc1927f006f"
-  locked_at = "2026-08-11T13:24:02Z"
+  signature_key = "ba60bc20f37e59444d6d25001365720913d2f22d"
+  locked_at = "2026-09-04T19:25:56Z"

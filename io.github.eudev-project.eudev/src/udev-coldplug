@@ -17,7 +17,7 @@
 # for good, so the first step is to make udevd answer. A control reload is
 # acknowledged from the event loop, and the loop starts after both sockets
 # are bound, so an acknowledged reload is proof the replay will be heard.
-set -u
+set -eu
 
 i=0
 until /bin/udevadm control --reload 2>/dev/null; do

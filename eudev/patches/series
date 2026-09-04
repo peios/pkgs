@@ -1,2 +1,0 @@
-# path_id: treat virtio as a transport so vdX disks get by-path names
-path-id-virtio.patch

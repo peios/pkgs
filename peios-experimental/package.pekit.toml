@@ -56,7 +56,7 @@ kernel-modules     = ">= 0.20.1-rc12"
 kernel-modules-irf = { constraint = ">= 0.20.1-rc12", root = "initramfs" }
 kmod               = ">= 33"
 coldplug-irf       = { constraint = ">= 1.0.0", root = "initramfs" }
-eudev              = ">= 3.2.14"
+"io.github.eudev-project.eudev" = ">= 3.2.14"
 
 # Base filesystem and topology, in both roots.
 fsbase                      = ">= 1.0.0"

@@ -1,0 +1,10 @@
+# Shared metadata for the eudev package family.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "GPL-2.0-or-later AND LGPL-2.1-or-later"
+license_class = "free"
+homepage     = "https://github.com/eudev-project/eudev"

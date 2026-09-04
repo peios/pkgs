@@ -3,12 +3,13 @@
 # daemon; the daemon is the eudev package (PEI-58).
 
 [package]
-name        = "libudev"
+name        = "io.github.eudev-project.eudev-libudev"
 description = "libudev - device enumeration runtime library (eudev)"
+license     = "LGPL-2.1-or-later"
 
 [dependencies]
 glibc = ">= 2.43"
 
 [files]
-"@source:COPYING" = "usr/share/licenses/libudev/"
+"@source:COPYING" = "usr/share/licenses/io.github.eudev-project.eudev-libudev/"
 ":usr/lib/x86_64-linux-peios/libudev.so.1*" = "usr/lib/x86_64-linux-peios"

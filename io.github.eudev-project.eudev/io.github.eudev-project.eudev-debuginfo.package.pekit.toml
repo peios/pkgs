@@ -1,0 +1,11 @@
+# Debug symbols for the daemon, tools, helpers and libudev from this source.
+
+[package]
+name        = "io.github.eudev-project.eudev-debuginfo"
+description = "eudev - debugging symbols"
+
+[dependencies]
+"io.github.eudev-project.eudev" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
