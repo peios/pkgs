@@ -1,0 +1,31 @@
+format = "peipkg"
+
+[package]
+name          = "dev.peios.oobe"
+version       = "{{version}}-1"
+architecture  = "x86_64"
+description   = "Peios first-boot setup - the oobed engine and its console surface"
+license       = "MIT"
+license_class = "free"
+
+# The tools oobed drives. It shells out rather than linking: `lps` creates the
+# first account (taking the password on stdin, which is why there is no
+# --password flag anywhere near this), `reg` writes the hostname and removes
+# setup's own service definitions when it is done, and `net` answers the
+# network page. Each is a step that fails loudly if the tool is absent.
+[dependencies]
+# `reg` — writes the hostname and removes setup's own service definitions.
+peiosutils = ">= 0.1.4"
+# `lps` — creates the first account. A client of lpsd and nothing else, which
+# is why setup can be an ordinary program that shells out rather than
+# something holding the principal store open.
+lps = ">= 0.0.13"
+# `net` — answers the network page. Not the daemon: setup reports what the
+# machine can currently do and does not configure it.
+net = ">= 0.1.0"
+
+[files]
+":usr/sbin/**"           = "usr/sbin"
+":usr/bin/**"            = "usr/bin"
+":usr/share/regim/**"    = "usr/share/regim"
+":usr/share/licenses/**" = "usr/share/licenses"

@@ -1,0 +1,10 @@
+# Metadata shared by the Capstone package family.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-3-Clause AND BSD-4-Clause AND APSL-2.0 AND NCSA AND MIT"
+license_class = "free"
+homepage      = "https://www.capstone-engine.org/"

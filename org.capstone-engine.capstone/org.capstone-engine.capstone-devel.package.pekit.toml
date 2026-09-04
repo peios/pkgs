@@ -1,0 +1,14 @@
+[package]
+name        = "org.capstone-engine.capstone-devel"
+description = "Capstone - headers and development metadata"
+
+[dependencies]
+"org.capstone-engine.capstone-libs" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.TXT"                           = "usr/share/licenses/org.capstone-engine.capstone-devel/"
+"@source:LICENSE_LLVM.TXT"                      = "usr/share/licenses/org.capstone-engine.capstone-devel/"
+":usr/include/**"                               = "usr/include"
+":usr/lib/x86_64-linux-peios/libcapstone.so"    = "usr/lib/x86_64-linux-peios/libcapstone.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"      = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/cmake/capstone/**" = "usr/lib/x86_64-linux-peios/cmake/capstone"

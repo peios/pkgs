@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "5.0.9"
-  url = "https://github.com/capstone-engine/capstone/archive/refs/tags/5.0.9.tar.gz"
-  sha256 = "0619da31af08152600af95c481527ef6d756c0a8404fca7544a4fdf6dfc2c0f9"
-  locked_at = "2026-08-11T13:18:58Z"
+  ref = "5.0.9"
+  commit = "022575848782a4801fd150fdbc927effcbca0864"
+  locked_at = "2026-09-04T13:13:36Z"

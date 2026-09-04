@@ -1,0 +1,9 @@
+[package]
+name        = "org.capstone-engine.capstone-debugsource"
+description = "Capstone - debug sources"
+
+[dependencies]
+"org.capstone-engine.capstone-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

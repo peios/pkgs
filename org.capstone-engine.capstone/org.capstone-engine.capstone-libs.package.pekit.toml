@@ -1,0 +1,13 @@
+# Keep the ABI library independent of the command-line interface.
+
+[package]
+name        = "org.capstone-engine.capstone-libs"
+description = "Capstone - multi-architecture disassembly library"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone-libs/"
+"@source:LICENSE_LLVM.TXT" = "usr/share/licenses/org.capstone-engine.capstone-libs/"
+":usr/lib/x86_64-linux-peios/libcapstone.so.5*" = "usr/lib/x86_64-linux-peios"

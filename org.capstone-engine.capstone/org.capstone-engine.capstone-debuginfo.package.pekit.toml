@@ -1,0 +1,9 @@
+[package]
+name        = "org.capstone-engine.capstone-debuginfo"
+description = "Capstone - debugging symbols"
+
+[dependencies]
+"org.capstone-engine.capstone" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -2,9 +2,9 @@ format = "peipkg"
 
 [package]
 name         = "peios-experimental"
-# -5: autoapply the PNP dev-baseline packet policy (pnp-rules, PEI-598) —
-# arms firewall enforcement on this edition.
-version      = "{{version}}-6"
+# -7: split the seed lists. lpsd-first-account is live-only (its password is
+# public), oobe-service is install-only, and dev.peios.oobe ships the latter.
+version      = "{{version}}-7"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -76,6 +76,15 @@ peios-install = ">= 0.3.0"
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
 "dev.peios.peios-installer" = ">= 0.1.0"
+
+# First-boot setup: oobed and its own terminal surface. A separate package
+# from the installer because the two have separate lifetimes -- an installed
+# system keeps OOBE and has no use for the installer, and removing the
+# installer from it should not take first-boot setup with it.
+#
+# It ships a seed master and nothing applies it here: `install_autoapply` in
+# release.toml is what opts it in, on the installed machine only.
+"dev.peios.oobe" = ">= 0.1.0"
 
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 prelude = { constraint = ">= 0.0.1", root = "initramfs" }

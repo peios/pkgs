@@ -1,0 +1,14 @@
+# Capstone's command-line disassembler.
+
+[package]
+name        = "org.capstone-engine.capstone"
+description = "Capstone - multi-architecture command-line disassembler"
+
+[dependencies]
+"org.capstone-engine.capstone-libs" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone/"
+"@source:LICENSE_LLVM.TXT" = "usr/share/licenses/org.capstone-engine.capstone/"
+":usr/bin/cstool"          = "usr/bin/cstool"
+":usr/share/doc/org.capstone-engine.capstone/**" = "usr/share/doc/org.capstone-engine.capstone"

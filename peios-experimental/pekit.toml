@@ -70,7 +70,6 @@ autoapply = [
   "authd-policy",
   "lpsd-service",
   "lpsd-authd-registration",
-  "lpsd-first-account",
   "login-console",
   "eventd-config",
   "eventd-service",
@@ -90,6 +89,28 @@ autoapply = [
   # The installer engine. Idles until a surface opens a conversation, so it
   # costs a process and nothing else on a system nobody is installing from.
   "installerd-service",
+]
+
+# Seeds the BOOT MEDIUM applies and an installed machine does not. peiso
+# stages these into lcl/policy/autoapply.live.d/, which the installer deletes
+# from the target.
+live_autoapply = [
+  # Provisions the development account -- whose password ships in the image
+  # and is therefore public. Right on a live image, a hole on an installed
+  # one. It used to be in the list above, which meant every installed machine
+  # got the public account, and then crashed the provisioner against it on
+  # every subsequent boot. OOBE asks for a real account instead.
+  "lpsd-first-account",
+]
+
+# Seeds only an INSTALLED machine applies. peiso stages these into
+# lcl/policy/autoapply.install.d/, which peinit ignores and the installer
+# promotes into the target's autoapply.d/.
+install_autoapply = [
+  # First-boot setup: an account and a hostname, on the console, before the
+  # login prompt gets it. Staged here and not above because a setup flow on
+  # the boot medium would take the console away from the installer.
+  "oobe-service",
 ]
 EOF
 """

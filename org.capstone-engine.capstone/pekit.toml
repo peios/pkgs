@@ -1,0 +1,113 @@
+# Capstone — multi-architecture disassembly framework. Build the complete
+# architecture set and both library forms, matching the upstream default
+# feature surface while keeping runtime, development, and static payloads
+# independently installable.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/capstone-engine/capstone.git"
+ref       = "{{version}}"
+tag_regex = '^(?P<version>5\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor within ABI 5. New 5.x releases are automatic; a
+# stable ABI 6 transition remains an intentional packaging review point.
+versions = ">= 5.0.9, < 6"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+
+CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3"
+LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+
+cmake -S "$SRC" -B "$BUILD" \
+  -DPROJECT_VERSION="$PEKIT_VERSION" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR=lib/x86_64-linux-peios \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS_RELWITHDEBINFO="$CFLAGS_COMMON" \
+  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="$CFLAGS_COMMON" \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS_COMMON" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS_COMMON" \
+  -DBUILD_SHARED_LIBS=ON \
+  -DBUILD_STATIC_LIBS=ON \
+  -DCAPSTONE_BUILD_TESTS=ON \
+  -DCAPSTONE_BUILD_CSTOOL=ON \
+  -DCAPSTONE_BUILD_CSTEST=OFF
+cmake --build "$BUILD" --parallel "$(nproc)"
+ctest --test-dir "$BUILD" --output-on-failure
+DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+
+DOCDIR="$PEKIT_OUT/usr/share/doc/org.capstone-engine.capstone"
+mkdir -p "$DOCDIR"
+install -m 0644 "$SRC/README.md" "$SRC/ChangeLog" "$SRC/CREDITS.TXT" \
+  "$SRC/SPONSORS.TXT" "$DOCDIR/"
+
+# Installed CLI and public C API gate.
+readelf -d "$LIBDIR/libcapstone.so.$PEKIT_VERSION" | \
+  grep -F 'Library soname: [libcapstone.so.5]'
+LD_LIBRARY_PATH="$LIBDIR" "$PEKIT_OUT/usr/bin/cstool" x64 554889e5 | \
+  grep -F 'push'
+SMOKE="$PEKIT_OUT/.capstone-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' \
+  '#include <capstone/capstone.h>' \
+  'int main(void) {' \
+  '  csh handle; cs_insn *insn;' \
+  '  const unsigned char code[] = { 0x55, 0x48, 0x89, 0xe5 };' \
+  '  if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) return 1;' \
+  '  size_t count = cs_disasm(handle, code, sizeof code, 0x1000, 0, &insn);' \
+  '  if (count != 2) return 2;' \
+  '  cs_free(insn, count); cs_close(&handle); return 0;' \
+  '}' > "$SMOKE/smoke.c"
+cc -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
+  -o "$SMOKE/smoke" "$SMOKE/smoke.c" -lcapstone
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/smoke"
+rm -rf "$SMOKE"
+
+# Distribution debug split.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.capstone-engine.capstone/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.capstone-engine.capstone/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$BUILD"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+cmake = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake          = "*"
+debugedit      = "*"
+patchelf       = "*"

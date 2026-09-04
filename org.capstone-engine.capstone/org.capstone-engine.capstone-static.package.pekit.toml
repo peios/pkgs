@@ -1,0 +1,11 @@
+[package]
+name        = "org.capstone-engine.capstone-static"
+description = "Capstone - static disassembly library"
+
+[dependencies]
+"org.capstone-engine.capstone-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone-static/"
+"@source:LICENSE_LLVM.TXT" = "usr/share/licenses/org.capstone-engine.capstone-static/"
+":usr/lib/x86_64-linux-peios/libcapstone.a" = "usr/lib/x86_64-linux-peios/libcapstone.a"

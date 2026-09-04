@@ -1,0 +1,70 @@
+# dev.peios.oobe — first-boot setup: oobed (the engine) and oobe-tui (its
+# terminal surface).
+#
+# The other half of the installer's job. installerd writes a system to a disk;
+# this is what that system asks the person in front of it the first time it
+# boots — an account, a password, a name for the machine. Everything the
+# installer deliberately does not ask, because asking it before the copy would
+# mean answering questions while a progress bar could have been running.
+#
+# A separate package from dev.peios.peios-installer, though both are built
+# from the same working tree, because the two have separate lifetimes. An
+# installed machine keeps first-boot setup and has no use for an installer;
+# removing the installer from it must not take setup with it. That is also why
+# oobe-tui is its own binary rather than a mode of install-tui.
+#
+# Building the same workspace twice is the cost of that, and it is a cost the
+# build cache mostly absorbs: the two recipes compile the same crates and
+# differ only in which binaries they install.
+#
+# musl and static, as the installer package is, and for the same reason:
+# neither binary links libpeios — first-boot setup drives Peios through its
+# command-line tools (`lps`, `reg`, `net`) rather than its C ABI — so there is
+# nothing to link against a sysroot for.
+
+out_dir = "out"
+
+# Local working copy for `--local`. Relative to this recipe dir.
+[source.local]
+path = "../../installer"
+
+[build]
+command = """
+set -eu
+
+SRC="$(pwd)"
+REPO_ROOT="$(cd "$SRC/.." && pwd)"
+
+for tool in cargo rustc; do
+  command -v "$tool" >/dev/null || { echo "missing required build tool: $tool" >&2; exit 1; }
+done
+
+# msip is a sibling repository referenced by path from the workspace's
+# Cargo.toml. Checked explicitly, because cargo's own error for a missing
+# path dependency does not say which tree it expected to find.
+[ -f "$REPO_ROOT/msip/Cargo.toml" ] || {
+  echo "msip not found at $REPO_ROOT/msip -- the installer workspace needs it as a sibling" >&2
+  exit 1
+}
+
+# The target comes from the tree's own .cargo/config.toml; naming it here too
+# would let the two disagree silently.
+cargo build --release --locked --manifest-path "$SRC/Cargo.toml" -p oobed -p oobe-tui
+
+BIN="$SRC/target/x86_64-unknown-linux-musl/release"
+
+# /usr/sbin for the daemon, /usr/bin for the surface — the same split the
+# installer package makes, and for the same reason: one appears in a service
+# definition, the other is a program that draws on a terminal.
+install -D -m 0755 "$BIN/oobed"    "$PEKIT_OUT/usr/sbin/oobed"
+install -D -m 0755 "$BIN/oobe-tui" "$PEKIT_OUT/usr/bin/oobe-tui"
+
+# The seed master. Inert until an edition names it -- and it belongs in
+# `install_autoapply`, not `autoapply`: setup running on a boot medium would
+# take the console away from the installer.
+install -D -m 0644 "$SRC/registry.d/oobe-service.reg" \
+                   "$PEKIT_OUT/usr/share/regim/oobe-service.reg"
+
+install -D -m 0644 "$SRC/LICENSE" \
+                   "$PEKIT_OUT/usr/share/licenses/dev.peios.oobe/LICENSE"
+"""
