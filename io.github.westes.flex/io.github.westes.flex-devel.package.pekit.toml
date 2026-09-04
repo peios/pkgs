@@ -1,0 +1,12 @@
+[package]
+name        = "io.github.westes.flex-devel"
+description = "Flex C++ header and libfl development interface"
+
+[dependencies]
+"io.github.westes.flex"      = "{{version}}-1"
+"io.github.westes.flex-libs" = "{{version}}-1"
+
+[files]
+":usr/include/FlexLexer.h"             = "usr/include/FlexLexer.h"
+":usr/lib/x86_64-linux-peios/libfl.so" = "usr/lib/x86_64-linux-peios/libfl.so"
+":usr/lib/x86_64-linux-peios/libfl.a"  = "usr/lib/x86_64-linux-peios/libfl.a"

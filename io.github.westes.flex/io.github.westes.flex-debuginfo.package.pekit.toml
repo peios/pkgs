@@ -1,0 +1,10 @@
+[package]
+name        = "io.github.westes.flex-debuginfo"
+description = "Flex and libfl debugging symbols"
+
+[dependencies]
+"io.github.westes.flex"      = "{{version}}-1"
+"io.github.westes.flex-libs" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

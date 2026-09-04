@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "io.github.westes.flex-common"
+architecture = "noarch"
+description  = "Flex command manual"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/io.github.westes.flex-common/"
+":usr/share/man/**" = "usr/share/man"

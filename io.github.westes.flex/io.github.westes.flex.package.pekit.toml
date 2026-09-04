@@ -1,0 +1,16 @@
+[package]
+name        = "io.github.westes.flex"
+description = "Fast lexical analyser generator"
+
+[provides]
+flex = "{{version}}"
+
+[dependencies]
+glibc                              = ">= 2.43"
+m4                                 = "*"
+"io.github.westes.flex-common"    = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.westes.flex/"
+":usr/bin/flex"    = "usr/bin/flex"
+":usr/bin/flex++"  = "usr/bin/flex++"

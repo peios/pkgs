@@ -1,0 +1,149 @@
+# Flex — the fast lexical analyser generator. The signed release tarball
+# carries its generated bootstrap sources, while the build still exercises
+# Flex's self-hosting path and complete native regression suite.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/westes/flex/releases/download/v{{version}}/flex-{{version}}.tar.gz"
+listing_url = "https://github.com/westes/flex/releases"
+extract     = true
+root        = "flex-{{version}}"
+file_regex  = 'flex-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor. Follow authenticated stable 2.x releases
+# automatically; a future major line requires a compatibility review.
+versions    = ">= 2.6.4, < 3"
+
+# The upstream release announcement identifies Will Estes's key, and the
+# detached GitHub release signature verifies with this exact primary key.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/will-estes.asc"]
+fingerprints = ["56C67868E93390AA1039AD1CE4B29C8D64885307"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-shared --enable-static --disable-nls
+make -j"$(nproc)"
+# This includes Flex's C, C++, reentrant, Bison-interoperability, tables,
+# pthread and self-hosted scanner cases.
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios has no Info reader. Keep the command manual, but do not ship orphaned
+# release prose or libtool archives.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -name '*.la' -delete
+
+BIN="$PEKIT_OUT/usr/bin/flex"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+test "$(readlink "$PEKIT_OUT/usr/bin/flex++")" = flex
+test "$(readlink "$LIBDIR/libfl.so")" = libfl.so.2.0.0
+test "$(readlink "$LIBDIR/libfl.so.2")" = libfl.so.2.0.0
+
+# Exercise the staged generator, its m4 runtime, generated C and C++ scanners,
+# and libfl's public link interface. These probes test installed interfaces,
+# rather than merely rerunning in-tree test binaries.
+SMOKE="$PEKIT_OUT/.flex-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' \
+  '%option noyywrap nodefault' \
+  '%%' \
+  '[0-9]+ { printf("N:%s\\n", yytext); }' \
+  '[[:space:]]+ ;' \
+  '. return 2;' \
+  '%%' \
+  'int main(void) { return yylex(); }' > "$SMOKE/scanner.l"
+"$BIN" --warn -o "$SMOKE/scanner.c" "$SMOKE/scanner.l"
+cc -Werror -o "$SMOKE/scanner" "$SMOKE/scanner.c"
+printf '%s\n' '12 34' | "$SMOKE/scanner" > "$SMOKE/c.out"
+printf '%s\n' N:12 N:34 > "$SMOKE/c.expected"
+cmp "$SMOKE/c.expected" "$SMOKE/c.out"
+
+printf '%s\n' \
+  '%option c++ noyywrap nodefault' \
+  '%%' \
+  '[a-z]+ { std::cout << "W:" << YYText() << std::endl; }' \
+  '[[:space:]]+ ;' \
+  '. return 2;' \
+  '%%' > "$SMOKE/scanner.ll"
+printf '%s\n' \
+  '#include <FlexLexer.h>' \
+  'int main(void) { yyFlexLexer scanner; return scanner.yylex(); }' \
+  > "$SMOKE/cxx-main.cc"
+"$PEKIT_OUT/usr/bin/flex++" --warn -o "$SMOKE/scanner.cc" "$SMOKE/scanner.ll"
+c++ -Werror -I"$PEKIT_OUT/usr/include" -o "$SMOKE/scanner-cxx" \
+  "$SMOKE/scanner.cc" "$SMOKE/cxx-main.cc"
+printf '%s\n' 'alpha beta' | "$SMOKE/scanner-cxx" > "$SMOKE/cxx.out"
+printf '%s\n' W:alpha W:beta > "$SMOKE/cxx.expected"
+cmp "$SMOKE/cxx.expected" "$SMOKE/cxx.out"
+
+printf '%s\n' \
+  '%%' \
+  '[a-z]+ ECHO;' \
+  '[[:space:]]+ ECHO;' \
+  '%%' > "$SMOKE/libfl.l"
+"$BIN" --warn -o "$SMOKE/libfl.c" "$SMOKE/libfl.l"
+cc -Werror -o "$SMOKE/libfl" "$SMOKE/libfl.c" \
+  -L"$LIBDIR" -Wl,-rpath,"$LIBDIR" -lfl
+printf '%s\n' libfl | "$SMOKE/libfl" > "$SMOKE/libfl.out"
+printf '%s\n' libfl > "$SMOKE/libfl.expected"
+cmp "$SMOKE/libfl.expected" "$SMOKE/libfl.out"
+
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+for elf in "$BIN" "$LIBDIR/libfl.so.2.0.0"; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
+
+# Conventional build-ID debuginfo and exact DWARF-referenced sources for both
+# the generator and libfl runtime.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in usr/bin/flex usr/lib/x86_64-linux-peios/libfl.so.2.0.0; do
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.westes.flex \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/io.github.westes.flex/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/io.github.westes.flex/$rel"
+    done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+"org.gnu.bison" = "*"
+m4 = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bison = "*"
+debugedit = "*"
+m4 = "*"
+patchelf = "*"

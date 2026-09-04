@@ -8,4 +8,5 @@ schema = 1
   version = "2.6.4"
   url = "https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz"
   sha256 = "e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c45ee995"
-  locked_at = "2026-08-10T23:12:18Z"
+  signature_key = "56c67868e93390aa1039ad1ce4b29c8d64885307"
+  locked_at = "2026-09-04T20:57:37Z"
