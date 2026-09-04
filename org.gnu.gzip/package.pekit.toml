@@ -1,0 +1,12 @@
+# Metadata shared by the GNU gzip package family. The expression covers the
+# executable code, Gnulib/build helpers, manual and public-domain compression
+# fragments carried by the generated corresponding-source package.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-3.0-or-later AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-or-later AND GFDL-1.3-no-invariants-or-later AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND (GPL-3.0-or-later WITH Texinfo-exception) AND FSFAP AND FSFULLR AND FSFULLRWD AND X11 AND LicenseRef-FSF-manpages AND LicenseRef-Public-Domain"
+license_class = "free"
+homepage      = "https://www.gnu.org/software/gzip/"

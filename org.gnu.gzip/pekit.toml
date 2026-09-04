@@ -1,0 +1,168 @@
+# GNU gzip — DEFLATE compression plus its non-interactive shell utilities.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/gzip/gzip-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gzip/"
+extract     = true
+root        = "gzip-{{version}}"
+file_regex  = 'gzip-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 1.x releases
+# automatically; stop at a new major line for command/build review.
+versions    = ">= 1.14, < 2"
+
+# GNU gzip releases are signed by maintainer Jim Meyering. Pin the complete
+# primary-key fingerprint so every discovered release must authenticate before
+# pekit can lock it.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/jim-meyering.asc"]
+fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man
+
+make -j"$(nproc)"
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios has no Info reader. zless and zmore are also intentionally omitted
+# until the package set has a pager provider; shipping them now would leave
+# installed commands with an unsatisfied runtime contract.
+rm -rf "$PEKIT_OUT/usr/share/info"
+rm -f \
+  "$PEKIT_OUT/usr/bin/zless" \
+  "$PEKIT_OUT/usr/bin/zmore" \
+  "$PEKIT_OUT/usr/share/man/man1/zless.1" \
+  "$PEKIT_OUT/usr/share/man/man1/zmore.1"
+
+# Every installed script targets Peios' canonical shell path. Keep this list
+# explicit so a newly added upstream command cannot silently escape review.
+for script in gunzip gzexe zcat zcmp zdiff zegrep zfgrep zforce zgrep znew uncompress; do
+  sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
+  test "$(sed -n '1p' "$PEKIT_OUT/usr/bin/$script")" = '#!/usr/bin/sh'
+done
+
+# Exercise all shipped command groups against the staged tree, including
+# compression integrity, wrapper dispatch, search/compare helpers, suffix
+# repair, .Z-to-.gz conversion and a self-extracting gzexe program.
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.gzip-smoke"
+mkdir -p "$SMOKE"
+export PATH="$BIN:$PATH"
+printf '%s\n' alpha beta 'literal[1]' > "$SMOKE/plain"
+
+"$BIN/gzip" -c "$SMOKE/plain" > "$SMOKE/plain.gz"
+"$BIN/gzip" -t "$SMOKE/plain.gz"
+"$BIN/gzip" -cd "$SMOKE/plain.gz" > "$SMOKE/gzip.out"
+cmp "$SMOKE/plain" "$SMOKE/gzip.out"
+
+# A truncated member must fail integrity verification rather than yielding a
+# successful partial decode.
+head -c -1 "$SMOKE/plain.gz" > "$SMOKE/truncated.gz"
+status=0
+"$BIN/gzip" -t "$SMOKE/truncated.gz" 2>/dev/null || status=$?
+[ "$status" -ne 0 ]
+
+# Gzip streams may concatenate independently compressed members. Verify the
+# staged decoder preserves that long-standing command and archive contract.
+printf '%s\n' first > "$SMOKE/first"
+printf '%s\n' second > "$SMOKE/second"
+"$BIN/gzip" -c "$SMOKE/first" > "$SMOKE/first.gz"
+"$BIN/gzip" -c "$SMOKE/second" > "$SMOKE/second.gz"
+cat "$SMOKE/first.gz" "$SMOKE/second.gz" > "$SMOKE/combined.gz"
+cat "$SMOKE/first" "$SMOKE/second" > "$SMOKE/combined.expected"
+"$BIN/gzip" -cd "$SMOKE/combined.gz" > "$SMOKE/combined.out"
+cmp "$SMOKE/combined.expected" "$SMOKE/combined.out"
+
+"$BIN/zcat" "$SMOKE/plain.gz" > "$SMOKE/zcat.out"
+cmp "$SMOKE/plain" "$SMOKE/zcat.out"
+"$BIN/uncompress" -c "$SMOKE/plain.gz" > "$SMOKE/uncompress.out"
+cmp "$SMOKE/plain" "$SMOKE/uncompress.out"
+cp "$SMOKE/plain.gz" "$SMOKE/gunzip.gz"
+"$BIN/gunzip" "$SMOKE/gunzip.gz"
+cmp "$SMOKE/plain" "$SMOKE/gunzip"
+
+"$BIN/zgrep" -q '^beta$' "$SMOKE/plain.gz"
+"$BIN/zegrep" -q '^(alpha|beta)$' "$SMOKE/plain.gz"
+"$BIN/zfgrep" -q 'literal[1]' "$SMOKE/plain.gz"
+"$BIN/zcmp" "$SMOKE/plain.gz" "$SMOKE/plain.gz"
+printf '%s\n' alpha gamma > "$SMOKE/other"
+"$BIN/gzip" -c "$SMOKE/other" > "$SMOKE/other.gz"
+status=0
+"$BIN/zdiff" "$SMOKE/plain.gz" "$SMOKE/other.gz" > "$SMOKE/zdiff.out" || status=$?
+[ "$status" -eq 1 ]
+grep -F beta "$SMOKE/zdiff.out"
+grep -F gamma "$SMOKE/zdiff.out"
+
+cp "$SMOKE/plain.gz" "$SMOKE/forced"
+"$BIN/zforce" "$SMOKE/forced"
+test -f "$SMOKE/forced.gz"
+cp "$SMOKE/plain.gz" "$SMOKE/legacy.Z"
+"$BIN/znew" -t "$SMOKE/legacy.Z"
+test -f "$SMOKE/legacy.gz"
+"$BIN/gzip" -t "$SMOKE/legacy.gz"
+
+printf '%s\n' '#!/usr/bin/sh' 'printf "%s\\n" gzexe-ok' > "$SMOKE/program"
+chmod 0755 "$SMOKE/program"
+"$BIN/gzexe" "$SMOKE/program"
+test "$("$SMOKE/program")" = gzexe-ok
+
+for command in gzip gunzip zcat uncompress gzexe zcmp zdiff zegrep zfgrep zforce zgrep znew; do
+  "$BIN/$command" --version | head -n 1 | grep -F "$PEKIT_VERSION"
+done
+
+# Enforce the workspace ELF hardening contract and emit conventional build-ID
+# debuginfo plus the exact source files referenced by the binary's DWARF.
+ELF="$BIN/gzip"
+patchelf --remove-rpath "$ELF" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$ELF" 2>/dev/null || true
+readelf -h "$ELF" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$ELF" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$ELF" | grep -F 'BIND_NOW'
+readelf -d "$ELF" | grep -F 'RELR'
+if readelf -d "$ELF" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gzip \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/gzip
+bid=$(readelf -n usr/bin/gzip | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/gzip "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/gzip
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.gzip/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gzip/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"

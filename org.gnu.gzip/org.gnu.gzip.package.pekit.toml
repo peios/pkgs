@@ -1,0 +1,18 @@
+[package]
+name        = "org.gnu.gzip"
+description = "GNU DEFLATE compression and decompression tools"
+
+[provides]
+gzip = "{{version}}"
+
+[dependencies]
+dash                  = "*"
+glibc                 = ">= 2.43"
+"org.gnu.gzip-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING"     = "usr/share/licenses/org.gnu.gzip/COPYING"
+":usr/bin/gzip"       = "usr/bin/gzip"
+":usr/bin/gunzip"     = "usr/bin/gunzip"
+":usr/bin/zcat"       = "usr/bin/zcat"
+":usr/bin/uncompress" = "usr/bin/uncompress"

@@ -1,0 +1,26 @@
+[package]
+name         = "org.gnu.gzip-utils"
+architecture = "noarch"
+description  = "GNU gzip non-interactive shell utilities"
+
+[provides]
+"gzip-utils" = "{{version}}"
+
+[dependencies]
+dash                = "*"
+grep                = "*"
+sed                 = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.gzip"      = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gzip-utils/COPYING"
+":usr/bin/gzexe"   = "usr/bin/gzexe"
+":usr/bin/zcmp"    = "usr/bin/zcmp"
+":usr/bin/zdiff"   = "usr/bin/zdiff"
+":usr/bin/zegrep"  = "usr/bin/zegrep"
+":usr/bin/zfgrep"  = "usr/bin/zfgrep"
+":usr/bin/zforce"  = "usr/bin/zforce"
+":usr/bin/zgrep"   = "usr/bin/zgrep"
+":usr/bin/znew"    = "usr/bin/znew"

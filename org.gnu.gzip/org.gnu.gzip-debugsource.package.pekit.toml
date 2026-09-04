@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gzip-debugsource"
+description = "GNU gzip debug sources"
+
+[dependencies]
+"org.gnu.gzip-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

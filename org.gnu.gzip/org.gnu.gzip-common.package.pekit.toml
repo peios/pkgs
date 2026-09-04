@@ -1,0 +1,13 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.gzip-common"
+architecture = "noarch"
+description  = "GNU gzip command manuals"
+
+[provides]
+"gzip-common" = "{{version}}"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.gnu.gzip-common/COPYING"
+":usr/share/man/**" = "usr/share/man"

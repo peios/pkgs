@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.gzip-debuginfo"
+description = "GNU gzip debugging symbols"
+
+[dependencies]
+"org.gnu.gzip" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
