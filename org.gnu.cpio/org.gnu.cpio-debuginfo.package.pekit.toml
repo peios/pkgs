@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.cpio-debuginfo"
+description = "GNU cpio archive copier - debugging symbols"
+
+[dependencies]
+"org.gnu.cpio" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

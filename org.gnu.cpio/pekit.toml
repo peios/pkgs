@@ -1,0 +1,163 @@
+# GNU cpio — archive and pass-through copier used by initramfs and package
+# construction.
+
+out_dir = "out"
+
+# GNU cpio 2.15 remains the newest stable release. These three narrowly scoped
+# upstream commits fix CVE-2026-66484, CVE-2026-66485 and CVE-2026-66486. They
+# are carried only until a signed stable release contains them; a failed patch
+# application at that boundary deliberately requests a one-time review.
+[source]
+patches = "patches"
+
+[source.url]
+url        = "https://ftp.gnu.org/gnu/cpio/cpio-{{version}}.tar.gz"
+extract    = true
+root       = "cpio-{{version}}"
+file_regex = 'cpio-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance floor. Newer stable 2.x releases are discovered
+# automatically; a future major version is an intentional compatibility gate.
+versions   = ">= 2.15, < 3"
+
+# The release signature is made by GNU cpio maintainer Sergey Poznyakoff. The
+# complete primary-key fingerprint is pinned for unattended version discovery.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/sergey-poznyakoff.asc"]
+fingerprints = ["325F650C4C2B6AD58807327A3602B07F55D0C732"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+
+# The filename-quoting security fix updates an Autotest source. Regenerate the
+# release harness so the tests exercise its current expected diagnostics.
+AUTOPOINT=true autoreconf -fi
+
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-nls \
+  --with-rmt=/usr/libexec/rmt \
+  CFLAGS="-O2 -g -pipe -std=gnu17 -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64 -fPIE" \
+  LDFLAGS="-Wl,-z,relro,-z,now,--as-needed,-z,pack-relative-relocs -pie"
+
+# The security patch documents its new quoting controls in Texinfo, but Peios
+# intentionally does not ship Info output. Retain the signed release's
+# generated Info file during the build instead of introducing Texinfo solely
+# to regenerate a payload removed below.
+make -j"$(nproc)" MAKEINFO=true
+make -j"$(nproc)" check MAKEINFO=true
+make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
+
+# Peios currently has no Info reader. The complete documentation remains in
+# the corresponding-source package, while the installed command keeps its
+# concise manual page.
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+# Exercise all three operational modes from the staged executable.
+BIN="$PEKIT_OUT/usr/bin/cpio"
+SMOKE="$PEKIT_OUT/.cpio-smoke"
+mkdir -p "$SMOKE/input/nested" "$SMOKE/extract" "$SMOKE/pass"
+printf '%s\n' 'archive payload' > "$SMOKE/input/nested/file"
+ln -s nested/file "$SMOKE/input/link"
+(
+  cd "$SMOKE/input"
+  printf '%s\n' nested nested/file link |
+    "$BIN" --create --format=newc --quiet > "$SMOKE/archive.cpio"
+)
+(
+  cd "$SMOKE/extract"
+  "$BIN" --extract --make-directories --unconditional --quiet < "$SMOKE/archive.cpio"
+)
+cmp "$SMOKE/input/nested/file" "$SMOKE/extract/nested/file"
+[ "$(readlink "$SMOKE/extract/link")" = nested/file ]
+(
+  cd "$SMOKE/input"
+  printf '%s\n' nested/file | "$BIN" --pass-through --make-directories "$SMOKE/pass"
+)
+cmp "$SMOKE/input/nested/file" "$SMOKE/pass/nested/file"
+"$BIN" --list --quiet < "$SMOKE/archive.cpio" | grep -Fx nested/file
+"$BIN" --quoting-style=help | grep -Fx shell-escape
+
+# Regress CVE-2026-66484: --no-absolute-filenames must sanitize hard-link
+# targets as well as member names. GNU tar constructs the malicious ustar
+# relation; extraction may diagnose the now-unresolvable link, but it must
+# never link the external victim into the destination.
+VICTIM="/tmp/pekit-cpio-cve84-$$"
+trap 'rm -f "$VICTIM"' 0 1 2 15
+printf '%s\n' protected > "$VICTIM"
+mkdir -p "$SMOKE/hard-src" "$SMOKE/hard-out"
+printf '%s\n' payload > "$SMOKE/hard-src/a"
+ln "$SMOKE/hard-src/a" "$SMOKE/hard-src/b"
+(
+  cd "$SMOKE/hard-src"
+  tar --absolute-names --format=ustar \
+    --transform="flags=h;s|^a$|$VICTIM|" \
+    -cf "$SMOKE/hardlink.tar" a b
+)
+(
+  cd "$SMOKE/hard-out"
+  "$BIN" --extract --make-directories --unconditional \
+    --no-absolute-filenames --quiet < "$SMOKE/hardlink.tar"
+)
+[ "$(stat -c %h "$VICTIM")" = 1 ]
+test ! -e "$SMOKE/hard-out/b"
+rm -f "$VICTIM"
+trap - 0 1 2 15
+
+# Validate the installed ELF against the workspace hardening contract.
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+rm -rf "$SMOKE"
+
+# Produce conventional debuginfo and debugsource payloads.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+elf=usr/bin/cpio
+patchelf --remove-rpath "$elf" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.cpio -l "$PEKIT_OUT/.dl" -n "$elf"
+bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip "$elf"
+tr '\\0' '\\n' < "$PEKIT_OUT/.dl" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.cpio/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.cpio/$rel"
+done
+rm -f "$PEKIT_OUT/.dl"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+"org.gnu.autoconf" = ">= 2.72"
+"org.gnu.automake" = ">= 1.18"
+"org.gnu.bash" = "*"
+perl = "*"
+tar = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+autoconf       = ">= 2.72"
+automake       = ">= 1.18"
+bash           = "*"
+debugedit      = "*"
+patchelf       = "*"
+perl           = "*"
+tar            = "*"

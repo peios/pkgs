@@ -1,0 +1,3 @@
+upstream/0010-unbounded-stack-allocation.patch
+upstream/0011-hardlink-path-traversal.patch
+upstream/0012-safe-filename-quoting.patch

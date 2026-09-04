@@ -1,0 +1,13 @@
+[package]
+name        = "org.gnu.cpio"
+description = "GNU cpio archive copier"
+
+[provides]
+cpio = "{{version}}"
+
+[dependencies]
+"org.gnu.cpio-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.cpio/"
+":usr/bin/cpio"   = "usr/bin/cpio"

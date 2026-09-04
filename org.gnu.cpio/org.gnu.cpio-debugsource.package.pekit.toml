@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.cpio-debugsource"
+description = "GNU cpio archive copier - debug sources"
+
+[dependencies]
+"org.gnu.cpio-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.cpio-common"
+architecture = "noarch"
+description  = "GNU cpio archive copier - command manual"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.gnu.cpio-common/"
+":usr/share/man/**" = "usr/share/man"

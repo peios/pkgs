@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "2.15"
+  url = "https://ftp.gnu.org/gnu/cpio/cpio-2.15.tar.gz"
+  sha256 = "efa50ef983137eefc0a02fdb51509d624b5e3295c980aa127ceee4183455499e"
+  signature_key = "325f650c4c2b6ad58807327a3602b07f55d0c732"
+  locked_at = "2026-09-04T16:08:11Z"
