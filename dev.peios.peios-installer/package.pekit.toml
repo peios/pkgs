@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name          = "dev.peios.peios-installer"
-version       = "{{version}}-10"
+version       = "{{version}}-12"
 architecture  = "x86_64"
 description   = "Peios installer - installerd engine, the install-tui surface and msip-drive"
 license       = "MIT"
