@@ -1,0 +1,19 @@
+# io.sourceforge.libisl.isl-devel — public headers, linker name and pkg-config
+# metadata. Public ISL headers expose GMP types.
+
+[package]
+name        = "io.sourceforge.libisl.isl-devel"
+description = "Integer Set Library - development files"
+
+[provides]
+isl-devel = "{{version}}"
+
+[dependencies]
+"io.sourceforge.libisl.isl" = "{{version}}-1"
+"org.gnu.gmp-devel"         = ">= 6.3.0"
+
+[files]
+":usr/include/isl/**"                      = "usr/include/isl"
+":usr/lib/x86_64-linux-peios/libisl.so"    = "usr/lib/x86_64-linux-peios/libisl.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/aclocal/isl_detect_clang.m4"    = "usr/share/aclocal/isl_detect_clang.m4"

@@ -1,0 +1,12 @@
+# io.sourceforge.libisl.isl-debugsource — source files referenced by the
+# rewritten DWARF under /usr/src/debug/io.sourceforge.libisl.isl.
+
+[package]
+name        = "io.sourceforge.libisl.isl-debugsource"
+description = "Integer Set Library - debug sources"
+
+[dependencies]
+"io.sourceforge.libisl.isl-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

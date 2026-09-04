@@ -1,16 +1,19 @@
-# isl — runtime: libisl.so.23, plus gdb's pretty-printer for isl types. Links
-# libgmp.
+# io.sourceforge.libisl.isl — runtime libisl.so.23 and its gdb helper.
 
 [package]
+name        = "io.sourceforge.libisl.isl"
 description = "Integer Set Library"
 
+[provides]
+isl = "{{version}}"
+
 [dependencies]
-glibc = ">= 2.43"
-gmp   = ">= 6.3.0"
+glibc         = ">= 2.43"
+"org.gnu.gmp" = ">= 6.3.0"
 
 [files]
 # License text (distro convention: /usr/share/licenses/<name>/).
-"@source:LICENSE" = "usr/share/licenses/isl/"
+"@source:LICENSE" = "usr/share/licenses/io.sourceforge.libisl.isl/"
 ":usr/lib/x86_64-linux-peios/libisl.so.23*" = "usr/lib/x86_64-linux-peios"
 # gdb pretty-printer. The recipe moves it from beside the library (where gdb
 # never looks) into the auto-load tree, as Fedora and Arch both do.

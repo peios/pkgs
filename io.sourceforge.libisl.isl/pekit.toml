@@ -1,0 +1,193 @@
+# ISL — the Integer Set Library used by GCC's Graphite loop optimiser. Its
+# exact polyhedral results can affect generated code, so the complete upstream
+# correctness suite and installed-interface probes are release gates.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://libisl.sourceforge.io/isl-{{version}}.tar.xz"
+listing_url = "https://libisl.sourceforge.io/"
+root        = "isl-{{version}}"
+extract     = true
+file_regex  = '^isl-[0-9]+\.[0-9]+\.tar\.xz$'
+# Soft maintenance floor: follow later stable 0.x releases automatically. An
+# ABI, source-layout or build change should fail a validation below and receive
+# deliberate packaging work rather than silently shipping an incomplete build.
+versions    = ">= 0.28, < 1"
+
+# Upstream publishes no detached signature for these archives (the matching
+# `.sig` endpoint is absent). This is an explicit source-authentication
+# exception: HTTPS authenticates transport and pekit's immutable SHA-256 lock
+# detects later byte changes, but neither proves an upstream release signature.
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+GDBDIR="$PEKIT_OUT/usr/share/gdb/auto-load/usr/lib/x86_64-linux-peios"
+
+cd "$PEKIT_OUT"
+# AX_PROG_CC_FOR_BUILD overwrites ISL's "were CFLAGS supplied?" sentinel. Pass
+# CFLAGS_FOR_BUILD explicitly so AX_CC_MAXOPT does not append -O3, fast-math or
+# host CPU tuning to the inherited distro flags. The portable/no-arch switches
+# are a second guard against producing a builder-specific library.
+CFLAGS_FOR_BUILD="$CFLAGS" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-portable-binary \
+  --without-gcc-arch \
+  --with-int=gmp \
+  --with-gmp=system
+
+grep -F 'HAVE_CXX11 = 1' Makefile
+grep -F 'HAVE_CXX17 = 1' Makefile
+if grep '^CFLAGS = ' Makefile | grep -Eq -- '-m(arch|cpu|tune)=|-native([[:space:]]|$)'; then
+  echo "ISL selected build-host CPU flags" >&2
+  exit 1
+fi
+
+# Put --as-needed before libraries and disable libtool's install-directory
+# rpath. The Peios library directory is already part of the loader contract.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
+    -i libtool
+
+make -j"$(nproc)"
+
+# A wrong ISL answer can become a compiler miscompilation. Exercise the entire
+# upstream suite against this build tree rather than an older composed libisl.
+LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -j"$(nproc)" check
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# Upstream places the helper next to the shared object, while gdb discovers
+# auto-load scripts beneath a mirror of the installed library path.
+mkdir -p "$GDBDIR"
+GDB_HELPER=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libisl.so.*-gdb.py' | LC_ALL=C sort)
+test "$(printf '%s\n' "$GDB_HELPER" | grep -c .)" -eq 1
+mv "$GDB_HELPER" "$GDBDIR/"
+
+# Assert the complete installed library contract before splitting debug data.
+ISL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libisl.so.23.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$ISL_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libisl.so"
+test -L "$LIBDIR/libisl.so.23"
+test -s "$LIBDIR/libisl.a"
+test -f "$LIBDIR/pkgconfig/isl.pc"
+test -f "$INCLUDEDIR/isl/ctx.h"
+test -f "$INCLUDEDIR/isl/set.h"
+test -f "$INCLUDEDIR/isl/map.h"
+test -f "$PEKIT_OUT/usr/share/aclocal/isl_detect_clang.m4"
+test -f "$GDBDIR/$(basename "$GDB_HELPER")"
+
+# ISL 0.28 has libtool version-info 28:0:5, hence ABI/SONAME 23. Keep the
+# SONAME assertion as the automatic-update boundary for later 0.x releases.
+readelf -d "$ISL_SO" | grep -F 'Library soname: [libisl.so.23]'
+readelf -d "$ISL_SO" | grep -F 'Shared library: [libgmp.so.10]'
+PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --validate isl
+test "$(PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --modversion isl)" = "$PEKIT_VERSION"
+PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --libs isl | grep -Eq '(^|[[:space:]])-lisl([[:space:]]|$)'
+ar t "$LIBDIR/libisl.a" | grep -Fx 'isl_ctx.o'
+
+# Compile and run a representative installed C consumer. It applies a map to a
+# bounded set and checks the exact resulting set, through both shared and fully
+# static ISL/GMP linkage.
+SMOKE="$PEKIT_OUT/.isl-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <isl/ctx.h>
+#include <isl/map.h>
+#include <isl/set.h>
+
+int main(void)
+{
+  isl_ctx *ctx = isl_ctx_alloc();
+  isl_set *domain = isl_set_read_from_str(ctx, "{ [i] : 0 <= i <= 9 }");
+  isl_map *successor = isl_map_read_from_str(ctx,
+      "{ [i] -> [j] : j = i + 1 }");
+  isl_set *image = isl_set_apply(domain, successor);
+  isl_set *expected = isl_set_read_from_str(ctx, "{ [j] : 1 <= j <= 10 }");
+  int equal = isl_set_is_equal(image, expected);
+  isl_set_free(image);
+  isl_set_free(expected);
+  isl_ctx_free(ctx);
+  return equal == 1 ? 0 : 1;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lisl -lgmp -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios" "$SMOKE/shared"
+test -s /usr/lib/x86_64-linux-peios/libgmp.a
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libisl.a" \
+  /usr/lib/x86_64-linux-peios/libgmp.a -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Produce build-ID-indexed debug symbols and stage the exact corresponding
+# source paths referenced by the rewritten DWARF.
+strip --strip-debug "$LIBDIR/libisl.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+if readelf -d "$ISL_SO" | grep -Eq '(RPATH|RUNPATH)'; then
+  patchelf --remove-rpath "$ISL_SO"
+fi
+if readelf -d "$ISL_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$ISL_SO"
+fi
+debugedit -b "$ROOT" -d /usr/src/debug/io.sourceforge.libisl.isl \
+  -l "$PEKIT_OUT/.dl" -n "$ISL_SO"
+cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+BUILD_ID=$(readelf -n "$ISL_SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$BUILD_ID"
+ID_DIR=$(printf %s "$BUILD_ID" | cut -c1-2)
+ID_FILE=$(printf %s "$BUILD_ID" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$ID_DIR"
+objcopy --only-keep-debug "$ISL_SO" \
+  "usr/lib/debug/.build-id/$ID_DIR/$ID_FILE.debug"
+chmod 0644 "usr/lib/debug/.build-id/$ID_DIR/$ID_FILE.debug"
+strip "$ISL_SO"
+
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "usr/src/debug/io.sourceforge.libisl.isl/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/io.sourceforge.libisl.isl/$rel"
+done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find usr/src/debug/io.sourceforge.libisl.isl -type f -print -quit)"
+readelf -S "usr/lib/debug/.build-id/$ID_DIR/$ID_FILE.debug" | grep -F '.debug_info'
+if readelf -S "$ISL_SO" | grep -F '.debug_info'; then exit 1; fi
+
+# Verify hardening and dynamic dependencies on the stripped object that ships.
+readelf -h "$ISL_SO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$ISL_SO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$ISL_SO" | grep -F 'GNU_RELRO'
+readelf -d "$ISL_SO" | grep -F 'BIND_NOW'
+readelf -d "$ISL_SO" | grep -F 'RELR'
+readelf -n "$ISL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$ISL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+if readelf -d "$ISL_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++"  = "*"
+"org.gnu.gmp-devel"      = "*"
+"org.gnu.gmp-static"     = "*"
+pkgconf                   = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev      = "*"
+pkgconf         = "*"
+debugedit       = "*"
+patchelf        = "*"

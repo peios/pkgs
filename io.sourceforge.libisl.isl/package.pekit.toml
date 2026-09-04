@@ -1,0 +1,11 @@
+# Base metadata shared by the ISL package family. The default corresponding-
+# source package remains enabled and carries the complete locked release tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT"
+license_class = "free"
+homepage      = "https://libisl.sourceforge.io/"

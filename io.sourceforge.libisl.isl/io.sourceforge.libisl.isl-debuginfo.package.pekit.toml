@@ -1,0 +1,11 @@
+# io.sourceforge.libisl.isl-debuginfo — build-ID-indexed debug symbols.
+
+[package]
+name        = "io.sourceforge.libisl.isl-debuginfo"
+description = "Integer Set Library - debugging symbols"
+
+[dependencies]
+"io.sourceforge.libisl.isl" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

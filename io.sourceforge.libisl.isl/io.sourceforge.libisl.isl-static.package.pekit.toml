@@ -1,0 +1,15 @@
+# io.sourceforge.libisl.isl-static — static archive and its GMP static closure.
+
+[package]
+name        = "io.sourceforge.libisl.isl-static"
+description = "Integer Set Library - static library"
+
+[provides]
+isl-static = "{{version}}"
+
+[dependencies]
+"io.sourceforge.libisl.isl-devel" = "{{version}}-1"
+"org.gnu.gmp-static"              = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libisl.a" = "usr/lib/x86_64-linux-peios/libisl.a"
