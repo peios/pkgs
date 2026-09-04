@@ -49,9 +49,9 @@ esac
 """
 
 [build.main.dependencies.peipkg]
-dash            = "*"
-coreutils-gnu   = "*"
-python3         = "*"
+dash              = "*"
+"org.gnu.coreutils" = "*"
+python3           = "*"
 "libxml2-utils" = "*"
 
 [build.main.dependencies.apt]

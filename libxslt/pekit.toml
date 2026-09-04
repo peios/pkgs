@@ -42,11 +42,11 @@ rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/gtk-doc"
 """
 
 [build.main.dependencies.peipkg]
-dash               = "*"
-coreutils-gnu      = "*"
-build-essentials-c = "*"
-make               = "*"
-pkgconf            = "*"
+dash                = "*"
+"org.gnu.coreutils" = "*"
+build-essentials-c  = "*"
+make                = "*"
+pkgconf             = "*"
 "libxml2-devel"    = "*"
 "glibc-gconv-extra" = "*"
 

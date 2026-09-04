@@ -69,7 +69,7 @@ fi
 # the same recipe usable on the bootstrap/development rung.
 [build.main.dependencies.peipkg]
 dash          = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 findutils     = "*"
 
 [build.main.dependencies.apt]

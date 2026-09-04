@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.coreutils-common"
+architecture = "noarch"
+description  = "GNU core utilities - command manuals"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils-common/"
+":usr/share/man/**" = "usr/share/man"

@@ -73,7 +73,7 @@ du -sm "$dest"
 
 [build.main.dependencies.peipkg]
 dash          = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 findutils     = "*"
 zstd          = "*"
 

@@ -75,14 +75,14 @@ du -sm "$PEKIT_OUT"/family/* | sort -rn
 [build.main.sign.pip]
 "family/*/usr/lib/firmware/**" = "tcb.priv"
 
-# dash for the stage itself and for copy-firmware.sh; coreutils-gnu, findutils,
+# dash for the stage itself and for copy-firmware.sh; GNU Coreutils, findutils,
 # grep and sed for what that script shells out to (install, realpath, find,
 # grep, sed). The peipkg root has nothing a stage does not name.
 [build.main.dependencies.peipkg]
 dash          = "*"
 python3       = "*"
 zstd          = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 findutils     = "*"
 grep          = "*"
 sed           = "*"

@@ -38,11 +38,11 @@ rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/gtk-doc"
 """
 
 [build.main.dependencies.peipkg]
-dash               = "*"
-coreutils-gnu      = "*"
-build-essentials-c = "*"
-make               = "*"
-pkgconf            = "*"
+dash                = "*"
+"org.gnu.coreutils" = "*"
+build-essentials-c  = "*"
+make                = "*"
+pkgconf             = "*"
 "zlib-devel"       = "*"
 "xz-devel"         = "*"
 # The suite parses documents in a dozen legacy encodings; the base glibc

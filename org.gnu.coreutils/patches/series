@@ -1,0 +1,6 @@
+# Peios Coreutils patch series. Applied in order by Pekit.
+gnulib/glibc-const-generics.patch  # bundled gnulib vs glibc >= 2.43 _Generic declarations
+upstream/uniq-check-chars-read-overrun.patch  # d64e35a8; CVE-2026-56391
+upstream/unexpand-tab-overflow.patch  # b60a159f; CVE-2026-56392
+upstream/tee-short-write-eagain.patch  # 0d6fcb99; short writes and EAGAIN loop
+upstream/unexpand-wide-blank-overflow.patch  # 4ade9cf7; wide blank crossing tab stop

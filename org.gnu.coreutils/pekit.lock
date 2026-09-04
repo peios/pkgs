@@ -9,3 +9,10 @@ schema = 1
   url = "https://ftp.gnu.org/gnu/coreutils/coreutils-9.9.tar.xz"
   sha256 = "19bcb6ca867183c57d77155eae946c5eced88183143b45ca51ad7d26c628ca75"
   locked_at = "2026-08-10T19:46:26Z"
+
+[[source]]
+  version = "9.11"
+  url = "https://ftp.gnu.org/gnu/coreutils/coreutils-9.11.tar.xz"
+  sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
+  signature_key = "6c37dc12121a5006bc1db804df6fd971306037d9"
+  locked_at = "2026-09-04T14:11:28Z"

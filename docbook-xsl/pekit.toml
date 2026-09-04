@@ -114,9 +114,9 @@ esac
 """
 
 [build.main.dependencies.peipkg]
-dash            = "*"
-coreutils-gnu   = "*"
-findutils       = "*"
+dash                = "*"
+"org.gnu.coreutils" = "*"
+findutils           = "*"
 "libxml2-utils" = "*"
 
 [build.main.dependencies.apt]

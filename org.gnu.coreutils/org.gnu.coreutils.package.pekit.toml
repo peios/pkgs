@@ -1,0 +1,17 @@
+# GNU's command binaries and the stdbuf preload helper. This package is an
+# explicit bootstrap tool, not Peios's installed-system userland.
+
+[package]
+name        = "org.gnu.coreutils"
+description = "GNU core utilities - bootstrap build-base userland"
+
+[provides]
+coreutils = "{{version}}"
+
+[dependencies]
+"org.gnu.coreutils-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils/"
+":usr/bin/**" = "usr/bin"
+":usr/lib/x86_64-linux-peios/**" = "usr/lib/x86_64-linux-peios"

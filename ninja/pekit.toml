@@ -41,7 +41,7 @@ rm -rf "$PEKIT_OUT/build"
 
 [build.main.dependencies.peipkg]
 dash                   = "*"
-coreutils-gnu          = "*"
+"org.gnu.coreutils"   = "*"
 "build-essentials-c++" = "*"
 python3                = "*"
 

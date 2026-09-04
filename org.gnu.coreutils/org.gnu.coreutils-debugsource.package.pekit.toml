@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.coreutils-debugsource"
+description = "GNU core utilities - debug sources"
+
+[dependencies]
+"org.gnu.coreutils-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

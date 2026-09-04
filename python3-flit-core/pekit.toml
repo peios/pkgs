@@ -37,7 +37,7 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 
 [build.main.dependencies.peipkg]
 dash          = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 python3       = ">= 3.14, < 3.15"
 
 [build.main.dependencies.apt]

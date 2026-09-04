@@ -54,10 +54,10 @@ rm -rf "$PRIV"/meson-*.data
 """
 
 [build.main.dependencies.peipkg]
-dash               = "*"
-coreutils-gnu      = "*"
-python3            = ">= 3.14, < 3.15"
-python3-setuptools = "*"
+dash                = "*"
+"org.gnu.coreutils" = "*"
+python3             = ">= 3.14, < 3.15"
+python3-setuptools  = "*"
 
 [build.main.dependencies.apt]
 python3            = "*"

@@ -100,7 +100,7 @@ rm -rf "$PEKIT_OUT/etc"
 
 [build.main.dependencies.peipkg]
 dash = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 # The testsuite's harness is bash, and its module playground is an out-of-tree
 # kbuild against our own clang-built kernel.
 "org.gnu.bash" = "*"

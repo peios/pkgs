@@ -1,0 +1,210 @@
+# GNU Coreutils — the GNU core utilities, packaged for the build-base role.
+#
+# PEIOS-DIVERGENCE(userland): Peios's installed system userland is peiosutils,
+# a KACS-aware hard fork of uutils/coreutils which deliberately omits the
+# traditional POSIX ownership and mode tools. GNU Coreutils remains the small
+# C-bootstrap implementation: Autotools requires GNU semantics and a working
+# chmod long before the Rust toolchain can build peiosutils. The `coreutils`
+# capability keeps consumers independent of which implementation fills that
+# role later in the bootstrap.
+
+out_dir = "out"
+
+# Four upstream commits after 9.11 fix the uniq and unexpand memory-safety
+# issues tracked as CVE-2026-56391/CVE-2026-56392, a second unexpand overflow,
+# and tee's EAGAIN/short-write handling. A future release containing them will
+# intentionally fail the local series so the now-redundant backports are
+# reviewed and dropped rather than silently applied twice.
+[source]
+patches = "patches"
+
+[source.url]
+url        = "https://ftp.gnu.org/gnu/coreutils/coreutils-{{version}}.tar.xz"
+extract    = true
+root       = "coreutils-{{version}}"
+file_regex = 'coreutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Stable 9.x releases are discovered automatically;
+# a future major version is an intentional compatibility review point.
+versions   = ">= 9.11, < 10"
+
+# GNU's release announcement identifies this as Pádraig Brady's signing key.
+# Pinning it closes the trust-on-first-use gap for unattended version sweeps.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/padraig-brady.asc"]
+fingerprints = ["6C37DC12121A5006BC1DB804DF6FD971306037D9"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libexecdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --disable-nls
+
+# Coreutils has one shared preload helper. Apply PIE flags through Automake's
+# general program variables while retaining its target-specific -fPIC/-shared
+# flags for libstdbuf.so.
+MAKE_PIE_CFLAGS='AM_CFLAGS=-fPIE $(WERROR_CFLAGS)'
+MAKE_PIE_LDFLAGS='AM_LDFLAGS=-pie $(IGNORE_UNUSED_LIBRARIES_CFLAGS)'
+MAKE_STDBUF_CFLAGS='src_libstdbuf_so_CFLAGS=-fPIC $(WERROR_CFLAGS)'
+make -j"$(nproc)" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
+
+# The release suite covers the complete utility set. Neither Pekit sandbox has
+# an NSS entry for its numeric build identity. The Debian profile is UID 1000
+# and its long host-side build prefix also trips one artificial 10 KiB cwd
+# fixture; the Peipkg profile is namespace-root, with only UID/GID 0 mapped and
+# privileged chroot withheld. Audit each profile's exact environment-only set;
+# any added or changed failure remains fatal.
+if ! make -j"$(nproc)" check "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"; then
+  actual=$(for result in tests/*.trs tests/*/*.trs; do
+    [ -f "$result" ] || continue
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result%.trs}"
+  done | sort)
+  if [ "$(id -u)" = 0 ]; then
+    expected=$(printf '%s\n' \
+      tests/chgrp/from \
+      tests/chown/basic \
+      tests/chown/separator \
+      tests/cp/preserve-gid \
+      tests/cp/special-bits \
+      tests/help/help-version \
+      tests/id/setgid \
+      tests/id/uid \
+      tests/id/zero \
+      tests/install/install-C-root \
+      tests/ls/nameless-uid \
+      tests/misc/io-errors \
+      tests/mv/sticky-to-xpart \
+      tests/rm/interactive-once \
+      tests/rm/no-give-up \
+      tests/rm/unreadable \
+      tests/touch/now-owned-by-other \
+      tests/truncate/truncate-owned-by-other)
+    touch .coreutils-uid-map-probe
+    if chown 1:1 .coreutils-uid-map-probe 2>.coreutils-uid-map.err; then exit 1; fi
+    grep -F 'Invalid argument' .coreutils-uid-map.err
+    if chroot / /usr/bin/true 2>.coreutils-chroot.err; then exit 1; fi
+    grep -F 'Operation not permitted' .coreutils-chroot.err
+    rm -f .coreutils-uid-map-probe .coreutils-uid-map.err .coreutils-chroot.err
+  else
+    expected=$(printf '%s\n' \
+      tests/chown/separator \
+      tests/help/help-version \
+      tests/id/uid \
+      tests/id/zero \
+      tests/misc/io-errors \
+      tests/rm/deep-2)
+    grep -F 'File name too long' tests/rm/deep-2.log
+  fi
+  [ "$actual" = "$expected" ]
+  if id -nu >/dev/null 2>&1 || id -ng >/dev/null 2>&1; then exit 1; fi
+  grep -F 'cannot find name for user ID' tests/help/help-version.log
+  grep -F 'cannot find name for group ID' tests/misc/io-errors.log
+  grep -F 'cannot find name for user ID' tests/chown/separator.log
+  grep -F 'cannot find name for user ID' tests/id/uid.log
+  grep -F 'cannot find name for user ID' tests/id/zero.log
+fi
+make install DESTDIR="$PEKIT_OUT" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
+
+# Peios has no Info reader at present. Command manuals remain in the common
+# package, and the complete source/documentation remains reproducible through
+# the corresponding-source package.
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+# Exercise an installed cross-section rather than accepting build-tree tests
+# alone: file mutation, deterministic sorting/deduplication, hashing, numeric
+# transformation, timeout signalling, and the libstdbuf preload path.
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.coreutils-smoke"
+mkdir -p "$SMOKE/in" "$SMOKE/out"
+printf '%s\n' gamma alpha alpha > "$SMOKE/in/words"
+"$BIN/sort" -u "$SMOKE/in/words" > "$SMOKE/out/words"
+printf '%s\n' alpha gamma > "$SMOKE/expected"
+cmp "$SMOKE/expected" "$SMOKE/out/words"
+"$BIN/install" -m 0640 "$SMOKE/out/words" "$SMOKE/out/installed"
+[ "$("$BIN/stat" -c %a "$SMOKE/out/installed")" = 640 ]
+"$BIN/cp" "$SMOKE/out/installed" "$SMOKE/out/copied"
+"$BIN/mv" "$SMOKE/out/copied" "$SMOKE/out/moved"
+"$BIN/sha256sum" "$SMOKE/out/installed" "$SMOKE/out/moved" | "$BIN/uniq" -w 64 | "$BIN/wc" -l | grep -Fx 1
+"$BIN/seq" 3 | "$BIN/paste" -sd, - | grep -Fx '1,2,3'
+"$BIN/timeout" 2 "$BIN/true"
+
+# Regress the two memory-safety fixes without depending on a system locale
+# catalogue. UTF-8 C locale support is intrinsic to current glibc.
+longline=$("$BIN/printf" '\\360\\237\\230\\200')$("$BIN/printf" '%0255d' 0 | "$BIN/tr" 0 A)
+printf '%s\n%s\n' "$longline" "$longline" | LC_ALL=C.UTF-8 "$BIN/uniq" -w256 > "$SMOKE/out/uniq"
+[ "$("$BIN/wc" -l < "$SMOKE/out/uniq")" = 1 ]
+printf '   \n' | LC_ALL=C.UTF-8 "$BIN/unexpand" -t 4611686018427387904 > /dev/null 2> "$SMOKE/out/unexpand.err" || status=$?
+case ${status:-0} in 0|1) ;; *) exit 1;; esac
+unset status
+
+# The staged stdbuf executable embeds its final helper directory and appends
+# the helper basename at runtime. Validate both now; the composed-root release
+# test exercises the actual preload.
+strings "$BIN/stdbuf" | grep -Fx '/usr/lib/x86_64-linux-peios/coreutils'
+test -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/coreutils/libstdbuf.so"
+"$BIN/ls" --version | head -1 | grep -F "$PEKIT_VERSION"
+
+# Every installed ELF must meet the workspace's executable-hardening policy.
+# ET_DYN is PIE for the command binaries and is also correct for libstdbuf.so.
+find "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -type f ! -type l | while IFS= read -r elf; do
+  readelf -h "$elf" >/dev/null 2>&1 || continue
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+test "$(find "$PEKIT_OUT/usr/bin" -type f ! -type l | wc -l)" -ge 100
+rm -rf "$SMOKE"
+
+# Distribution debug split over all command binaries and libstdbuf.so.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.coreutils -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.coreutils/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.coreutils/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+# The upstream test harness and generated help/man machinery use Perl.
+perl = "*"
+# The help/version regression exercises compressed-input dispatch.
+gzip = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"
+gzip            = "*"

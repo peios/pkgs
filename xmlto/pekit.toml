@@ -91,7 +91,7 @@ rm -f smoke.xml peios-smoke.1
 
 [build.main.dependencies.peipkg]
 dash               = "*"
-coreutils-gnu      = "*"
+"org.gnu.coreutils" = "*"
 grep               = "*"
 sed                = "*"
 findutils          = "*"

@@ -71,7 +71,7 @@ done
 
 [build.main.dependencies.peipkg]
 dash                 = "*"
-coreutils-gnu        = "*"
+"org.gnu.coreutils" = "*"
 python3              = ">= 3.14, < 3.15"
 "python3-setuptools" = "*"
 xsltproc             = "*"

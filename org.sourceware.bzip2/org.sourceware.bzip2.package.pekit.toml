@@ -10,7 +10,7 @@ description = "bzip2 - block-sorting compression tools"
 "org.sourceware.bzip2-libs" = "{{version}}-1"
 # bzgrep and bzdiff are POSIX shell frontends over these standard tools.
 dash          = "*"
-coreutils-gnu = "*"
+"org.gnu.coreutils" = "*"
 diffutils     = "*"
 grep          = "*"
 sed           = "*"
