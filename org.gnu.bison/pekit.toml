@@ -1,0 +1,140 @@
+# GNU Bison — parser generator and yacc-compatible frontend. GCC, glibc and
+# several system libraries use it to regenerate parsers during native builds.
+#
+# The signed GNU release tarball is intentionally used rather than a Git
+# checkout: it carries the generated build system and parser sources needed to
+# avoid a bootstrap dependency on Bison itself.
+
+out_dir = "out"
+
+# Compatibility fixes already carried by Fedora: correct the C++ GLR skeleton's
+# parallel-stack bookkeeping under GCC 15 assertions and mark the generated
+# error counter unused for GCC 16. Both patches are upstream-facing and can be
+# dropped once the next Bison release supersedes 3.8.2.
+[source]
+patches = "patches"
+
+[source.url]
+url        = "https://ftp.gnu.org/gnu/bison/bison-{{version}}.tar.xz"
+extract    = true
+root       = "bison-{{version}}"
+file_regex = 'bison-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor: unattended sweeps accept every newer stable GNU
+# release. Older history is intentionally outside routine publication.
+versions   = ">= 3.8.2"
+
+# GNU publishes detached signatures beside its stable release archives. The
+# pinned key is Akim Demaille's primary key, matching GNU and Fedora's release
+# verification identity for 3.8.2.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/akim-demaille.asc"]
+fingerprints = ["7DF84374B1EE1F9764BBE25D0DDCAA3278D5264E"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man
+make -j"$(nproc)"
+# Exercise the shipped C, C++ and GLR skeletons. Optional language integrations
+# skip when their toolchains are absent; the native C/C++ cases are mandatory.
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios does not yet ship an Info reader. Keep the command manuals and Autoconf
+# macros, which are live developer interfaces, while dropping orphaned docs.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+
+# Functional gate against the installed program, its runtime m4 dependency and
+# the historical yacc interface. This catches a release that builds but cannot
+# generate and compile a native parser in the Peios build environment.
+SMOKE="$PEKIT_OUT/.bison-smoke"
+mkdir -p "$SMOKE"
+# The smoke test runs the staged binary before it is installed at /usr, so
+# point it at the equally staged skeleton tree. A composed root needs no
+# override because the package lands at the compiled-in path.
+export BISON_PKGDATADIR="$PEKIT_OUT/usr/share/bison"
+printf '%s\n' \
+  '%{' \
+  'int yylex(void);' \
+  'void yyerror(const char *message);' \
+  '%}' \
+  '%%' \
+  'input: %empty ;' \
+  '%%' \
+  'int yylex(void) { return 0; }' \
+  'void yyerror(const char *message) { (void) message; }' \
+  'int main(void) { return yyparse(); }' > "$SMOKE/parser.y"
+"$PEKIT_OUT/usr/bin/bison" --warnings=error -d -o "$SMOKE/parser.c" "$SMOKE/parser.y"
+cc -o "$SMOKE/parser" "$SMOKE/parser.c"
+"$SMOKE/parser"
+# The installed yacc wrapper deliberately execs the final absolute path
+# /usr/bin/bison, which is not mounted over the host's /usr during this staged
+# check. Exercise the identical compatibility mode directly here and verify the
+# wrapper target; the post-package composed-root test executes the wrapper.
+grep -F 'exec "$bindir/bison" -y' "$PEKIT_OUT/usr/bin/yacc"
+"$PEKIT_OUT/usr/bin/bison" -y -d -o "$SMOKE/yacc-parser.c" "$SMOKE/parser.y"
+cc -o "$SMOKE/yacc-parser" "$SMOKE/yacc-parser.c"
+"$SMOKE/yacc-parser"
+"$PEKIT_OUT/usr/bin/bison" --version | head -1 | grep -F "$PEKIT_VERSION"
+rm -rf "$SMOKE"
+
+# Distribution debug split: scrub build paths, index detached symbols by GNU
+# build ID, strip the runtime, and retain precisely the referenced sources.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.bison -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.bison/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.bison/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+# The upstream suite exercises generated scanners and Autoconf integration.
+flex = "*"
+"org.gnu.autoconf" = ">= 2.72"
+# Bison invokes m4 both while building and when generating parsers.
+m4 = ">= 1.4"
+# Native-language catalog generation.
+gettext = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+flex = "*"
+autoconf = ">= 2.72"
+m4 = ">= 1.4"
+gettext = "*"
+debugedit = "*"
+patchelf = "*"

@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.bison-debugsource"
+description = "GNU Bison - debug sources"
+
+[dependencies]
+"org.gnu.bison-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

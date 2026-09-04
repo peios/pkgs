@@ -140,7 +140,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
 m4 = "*"
-bison = "*"
+"org.gnu.bison" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

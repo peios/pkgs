@@ -29,7 +29,7 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
-bison = "*"
+"org.gnu.bison" = "*"
 m4 = "*"
 
 [build.main.dependencies.apt]

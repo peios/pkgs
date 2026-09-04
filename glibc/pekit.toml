@@ -184,7 +184,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 "org.gnu.bash" = "*"
-bison = "*"
+"org.gnu.bison" = "*"
 python3 = "*"
 perl = "*"
 texinfo = "*"

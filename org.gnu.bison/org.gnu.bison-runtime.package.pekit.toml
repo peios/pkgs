@@ -1,0 +1,12 @@
+# Message catalogs referenced at runtime by parsers generated with Bison's
+# internationalised skeletons. Generated programs can depend on this small,
+# architecture-independent package without pulling in the parser generator.
+
+[package]
+name         = "org.gnu.bison-runtime"
+architecture = "noarch"
+description  = "GNU Bison - runtime message catalogs for generated parsers"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.bison-runtime/"
+":usr/share/locale/**/bison-runtime.mo" = "usr/share/locale"

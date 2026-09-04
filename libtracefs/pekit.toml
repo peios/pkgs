@@ -30,7 +30,7 @@ rm -rf "$PEKIT_OUT/build"
 build-essentials-c = "*"
 pkgconf = "*"
 "libtraceevent-devel" = "*"
-bison = "*"
+"org.gnu.bison" = "*"
 flex = "*"
 
 [build.main.dependencies.apt]

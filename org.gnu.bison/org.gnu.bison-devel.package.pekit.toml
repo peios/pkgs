@@ -1,0 +1,12 @@
+# The historical -ly convenience library. It intentionally remains static: it
+# contains only the tiny main and yyerror stubs used by traditional yacc builds.
+
+[package]
+name        = "org.gnu.bison-devel"
+description = "GNU Bison - traditional liby development library"
+
+[dependencies]
+"org.gnu.bison" = "{{version}}-1"
+
+[files]
+":usr/lib/x86_64-linux-peios/liby.a" = "usr/lib/x86_64-linux-peios/liby.a"
