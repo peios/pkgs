@@ -1,0 +1,47 @@
+format = "peipkg"
+
+[package]
+name         = "io.pypa.setuptools"
+version      = "{{version}}-2"
+# x86_64, not noarch: the one site-packages is inside the triplet directory.
+architecture = "x86_64"
+description  = "Setuptools PEP 517 build backend for Python projects"
+# Setuptools itself and most vendored libraries are MIT. importlib_metadata is
+# Apache-2.0, packaging is dual licensed, and autocommand is LGPL-3.0-only.
+# The generated project validators also contain BSD-3-Clause fastjsonschema
+# and MPL-2.0 validate-pyproject code.
+license      = "MIT AND Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause) AND LGPL-3.0-only AND BSD-3-Clause AND MPL-2.0"
+license_class = "free"
+homepage     = "https://setuptools.pypa.io/"
+
+[provides]
+# Preserve the bootstrap-era identity while downstream recipes migrate to the
+# authenticated reverse-DNS name.
+"python3-setuptools" = "{{version}}-2"
+
+[replaces]
+"python3-setuptools" = "<= {{version}}-1"
+
+[dependencies]
+# Bytecode and the site-packages path are bound to Python's feature version.
+"org.python.python3" = ">= 3.14, < 3.15"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.setuptools"
+"@source:setuptools/config/NOTICE" = "usr/share/licenses/io.pypa.setuptools/NOTICE.config"
+"@source:setuptools/config/_validate_pyproject/NOTICE" = "usr/share/licenses/io.pypa.setuptools/NOTICE.validate-pyproject"
+"@source:setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.autocommand"
+"@source:setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.backports-tarfile"
+"@source:setuptools/_vendor/importlib_metadata-8.7.1.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.importlib-metadata"
+"@source:setuptools/_vendor/jaraco.text-4.0.0.dist-info/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.jaraco-text"
+"@source:setuptools/_vendor/jaraco_context-6.1.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.jaraco-context"
+"@source:setuptools/_vendor/jaraco_functools-4.4.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.jaraco-functools"
+"@source:setuptools/_vendor/more_itertools-10.8.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.more-itertools"
+"@source:setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.packaging"
+"@source:setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE.APACHE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.packaging-apache"
+"@source:setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE.BSD" = "usr/share/licenses/io.pypa.setuptools/LICENSE.packaging-bsd"
+"@source:setuptools/_vendor/platformdirs-4.4.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.platformdirs"
+"@source:setuptools/_vendor/tomli-2.4.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.tomli"
+"@source:setuptools/_vendor/wheel-0.46.3.dist-info/licenses/LICENSE.txt" = "usr/share/licenses/io.pypa.setuptools/LICENSE.wheel"
+"@source:setuptools/_vendor/zipp-3.23.0.dist-info/licenses/LICENSE" = "usr/share/licenses/io.pypa.setuptools/LICENSE.zipp"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,178 @@
+# Setuptools — the setuptools PEP 517 backend, for the Python
+# projects that still build with it (meson is the customer today; C
+# extension modules would be the next). A BUILD-TIME library: nothing on
+# a running Peios imports it, and it must never become the way software
+# is installed — that is the pip world this packaging design exists to
+# avoid.
+#
+# Self-hosting like flit_core: the sdist's own setuptools.build_meta builds
+# its wheel (backend-path = ["."]). The wheel carries
+# distutils-precedence.pth, a startup hook every distro ships that routes
+# `import distutils` (gone from CPython since 3.12) to setuptools' bundled
+# copy — kept, it is part of upstream's install contract. The build and
+# install steps are the workspace helper's; see _pybuild_/README.md.
+#
+# The complete upstream suite needs a broad Python packaging test ecosystem.
+# The Debian reference rung runs its dependency-light archive tests; both rungs
+# then exercise the installed backend end-to-end by building a real wheel,
+# metadata directory, and sdist with no network access.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-{{version}}.tar.gz"
+listing_url = "https://pypi.org/simple/setuptools/"
+extract     = true
+root        = "setuptools-{{version}}"
+file_regex  = 'setuptools-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor and major-version review boundary. Stable 84.x point
+# releases are selected and locked automatically.
+versions    = ">= 84.0.0, < 85"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd -P)"
+
+# A dependency-light slice of the upstream suite validates archive handling in
+# the Debian reference environment. The native bootstrap root does not acquire
+# pytest and its plugin ecosystem merely to install a build backend.
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
+  PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -c /dev/null --noconftest \
+    -p no:cacheprovider --runxfail \
+    "$SRC/setuptools/tests/test_archive_util.py"
+fi
+
+# --copy-tree: setuptools writes build/ and *.egg-info beside the sources,
+# and the fetched tree must stay pristine for the -source package.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --copy-tree --out "$PEKIT_OUT" "$SRC"
+
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
+  # The reference interpreter's sysconfig path is deliberately not packageable
+  # by the Peios-only [files] mapping below.
+  SITE="$PEKIT_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
+else
+  set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
+  [ "$#" -eq 1 ] && [ -d "$1" ] || {
+    echo "setuptools: expected exactly one Peios site-packages directory" >&2
+    exit 1
+  }
+  SITE="$1"
+fi
+test -d "$SITE"
+test -f "$SITE/setuptools/build_meta.py"
+test -f "$SITE/distutils-precedence.pth"
+test -f "$SITE/setuptools/config/NOTICE"
+test -f "$SITE/setuptools/config/_validate_pyproject/NOTICE"
+test -f "$SITE/setuptools/_vendor/autocommand-"*.dist-info/LICENSE
+test -f "$SITE/setuptools/_vendor/packaging-"*.dist-info/licenses/LICENSE.APACHE
+test -f "$SITE/setuptools-"*.dist-info/METADATA
+
+# Exercise the installed backend, not the source checkout. This covers import
+# precedence, bundled distutils, vendored requirements parsing, checked-hash
+# bytecode, PEP 517 wheel and metadata hooks, RECORD, and corresponding source.
+SMOKE="$PEKIT_OUT/.setuptools-smoke"
+mkdir -p "$SMOKE/project" "$SMOKE/dist" "$SMOKE/metadata"
+cat > "$SMOKE/project/pyproject.toml" <<'EOF'
+[build-system]
+requires = []
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peios-setuptools-smoke"
+version = "1.2.3"
+description = "Setuptools installed-backend smoke project"
+
+[tool.setuptools]
+py-modules = ["peios_setuptools_smoke"]
+EOF
+cat > "$SMOKE/project/peios_setuptools_smoke.py" <<'EOF'
+'Installed Setuptools smoke module.'
+
+ANSWER = 42
+EOF
+
+cd "$PEKIT_OUT"
+PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
+python3 -S - "$SITE" "$PEKIT_VERSION" "$SMOKE" <<'PY'
+import importlib.metadata
+import os
+from pathlib import Path
+import tarfile
+import zipfile
+
+site = Path(__import__('sys').argv[1]).resolve()
+version = __import__('sys').argv[2]
+smoke = Path(__import__('sys').argv[3]).resolve()
+
+import setuptools
+import setuptools.build_meta as backend
+from setuptools import _vendor
+from setuptools._vendor import packaging
+from setuptools._vendor.packaging.requirements import Requirement
+import distutils
+
+assert Path(setuptools.__file__).resolve().is_relative_to(site)
+assert Path(distutils.__file__).resolve().is_relative_to(site)
+assert setuptools.__version__ == version
+assert importlib.metadata.version('setuptools') == version
+assert Requirement('example>=1').name == 'example'
+assert list(_vendor.__path__)
+assert all(Path(path).resolve().is_relative_to(site) for path in _vendor.__path__)
+assert Path(packaging.__file__).resolve().is_relative_to(site)
+
+py_sources = sorted((site / 'setuptools').rglob('*.py'))
+pycs = sorted((site / 'setuptools').rglob('*.pyc'))
+assert len(py_sources) >= 100
+assert len(pycs) >= 100
+for pyc in pycs:
+    data = pyc.read_bytes()
+    assert len(data) >= 16
+    assert int.from_bytes(data[4:8], 'little') == 3  # checked-hash PEP 552
+
+os.chdir(smoke / 'project')
+wheel_name = backend.build_wheel(str(smoke / 'dist'))
+metadata_name = backend.prepare_metadata_for_build_wheel(str(smoke / 'metadata'))
+sdist_name = backend.build_sdist(str(smoke / 'dist'))
+
+wheel = smoke / 'dist' / wheel_name
+assert wheel_name == 'peios_setuptools_smoke-1.2.3-py3-none-any.whl'
+with zipfile.ZipFile(wheel) as archive:
+    names = set(archive.namelist())
+    info = 'peios_setuptools_smoke-1.2.3.dist-info'
+    assert 'peios_setuptools_smoke.py' in names
+    assert f'{info}/METADATA' in names
+    assert f'{info}/WHEEL' in names
+    assert f'{info}/RECORD' in names
+    metadata = archive.read(f'{info}/METADATA').decode()
+    assert 'Name: peios-setuptools-smoke\\n' in metadata
+    assert 'Version: 1.2.3\\n' in metadata
+
+assert metadata_name == 'peios_setuptools_smoke-1.2.3.dist-info'
+assert (smoke / 'metadata' / metadata_name / 'METADATA').is_file()
+sdist = smoke / 'dist' / sdist_name
+with tarfile.open(sdist, 'r:gz') as archive:
+    names = set(archive.getnames())
+    root = 'peios_setuptools_smoke-1.2.3'
+    assert f'{root}/pyproject.toml' in names
+    assert f'{root}/peios_setuptools_smoke.py' in names
+PY
+
+python3 -S - "$SRC" <<'PY'
+from pathlib import Path
+import sys
+
+assert not any(path.is_dir() for path in Path(sys.argv[1]).rglob('__pycache__'))
+PY
+rm -rf "$SMOKE"
+"""
+
+[build.main.dependencies.peipkg]
+dash          = "*"
+"org.gnu.coreutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
+
+[build.main.dependencies.apt]
+python3        = "*"
+python3-pytest = "*"
