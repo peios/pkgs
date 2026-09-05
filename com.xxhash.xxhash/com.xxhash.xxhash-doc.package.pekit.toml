@@ -1,0 +1,12 @@
+[package]
+name         = "com.xxhash.xxhash-doc"
+description  = "xxHash algorithm, API, and command documentation"
+architecture = "noarch"
+license      = "BSD-2-Clause"
+
+[provides]
+"xxhash-doc" = "{{version}}-1"
+
+[files]
+"@source:LICENSE"                             = "usr/share/licenses/com.xxhash.xxhash-doc/"
+":usr/share/doc/com.xxhash.xxhash/**" = "usr/share/doc/com.xxhash.xxhash"

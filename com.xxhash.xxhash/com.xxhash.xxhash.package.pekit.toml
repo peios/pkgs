@@ -1,0 +1,31 @@
+# The checksum tools. They embed the BSD library implementation, while the CLI
+# sources are GPL-2.0-or-later. Depend on the split runtime library to preserve
+# the complete payload of the retired combined `xxhash` package on migration.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "com.xxhash.xxhash"
+description = "xxHash checksum command-line tools"
+license     = "BSD-2-Clause AND GPL-2.0-or-later"
+
+[provides]
+xxhash    = "{{version}}-1"
+xxhsum    = "{{version}}"
+xxh32sum  = "{{version}}"
+xxh64sum  = "{{version}}"
+xxh128sum = "{{version}}"
+xxh3sum   = "{{version}}"
+
+[replaces]
+xxhash = "<= {{version}}-1"
+
+[dependencies]
+glibc                       = ">= 2.43"
+"com.xxhash.xxhash-libs" = "{{version}}-1"
+
+[files]
+"@source:LICENSE"        = "usr/share/licenses/com.xxhash.xxhash/"
+"@source:cli/COPYING"    = "usr/share/licenses/com.xxhash.xxhash/"
+":usr/bin/**"            = "usr/bin"
+":usr/share/man/man1/**" = "usr/share/man/man1"

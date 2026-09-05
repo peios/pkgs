@@ -1,0 +1,255 @@
+# xxHash — the reference C implementation, shared/static library, and checksum
+# tools. Upstream's Makefile is an in-tree build, so use a private staged copy
+# and discard it after extracting debug sources.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/Cyan4973/xxHash.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>0\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow stable pre-1.0 releases automatically; 1.x is
+# an intentional API/ABI review point. Exact SONAME, headers, tools, and tests
+# below stop publication if an eligible upstream release changes the contract.
+versions  = ">= 0.8.3, < 1"
+
+# Upstream publishes lightweight tags and no detached source signatures. The
+# v0.8.3 tag points at a GitHub web-flow-signed merge commit, which authenticates
+# GitHub's merge machinery rather than a dedicated xxHash maintainer key. This
+# is an explicit authentication exception: HTTPS authenticates transport and
+# Pekit's Git lock makes each accepted commit immutable, but first acceptance of
+# a newly discovered tag remains TOFU until Pekit can verify signed Git release
+# identities (PEI-665).
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+
+mkdir -p "$BUILD"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+# Preserve the workspace distro flags and force the linker to emit the CET
+# property note for both shipped ELF objects. DISPATCH enables runtime CPU
+# selection for the CLI and shared library without tying them to the build CPU.
+export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/com.xxhash.xxhash"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS}"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+make -j"$(nproc)" DISPATCH=1 LIBXXH_DISPATCH=1
+
+# Run upstream's complete release test target: known-answer/API sanity,
+# namespace isolation, all CLI checksum/check modes, strict C90/no-XXH3/
+# no-stream/no-stdlib builds, benchmark-tool compilation, and the 9.6-million-
+# sample collision exercise. Also run the maintained functional targets that
+# upstream reserves for its wider CI matrix. Alternate compiler, sanitizer,
+# and 32-bit jobs are CI toolchain matrices rather than shipped-feature tests.
+# The aggregate test target mutates shared object names between its feature
+# modes and is not parallel-safe. Its collision harness also assumes a shell
+# with a `time` keyword; the Peios build shell is deliberately POSIX dash, so
+# remove only that non-semantic timing wrapper rather than adding a test-only
+# runtime tool.
+sed -i 's/^\([[:space:]]*@\)time /\1/' tests/collisions/Makefile
+# filename-escape.sh prints (but does not assert on) a diagnostic byte dump
+# using BSD hexdump. `od` is already in the core build root and displays the
+# same bytes without adding an otherwise unused util-linux payload.
+sed -i 's/hexdump -C /od -An -tx1c /' tests/filename-escape.sh
+make test DISPATCH=1 LIBXXH_DISPATCH=1
+LANG=C.UTF-8 make test-unicode DISPATCH=1 LIBXXH_DISPATCH=1
+make test-inline test-filename-escape test-cli-comment-line \
+  test-cli-ignore-missing test-xxh-nnn-sums trailingWhitespace \
+  DISPATCH=1 LIBXXH_DISPATCH=1
+
+# Tests deliberately rebuild objects under compatibility flag sets. Clean and
+# rebuild the install payload once with only the production flags above.
+make clean
+make -j"$(nproc)" DISPATCH=1 LIBXXH_DISPATCH=1
+make install DESTDIR="$PEKIT_OUT" PREFIX=/usr \
+  LIBDIR="$LIBDIR" MANDIR=/usr/share/man/man1 \
+  DISPATCH=1 LIBXXH_DISPATCH=1
+
+DOCDIR="$PREFIX/share/doc/com.xxhash.xxhash"
+mkdir -p "$DOCDIR/doc" "$DOCDIR/cli"
+install -m 0644 "$SRC/README.md" "$SRC/CHANGELOG" "$SRC/SECURITY.md" \
+  "$DOCDIR/"
+install -m 0644 "$SRC/doc/README.md" "$SRC/doc/xxhash_spec.md" \
+  "$SRC/doc/xxhash.cry" "$DOCDIR/doc/"
+install -m 0644 "$SRC/cli/README.md" "$DOCDIR/cli/"
+
+# Freeze the installed public surface. A future addition/removal is a package
+# contract change and must be assigned deliberately rather than leaking between
+# splits.
+find "$PREFIX/bin" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-tools"
+printf '%s\n' xxh128sum xxh32sum xxh3sum xxh64sum xxhsum | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-tools"
+diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.actual-tools"
+
+find "$PREFIX/include" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-headers"
+printf '%s\n' xxh3.h xxh_x86dispatch.h xxhash.h | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-headers"
+diff -u "$PEKIT_OUT/.expected-headers" "$PEKIT_OUT/.actual-headers"
+
+find "$STAGED_LIBDIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-libs"
+printf '%s\n' libxxhash.a libxxhash.so libxxhash.so.0 \
+  "libxxhash.so.$PEKIT_VERSION" | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-libs"
+diff -u "$PEKIT_OUT/.expected-libs" "$PEKIT_OUT/.actual-libs"
+test "$(find "$STAGED_LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" \
+  = libxxhash.pc
+
+find "$PREFIX/share/man/man1" -mindepth 1 -maxdepth 1 \
+  \( -type f -o -type l \) -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.actual-man"
+printf '%s\n' xxh128sum.1 xxh32sum.1 xxh3sum.1 xxh64sum.1 xxhsum.1 \
+  | LC_ALL=C sort > "$PEKIT_OUT/.expected-man"
+diff -u "$PEKIT_OUT/.expected-man" "$PEKIT_OUT/.actual-man"
+
+test "$(readlink "$PREFIX/bin/xxh32sum")" = xxhsum
+test "$(readlink "$PREFIX/bin/xxh64sum")" = xxhsum
+test "$(readlink "$PREFIX/bin/xxh128sum")" = xxhsum
+test "$(readlink "$PREFIX/bin/xxh3sum")" = xxhsum
+test "$(readlink "$STAGED_LIBDIR/libxxhash.so.0")" = \
+  "libxxhash.so.$PEKIT_VERSION"
+test "$(readlink "$STAGED_LIBDIR/libxxhash.so")" = \
+  "libxxhash.so.$PEKIT_VERSION"
+
+XXHASH_SO="$STAGED_LIBDIR/libxxhash.so.$PEKIT_VERSION"
+readelf -d "$XXHASH_SO" | grep -F 'Library soname: [libxxhash.so.0]'
+readelf --dyn-syms -W "$XXHASH_SO" | grep -E ' XXH_versionNumber$'
+readelf --dyn-syms -W "$XXHASH_SO" | grep -E ' XXH3_64bits$'
+
+export PKG_CONFIG_LIBDIR="$STAGED_LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkgconf --validate libxxhash
+test "$(pkgconf --modversion libxxhash)" = "$PEKIT_VERSION"
+pkgconf --libs libxxhash | grep -Eq '(^|[[:space:]])-lxxhash([[:space:]]|$)'
+
+# Exercise all installed CLI aliases and checksum verification against fixed
+# vectors, then compile and run the installed API in shared, static, and
+# header-only modes.
+SMOKE="$PEKIT_OUT/.xxhash-smoke"
+mkdir -p "$SMOKE"
+printf peios > "$SMOKE/input"
+"$PREFIX/bin/xxhsum" "$SMOKE/input" | grep -F '8c1065b7c24ca2fe'
+"$PREFIX/bin/xxh32sum" "$SMOKE/input" | grep -F '7bab2596'
+"$PREFIX/bin/xxh64sum" "$SMOKE/input" | grep -F '8c1065b7c24ca2fe'
+"$PREFIX/bin/xxh128sum" "$SMOKE/input" | \
+  grep -F '7988f28f07ebd67d7577bd199952e04f'
+"$PREFIX/bin/xxh3sum" "$SMOKE/input" | grep -F 'XXH3_1ebc22da73dee45d'
+"$PREFIX/bin/xxhsum" "$SMOKE/input" > "$SMOKE/checksums"
+"$PREFIX/bin/xxhsum" --check "$SMOKE/checksums"
+
+cat > "$SMOKE/api.c" <<'EOF'
+#include <stdint.h>
+#include <string.h>
+#include <xxhash.h>
+
+int main(void)
+{
+  static const char input[] = "peios";
+  XXH128_hash_t h;
+  if (XXH_versionNumber() != 803) return 1;
+  if (XXH32(input, 5, 0) != UINT32_C(0x7bab2596)) return 2;
+  if (XXH64(input, 5, 0) != UINT64_C(0x8c1065b7c24ca2fe)) return 3;
+  if (XXH3_64bits(input, 5) != UINT64_C(0x1ebc22da73dee45d)) return 4;
+  h = XXH3_128bits(input, 5);
+  if (h.high64 != UINT64_C(0x7988f28f07ebd67d) ||
+      h.low64 != UINT64_C(0x7577bd199952e04f)) return 5;
+  return 0;
+}
+EOF
+cc "$SMOKE/api.c" -I"$PREFIX/include" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -lxxhash -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc "$SMOKE/api.c" -I"$PREFIX/include" "$STAGED_LIBDIR/libxxhash.a" \
+  -o "$SMOKE/static"
+"$SMOKE/static"
+sed '1i#define XXH_INLINE_ALL' "$SMOKE/api.c" > "$SMOKE/header-only.c"
+cc "$SMOKE/header-only.c" -I"$PREFIX/include" -o "$SMOKE/header-only"
+"$SMOKE/header-only"
+
+# Build-ID-indexed symbols and the exact source files named by rewritten DWARF.
+# Static code remains available but does not duplicate debug sections.
+strip --strip-debug "$STAGED_LIBDIR/libxxhash.a"
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+for elf in usr/bin/xxhsum \
+  "usr/lib/x86_64-linux-peios/libxxhash.so.$PEKIT_VERSION"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/com.xxhash.xxhash \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$elf" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$first"
+  objcopy --only-keep-debug "$elf" \
+    "usr/lib/debug/.build-id/$first/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
+  strip "$elf"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/com.xxhash.xxhash/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/com.xxhash.xxhash/$rel"
+    done
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 2
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find usr/src/debug/com.xxhash.xxhash -type f -print -quit)"
+for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the final Peios ELF and runtime-dependency contract. The CLI embeds
+# xxHash instead of linking the shared library; both shipped objects need only
+# libc and must retain full RELRO, RELR, NX stack, CET, and no path leakage.
+for elf in usr/bin/xxhsum \
+  "usr/lib/x86_64-linux-peios/libxxhash.so.$PEKIT_VERSION"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
+  readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
+done
+if readelf -d usr/bin/xxhsum | grep -Fq 'libxxhash.so'; then exit 1; fi
+
+rm -rf "$BUILD" "$SMOKE"
+rm -f "$PEKIT_OUT/.actual-tools" "$PEKIT_OUT/.expected-tools" \
+  "$PEKIT_OUT/.actual-headers" "$PEKIT_OUT/.expected-headers" \
+  "$PEKIT_OUT/.actual-libs" "$PEKIT_OUT/.expected-libs" \
+  "$PEKIT_OUT/.actual-man" "$PEKIT_OUT/.expected-man" \
+  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+debugedit              = "*"
+patchelf               = "*"
+pkgconf                = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+pkgconf         = "*"

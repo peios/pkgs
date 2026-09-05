@@ -1,0 +1,12 @@
+[package]
+name        = "com.xxhash.xxhash-debugsource"
+description = "xxHash debug sources"
+license     = "BSD-2-Clause AND GPL-2.0-or-later"
+
+[dependencies]
+"com.xxhash.xxhash-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:LICENSE"     = "usr/share/licenses/com.xxhash.xxhash-debugsource/"
+"@source:cli/COPYING" = "usr/share/licenses/com.xxhash.xxhash-debugsource/"
+":usr/src/debug/**"   = "usr/src/debug"
