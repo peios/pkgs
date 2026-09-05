@@ -50,7 +50,30 @@ make -j"$(nproc)"
 # compiler. Keep the suite parallel, require a substantial discovered surface,
 # and let any skipped/failed recipe be reported by upstream's harness.
 test "$(make list-tests | wc -l)" -gt 200
-make test HARNESS_JOBS="$(nproc)"
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  # Peios routes every host lookup through resolvd's peios_net NSS module and
+  # deliberately has no /etc/hosts fallback. The hermetic native build root
+  # has no daemon, so this otherwise self-contained upstream test cannot
+  # resolve its hard-coded localhost name. Run the full suite without that
+  # recipe, then run the same OCSP exchange against numeric loopback. Debian
+  # continues to exercise the pristine resolver path as well.
+  make test HARNESS_JOBS="$(nproc)" \
+    TESTS='alltests -test_ocsp_cert_chain'
+  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
+  OCSP_ORIG="$BUILD/.82-test_ocsp_cert_chain.t.orig"
+  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
+  restore_ocsp_recipe() {
+    cp -p "$OCSP_ORIG" "$OCSP_RECIPE"
+    rm -f "$OCSP_ORIG"
+  }
+  trap restore_ocsp_recipe EXIT HUP INT TERM
+  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
+  make test TESTS=test_ocsp_cert_chain
+  restore_ocsp_recipe
+  trap - EXIT HUP INT TERM
+else
+  make test HARNESS_JOBS="$(nproc)"
+fi
 
 make install_sw DESTDIR="$PEKIT_OUT"
 make install_ssldirs DESTDIR="$PEKIT_OUT"
