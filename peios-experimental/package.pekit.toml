@@ -4,7 +4,7 @@ format = "peipkg"
 name         = "peios-experimental"
 # -7: split the seed lists. lpsd-first-account is live-only (its password is
 # public), oobe-service is install-only, and dev.peios.oobe ships the latter.
-version      = "{{version}}-7"
+version      = "{{version}}-8"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
