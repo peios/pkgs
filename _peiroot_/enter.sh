@@ -8,16 +8,14 @@
 # (PEKIT_DEPENDENCIES, one "name constraint" per line) plus fsbase as
 # the skeleton ground — peipkg-compose resolves it offline from
 # _pkgsOut_, materialising claims (dash's /usr/bin/sh) and the usr-merge
-# intrinsic. bwrap then enters it single-uid (peipkg normalises all
-# ownership to root, so uid 0 inside is the whole ownership model) with
-# the workspace bound at its host path, keeping every literal PEKIT_*
-# path in the script valid inside. The root is composed fresh per
-# invocation and discarded — pristine by construction.
-#
-# FORCE_UNSAFE_CONFIGURE: gnulib's configure refuses to run as root
-# (tar, coreutils, ...). uid 0 inside is this rung's permanent ownership
-# model (peipkg normalises everything to root) and the root is a
-# throwaway, so the check protects nothing here.
+# intrinsic. bwrap then maps the host build identity to the fixed,
+# unprivileged peibuild identity and binds the workspace at its host path,
+# keeping every literal PEKIT_* path in the script valid inside. Presenting
+# the single-ID user namespace as uid 0 would make programs legitimately
+# expect supplementary uid/gid mappings and privileges that the hermetic root
+# does not provide. Package ownership remains independent: peipkg normalises
+# the packed result to root. The root is composed fresh per invocation and
+# discarded — pristine by construction.
 set -eu
 script=${1:?missing wrapped command}
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
@@ -86,7 +84,7 @@ status=0
 bwrap \
   --die-with-parent \
   --unshare-all \
-  --uid 0 --gid 0 \
+  --uid 1000 --gid 1000 \
   --bind "$work/root" / \
   --dev /dev \
   --proc /proc \
@@ -96,6 +94,8 @@ bwrap \
   --clearenv \
   --setenv PATH /usr/bin \
   --setenv HOME /tmp \
-  --setenv FORCE_UNSAFE_CONFIGURE 1 \
+  --setenv USER peibuild \
+  --setenv LOGNAME peibuild \
+  --setenv PEKIT_NATIVE_ROOT 1 \
   /usr/bin/sh -euc "$script" || status=$?
 exit $status
