@@ -8,4 +8,5 @@ schema = 1
   version = "1.5.7"
   url = "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz"
   sha256 = "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3"
-  locked_at = "2026-08-11T08:58:45Z"
+  signature_key = "4ef4ac63455fc9f4545d9b7def8fe99528b52ffd"
+  locked_at = "2026-09-05T18:10:46Z"

@@ -1,0 +1,18 @@
+[package]
+name        = "com.facebook.zstd-libs"
+description = "Zstandard runtime compression library"
+license     = "MIT AND (BSD-3-Clause OR GPL-2.0-only)"
+
+[provides]
+libzstd = "{{version}}-2"
+
+[replaces]
+libzstd = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE"                            = "usr/share/licenses/com.facebook.zstd-libs/LICENSE"
+"@source:lib/dictBuilder/divsufsort.c"       = "usr/share/licenses/com.facebook.zstd-libs/LICENSE.divsufsort"
+":usr/lib/x86_64-linux-peios/libzstd.so.1*" = "usr/lib/x86_64-linux-peios"

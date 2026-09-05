@@ -1,0 +1,24 @@
+[package]
+name        = "com.facebook.zstd"
+description = "Zstandard compression and decompression tools"
+license     = "MIT AND (BSD-3-Clause OR GPL-2.0-only)"
+
+[provides]
+zstd = "{{version}}-2"
+
+[replaces]
+zstd = "<= {{version}}-1"
+
+[dependencies]
+glibc                                      = ">= 2.43"
+"com.facebook.zstd-common"                = "{{version}}-2"
+"io.github.zlib-ng.zlib-ng-compat"        = "*"
+"org.tukaani.xz-libs"                     = "*"
+
+[files]
+"@source:LICENSE"                      = "usr/share/licenses/com.facebook.zstd/LICENSE"
+"@source:lib/dictBuilder/divsufsort.c" = "usr/share/licenses/com.facebook.zstd/LICENSE.divsufsort"
+":usr/bin/zstd"                        = "usr/bin/zstd"
+":usr/bin/unzstd"                      = "usr/bin/unzstd"
+":usr/bin/zstdcat"                     = "usr/bin/zstdcat"
+":usr/bin/zstdmt"                      = "usr/bin/zstdmt"

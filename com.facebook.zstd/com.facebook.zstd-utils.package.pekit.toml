@@ -1,0 +1,16 @@
+[package]
+name        = "com.facebook.zstd-utils"
+description = "Zstandard-aware grep shell utility"
+license     = "BSD-2-Clause"
+
+[provides]
+"zstd-utils" = "{{version}}-2"
+
+[dependencies]
+dash                 = "*"
+"org.gnu.grep"       = "*"
+"com.facebook.zstd" = "{{version}}-2"
+
+[files]
+"@source:programs/zstdgrep" = "usr/share/licenses/com.facebook.zstd-utils/LICENSE.zstdgrep"
+":usr/bin/zstdgrep"         = "usr/bin/zstdgrep"

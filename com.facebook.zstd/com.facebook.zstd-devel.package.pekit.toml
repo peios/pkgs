@@ -1,0 +1,20 @@
+[package]
+name        = "com.facebook.zstd-devel"
+description = "Zstandard headers and shared-library development metadata"
+license     = "BSD-3-Clause OR GPL-2.0-only"
+
+[provides]
+"zstd-devel" = "{{version}}-2"
+
+[replaces]
+"zstd-devel" = "<= {{version}}-1"
+
+[dependencies]
+"com.facebook.zstd-libs" = "{{version}}-2"
+
+[files]
+"@source:LICENSE"                                  = "usr/share/licenses/com.facebook.zstd-devel/LICENSE"
+":usr/include/**"                                 = "usr/include"
+":usr/lib/x86_64-linux-peios/libzstd.so"           = "usr/lib/x86_64-linux-peios/libzstd.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libzstd.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libzstd.pc"
+":usr/lib/x86_64-linux-peios/cmake/zstd/**"        = "usr/lib/x86_64-linux-peios/cmake/zstd"

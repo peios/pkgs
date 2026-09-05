@@ -1,0 +1,17 @@
+[package]
+name        = "com.facebook.zstd-pzstd"
+description = "Parallel Zstandard compressor and decompressor"
+license     = "BSD-3-Clause OR GPL-2.0-only"
+
+[provides]
+pzstd = "{{version}}-2"
+
+[dependencies]
+glibc                     = ">= 2.43"
+libgcc                    = ">= 16"
+"libstdc++"               = ">= 16"
+"com.facebook.zstd-libs" = "{{version}}-2"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.facebook.zstd-pzstd/LICENSE"
+":usr/bin/pzstd"  = "usr/bin/pzstd"

@@ -1,0 +1,15 @@
+[package]
+name        = "com.facebook.zstd-static"
+description = "Zstandard static compression library"
+license     = "MIT AND (BSD-3-Clause OR GPL-2.0-only)"
+
+[provides]
+"zstd-static" = "{{version}}-2"
+
+[dependencies]
+"com.facebook.zstd-devel" = "{{version}}-2"
+
+[files]
+"@source:LICENSE"                      = "usr/share/licenses/com.facebook.zstd-static/LICENSE"
+"@source:lib/dictBuilder/divsufsort.c" = "usr/share/licenses/com.facebook.zstd-static/LICENSE.divsufsort"
+":usr/lib/x86_64-linux-peios/libzstd.a" = "usr/lib/x86_64-linux-peios/libzstd.a"

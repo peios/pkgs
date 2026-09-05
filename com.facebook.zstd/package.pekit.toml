@@ -1,0 +1,12 @@
+# Shared metadata covers the complete signed upstream tree retained by Pekit's
+# generated corresponding-source package. Binary members narrow their own
+# expressions to the code and notices actually present in each payload.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-2"
+architecture  = "x86_64"
+homepage      = "https://facebook.github.io/zstd/"
+license       = "BSD-2-Clause AND (BSD-3-Clause OR GPL-2.0-only) AND GPL-3.0-or-later AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND MIT AND (MIT OR CC0-1.0) AND Zlib"
+license_class = "free"

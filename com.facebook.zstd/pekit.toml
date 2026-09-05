@@ -1,0 +1,284 @@
+# Zstandard reference implementation. The canonical identity follows the
+# upstream repository owner; revision-exact legacy provides keep existing
+# Peios consumers and installed packages on a safe rename path.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/facebook/zstd/releases/download/v{{version}}/zstd-{{version}}.tar.gz"
+listing_url = "https://github.com/facebook/zstd/releases"
+extract     = true
+root        = "zstd-{{version}}"
+file_regex  = 'zstd-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance bounds: automatically follow authenticated stable 1.5.x
+# releases. A new minor line is the review point for ABI, CLI, and split policy.
+versions    = ">= 1.5.7, < 1.6"
+
+# Official release archives are detached-signed by the dedicated Zstandard
+# release key. Pin its complete primary-key fingerprint; the release workflow
+# generates, hashes, and signs these artifacts from the release tag.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/zstd-release-signing.asc"]
+fingerprints = ["4EF4AC63455FC9F4545D9B7DEF8FE99528B52FFD"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+TRIPLET=x86_64-linux-peios
+LIBDIR="$PREFIX/lib/$TRIPLET"
+DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUG_DEST=/usr/src/debug/com.facebook.zstd
+
+# Feed the inherited Peios compiler policy through CMake's cache. Explicit CET
+# linker properties avoid losing the aggregate note when optimized assembly
+# objects participate in the shared library.
+export CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+# Resolve optional compression backends through the active compiler so this
+# works with Debian multiarch and Peios' native triplet without host guessing.
+ZLIB_SO=$(cc -print-file-name=libz.so)
+LZMA_SO=$(cc -print-file-name=liblzma.so)
+test "$ZLIB_SO" != libz.so
+test "$LZMA_SO" != liblzma.so
+
+# Upstream's Unix shared-CLI mode leaves POOL_* internals unresolved at
+# runtime in 1.5.7. Keep the supported/default static-libzstd CLI link while
+# still shipping and directly testing the shared public ABI.
+cmake -S "$SRC/build/cmake" -B "$BUILD" \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+  -DCMAKE_C_FLAGS_RELWITHDEBINFO=-DNDEBUG \
+  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-DNDEBUG \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_MODULE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR="lib/$TRIPLET" \
+  -DCMAKE_INSTALL_DOCDIR=share/doc/com.facebook.zstd \
+  -DCMAKE_SKIP_INSTALL_RPATH=ON \
+  -DBUILD_SHARED_LIBS=ON \
+  -DBUILD_TESTING=ON \
+  -DZSTD_BUILD_SHARED=ON \
+  -DZSTD_BUILD_STATIC=ON \
+  -DZSTD_BUILD_PROGRAMS=ON \
+  -DZSTD_PROGRAMS_LINK_SHARED=OFF \
+  -DZSTD_BUILD_TESTS=ON \
+  -DZSTD_BUILD_CONTRIB=ON \
+  -DZSTD_LEGACY_SUPPORT=ON \
+  -DZSTD_MULTITHREAD_SUPPORT=ON \
+  -DZSTD_ZLIB_SUPPORT=ON \
+  -DZLIB_INCLUDE_DIR=/usr/include \
+  -DZLIB_LIBRARY="$ZLIB_SO" \
+  -DZSTD_LZMA_SUPPORT=ON \
+  -DLIBLZMA_INCLUDE_DIR=/usr/include \
+  -DLIBLZMA_LIBRARY="$LZMA_SO" \
+  -DZSTD_LZ4_SUPPORT=OFF
+
+cmake --build "$BUILD" -j"$(nproc)"
+
+# Debian's production package uses this complete CMake suite. It covers the
+# CLI corpus, fullbench, fuzzer, and streaming state-machine test; gate the
+# current count so a future configure regression cannot silently drop tests.
+test "$(ctest --test-dir "$BUILD" -N | sed -n 's/^Total Tests: //p')" -eq 4
+ctest --test-dir "$BUILD" --output-on-failure
+DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+
+# zstdless advertises a pager which Peios cannot yet provide. zstdgrep is kept
+# as a separate, dependency-complete shell utility. The signed 1.5.7 archive's
+# generated man page has a stale version header; repair that derivable field.
+rm -f "$PREFIX/bin/zstdless" "$PREFIX/share/man/man1/zstdless.1"
+sed -i "1s/zstd 1\.5\.6/zstd $PEKIT_VERSION/" \
+  "$PREFIX/share/man/man1/zstd.1"
+sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PREFIX/bin/zstdgrep"
+test "$(sed -n '1p' "$PREFIX/bin/zstdgrep")" = '#!/usr/bin/sh'
+
+test "$(readlink "$LIBDIR/libzstd.so")" = libzstd.so.1
+test "$(readlink "$LIBDIR/libzstd.so.1")" = "libzstd.so.$PEKIT_VERSION"
+test -f "$LIBDIR/libzstd.so.$PEKIT_VERSION"
+test -f "$LIBDIR/libzstd.a"
+test -f "$LIBDIR/pkgconfig/libzstd.pc"
+test -f "$LIBDIR/cmake/zstd/zstdConfig.cmake"
+
+# Exercise formats and safety behavior through the staged installed CLI.
+BIN="$PREFIX/bin"
+SMOKE="$PEKIT_OUT/.zstd-smoke"
+mkdir -p "$SMOKE"
+export PATH="$BIN:$PATH"
+export LD_LIBRARY_PATH="$LIBDIR"
+printf '%s\n' alpha beta 'literal[1]' > "$SMOKE/plain"
+for level in 1 9 19; do
+  "$BIN/zstd" -q -T2 -"$level" -c "$SMOKE/plain" > "$SMOKE/plain-$level.zst"
+  "$BIN/zstd" -t "$SMOKE/plain-$level.zst"
+  "$BIN/zstd" -q -dc "$SMOKE/plain-$level.zst" > "$SMOKE/out-$level"
+  cmp "$SMOKE/plain" "$SMOKE/out-$level"
+done
+
+head -c -1 "$SMOKE/plain-9.zst" > "$SMOKE/truncated.zst"
+status=0
+"$BIN/zstd" -t "$SMOKE/truncated.zst" 2>/dev/null || status=$?
+[ "$status" -ne 0 ]
+
+printf '%s\n' first > "$SMOKE/first"
+printf '%s\n' second > "$SMOKE/second"
+"$BIN/zstd" -q -c "$SMOKE/first" > "$SMOKE/first.zst"
+"$BIN/zstd" -q -c "$SMOKE/second" > "$SMOKE/second.zst"
+cat "$SMOKE/first.zst" "$SMOKE/second.zst" > "$SMOKE/combined.zst"
+cat "$SMOKE/first" "$SMOKE/second" > "$SMOKE/combined.expected"
+"$BIN/zstdcat" "$SMOKE/combined.zst" > "$SMOKE/combined.out"
+cmp "$SMOKE/combined.expected" "$SMOKE/combined.out"
+
+# The production CLI intentionally supports gzip and xz/lzma interoperation.
+"$BIN/zstd" -q --format=gzip -c "$SMOKE/plain" > "$SMOKE/plain.gz"
+"$BIN/zstd" -q -dc "$SMOKE/plain.gz" > "$SMOKE/gzip.out"
+cmp "$SMOKE/plain" "$SMOKE/gzip.out"
+"$BIN/zstd" -q --format=xz -c "$SMOKE/plain" > "$SMOKE/plain.xz"
+"$BIN/zstd" -q -dc "$SMOKE/plain.xz" > "$SMOKE/xz.out"
+cmp "$SMOKE/plain" "$SMOKE/xz.out"
+"$BIN/zstd" -q --format=lzma -c "$SMOKE/plain" > "$SMOKE/plain.lzma"
+"$BIN/zstd" -q -dc "$SMOKE/plain.lzma" > "$SMOKE/lzma.out"
+cmp "$SMOKE/plain" "$SMOKE/lzma.out"
+
+"$BIN/zstdgrep" -q '^beta$' "$SMOKE/plain-9.zst"
+"$BIN/pzstd" -q -p 2 -c "$SMOKE/plain" > "$SMOKE/pzstd.zst"
+"$BIN/zstd" -q -dc "$SMOKE/pzstd.zst" > "$SMOKE/pzstd.out"
+cmp "$SMOKE/plain" "$SMOKE/pzstd.out"
+"$BIN/zstd" --version | grep -F "$PEKIT_VERSION"
+"$BIN/pzstd" --version 2>&1 | grep -F "$PEKIT_VERSION"
+
+# Compile and execute consumers against both installed ABI surfaces.
+cat > "$SMOKE/api.c" <<'EOF'
+#include <stddef.h>
+#include <string.h>
+#include <zstd.h>
+int main(void) {
+    static const char input[] = "Peios libzstd API smoke";
+    char encoded[256], decoded[256];
+    size_t encoded_len = ZSTD_compress(encoded, sizeof encoded,
+        input, sizeof input, 3);
+    if (ZSTD_isError(encoded_len)) return 1;
+    size_t decoded_len = ZSTD_decompress(decoded, sizeof decoded,
+        encoded, encoded_len);
+    if (ZSTD_isError(decoded_len)) return 2;
+    return decoded_len == sizeof input &&
+        memcmp(input, decoded, sizeof input) == 0 ? 0 : 3;
+}
+EOF
+cc "$SMOKE/api.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lzstd -o "$SMOKE/api-shared"
+readelf -d "$SMOKE/api-shared" | grep -F 'Shared library: [libzstd.so.1]'
+"$SMOKE/api-shared"
+cc "$SMOKE/api.c" -I"$PREFIX/include" "$LIBDIR/libzstd.a" \
+  -pthread -o "$SMOKE/api-static"
+"$SMOKE/api-static"
+
+# CMake records the effective policy for representative C and C++ targets.
+grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/lib/CMakeFiles/libzstd_shared.dir/flags.make"
+grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/contrib/pzstd/CMakeFiles/pzstd.dir/flags.make"
+
+# Static archives retain symbols but not duplicate DWARF. Split every shipped
+# ELF by build ID and retain exactly the source files referenced by its DWARF.
+# Binutils itself links libzstd: never let strip/debugedit mmap the staged
+# libzstd which the pipeline is about to rewrite in place.
+unset LD_LIBRARY_PATH
+strip --strip-debug "$LIBDIR/libzstd.a"
+if readelf -SW "$LIBDIR/libzstd.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.source-list"
+: > "$PEKIT_OUT/.build-ids"
+ELFS="usr/bin/zstd usr/bin/pzstd usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION"
+for elf in $ELFS; do
+  test -f "$elf"
+  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
+    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
+  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
+  build_id=$(readelf -n "$elf" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
+  test ! -e "$debug_file"
+  mkdir -p "$(dirname "$debug_file")"
+  objcopy --only-keep-debug "$elf" "$debug_file"
+  chmod 0644 "$debug_file"
+  strip "$elf"
+done
+
+: > "$PEKIT_OUT/.expected-debugsource"
+tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$DEBUG_ROOT/$rel" || continue
+      destination="usr/src/debug/com.facebook.zstd/$rel"
+      mkdir -p "$(dirname "$destination")"
+      cp "$DEBUG_ROOT/$rel" "$destination"
+      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
+    done
+LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
+  -o "$PEKIT_OUT/.expected-debugsource"
+find usr/src/debug/com.facebook.zstd -type f -printf '%p\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-debugsource"
+diff -u "$PEKIT_OUT/.expected-debugsource" "$PEKIT_OUT/.actual-debugsource"
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" | wc -l)" -eq 3
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find usr/src/debug/com.facebook.zstd -type f -print -quit)"
+for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$debug_file" | grep -F '.debug_info'
+done
+
+# Enforce ABI and hardening policy after the final strip operation. The CLI's
+# external formats are intentional; every other DT_NEEDED entry is rejected.
+readelf -d "usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION" \
+  | grep -F 'Library soname: [libzstd.so.1]'
+nm -D --defined-only "usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION" \
+  | grep -E '[[:space:]]ZSTD_compress$'
+for elf in $ELFS; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if strings "$elf" | grep -F "$DEBUG_ROOT"; then exit 1; fi
+  readelf -d "$elf" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' \
+    | while IFS= read -r needed; do
+        case "$needed" in
+          libc.so.6|libgcc_s.so.1|liblzma.so.5|libstdc++.so.6|libz.so.1|libzstd.so.1) ;;
+          *) printf '%s: unexpected dependency %s\n' "$elf" "$needed" >&2; exit 1;;
+        esac
+      done
+done
+
+rm -rf "$BUILD" "$SMOKE"
+rm -f "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
+  "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.expected-debugsource" \
+  "$PEKIT_OUT/.actual-debugsource"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++"                    = "*"
+"org.cmake.cmake"                         = "*"
+debugedit                                 = "*"
+pkgconf                                   = "*"
+"org.tukaani.xz-devel"                   = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake           = "*"
+debugedit       = "*"
+liblzma-dev     = "*"
+pkgconf         = "*"
+zlib1g-dev      = "*"

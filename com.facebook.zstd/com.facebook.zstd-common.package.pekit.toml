@@ -1,0 +1,18 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "com.facebook.zstd-common"
+architecture = "noarch"
+description  = "Zstandard manuals and generated API documentation"
+license      = "BSD-2-Clause AND (BSD-3-Clause OR GPL-2.0-only)"
+
+[provides]
+"zstd-common" = "{{version}}-2"
+
+[files]
+"@source:LICENSE"             = "usr/share/licenses/com.facebook.zstd-common/LICENSE"
+"@source:programs/zstdgrep"   = "usr/share/licenses/com.facebook.zstd-common/LICENSE.zstdgrep"
+"@source:README.md"           = "usr/share/doc/com.facebook.zstd/README.md"
+"@source:CHANGELOG"           = "usr/share/doc/com.facebook.zstd/CHANGELOG"
+":usr/share/doc/**"           = "usr/share/doc"
+":usr/share/man/**"           = "usr/share/man"

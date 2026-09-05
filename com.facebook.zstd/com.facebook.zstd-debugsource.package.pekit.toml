@@ -1,0 +1,12 @@
+[package]
+name        = "com.facebook.zstd-debugsource"
+description = "Zstandard corresponding debug sources"
+license     = "MIT AND (BSD-3-Clause OR GPL-2.0-only)"
+
+[dependencies]
+"com.facebook.zstd-debuginfo" = "{{version}}-2"
+
+[files]
+"@source:LICENSE"                      = "usr/share/licenses/com.facebook.zstd-debugsource/LICENSE"
+"@source:lib/dictBuilder/divsufsort.c" = "usr/share/licenses/com.facebook.zstd-debugsource/LICENSE.divsufsort"
+":usr/src/debug/**"                    = "usr/src/debug"
