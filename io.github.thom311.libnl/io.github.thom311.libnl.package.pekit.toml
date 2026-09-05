@@ -1,0 +1,22 @@
+# io.github.thom311.libnl — runtime netlink protocol libraries. The CLI-only
+# library, its modules and commands are in io.github.thom311.libnl-tools.
+
+[package]
+name        = "io.github.thom311.libnl"
+description = "Netlink protocol libraries"
+
+[provides]
+libnl  = "{{version}}"
+libnl3 = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl/"
+":usr/lib/x86_64-linux-peios/libnl-3.so.200*"       = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl-genl-3.so.200*"  = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl-idiag-3.so.200*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl-nf-3.so.200*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl-route-3.so.200*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl-xfrm-3.so.200*"  = "usr/lib/x86_64-linux-peios"

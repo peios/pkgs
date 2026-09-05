@@ -1,0 +1,25 @@
+# io.github.thom311.libnl-devel — public headers, linker names and pkg-config
+# metadata for all libnl libraries, including the CLI support API.
+
+[package]
+name        = "io.github.thom311.libnl-devel"
+description = "Netlink protocol libraries - development files"
+
+[provides]
+libnl-devel  = "{{version}}"
+libnl3-devel = "{{version}}"
+
+[dependencies]
+"io.github.thom311.libnl"       = "{{version}}-1"
+"io.github.thom311.libnl-tools" = "{{version}}-1"
+
+[files]
+":usr/include/libnl3/**"                       = "usr/include/libnl3"
+":usr/lib/x86_64-linux-peios/libnl-3.so"       = "usr/lib/x86_64-linux-peios/libnl-3.so"
+":usr/lib/x86_64-linux-peios/libnl-cli-3.so"   = "usr/lib/x86_64-linux-peios/libnl-cli-3.so"
+":usr/lib/x86_64-linux-peios/libnl-genl-3.so"  = "usr/lib/x86_64-linux-peios/libnl-genl-3.so"
+":usr/lib/x86_64-linux-peios/libnl-idiag-3.so" = "usr/lib/x86_64-linux-peios/libnl-idiag-3.so"
+":usr/lib/x86_64-linux-peios/libnl-nf-3.so"    = "usr/lib/x86_64-linux-peios/libnl-nf-3.so"
+":usr/lib/x86_64-linux-peios/libnl-route-3.so" = "usr/lib/x86_64-linux-peios/libnl-route-3.so"
+":usr/lib/x86_64-linux-peios/libnl-xfrm-3.so"  = "usr/lib/x86_64-linux-peios/libnl-xfrm-3.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"     = "usr/lib/x86_64-linux-peios/pkgconfig"

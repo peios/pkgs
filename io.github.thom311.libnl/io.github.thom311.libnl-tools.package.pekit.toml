@@ -1,0 +1,24 @@
+# io.github.thom311.libnl-tools — the libnl command suite, its shared support
+# library, dynamically loaded traffic-control modules and immutable lookup
+# databases.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.thom311.libnl-tools"
+description = "Netlink protocol command-line tools"
+
+[provides]
+libnl-tools = "{{version}}"
+
+[dependencies]
+"io.github.thom311.libnl" = "{{version}}-1"
+glibc                      = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl-tools/"
+":usr/bin/**"                                     = "usr/bin"
+":usr/lib/x86_64-linux-peios/libnl-cli-3.so.200*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libnl/cli/**"        = "usr/lib/x86_64-linux-peios/libnl/cli"
+":usr/share/libnl/**"                             = "usr/share/libnl"
+":usr/share/man/man8/**"                          = "usr/share/man/man8"

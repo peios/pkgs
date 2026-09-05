@@ -8,4 +8,5 @@ schema = 1
   version = "3.12.0"
   url = "https://github.com/thom311/libnl/releases/download/libnl3_12_0/libnl-3.12.0.tar.gz"
   sha256 = "fc51ca7196f1a3f5fdf6ffd3864b50f4f9c02333be28be4eeca057e103c0dd18"
-  locked_at = "2026-08-11T13:23:47Z"
+  signature_key = "67da3faebae276ba58fc6ce314f18a98993aecd5"
+  locked_at = "2026-09-05T00:24:18Z"

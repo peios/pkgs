@@ -1,0 +1,15 @@
+# io.github.thom311.libnl-static — static archives for all public libraries.
+
+[package]
+name        = "io.github.thom311.libnl-static"
+description = "Netlink protocol libraries - static archives"
+
+[provides]
+libnl-static  = "{{version}}"
+libnl3-static = "{{version}}"
+
+[dependencies]
+"io.github.thom311.libnl-devel" = "{{version}}-1"
+
+[files]
+":usr/lib/x86_64-linux-peios/libnl-*.a" = "usr/lib/x86_64-linux-peios"

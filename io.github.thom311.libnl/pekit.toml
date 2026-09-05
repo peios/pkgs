@@ -1,0 +1,278 @@
+# libnl — userspace libraries and tools for Linux netlink protocols. The
+# release suite validates parsers and object models; installed-tree consumers
+# below separately exercise every public library without requiring privileged
+# access to the host network namespace.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/thom311/libnl/releases/download/libnl{{major}}_{{minor}}_{{patch}}/libnl-{{version}}.tar.gz"
+listing_url = "https://github.com/thom311/libnl/releases"
+extract     = true
+root        = "libnl-{{version}}"
+file_regex  = 'libnl-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor. Follow authenticated stable 3.x releases
+# automatically; a future major line requires an ABI and package review.
+versions    = ">= 3.12, < 4"
+
+# Upstream attaches a detached OpenPGP signature to every release tarball.
+# Pin Thomas Haller's complete primary fingerprint as published by the
+# maintainer's verified GitHub identity. Key rotation intentionally stops
+# unattended locking until the replacement identity has been reviewed.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/thomas-haller.asc"]
+fingerprints = ["67DA3FAEBAE276BA58FC6CE314F18A98993AECD5"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include/libnl3"
+
+cd "$PEKIT_OUT"
+# classid and pktloc are upstream-maintained lookup databases, not mutable
+# machine configuration. Peipkg payloads are immutable and do not own /etc,
+# so install them under the shared-data tree and compile the CLI to match.
+#
+# Every shipped object is built from C/C++ with the inherited
+# -fcf-protection flag. Force the linker to retain both CET properties: its
+# conservative note merge otherwise drops them when Debian's unmarked startup
+# objects participate in the final link.
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --sbindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --sysconfdir=/usr/share \
+  --enable-cli=bin \
+  --enable-pthreads \
+  --enable-shared \
+  --enable-static
+
+# Disable libtool's install-directory rpaths: Peios's triplet library
+# directory is already in the loader search contract. Move --as-needed before
+# libraries so the generated link commands apply it rather than appending it
+# too late to have an effect.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\\(g..\\)"|CC="\\1 -Wl,--as-needed"|' \
+    -i libtool
+
+make -j"$(nproc)"
+
+# Run every test enabled by the environment. Debian's build dependency on
+# Check enables check-all and check-direct in addition to the always-on public
+# C/C++ header and bundled c-list checks. The current Peipkg catalogue has no
+# Check package yet, so the self-hosted rung runs all dependency-free upstream
+# checks plus the broader installed-tree probes below; PEI-678 tracks closing
+# that one remaining self-hosted test-dependency gap.
+make -j"$(nproc)" check
+if pkg-config --exists check; then
+  test -x tests/check-all
+  test -x tests/check-direct
+  grep -Eq '^# PASS: +2$' test-suite.log
+else
+  test ! -e tests/check-all
+fi
+
+make install DESTDIR="$PEKIT_OUT"
+
+# Libtool metadata embeds private link details. The dynamically loaded CLI
+# modules have no meaningful static form, while the seven public libraries do.
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+find "$LIBDIR/libnl/cli" -type f -name '*.a' -delete
+
+# Assert the installed ABI, development surface, CLI payload and configuration
+# before debug splitting. libnl 3.x deliberately shares SONAME 200 across its
+# seven public libraries; an ABI transition must stop automation here.
+REAL_LIBS=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libnl-*.so.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$REAL_LIBS" | grep -c .)" -eq 7
+for lib in $REAL_LIBS; do
+  readelf -d "$lib" | grep -E 'Library soname: \\[libnl-[a-z0-9-]+\\.so\\.200\\]'
+done
+test -L "$LIBDIR/libnl-3.so"
+test -L "$LIBDIR/libnl-3.so.200"
+test -L "$LIBDIR/libnl-genl-3.so"
+test -L "$LIBDIR/libnl-route-3.so"
+test -L "$LIBDIR/libnl-nf-3.so"
+test -L "$LIBDIR/libnl-xfrm-3.so"
+test -L "$LIBDIR/libnl-idiag-3.so"
+test -L "$LIBDIR/libnl-cli-3.so"
+test -s "$LIBDIR/libnl-3.a"
+test -s "$LIBDIR/libnl-route-3.a"
+test -f "$INCLUDEDIR/netlink/netlink.h"
+test -f "$INCLUDEDIR/netlink/genl/genl.h"
+test -f "$INCLUDEDIR/netlink/route/link.h"
+test -f "$INCLUDEDIR/netlink/netfilter/ct.h"
+test -f "$INCLUDEDIR/netlink/xfrm/sa.h"
+test -f "$INCLUDEDIR/netlink/idiag/msg.h"
+test -f "$INCLUDEDIR/netlink/cli/utils.h"
+test -f "$PEKIT_OUT/usr/share/libnl/classid"
+test -f "$PEKIT_OUT/usr/share/libnl/pktloc"
+test -x "$PEKIT_OUT/usr/bin/genl-ctrl-list"
+test -x "$PEKIT_OUT/usr/bin/nl-link-list"
+test -x "$PEKIT_OUT/usr/bin/nl-route-list"
+test -x "$PEKIT_OUT/usr/bin/nf-ct-list"
+test -n "$(find "$LIBDIR/libnl/cli" -type f -name '*.so' -print -quit)"
+
+for pc in libnl-3.0 libnl-genl-3.0 libnl-route-3.0 libnl-nf-3.0 \
+          libnl-xfrm-3.0 libnl-idiag-3.0 libnl-cli-3.0; do
+  PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --validate "$pc"
+  test "$(PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --modversion "$pc")" = "$PEKIT_VERSION"
+done
+
+# Exercise every public library through installed headers and both shared and
+# fully static linkage. These operations are pure object/message manipulation,
+# so the test remains deterministic in Pekit's isolated network namespace.
+SMOKE="$PEKIT_OUT/.libnl-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <arpa/inet.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <netlink/addr.h>
+#include <netlink/cli/utils.h>
+#include <netlink/genl/family.h>
+#include <netlink/idiag/msg.h>
+#include <netlink/netfilter/ct.h>
+#include <netlink/route/link.h>
+#include <netlink/xfrm/sa.h>
+
+int main(void)
+{
+  struct nl_addr *addr = NULL;
+  struct genl_family *family = genl_family_alloc();
+  struct rtnl_link *link = rtnl_link_alloc();
+  struct nfnl_ct *ct = nfnl_ct_alloc();
+  struct xfrmnl_sa *sa = xfrmnl_sa_alloc();
+  struct idiagnl_msg *idiag = idiagnl_msg_alloc();
+  char text[64];
+  int ok;
+
+  if (!family || !link || !ct || !sa || !idiag)
+    return 1;
+  if (nl_addr_parse("192.0.2.1/24", AF_INET, &addr) < 0)
+    return 2;
+  ok = nl_addr_get_prefixlen(addr) == 24
+    && nl_addr2str(addr, text, sizeof(text)) != NULL
+    && strcmp(text, "192.0.2.1/24") == 0
+    && nl_cli_parse_u32("42") == 42;
+  rtnl_link_set_name(link, "peios0");
+  ok = ok && strcmp(rtnl_link_get_name(link), "peios0") == 0;
+
+  nl_addr_put(addr);
+  genl_family_put(family);
+  rtnl_link_put(link);
+  nfnl_ct_put(ct);
+  xfrmnl_sa_put(sa);
+  idiagnl_msg_put(idiag);
+  return ok ? 0 : 3;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" \
+  -lnl-cli-3 -lnl-nf-3 -lnl-route-3 -lnl-genl-3 -lnl-xfrm-3 \
+  -lnl-idiag-3 -lnl-3 -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" \
+  "$LIBDIR/libnl-cli-3.a" "$LIBDIR/libnl-nf-3.a" \
+  "$LIBDIR/libnl-route-3.a" "$LIBDIR/libnl-genl-3.a" \
+  "$LIBDIR/libnl-xfrm-3.a" "$LIBDIR/libnl-idiag-3.a" \
+  "$LIBDIR/libnl-3.a" -ldl -lpthread -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Cover a staged CLI path that needs neither netlink privileges nor host
+# configuration, and prove it reports the source version being packaged.
+LD_LIBRARY_PATH="$LIBDIR" "$PEKIT_OUT/usr/bin/nl-classid-lookup" --version \
+  | grep -F "$PEKIT_VERSION"
+
+# Collect every shipped ELF: seven libraries, CLI modules and all tools. Remove
+# redundant rpaths, split build-ID-indexed debug data and copy the exact source
+# paths referenced by rewritten DWARF.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.elflist"
+: > "$PEKIT_OUT/.srclist"
+find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort \
+  | while IFS= read -r f; do
+      case "$f" in *.a|*.la) continue;; esac
+      readelf -h "$f" >/dev/null 2>&1 || continue
+      printf '%s\n' "$f" >> "$PEKIT_OUT/.elflist"
+    done
+test "$(wc -l < "$PEKIT_OUT/.elflist")" -gt 20
+while IFS= read -r f; do
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  if readelf -d "$f" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then
+    patchelf --remove-needed ld-linux-x86-64.so.2 "$f"
+  fi
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.thom311.libnl \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done < "$PEKIT_OUT/.elflist"
+
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/io.github.thom311.libnl/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/io.github.thom311.libnl/$rel"
+    done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" \
+  -eq "$(wc -l < "$PEKIT_OUT/.elflist")"
+test -n "$(find usr/src/debug/io.github.thom311.libnl -type f -print -quit)"
+
+# Verify the stripped objects that will ship, not just the pre-split build.
+while IFS= read -r f; do
+  readelf -h "$f" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$f" | grep -F 'GNU_RELRO'
+  readelf -d "$f" | grep -F 'BIND_NOW'
+  readelf -d "$f" | grep -F 'RELR'
+  readelf -n "$f" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done < "$PEKIT_OUT/.elflist"
+
+# Static archives have no build ID; preserve code and discard only their DWARF.
+find usr/lib/x86_64-linux-peios -maxdepth 1 -type f -name 'libnl-*.a' \
+  -exec strip --strip-debug {} +
+
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+"com.darwinsys.file"   = "*"
+flex                    = "*"
+"org.gnu.bison"         = "*"
+"org.gnu.bash"          = "*"
+meson                   = "*"
+ninja                   = "*"
+pkgconf                 = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+check            = "*"
+debugedit        = "*"
+flex             = "*"
+bison            = "*"
+meson            = "*"
+ninja-build      = "*"
+patchelf         = "*"
+pkgconf          = "*"

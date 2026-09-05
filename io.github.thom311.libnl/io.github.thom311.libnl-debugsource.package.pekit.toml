@@ -1,0 +1,12 @@
+# io.github.thom311.libnl-debugsource — exact source files referenced by the
+# rewritten DWARF.
+
+[package]
+name        = "io.github.thom311.libnl-debugsource"
+description = "Netlink protocol libraries and tools - debug sources"
+
+[dependencies]
+"io.github.thom311.libnl-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"
