@@ -3,7 +3,7 @@ name        = "org.sourceware.bzip2-static"
 description = "bzip2 - static libbz2 archive"
 
 [dependencies]
-"org.sourceware.bzip2-devel" = "{{version}}-1"
+"org.sourceware.bzip2-devel" = "{{version}}-2"
 
 [files]
 "@source:LICENSE"                      = "usr/share/licenses/org.sourceware.bzip2-static/"

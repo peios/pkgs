@@ -6,8 +6,13 @@ side_effects = ["man-db"]
 name        = "org.sourceware.bzip2"
 description = "bzip2 - block-sorting compression tools"
 
+[provides]
+# Version the compatibility capability so dependency resolution prefers this
+# canonical package over the retired unqualified bzip2 package.
+bzip2 = "{{version}}"
+
 [dependencies]
-"org.sourceware.bzip2-libs" = "{{version}}-1"
+"org.sourceware.bzip2-libs" = "{{version}}-2"
 # bzgrep and bzdiff are POSIX shell frontends over these standard tools.
 dash          = "*"
 "org.gnu.coreutils" = "*"
