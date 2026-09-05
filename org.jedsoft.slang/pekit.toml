@@ -1,0 +1,223 @@
+# S-Lang — embeddable interpreter, terminal library, slsh, and loadable
+# modules. Upstream's release build is not out-of-source capable, so the
+# authenticated tree is copied into the target stage before configuration.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://www.jedsoft.org/releases/slang/slang-{{version}}.tar.bz2"
+listing_url = "https://www.jedsoft.org/releases/slang/"
+file_regex  = '^slang-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2$'
+extract     = true
+root        = "slang-{{version}}"
+# Soft maintenance floor. Follow authenticated stable 2.x releases
+# automatically; a future ABI-major line requires a compatibility review.
+versions    = ">= 2.3.3, < 3"
+
+# John E. Davis signs releases beside the tarballs. Pin the complete primary
+# fingerprint: a signing-key rotation remains an explicit trust decision.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/john-e-davis.asc"]
+fingerprints = ["64083373E9E1DE997EBBE7784B82D0B82930237D"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+PREFIX="$PEKIT_OUT/usr"
+
+mkdir -p "$BUILD"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+# Preserve the workspace toolchain profile while making the security and
+# reproducible-source-path contract explicit on both supported build rungs.
+CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/org.jedsoft.slang" \
+LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk" \
+  ./configure \
+    --build=x86_64-pc-linux-gnu \
+    --host=x86_64-pc-linux-gnu \
+    --prefix=/usr \
+    --bindir=/usr/bin \
+    --sysconfdir=/usr/etc \
+    --mandir=/usr/share/man \
+    --libdir="$LIBDIR" \
+    --with-pkgconfigdir="$LIBDIR/pkgconfig" \
+    --with-readline=slang \
+    --with-z=/usr \
+    --without-onig \
+    --without-pcre \
+    --without-png
+
+# Upstream's recursive Makefiles are not parallel-safe. The full release suite
+# exercises the interpreter, every configured module, and slsh.
+make
+# Give the screen-management module a deterministic terminal description;
+# without TERM, upstream treats that test as an intentional skip.
+TERM=xterm make check
+make install-all DESTDIR="$PEKIT_OUT"
+
+# Installed utility scripts are directly executable resources. Bind them to
+# the packaged interpreter rather than relying on /usr/bin/env and PATH.
+for script in "$PREFIX/share/slsh/scripts"/*; do
+  sed -i '1s|^#! */usr/bin/env slsh$|#!/usr/bin/slsh|' "$script"
+  test "$(head -n 1 "$script")" = '#!/usr/bin/slsh'
+done
+
+# Retain upstream's ABI-major documentation path because SLang_Doc_Dir is
+# compiled to /usr/share/doc/slang/v2. Add release and migration material under
+# the canonical package identity without breaking that runtime contract.
+DOCDIR="$PREFIX/share/doc/org.jedsoft.slang"
+mkdir -p "$DOCDIR"
+install -m 0644 "$SRC/README" "$SRC/NEWS" "$SRC/UPGRADE.txt" \
+  "$SRC/changes.txt" "$DOCDIR/"
+
+# install-all installs high-level wrappers even when their native modules were
+# deliberately disabled. Do not advertise entry points that can only fail.
+rm -f "$PREFIX/share/slsh/onig.sl" "$PREFIX/share/slsh/pcre.sl" \
+  "$PREFIX/share/slsh/png.sl" "$PREFIX/share/slsh/help/onigfuns.hlp" \
+  "$PREFIX/share/slsh/help/pcrefuns.hlp" \
+  "$PREFIX/share/slsh/help/pngfuns.hlp"
+
+# Freeze the intentionally dependency-light module set. PCRE1 is obsolete and
+# Peios has no production Oniguruma/libpng closure yet; adding either feature
+# must be a reviewed package-contract change rather than host contamination.
+find "$STAGED_LIBDIR/slang/v2/modules" -maxdepth 1 -type f \
+  -name '*-module.so' -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.installed-modules"
+printf '%s\n' \
+  base64-module.so chksum-module.so csv-module.so fcntl-module.so \
+  fork-module.so histogram-module.so iconv-module.so json-module.so \
+  rand-module.so select-module.so slsmg-module.so socket-module.so \
+  stats-module.so sysconf-module.so termios-module.so varray-module.so \
+  zlib-module.so | LC_ALL=C sort > "$PEKIT_OUT/.expected-modules"
+diff -u "$PEKIT_OUT/.expected-modules" "$PEKIT_OUT/.installed-modules"
+
+SLANG_SO="$STAGED_LIBDIR/libslang.so.$PEKIT_VERSION"
+SLSH="$PREFIX/bin/slsh"
+PCFILE="$STAGED_LIBDIR/pkgconfig/slang.pc"
+test -f "$SLANG_SO"
+test "$(readlink "$STAGED_LIBDIR/libslang.so.2")" = \
+  "libslang.so.$PEKIT_VERSION"
+test "$(readlink "$STAGED_LIBDIR/libslang.so")" = libslang.so.2
+readelf -d "$SLANG_SO" | grep -F 'Library soname: [libslang.so.2]'
+grep -Fx "Version: $PEKIT_VERSION" "$PCFILE"
+
+# Exercise the staged interpreter, its library path, and a third-party-backed
+# loadable module without consulting host-installed S-Lang files.
+LD_LIBRARY_PATH="$STAGED_LIBDIR" \
+SLSH_CONF_DIR="$PREFIX/etc" \
+SLSH_PATH="$PREFIX/share/slsh" \
+SLANG_MODULE_PATH="$STAGED_LIBDIR/slang/v2/modules" \
+  "$SLSH" -n -e \
+    'import ("zlib"); if (2 + 2 != 4) exit (1); vmessage ("Peios S-Lang smoke");'
+
+# Compile and run both public linkage modes against the staged API.
+SMOKE="$PEKIT_OUT/.slang-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/slang.c" <<'EOF'
+#include <slang.h>
+
+int main(void)
+{
+  if (SLANG_VERSION < 20303)
+    return 1;
+  return SLang_init_slang() == -1;
+}
+EOF
+cc -I"$PREFIX/include" "$SMOKE/slang.c" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -lslang -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc -I"$PREFIX/include" "$SMOKE/slang.c" -L"$STAGED_LIBDIR" \
+  -Wl,-Bstatic -lslang -Wl,-Bdynamic -ldl -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Produce build-ID-indexed debug data and exact DWARF-referenced sources for
+# the interpreter, ABI library, and all loadable modules. Static code remains
+# available while its duplicate debug sections are discarded.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f"; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.jedsoft.slang \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n \
+    's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  printf '%s\n' "$bid" >> "$PEKIT_OUT/.buildids"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" \
+    "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/org.jedsoft.slang/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.jedsoft.slang/$rel"
+    done
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 19
+test -n "$(find usr/src/debug/org.jedsoft.slang -type f -print -quit)"
+
+# Enforce the production ELF contract after RPATH removal and stripping.
+for elf in usr/bin/slsh \
+  usr/lib/x86_64-linux-peios/libslang.so."$PEKIT_VERSION" \
+  usr/lib/x86_64-linux-peios/slang/v2/modules/*-module.so; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
+done
+
+# Record the complete dynamic closure explicitly: only the zlib module may
+# introduce a non-glibc library beyond libslang itself.
+for soname in libc.so.6 libm.so.6; do
+  readelf -d "$SLANG_SO" | grep -F "Shared library: [$soname]"
+done
+readelf -d "$SLSH" | grep -F 'Shared library: [libslang.so.2]'
+readelf -d "$STAGED_LIBDIR/slang/v2/modules/zlib-module.so" \
+  | grep -F 'Shared library: [libz.so.1]'
+if find "$STAGED_LIBDIR/slang/v2/modules" -type f \
+  ! -name 'zlib-module.so' -name '*-module.so' -exec readelf -d {} \; \
+  | grep -F 'Shared library: [libz.so.1]'; then exit 1; fi
+
+rm -rf "$BUILD" "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.installed-modules" \
+  "$PEKIT_OUT/.expected-modules"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c           = "*"
+"org.gnu.ncurses-terminfo" = "*"
+"zlib-devel"               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+ncurses-base    = "*"
+patchelf        = "*"
+zlib1g-dev      = "*"

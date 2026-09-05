@@ -1,0 +1,16 @@
+[package]
+name        = "org.jedsoft.slang-devel"
+description = "S-Lang headers, linker input, and pkg-config metadata"
+
+[provides]
+"slang-devel" = "{{version}}"
+
+[dependencies]
+"org.jedsoft.slang-libs" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                                 = "usr/share/licenses/org.jedsoft.slang-devel/"
+":usr/include/slang.h"                            = "usr/include/slang.h"
+":usr/include/slcurses.h"                        = "usr/include/slcurses.h"
+":usr/lib/x86_64-linux-peios/libslang.so"         = "usr/lib/x86_64-linux-peios/libslang.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/slang.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/slang.pc"

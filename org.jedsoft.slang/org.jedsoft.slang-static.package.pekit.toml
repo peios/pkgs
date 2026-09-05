@@ -1,0 +1,13 @@
+[package]
+name        = "org.jedsoft.slang-static"
+description = "S-Lang static library"
+
+[provides]
+"slang-static" = "{{version}}"
+
+[dependencies]
+"org.jedsoft.slang-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                        = "usr/share/licenses/org.jedsoft.slang-static/"
+":usr/lib/x86_64-linux-peios/libslang.a" = "usr/lib/x86_64-linux-peios/libslang.a"

@@ -1,0 +1,13 @@
+[package]
+name         = "org.jedsoft.slang-doc"
+description  = "S-Lang programming and interpreter documentation"
+architecture = "noarch"
+
+[provides]
+"slang-doc" = "{{version}}"
+
+[files]
+"@source:COPYING"                     = "usr/share/licenses/org.jedsoft.slang-doc/"
+":usr/share/doc/org.jedsoft.slang/**" = "usr/share/doc/org.jedsoft.slang"
+":usr/share/doc/slang/**"              = "usr/share/doc/slang"
+":usr/share/doc/slsh/**"               = "usr/share/doc/slsh"

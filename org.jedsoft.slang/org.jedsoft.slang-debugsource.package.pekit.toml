@@ -1,0 +1,9 @@
+[package]
+name        = "org.jedsoft.slang-debugsource"
+description = "S-Lang debug sources"
+
+[dependencies]
+"org.jedsoft.slang-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

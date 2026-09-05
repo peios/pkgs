@@ -1,0 +1,19 @@
+# The stable C ABI remains independently installable for consumers that embed
+# S-Lang without the slsh interpreter or extension modules.
+
+[package]
+name        = "org.jedsoft.slang-libs"
+description = "S-Lang runtime library"
+
+[provides]
+libslang         = "{{version}}"
+"libslang.so.2" = "{{version}}"
+
+[dependencies]
+glibc                        = ">= 2.43"
+"org.gnu.ncurses-terminfo" = "*"
+
+[files]
+"@source:COPYING"                             = "usr/share/licenses/org.jedsoft.slang-libs/"
+":usr/lib/x86_64-linux-peios/libslang.so.2"   = "usr/lib/x86_64-linux-peios/libslang.so.2"
+":usr/lib/x86_64-linux-peios/libslang.so.2.*" = "usr/lib/x86_64-linux-peios"

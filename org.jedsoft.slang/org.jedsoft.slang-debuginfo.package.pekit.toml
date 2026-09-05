@@ -1,0 +1,10 @@
+[package]
+name        = "org.jedsoft.slang-debuginfo"
+description = "S-Lang debugging symbols"
+
+[dependencies]
+"org.jedsoft.slang"      = "{{version}}-1"
+"org.jedsoft.slang-libs" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

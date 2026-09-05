@@ -1,0 +1,26 @@
+# slsh, its standard library, and the supported loadable module set.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.jedsoft.slang"
+description = "S-Lang interpreter, standard library, and loadable modules"
+
+[provides]
+# Preserve the retired recipe identity while making the canonical package the
+# deterministic provider during migration.
+slang = "{{version}}"
+slsh  = "{{version}}"
+
+[dependencies]
+glibc                     = ">= 2.43"
+"org.jedsoft.slang-libs" = "{{version}}-1"
+zlib                      = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                              = "usr/share/licenses/org.jedsoft.slang/"
+":usr/bin/slsh"                                = "usr/bin/slsh"
+":usr/etc/slsh.rc"                             = "usr/etc/slsh.rc"
+":usr/lib/x86_64-linux-peios/slang/**"         = "usr/lib/x86_64-linux-peios/slang"
+":usr/share/slsh/**"                           = "usr/share/slsh"
+":usr/share/man/man1/slsh.1"                   = "usr/share/man/man1/slsh.1"
