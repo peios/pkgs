@@ -3,7 +3,7 @@ name        = "org.sourceware.bzip2-debuginfo"
 description = "bzip2 - debugging symbols"
 
 [dependencies]
-"org.sourceware.bzip2" = "{{version}}-2"
+"org.sourceware.bzip2" = "{{version}}-3"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

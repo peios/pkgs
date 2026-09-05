@@ -9,6 +9,7 @@ description = "bzip2 - libbz2 runtime library"
 # The retired monolithic package also carries this SONAME. A versioned
 # capability makes the canonical split runtime the deterministic provider.
 "libbz2.so.1" = "{{version}}"
+"libbz2.so.1.0" = "{{version}}"
 
 [dependencies]
 glibc = ">= 2.43"

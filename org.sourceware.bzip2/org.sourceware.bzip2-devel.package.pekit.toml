@@ -3,7 +3,7 @@ name        = "org.sourceware.bzip2-devel"
 description = "bzip2 - libbz2 headers, linker input, and pkg-config metadata"
 
 [dependencies]
-"org.sourceware.bzip2-libs" = "{{version}}-2"
+"org.sourceware.bzip2-libs" = "{{version}}-3"
 
 [files]
 "@source:LICENSE"                                = "usr/share/licenses/org.sourceware.bzip2-devel/"

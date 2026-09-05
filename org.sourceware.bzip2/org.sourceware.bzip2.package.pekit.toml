@@ -12,7 +12,7 @@ description = "bzip2 - block-sorting compression tools"
 bzip2 = "{{version}}"
 
 [dependencies]
-"org.sourceware.bzip2-libs" = "{{version}}-2"
+"org.sourceware.bzip2-libs" = "{{version}}-3"
 # bzgrep and bzdiff are POSIX shell frontends over these standard tools.
 dash          = "*"
 "org.gnu.coreutils" = "*"

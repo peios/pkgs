@@ -74,6 +74,7 @@ ln -s bzdiff "$BINDIR/bzcmp"
 
 install -m 0755 "libbz2.so.$PEKIT_VERSION" "$LIBDIR/libbz2.so.$PEKIT_VERSION"
 ln -s "libbz2.so.$PEKIT_VERSION" "$LIBDIR/libbz2.so.1"
+ln -s "libbz2.so.$PEKIT_VERSION" "$LIBDIR/libbz2.so.1.0"
 ln -s libbz2.so.1 "$LIBDIR/libbz2.so"
 install -m 0644 libbz2.a "$LIBDIR/libbz2.a"
 install -m 0644 bzlib.h "$PEKIT_OUT/usr/include/bzlib.h"
@@ -101,6 +102,7 @@ install -m 0644 manual.html manual.pdf "$DOCDIR/"
 
 # Installed CLI and ABI integration gate.
 readelf -d "$LIBDIR/libbz2.so.$PEKIT_VERSION" | grep -F 'Library soname: [libbz2.so.1]'
+test "$(readlink "$LIBDIR/libbz2.so.1.0")" = "libbz2.so.$PEKIT_VERSION"
 SMOKE="$PEKIT_OUT/.bzip2-smoke"
 mkdir -p "$SMOKE"
 printf '%s\n' 'Peios bzip2 round-trip' > "$SMOKE/input"
