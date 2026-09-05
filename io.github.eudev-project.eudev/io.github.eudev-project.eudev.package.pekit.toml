@@ -16,7 +16,7 @@ description = "eudev - device manager: driver loading from uevents, coldplug, st
 
 [dependencies]
 glibc                                         = ">= 2.43"
-"io.github.eudev-project.eudev-libudev"      = "{{version}}-2"
+"io.github.eudev-project.eudev-libudev"      = "{{version}}-3"
 libkmod                                       = ">= 33"
 libblkid                                      = ">= 2.42"
 sh                                            = ">= 1"

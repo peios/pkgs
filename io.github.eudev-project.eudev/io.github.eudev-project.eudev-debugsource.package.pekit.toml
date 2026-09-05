@@ -3,7 +3,7 @@ name        = "io.github.eudev-project.eudev-debugsource"
 description = "eudev - source files for debugging"
 
 [dependencies]
-"io.github.eudev-project.eudev-debuginfo" = "{{version}}-2"
+"io.github.eudev-project.eudev-debuginfo" = "{{version}}-3"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"
