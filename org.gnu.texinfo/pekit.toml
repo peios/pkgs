@@ -1,0 +1,185 @@
+# GNU Texinfo converters: texi2any/makeinfo and pod2texi.
+#
+# This recipe deliberately builds only the architecture-independent Perl
+# converters. The interactive Info reader, install-info database manager and
+# printed-output shell front-ends remain excluded: Peios has no Info reader
+# stack yet, and PEI-731 tracks the ownership/transaction design for the
+# shared /usr/share/info/dir file.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/texinfo/texinfo-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/texinfo/"
+extract     = true
+root        = "texinfo-{{version}}"
+file_regex  = 'texinfo-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 7.x releases
+# automatically; a future major line requires a converter-compatibility
+# review and a renewed check of the deferred reader/install-info boundary.
+versions    = ">= 7.3, < 8"
+
+# GNU Texinfo 7.3 is signed by maintainer Gavin Smith. Pin the complete
+# primary fingerprint from GNU's release key material so unattended
+# discovery must authenticate every newly selected release.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/gavin-smith.asc"]
+fingerprints = ["EAF669B31E31E1DECBD11513DDBC579DAB37FBA9"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-rpath \
+  --disable-perl-xs \
+  --disable-install-warnings \
+  --disable-silent-rules \
+  --enable-t2a-tests \
+  --enable-pod-simple-texinfo-tests
+
+# Build only the pure-Perl converter implementations. In particular, avoid
+# the Info reader, install-info, texindex and printed-output shell front-ends.
+make -C tta -j"$(nproc)"
+make -C Pod-Simple-Texinfo -j"$(nproc)"
+
+# Run the complete converter/module suites. Peios does not yet package the
+# optional Test::Deep module. If it is absent on the native rung, accept only
+# that suite's exact single missing-module error after every other TAP test
+# has completed; Debian carries Test::Deep and must pass without this branch.
+if ! make -C tta/perl -j"$(nproc)" check; then
+  actual=$(find tta/perl -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result#tta/perl/}"
+  done | LC_ALL=C sort)
+  expected='t/z_misc/test_sort.trs'
+  [ "$actual" = "$expected" ]
+  grep -F "Can't locate Test/Deep.pm" \
+    tta/perl/t/z_misc/test_sort.log
+  grep -Fqx 'ERROR: t/z_misc/test_sort.t - exited with status 2' \
+    tta/perl/t/z_misc/test_sort.log
+fi
+# The ordinary command suite covers every converter mode enabled by this
+# package. Upstream's opt-in all-checks target additionally forces integrations
+# with TeX and third-party syntax highlighters, plus XS-only collation cases;
+# those are deliberately outside this pure-Perl package's feature boundary.
+make -C tta/tests -j"$(nproc)" check
+make -C Pod-Simple-Texinfo -j"$(nproc)" check
+
+# Install only the converter programs and their architecture-independent
+# runtime. util install-data supplies texinfo.dtd and htmlxref metadata; the
+# two po trees supply converter and generated-document translations.
+make -C tta install DESTDIR="$PEKIT_OUT"
+make -C Pod-Simple-Texinfo install DESTDIR="$PEKIT_OUT"
+make -C util install-data DESTDIR="$PEKIT_OUT"
+make -C po install-data DESTDIR="$PEKIT_OUT"
+make -C po_document install-data DESTDIR="$PEKIT_OUT"
+
+install -d "$PEKIT_OUT/usr/share/man/man1" \
+  "$PEKIT_OUT/usr/share/man/man5"
+install -m 0644 "$SRC/man/makeinfo.1" \
+  "$PEKIT_OUT/usr/share/man/man1/makeinfo.1"
+install -m 0644 "$SRC/man/texi2any.1" \
+  "$PEKIT_OUT/usr/share/man/man1/texi2any.1"
+install -m 0644 "$SRC/man/pod2texi.1" \
+  "$PEKIT_OUT/usr/share/man/man1/pod2texi.1"
+install -m 0644 "$SRC/man/texinfo.5" \
+  "$PEKIT_OUT/usr/share/man/man5/texinfo.5"
+
+BIN="$PEKIT_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/.texinfo-smoke"
+mkdir -p "$SMOKE"
+test -x "$BIN/texi2any"
+test -x "$BIN/pod2texi"
+test -L "$BIN/makeinfo"
+test "$(readlink "$BIN/makeinfo")" = texi2any
+"$BIN/texi2any" --version | head -1 | grep -F "$PEKIT_VERSION"
+"$BIN/pod2texi" --version | head -1 | grep -Fx 'pod2texi 0.01'
+
+# Exercise the staged converter in its principal text, HTML, DocBook, XML
+# and Info output modes. Generated smoke output stays private to the build;
+# the package itself must never own the system Info directory.
+cat > "$SMOKE/sample.texi" <<'EOF'
+\\input texinfo
+@setfilename sample.info
+@settitle Texinfo smoke
+@node Top
+@top Texinfo smoke
+@node First chapter
+@chapter First chapter
+@cindex smoke
+The café value is @strong{ready}.
+@bye
+EOF
+"$BIN/texi2any" --plaintext --output="$SMOKE/sample.txt" \
+  "$SMOKE/sample.texi"
+grep -F 'The café value is *ready*.' "$SMOKE/sample.txt"
+"$BIN/texi2any" --html --no-split --output="$SMOKE/sample.html" \
+  "$SMOKE/sample.texi"
+grep -F '<strong class="strong">ready</strong>' "$SMOKE/sample.html"
+"$BIN/texi2any" --docbook --output="$SMOKE/sample.dbk" \
+  "$SMOKE/sample.texi"
+grep -F '<emphasis role="bold">ready</emphasis>' "$SMOKE/sample.dbk"
+"$BIN/texi2any" --xml --output="$SMOKE/sample.xml" \
+  "$SMOKE/sample.texi"
+grep -F '<strong>ready</strong>' "$SMOKE/sample.xml"
+"$BIN/makeinfo" --output="$SMOKE/sample.info" "$SMOKE/sample.texi"
+grep -F 'The café value is *ready*.' "$SMOKE/sample.info"
+
+cat > "$SMOKE/sample.pod" <<'EOF'
+=head1 NAME
+
+sample - pod2texi smoke
+
+=head1 DESCRIPTION
+
+Converter is B<ready>.
+
+=cut
+EOF
+"$BIN/pod2texi" --output="$SMOKE/sample-pod.texi" "$SMOKE/sample.pod"
+grep -F '@strong{ready}' "$SMOKE/sample-pod.texi"
+
+# Prove that this remains an architecture-independent converter payload and
+# that none of the PEI-731-deferred programs/shared files were installed.
+for forbidden in info install-info texindex texi2dvi texi2pdf pdftexi2dvi; do
+  test ! -e "$BIN/$forbidden"
+done
+test ! -e "$PEKIT_OUT/usr/share/info"
+test ! -e "$PEKIT_OUT/usr/share/info/dir"
+command -v file >/dev/null
+if find "$PEKIT_OUT/usr" -type f -exec file {} + | grep -F ': ELF '; then
+  exit 1
+fi
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f \
+  -name 'texinfo.mo' -print -quit)"
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f \
+  -name 'texinfo_document.mo' -print -quit)"
+find "$PEKIT_OUT/usr/bin" -type f -exec perl -c {} \\;
+rm -rf "$SMOKE"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c   = "*"
+"com.darwinsys.file" = "*"
+glibc-langpack-en    = ">= 2.43"
+glibc-langpack-fr    = ">= 2.43"
+"org.gnu.gettext"   = "*"
+perl                 = "*"
+
+[build.main.dependencies.apt]
+build-essential   = "*"
+file              = "*"
+gettext           = "*"
+libtest-deep-perl = "*"
+locales-all       = "*"
+perl              = "*"

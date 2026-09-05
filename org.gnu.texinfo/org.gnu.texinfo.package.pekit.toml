@@ -1,0 +1,23 @@
+[package]
+name        = "org.gnu.texinfo"
+description = "GNU Texinfo converters for Texinfo and POD documents"
+license     = "GPL-3.0-or-later"
+
+[provides]
+texinfo  = "{{version}}"
+makeinfo = "{{version}}"
+texi2any = "{{version}}"
+pod2texi = "{{version}}"
+
+[replaces]
+texinfo = "< {{version}}-1"
+
+[dependencies]
+"org.gnu.texinfo-common" = "{{version}}-1"
+perl                     = "*"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.gnu.texinfo/COPYING"
+":usr/bin/makeinfo" = "usr/bin/makeinfo"
+":usr/bin/pod2texi" = "usr/bin/pod2texi"
+":usr/bin/texi2any" = "usr/bin/texi2any"

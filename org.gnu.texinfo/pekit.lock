@@ -8,4 +8,5 @@ schema = 1
   version = "7.3"
   url = "https://ftp.gnu.org/gnu/texinfo/texinfo-7.3.tar.xz"
   sha256 = "51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e"
-  locked_at = "2026-08-10T23:57:05Z"
+  signature_key = "eaf669b31e31e1decbd11513ddbc579dab37fba9"
+  locked_at = "2026-09-05T16:41:02Z"

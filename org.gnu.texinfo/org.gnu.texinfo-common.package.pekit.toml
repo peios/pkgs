@@ -1,0 +1,20 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.texinfo-common"
+architecture = "noarch"
+description  = "GNU Texinfo converter modules, data, translations and manuals"
+license      = "GPL-3.0-or-later AND CC0-1.0 AND FSFAP AND (GPL-1.0-or-later OR Artistic-1.0-Perl)"
+
+[files]
+"@source:COPYING"                                    = "usr/share/licenses/org.gnu.texinfo-common/COPYING"
+"@source:tta/maintain/lib/libintl-perl/COPYING"      = "usr/share/licenses/org.gnu.texinfo-common/libintl-perl-COPYING"
+"@source:tta/maintain/lib/Unicode-EastAsianWidth/README" = "usr/share/licenses/org.gnu.texinfo-common/Unicode-EastAsianWidth-LICENSE"
+"@source:tta/maintain/lib/Text-Unidecode/LICENSE"    = "usr/share/licenses/org.gnu.texinfo-common/Text-Unidecode-LICENSE"
+"@source:AUTHORS"                                    = "usr/share/doc/org.gnu.texinfo/AUTHORS"
+"@source:NEWS"                                       = "usr/share/doc/org.gnu.texinfo/NEWS"
+"@source:README"                                     = "usr/share/doc/org.gnu.texinfo/README"
+":usr/share/locale/**"                               = "usr/share/locale"
+":usr/share/man/**"                                  = "usr/share/man"
+":usr/share/texi2any/**"                             = "usr/share/texi2any"
+":usr/share/texinfo/**"                              = "usr/share/texinfo"
