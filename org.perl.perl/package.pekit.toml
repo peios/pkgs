@@ -1,0 +1,12 @@
+# Shared metadata for the Perl package family. The aggregate license covers
+# the complete core distribution, including bundled modules and generated
+# Unicode tables; the build links system zlib/bzip2 rather than their copies.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "(GPL-1.0-or-later OR Artistic-1.0-Perl) AND (GPL-2.0-or-later OR Artistic-1.0-Perl) AND Artistic-2.0 AND BSD-2-Clause AND BSD-2-Clause-Views AND BSD-3-Clause AND BSD-4-Clause AND CC0-1.0 AND FSFAP AND MIT AND Martin-Birgmeier AND Spencer-86 AND TTWL AND Unicode-3.0 AND Unicode-DFS-2015 AND Zlib AND LicenseRef-Public-Domain AND LicenseRef-UltraPermissive"
+license_class = "free"
+homepage      = "https://www.perl.org/"

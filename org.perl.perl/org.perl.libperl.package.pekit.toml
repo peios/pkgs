@@ -1,0 +1,21 @@
+# Shared libperl plus architecture-dependent core/XS modules. It depends on
+# the pure-module tree so an embedded interpreter has a complete core runtime.
+
+[package]
+name        = "org.perl.libperl"
+description = "Perl 5 shared embedding library and architecture modules"
+
+[dependencies]
+glibc                        = ">= 2.43"
+"org.perl.perl-modules"      = "{{version}}-1"
+zlib                         = ">= 2.3.3"
+"org.sourceware.bzip2-libs" = ">= 1.0.8"
+
+[provides]
+libperl = "{{version}}"
+
+[files]
+"@source:Copying" = "usr/share/licenses/org.perl.libperl/Copying"
+"@source:Artistic" = "usr/share/licenses/org.perl.libperl/Artistic"
+":usr/lib/x86_64-linux-peios/libperl.so.*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/perl5/**"     = "usr/lib/x86_64-linux-peios/perl5"

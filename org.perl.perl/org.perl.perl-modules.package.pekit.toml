@@ -1,0 +1,14 @@
+# Architecture-independent core and bundled CPAN module tree.
+
+[package]
+name         = "org.perl.perl-modules"
+architecture = "noarch"
+description  = "Perl 5 architecture-independent core modules"
+
+[provides]
+perl-modules = "{{version}}"
+
+[files]
+"@source:Copying"     = "usr/share/licenses/org.perl.perl-modules/Copying"
+"@source:Artistic"    = "usr/share/licenses/org.perl.perl-modules/Artistic"
+":usr/share/perl5/**" = "usr/share/perl5"

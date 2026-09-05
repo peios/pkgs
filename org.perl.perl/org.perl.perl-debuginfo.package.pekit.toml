@@ -1,0 +1,11 @@
+[package]
+name        = "org.perl.perl-debuginfo"
+description = "Perl 5 detached debugging symbols"
+
+[dependencies]
+"org.perl.perl" = "{{version}}-1"
+
+[files]
+"@source:Copying"   = "usr/share/licenses/org.perl.perl-debuginfo/Copying"
+"@source:Artistic"  = "usr/share/licenses/org.perl.perl-debuginfo/Artistic"
+":usr/lib/debug/**" = "usr/lib/debug"

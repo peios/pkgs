@@ -1,0 +1,14 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.perl.perl-doc"
+architecture = "noarch"
+description  = "Perl 5 language, utility and module manuals"
+
+[dependencies]
+"org.perl.perl" = "{{version}}-1"
+
+[files]
+"@source:Copying"   = "usr/share/licenses/org.perl.perl-doc/Copying"
+"@source:Artistic"  = "usr/share/licenses/org.perl.perl-doc/Artistic"
+":usr/share/man/**" = "usr/share/man"

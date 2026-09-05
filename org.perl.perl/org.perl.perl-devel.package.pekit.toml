@@ -1,0 +1,18 @@
+# Public CORE headers and unversioned libperl links for XS and embedding.
+
+[package]
+name        = "org.perl.perl-devel"
+description = "Perl 5 XS and embedding development files"
+
+[dependencies]
+"org.perl.perl"    = "{{version}}-1"
+"org.perl.libperl" = "{{version}}-1"
+
+[provides]
+perl-devel    = "{{version}}"
+libperl-devel = "{{version}}"
+
+[files]
+"@source:Copying" = "usr/share/licenses/org.perl.perl-devel/Copying"
+"@source:Artistic" = "usr/share/licenses/org.perl.perl-devel/Artistic"
+":devel/usr/**"    = "usr"

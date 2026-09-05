@@ -1,0 +1,11 @@
+[package]
+name        = "org.perl.perl-debugsource"
+description = "Perl 5 source files for debugging"
+
+[dependencies]
+"org.perl.perl-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:Copying"   = "usr/share/licenses/org.perl.perl-debugsource/Copying"
+"@source:Artistic"  = "usr/share/licenses/org.perl.perl-debugsource/Artistic"
+":usr/src/debug/**" = "usr/src/debug"

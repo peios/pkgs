@@ -1,0 +1,14 @@
+[package]
+name        = "org.perl.perl"
+description = "Perl 5 interpreter and core command-line utilities"
+
+[dependencies]
+"org.perl.libperl" = "{{version}}-1"
+
+[provides]
+perl = "{{version}}"
+
+[files]
+"@source:Copying" = "usr/share/licenses/org.perl.perl/Copying"
+"@source:Artistic" = "usr/share/licenses/org.perl.perl/Artistic"
+":usr/bin/**"      = "usr/bin"

@@ -1,0 +1,298 @@
+# Perl — the interpreter, core modules, embedding library and development
+# surface. The upstream tree is intentionally built in-tree because Perl's
+# metaconfig build has no supported out-of-source mode.
+#
+# Automatic tracking follows stable Perl 5 production branches: even minor
+# versions only. The >= 5.44 constraint is a soft maintenance floor, not a
+# pin; a future 5.46/5.48 release is selected without recipe work unless it
+# genuinely changes the build contract.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://www.cpan.org/src/5.0/perl-{{version}}.tar.xz"
+listing_url = "https://www.cpan.org/src/5.0/"
+file_regex  = 'perl-[0-9]+\.([0-9]*[02468])\.[0-9]+\.tar\.xz'
+extract     = true
+root        = "perl-{{version}}"
+# Soft production-line floor.
+versions    = ">= 5.44"
+
+# CPAN currently publishes Sigstore bundles, not OpenPGP detached signatures.
+# Pekit cannot yet verify Sigstore identities/transparency proofs, so the
+# source is HTTPS + lockfile authenticated for now. Do not add a misleading
+# OpenPGP stanza; the follow-up task tracks proper unattended verification.
+
+[build.main]
+command = """
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+BUILD="$PEKIT_OUT/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+
+# Perl's extension configuration needs the build environment's dependency
+# library directory, while the installed ABI is always the Peios triplet.
+if [ -d /usr/lib/x86_64-linux-peios ]; then
+  DEPLIBDIR=/usr/lib/x86_64-linux-peios
+else
+  DEPLIBDIR=/usr/lib/x86_64-linux-gnu
+fi
+
+mkdir -p "$BUILD"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+V=$(awk '$1=="#define" && $2=="PERL_REVISION"{r=$3} $1=="#define" && $2=="PERL_VERSION"{v=$3} $1=="#define" && $2=="PERL_SUBVERSION"{s=$3} END{print r"."v"."s}' patchlevel.h)
+API=$(printf '%s\\n' "$V" | awk -F. '{print $1"."$2}')
+case "$V:$API" in
+  [0-9]*.[0-9]*.[0-9]*:[0-9]*.[0-9]*) ;;
+  *) echo "invalid Perl version/API: $V / $API" >&2; exit 1 ;;
+esac
+
+# Never accidentally compile the bundled compression libraries. Both core
+# XS modules are linked to Peios's independently maintained zlib and bzip2.
+sed -i \\
+  -e 's|^BUILD_ZLIB[[:space:]]*=.*|BUILD_ZLIB = False|' \\
+  -e 's|^ZLIB_INCLUDE[[:space:]]*=.*|ZLIB_INCLUDE = /usr/include|' \\
+  -e "s|^ZLIB_LIB[[:space:]]*=.*|ZLIB_LIB = $DEPLIBDIR|" \\
+  cpan/Compress-Raw-Zlib/config.in
+rm -rf cpan/Compress-Raw-Zlib/zlib-src cpan/Compress-Raw-Bzip2/bzip2-src
+sed -i '/\\/zlib-src\\//d; /\\/bzip2-src\\//d' MANIFEST
+
+# Debian's build-essential happens to expose libcrypt while the current Peios
+# bootstrap closure does not. Keep both reference rungs feature-identical until
+# org.gnu.libxcrypt is independently productionized: Perl treats crypt() as an
+# optional platform facility, and config.over is upstream's supported final
+# override for Configure probes.
+cat > config.over <<'EOF'
+cryptlib=''
+d_crypt='undef'
+d_crypt_r='undef'
+crypt_r_proto='0'
+i_crypt='undef'
+EOF
+
+# Stable major.minor library paths allow locally installed modules to survive
+# patch releases. Site is reserved for the local administrator; vendor paths
+# are where future packaged CPAN distributions install.
+./Configure -des \\
+  -Dprefix=/usr \\
+  -Dbin=/usr/bin \\
+  -Dscriptdir=/usr/bin \\
+  -Dman1dir=/usr/share/man/man1 \\
+  -Dman3dir=/usr/share/man/man3 \\
+  -Dman3ext=3 \\
+  -Dprivlib="/usr/share/perl5/$API" \\
+  -Darchlib="$LIBDIR/perl5/$API" \\
+  -Dsiteprefix=/usr/local \\
+  -Dsitelib="/usr/local/share/perl5/$API" \\
+  -Dsitearch="/usr/local/lib/x86_64-linux-peios/perl5/$API" \\
+  -Dvendorprefix=/usr \\
+  -Dvendorlib="/usr/share/perl5/vendor_perl/$API" \\
+  -Dvendorarch="$LIBDIR/perl5/vendor_perl/$API" \\
+  -Darchname=x86_64-linux-peios-thread-multi \\
+  -Dlibpth="$DEPLIBDIR /usr/lib" \\
+  -Dlibs='-lpthread -ldl -lm -lutil -lc' \\
+  -Dcc=gcc \\
+  -Dld=gcc \\
+  -Doptimize=none \\
+  -Dccflags="${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing" \\
+  -Dcccdlflags=-fPIC \\
+  -Dldflags="${LDFLAGS:-}" \\
+  -Dlddlflags="-shared ${LDFLAGS:-}" \\
+  -DDEBUGGING=-g \\
+  -Duseshrplib \\
+  -Dusedl \\
+  -Dusethreads \\
+  -Duseithreads \\
+  -Dusemultiplicity \\
+  -Duse64bitint \\
+  -Duselargefiles \\
+  -Duseperlio \\
+  -Ddefault_inc_excludes_dot \\
+  -Dinstallusrbinperl=n \\
+  -Uversiononly \\
+  -Ubincompat5005 \\
+  -Uusedtrace \\
+  -Dnoextensions='DB_File GDBM_File NDBM_File ODBM_File' \\
+  -Dmyhostname=localhost \\
+  -Dmydomain=.localdomain \\
+  -Dcf_by=Peios \\
+  -Dcf_email=root@localhost \\
+  -Dperladmin=root@localhost \\
+  -Dpager=/usr/bin/cat \\
+  -Dstartperl='#!/usr/bin/perl'
+
+# Configure deliberately gives Linux libperl no SONAME because upstream puts
+# it in CORE. Peios installs it in the normal triplet directory, so stamp the
+# stable API SONAME on libperl only (not on every XS DSO using LDDLFLAGS).
+sed -i '/^SHRPLDFLAGS = /s|$| -Wl,-soname,libperl.so.__PERL_API__|' Makefile
+sed -i "s/__PERL_API__/$API/" Makefile
+# The just-linked interpreter records the SONAME immediately, so this dangling
+# link must exist before make first runs it to generate the remaining tree.
+ln -s libperl.so "libperl.so.$API"
+
+# Make the distribution policy observable and fail early if Configure ever
+# stops honouring it.
+grep -Fx "useithreads='define'" config.sh
+grep -Fx "usemultiplicity='define'" config.sh
+grep -Fx "useshrplib='true'" config.sh
+grep -Fx "default_inc_excludes_dot='define'" config.sh
+grep -Fx "cryptlib=''" config.sh
+grep -Fx "d_crypt='undef'" config.sh
+grep -Fx "d_crypt_r='undef'" config.sh
+grep -Fx "privlib='/usr/share/perl5/$API'" config.sh
+grep -Fx "archlib='$LIBDIR/perl5/$API'" config.sh
+grep '^ccflags=' config.sh | grep -F '_FORTIFY_SOURCE=3'
+grep '^ldflags=' config.sh | grep -F -- '-z,now'
+
+export BUILD_ZLIB=0
+export ZLIB_INCLUDE=/usr/include
+export ZLIB_LIB="$DEPLIBDIR"
+export BUILD_BZIP2=0
+export BZIP2_INCLUDE=/usr/include
+export BZIP2_LIB="$DEPLIBDIR"
+
+make -j"$(nproc)"
+
+# Upstream's complete suite, excluding only the packaging-inappropriate
+# porting tests selected by upstream's documented switch. The no-TTY harness
+# is deterministic in Pekit's non-interactive sandbox.
+PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \\
+  make test_harness_notty
+
+make install DESTDIR="$PEKIT_OUT"
+
+ARCHROOT="$PEKIT_OUT$LIBDIR/perl5/$API"
+CORE="$ARCHROOT/CORE"
+
+# Fedora/Debian-class shared-library layout: full-version real object, stable
+# major.minor SONAME link, and development-only unversioned links. Keep the
+# CORE link because ExtUtils and embedding consumers derive it from Config.
+# The build-tree SONAME link is only a bootstrap aid and may be copied by a
+# future upstream install rule; never carry it into the CORE header directory.
+rm -f "$CORE/libperl.so.$API"
+mv "$CORE/libperl.so" "$PEKIT_OUT$LIBDIR/libperl.so.$V"
+ln -s "libperl.so.$V" "$PEKIT_OUT$LIBDIR/libperl.so.$API"
+mkdir -p "$PEKIT_OUT/devel$LIBDIR/perl5/$API" "$PEKIT_OUT/devel$LIBDIR"
+mv "$CORE" "$PEKIT_OUT/devel$LIBDIR/perl5/$API/CORE"
+ln -s "libperl.so.$API" "$PEKIT_OUT/devel$LIBDIR/libperl.so"
+ln -s "../../../libperl.so.$V" \\
+  "$PEKIT_OUT/devel$LIBDIR/perl5/$API/CORE/libperl.so"
+
+# Remove upstream's CORE build-tree RUNPATH now that libperl is in the normal
+# loader directory. Also catches Time::HiRes's host-library RUNPATH.
+find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  if readelf -d "$f" 2>/dev/null | grep -qE '(RPATH|RUNPATH)'; then
+    # Upstream installs some ELF objects read-only; patchelf needs write access.
+    chmod u+w "$f"
+    patchelf --remove-rpath "$f"
+  fi
+done
+
+# Exercise the staged interpreter, threads and the two system-compression XS
+# modules before stripping. Compiled @INC paths point at the final root, so
+# PERL5LIB supplies the equivalent staged locations for this build-time probe.
+STAGED_PERL5LIB="$PEKIT_OUT/usr/share/perl5/$API:$ARCHROOT"
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" PERL5LIB="$STAGED_PERL5LIB" \\
+  "$PEKIT_OUT/usr/bin/perl" -MConfig -Mthreads \\
+  -MCompress::Raw::Zlib -MCompress::Raw::Bzip2 -e '
+    die "wrong API path" unless $Config::Config{privlib} eq "/usr/share/perl5/'"$API"'";
+    die "threads disabled" unless $Config::Config{useithreads} eq "define";
+    my $t = threads->create(sub { 42 });
+    die "thread failed" unless $t->join == 42;
+  '
+
+# Compile and execute a minimal embedding consumer against the staged public
+# headers and stable libperl ABI.
+SMOKE="$PEKIT_OUT/.perl-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/embed.c" <<'EOF'
+#include <EXTERN.h>
+#include <perl.h>
+
+int main(int argc, char **argv, char **env) {
+    PerlInterpreter *perl;
+    PERL_SYS_INIT3(&argc, &argv, &env);
+    perl = perl_alloc();
+    if (!perl) return 1;
+    perl_construct(perl);
+    perl_destruct(perl);
+    perl_free(perl);
+    PERL_SYS_TERM();
+    return 0;
+}
+EOF
+gcc ${CFLAGS:-} -I"$PEKIT_OUT/devel$LIBDIR/perl5/$API/CORE" \\
+  ${LDFLAGS:-} -L"$PEKIT_OUT$LIBDIR" -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" \\
+  -o "$SMOKE/embed" "$SMOKE/embed.c" -l:libperl.so.$API -ldl -lm -lpthread
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/embed"
+rm -rf "$SMOKE"
+
+# Conventional build-ID debug packages. Rewrite source paths to the canonical
+# package namespace, split symbols, then stage exactly the referenced sources.
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in *.a|*.o) continue ;; esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  # objcopy and strip replace their input; installed XS modules may be 0555.
+  chmod u+w "$f"
+  debugedit -b "$BUILD" -d /usr/src/debug/org.perl.perl \\
+    -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null \\
+    && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  [ -n "$bid" ] || { echo "ELF without build ID: $f" >&2; exit 1; }
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  [ -f "$BUILD/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.perl.perl/$(dirname "$rel")"
+  cp "$BUILD/$rel" "usr/src/debug/org.perl.perl/$rel"
+done
+# Debug outputs are part of the package-family contract, not best-effort
+# decoration. Catch a future debugedit/toolchain incompatibility here instead
+# of letting Pekit fail later with an opaque empty-member error.
+find usr/lib/debug -type f -name '*.debug' -print -quit | grep -q .
+find usr/src/debug/org.perl.perl -type f -print -quit | grep -q .
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+
+# Final loader/hardening gates apply to the actual shipped ELF set.
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$f" | grep -F 'BIND_NOW'
+  readelf -n "$f" | grep -F 'Build ID:'
+  if readelf -d "$f" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then
+    echo "forbidden dynamic tag in $f" >&2
+    exit 1
+  fi
+done
+readelf -d "$PEKIT_OUT$LIBDIR/libperl.so.$V" \\
+  | grep -F "Library soname: [libperl.so.$API]"
+
+rm -rf "$BUILD"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c             = "*"
+zlib-devel                    = ">= 2.3.3"
+"org.sourceware.bzip2-devel" = ">= 1.0.8"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+zlib1g-dev      = "*"
+libbz2-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"
+# Socket's upstream tests exercise named-service lookup when Docker DNS is
+# available; --no-install-recommends otherwise omits /etc/services.
+netbase         = "*"
