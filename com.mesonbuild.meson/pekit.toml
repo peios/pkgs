@@ -1,0 +1,155 @@
+# Meson — the build system. Packaged with Ninja to close the PEI-158
+# deferral ledger: kmod 34+ is meson-only, and qemu, glib2, pixman and
+# the rest of that era follow.
+#
+# The first Python APPLICATION package, and the model for the rest.
+# Libraries (docutils, flit_core) install into the interpreter's
+# site-packages, which publishes them to every Python program on the
+# machine. meson is a program people run, and its internals were never
+# offered as an API, so it takes the layout's private-library slot
+# instead: /usr/lib/<triplet>/meson/, where nothing can `import
+# mesonbuild` by accident. The one program that knows the address is the
+# launcher at /usr/bin/meson, which prepends that directory to sys.path
+# (through the /lib runtime view) before importing — the whole mechanism
+# is that single line. site-packages stays on the path, so a private
+# application still uses shared libraries; privacy only governs whether
+# its own modules are offered outward.
+#
+# Built through setuptools.build_meta (python3-setuptools) on a copy of the
+# tree. The build, private install, launcher and bytecode steps are the
+# workspace helper's; see _pybuild_/README.md.
+#
+# The complete upstream matrix probes every optional compiler and SDK Meson
+# supports. Packaging instead runs the deterministic parser/configuration
+# unit suites and exercises the installed program end to end with C and Ninja.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://files.pythonhosted.org/packages/source/m/meson/meson-{{version}}.tar.gz"
+listing_url = "https://pypi.org/simple/meson/"
+extract     = true
+root        = "meson-{{version}}"
+file_regex  = 'meson-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor and compatibility ceiling. Follow stable 1.x
+# releases automatically; review the recipe when Meson changes major version.
+versions    = ">= 1.12.0, < 2"
+
+# Literal TOML string: the launcher text below carries backslash escapes.
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+PRIV="$PEKIT_OUT/usr/lib/x86_64-linux-peios/meson"
+BIN="$PEKIT_OUT/usr/bin/meson"
+
+# These upstream suites cover Meson's parsers, option/version semantics,
+# machine-file model, TAP reader, Cargo translation and platform-independent
+# behavior. They are deliberately run through unittest so the gate has no
+# accidental dependency on whichever pytest plugins a builder has installed.
+python3 -S "$SRC/run_unittests.py" --backend=ninja \
+  CargoCfgTest CargoLockTest CargoTomlTest CargoVersionTest \
+  DataTests InternalTests MachineFileStoreTests OptionTests \
+  PlatformAgnosticTests TAPParserTests VersionComparisonTests
+
+# --private: modules into /usr/lib/<triplet>/meson, and the generated
+# /usr/bin/meson launcher prepends that directory (through the /lib view) to
+# sys.path before importing. Nothing else can import mesonbuild.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --copy-tree --private meson \
+  --out "$PEKIT_OUT" "$(pwd)"
+
+# data_files ride in the wheel under meson-<ver>.data/: the man page moves to
+# /usr/share/man, and the polkit policy (for a privileged-install helper Peios
+# does not have) goes, taking the .data scaffold with it.
+install -Dm644 "$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
+  "$PEKIT_OUT/usr/share/man/man1/meson.1"
+rm -rf "$PRIV"/meson-*.data
+
+test -x "$BIN"
+test -f "$PEKIT_OUT/usr/share/man/man1/meson.1"
+test "$(find "$PRIV/mesonbuild" -type f -name '*.py' | wc -l)" -gt 100
+test "$(find "$PRIV/mesonbuild" -type f -name '*.pyc' | wc -l)" -gt 100
+test "$(head -n 1 "$BIN")" = '#!/bin/python3'
+grep -F "sys.path.insert(0, '/lib/x86_64-linux-peios/meson')" "$BIN"
+test -z "$(find "$PEKIT_OUT" -path '*/share/polkit-1/*' -type f -print -quit)"
+
+# The application stays private: ordinary Python processes are not offered a
+# public `mesonbuild` module. The installed launcher alone adds its private
+# runtime-view path. PYTHONPATH points that launcher at the staged equivalent
+# while testing before package assembly.
+cd "$PEKIT_OUT"
+python3 -I -c "import importlib.util; assert importlib.util.find_spec('mesonbuild') is None"
+meson_stage() {
+  PYTHONPATH="$PRIV" "$BIN" "$@"
+}
+test "$(meson_stage --version)" = "$PEKIT_VERSION"
+
+SMOKE="$PEKIT_OUT/.meson-smoke"
+mkdir -p "$SMOKE/src"
+cat > "$SMOKE/src/meson.build" <<'EOF'
+project(
+  'peios-meson-smoke',
+  'c',
+  version: '1.0.0',
+  default_options: ['warning_level=3', 'werror=true'],
+)
+
+answer = static_library('answer', 'answer.c')
+smoke = executable('peios-smoke', 'main.c', link_with: answer, install: true)
+test('peios-smoke', smoke)
+install_data('payload.txt', install_dir: get_option('datadir') / 'peios-meson-smoke')
+EOF
+cat > "$SMOKE/src/answer.c" <<'EOF'
+int answer(void) { return 42; }
+EOF
+cat > "$SMOKE/src/main.c" <<'EOF'
+#include <stdio.h>
+int answer(void);
+int main(void) { printf("%d\\n", answer()); return answer() == 42 ? 0 : 1; }
+EOF
+printf '%s\n' installed > "$SMOKE/src/payload.txt"
+
+meson_stage setup "$SMOKE/build" "$SMOKE/src" \
+  --prefix=/usr --buildtype=release --wrap-mode=nodownload
+meson_stage compile -C "$SMOKE/build" -j2
+meson_stage test -C "$SMOKE/build" --print-errorlogs
+test "$("$SMOKE/build/peios-smoke")" = 42
+test -s "$SMOKE/build/compile_commands.json"
+meson_stage introspect "$SMOKE/build" --projectinfo > "$SMOKE/project.json"
+python3 - "$SMOKE/project.json" "$SMOKE/build/compile_commands.json" <<'PY'
+import json
+import pathlib
+import sys
+
+project = json.loads(pathlib.Path(sys.argv[1]).read_text())
+commands = json.loads(pathlib.Path(sys.argv[2]).read_text())
+assert project['version'] == '1.0.0'
+assert project['descriptive_name'] == 'peios-meson-smoke'
+assert len(commands) == 2
+assert all(entry['command'] for entry in commands)
+PY
+meson_stage configure "$SMOKE/build" -Dwarning_level=2
+meson_stage compile -C "$SMOKE/build" -j2
+export DESTDIR="$SMOKE/dest"
+meson_stage install -C "$SMOKE/build"
+unset DESTDIR
+test "$("$SMOKE/dest/usr/bin/peios-smoke")" = 42
+test "$(cat "$SMOKE/dest/usr/share/peios-meson-smoke/payload.txt")" = installed
+rm -rf "$SMOKE"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c  = "*"
+dash                = "*"
+ninja               = "*"
+"org.gnu.coreutils" = "*"
+python3             = ">= 3.14, < 3.15"
+python3-setuptools  = "*"
+
+[build.main.dependencies.apt]
+build-essential    = "*"
+ninja-build        = "*"
+python3            = "*"
+python3-dev        = "*"
+python3-setuptools = "*"

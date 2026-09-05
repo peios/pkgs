@@ -1,0 +1,25 @@
+# PSPU §5.24: a payload carrying man pages declares man-db so that `man -k`
+# and `apropos` see Meson without falling back to a filesystem scan.
+side_effects = ["man-db"]
+
+[package]
+name        = "com.mesonbuild.meson"
+description = "Meson high-performance build system"
+license     = "Apache-2.0"
+
+[provides]
+meson = "{{version}}"
+
+[dependencies]
+# Meson is a private Python application. Its checked-hash bytecode follows the
+# feature version of the interpreter used to build it.
+python3 = ">= 3.14, < 3.15"
+# Meson deliberately generates Ninja projects by default and `meson compile`
+# requires the executor at runtime.
+ninja = ">= 1.8.2"
+
+[files]
+"@source:COPYING"                           = "usr/share/licenses/com.mesonbuild.meson/"
+":usr/bin/meson"                            = "usr/bin/meson"
+":usr/lib/x86_64-linux-peios/meson/**"      = "usr/lib/x86_64-linux-peios/meson"
+":usr/share/man/man1/meson.1"               = "usr/share/man/man1/meson.1"
