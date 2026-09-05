@@ -32,13 +32,16 @@ cmp -s ninja.bootstrap ninja
 rm -f ninja.bootstrap
 test "$(./ninja --version)" = "$PEKIT_VERSION"
 
-# Dependency-closed upstream regression coverage. The pseudo-terminal output
-# suite needs util-linux's script and Bash, so it runs when that host tooling is
-# present (the Debian reference root). PEI-702 tracks the GoogleTest C++ suite.
+# Dependency-closed upstream regression coverage. The jobserver client suite
+# needs util-linux's taskset; the pseudo-terminal output suite needs its script
+# plus Bash. Both run in the Debian reference root and become native gates when
+# the command suite is packaged. PEI-702 tracks the GoogleTest C++ suite.
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SRC/misc" \
   python3 "$SRC/misc/ninja_syntax_test.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_pool_test.py"
-PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_test.py"
+if command -v taskset >/dev/null 2>&1; then
+  PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_test.py"
+fi
 if command -v script >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
   PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/output_test.py"
 fi
