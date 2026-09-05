@@ -1,0 +1,11 @@
+# Base metadata shared by the libpfm package family. The automatic source
+# package carries the complete official release archive and recipe.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT"
+license_class = "free"
+homepage      = "https://perfmon2.sourceforge.net/"

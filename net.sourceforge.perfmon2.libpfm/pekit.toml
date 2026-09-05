@@ -1,0 +1,179 @@
+# libpfm — hardware performance-event discovery and encoding. SourceForge's
+# perfmon2 project is authoritative; wcohen/libpfm4 identifies itself as a
+# mirror and is not used as the source of release bytes.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://downloads.sourceforge.net/project/perfmon2/libpfm4/libpfm-{{version}}.tar.gz"
+listing_url = "https://sourceforge.net/projects/perfmon2/files/libpfm4/"
+root        = "libpfm-{{version}}"
+extract     = true
+file_regex  = '^libpfm-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$'
+# Soft maintenance floor. Follow later stable libpfm4 releases automatically;
+# a libpfm5 ABI or source-layout transition must be reviewed deliberately.
+versions    = ">= 4.13.0, < 5"
+
+# The official file area publishes release archives but no detached signatures.
+# The official v4.13.0 tag is lightweight rather than signed and annotated.
+# This is an explicit authentication exception: HTTPS authenticates transport
+# and Pekit's immutable SHA-256 lock detects changed bytes, but neither proves
+# that a maintainer signed a newly discovered release.
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include/perfmon"
+
+# Upstream's plain Makefiles are in-tree-only. Keep the locked source pristine
+# and build a disposable copy so the corresponding-source payload is exact.
+mkdir -p "$BUILD"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+# Verify that the archive's internal version agrees with the version Pekit
+# selected from the official file listing before compiling any payload.
+MAJOR=$(sed -n 's/^VERSION=//p' config.mk)
+MINOR=$(sed -n 's/^REVISION=//p' config.mk)
+PATCH=$(sed -n 's/^AGE=//p' config.mk)
+test "$MAJOR.$MINOR.$PATCH" = "$PEKIT_VERSION"
+test -s COPYING
+test -s README
+
+# Distribution builds must not inherit upstream's -Werror policy: new compiler
+# diagnostics are not package build failures. OPTIM carries Peios's inherited
+# optimisation, fortification, stack and control-flow flags. Python bindings
+# remain disabled: they are optional, Debian does not ship them, and the Peios
+# catalogue does not yet contain their SWIG build dependency.
+env -u CFLAGS make -j"$(nproc)" \
+  ARCH=x86_64 \
+  CONFIG_PFMLIB_SHARED=y \
+  CONFIG_PFMLIB_NOPYTHON=y \
+  OPTIM="$CFLAGS" \
+  DBG="-Wall -Wextra -Wno-unused-parameter" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+
+# This is upstream's complete architecture-aware validation binary. It checks
+# event-table structure, encodings, attributes, invalid forms, PMU discovery
+# and Linux perf-event translations without opening privileged counters.
+LIBPFM_ENCODE_INACTIVE=1 ./tests/validate
+
+env -u CFLAGS make install \
+  DESTDIR="$PEKIT_OUT" \
+  PREFIX=/usr \
+  LIBDIR=/usr/lib/x86_64-linux-peios \
+  LDCONFIG=true \
+  ARCH=x86_64 \
+  CONFIG_PFMLIB_SHARED=y \
+  CONFIG_PFMLIB_NOPYTHON=y \
+  OPTIM="$CFLAGS" \
+  DBG="-Wall -Wextra -Wno-unused-parameter" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+
+# Discover the concrete library while deliberately gating the public ABI.
+PFM_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libpfm.so.4.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$PFM_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libpfm.so"
+test -L "$LIBDIR/libpfm.so.4"
+test -s "$LIBDIR/libpfm.a"
+test "$(find "$INCLUDEDIR" -maxdepth 1 -type f -name '*.h' | wc -l)" -eq 3
+test "$(find "$PEKIT_OUT/usr/share/man/man3" -maxdepth 1 -type f -name '*.3' | wc -l)" -ge 70
+readelf -d "$PFM_SO" | grep -F 'Library soname: [libpfm.so.4]'
+readelf --dyn-syms -W "$PFM_SO" | grep -E ' pfm_initialize(@|$)'
+readelf --dyn-syms -W "$PFM_SO" | grep -E ' pfm_get_os_event_encoding(@|$)'
+nm -g --defined-only "$LIBDIR/libpfm.a" | grep -E ' [T] pfm_initialize$'
+
+# Compile and execute a real staged consumer against both linkage forms. The
+# generic perf PMU is available independently of the builder's physical CPU;
+# LIBPFM_ENCODE_INACTIVE also makes the check deterministic in containers.
+SMOKE="$PEKIT_OUT/.libpfm-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <perfmon/pfmlib.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+int main(void)
+{
+  uint64_t *codes = NULL;
+  char *full = NULL;
+  int count = 0;
+  int ret;
+
+  if (setenv("LIBPFM_ENCODE_INACTIVE", "1", 1))
+    return 1;
+  if (pfm_initialize() != PFM_SUCCESS)
+    return 2;
+  if (PFM_MAJ_VERSION(pfm_get_version()) != 4)
+    return 3;
+  ret = pfm_get_event_encoding("perf::PERF_COUNT_HW_CPU_CYCLES",
+                               PFM_PLM0 | PFM_PLM3,
+                               &full, NULL, &codes, &count);
+  if (ret != PFM_SUCCESS || !full || !codes || count < 1)
+    return 4;
+  free(full);
+  free(codes);
+  pfm_terminate();
+  return 0;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -lpfm \
+  -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
+cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" "$LIBDIR/libpfm.a" \
+  -pthread -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Keep build-ID-indexed symbols and exactly the source files named by rewritten
+# runtime DWARF. Static archives retain code but do not have build IDs.
+strip --strip-debug "$LIBDIR/libpfm.a"
+patchelf --remove-rpath "$PFM_SO"
+debugedit -b "$BUILD" -d /usr/src/debug/net.sourceforge.perfmon2.libpfm \
+  -l "$PEKIT_OUT/.srclist" -n "$PFM_SO"
+bid=$(readelf -n "$PFM_SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$PFM_SO" \
+  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+strip "$PFM_SO"
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$BUILD/$rel" || continue
+  mkdir -p "$PEKIT_OUT/usr/src/debug/net.sourceforge.perfmon2.libpfm/$(dirname "$rel")"
+  cp "$BUILD/$rel" \
+    "$PEKIT_OUT/usr/src/debug/net.sourceforge.perfmon2.libpfm/$rel"
+done
+test -f "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+readelf -S "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug" | \
+  grep -F '.debug_info'
+test -n "$(find "$PEKIT_OUT/usr/src/debug/net.sourceforge.perfmon2.libpfm" -type f -print -quit)"
+
+# Validate the final runtime object and ensure package hardening does not drift.
+readelf -h "$PFM_SO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$PFM_SO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$PFM_SO" | grep -F 'GNU_RELRO'
+readelf -d "$PFM_SO" | grep -F 'BIND_NOW'
+readelf -d "$PFM_SO" | grep -F 'RELR'
+readelf -n "$PFM_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$PFM_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+test "$(readelf -d "$PFM_SO" | grep -c 'Shared library:')" -eq 1
+readelf -d "$PFM_SO" | grep -F 'Shared library: [libc.so.6]'
+
+rm -rf "$SMOKE" "$BUILD"
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"

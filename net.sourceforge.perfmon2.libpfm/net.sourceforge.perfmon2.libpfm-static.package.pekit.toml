@@ -1,0 +1,15 @@
+# net.sourceforge.perfmon2.libpfm-static — static performance-event encoder.
+
+[package]
+name        = "net.sourceforge.perfmon2.libpfm-static"
+description = "libpfm - static library"
+
+[provides]
+libpfm-static = "{{version}}"
+
+[dependencies]
+"net.sourceforge.perfmon2.libpfm-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/net.sourceforge.perfmon2.libpfm-static/"
+":usr/lib/x86_64-linux-peios/libpfm.a" = "usr/lib/x86_64-linux-peios/libpfm.a"

@@ -1,0 +1,11 @@
+# net.sourceforge.perfmon2.libpfm-debugsource — sources named by runtime DWARF.
+
+[package]
+name        = "net.sourceforge.perfmon2.libpfm-debugsource"
+description = "libpfm - debug sources"
+
+[dependencies]
+"net.sourceforge.perfmon2.libpfm-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

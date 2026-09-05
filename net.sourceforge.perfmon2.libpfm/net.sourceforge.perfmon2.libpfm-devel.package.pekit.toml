@@ -1,4 +1,5 @@
-# libpfm-devel — perfmon headers, the .so link, and the man pages.
+# net.sourceforge.perfmon2.libpfm-devel — public headers, linker name and
+# complete API/PMU manual set. The static archive is kept in its own sibling.
 
 # PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
 # `man -k` and `apropos` find them instead of falling back to a filesystem
@@ -7,13 +8,17 @@
 side_effects = ["man-db"]
 
 [package]
-name        = "libpfm-devel"
+name        = "net.sourceforge.perfmon2.libpfm-devel"
 description = "libpfm - headers and link library"
 
+[provides]
+libpfm-devel = "{{version}}"
+
 [dependencies]
-libpfm = "{{version}}"
+"net.sourceforge.perfmon2.libpfm" = "{{version}}-1"
 
 [files]
+"@source:COPYING"                      = "usr/share/licenses/net.sourceforge.perfmon2.libpfm-devel/"
 ":usr/include/**"                        = "usr/include"
 ":usr/lib/x86_64-linux-peios/libpfm.so"  = "usr/lib/x86_64-linux-peios/libpfm.so"
 ":usr/share/man/**"                      = "usr/share/man"

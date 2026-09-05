@@ -1,0 +1,11 @@
+# net.sourceforge.perfmon2.libpfm-debuginfo — build-ID-indexed runtime symbols.
+
+[package]
+name        = "net.sourceforge.perfmon2.libpfm-debuginfo"
+description = "libpfm - debugging symbols"
+
+[dependencies]
+"net.sourceforge.perfmon2.libpfm" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,15 @@
+# net.sourceforge.perfmon2.libpfm — performance-event encoding runtime.
+
+[package]
+name        = "net.sourceforge.perfmon2.libpfm"
+description = "libpfm - hardware performance event encoding runtime library"
+
+[provides]
+libpfm = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/net.sourceforge.perfmon2.libpfm/"
+":usr/lib/x86_64-linux-peios/libpfm.so.4*" = "usr/lib/x86_64-linux-peios"
