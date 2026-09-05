@@ -172,6 +172,8 @@ rm -f "$PEKIT_OUT/.srclist"
 
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
+debugedit          = "*"
+patchelf           = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

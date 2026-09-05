@@ -8,4 +8,5 @@ description = "libpfm - debugging symbols"
 "net.sourceforge.perfmon2.libpfm" = "{{version}}-1"
 
 [files]
+"@source:COPYING"   = "usr/share/licenses/net.sourceforge.perfmon2.libpfm-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"
