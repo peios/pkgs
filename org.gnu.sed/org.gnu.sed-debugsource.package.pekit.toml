@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.sed-debugsource"
+description = "GNU sed debug sources"
+
+[dependencies]
+"org.gnu.sed-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

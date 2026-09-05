@@ -1,0 +1,182 @@
+# GNU sed — GNU's non-interactive stream editor.
+#
+# Peios does not yet ship libacl or libselinux, so their optional in-place
+# metadata integrations are explicitly disabled for reproducibility on both
+# build rungs. Mode and ownership preservation remain available. Re-enable
+# each integration when its runtime library enters the package catalogue.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/sed/sed-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/sed/"
+extract     = true
+root        = "sed-{{version}}"
+file_regex  = 'sed-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 4.x releases
+# automatically; a future major line requires a command-compatibility review.
+versions    = ">= 4.10, < 5"
+
+# GNU sed releases are signed by maintainer Jim Meyering. Pin the complete
+# primary fingerprint published in the signed 4.10 release announcement so
+# unattended discovery must authenticate every newly selected release.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/jim-meyering.asc"]
+fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+# Force the CET property note because Debian's unmarked implicit objects can
+# otherwise make the linker's conservative property merge discard it.
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-rpath \
+  --disable-acl \
+  --without-selinux \
+  --disable-silent-rules
+
+make -j"$(nproc)"
+# Run sed's complete ordinary suite plus upstream's opt-in expensive cases,
+# followed by the complete 287-test Gnulib suite. Pekit's build namespace
+# denies socket syscalls; five Gnulib API probes therefore see EPERM before
+# their deliberately invalid descriptor can produce EBADF. Accept only those
+# exact failures and their assertion/exit-status diagnostics.
+if ! make -j"$(nproc)" check RUN_EXPENSIVE_TESTS=yes; then
+  actual=$(find . -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result#./}"
+  done | LC_ALL=C sort)
+  expected=$(printf '%s\n' \
+    gnulib-tests/test-accept.trs \
+    gnulib-tests/test-bind.trs \
+    gnulib-tests/test-connect.trs \
+    gnulib-tests/test-listen.trs \
+    gnulib-tests/test-setsockopt.trs)
+  [ "$actual" = "$expected" ]
+  for probe in accept bind connect listen setsockopt; do
+    grep -F "test-$probe.c:" "gnulib-tests/test-$probe.log"
+    grep -F "assertion 'errno == EBADF' failed" \
+      "gnulib-tests/test-$probe.log"
+    grep -Fqx "FAIL test-$probe (exit status: 134)" \
+      "gnulib-tests/test-$probe.log"
+  done
+fi
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. The generated corresponding-source
+# package retains the complete Texinfo manual; installed users receive the
+# command manual, translations and concise release documentation.
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+BIN="$PEKIT_OUT/usr/bin/sed"
+SMOKE="$PEKIT_OUT/.sed-smoke"
+mkdir -p "$SMOKE"
+test -x "$BIN"
+
+# Exercise BRE/ERE substitution, grouping and output selection with the
+# staged executable rather than the builder's bootstrap sed.
+printf '%s\n' alpha beta-42 'gamma[1]' > "$SMOKE/input"
+"$BIN" -n 's/^beta-\\([0-9][0-9]\\)$/number=\\1/p' "$SMOKE/input" \
+  > "$SMOKE/bre"
+test "$(cat "$SMOKE/bre")" = number=42
+"$BIN" -nE 's/^(alpha|gamma\\[1\\])$/selected=\\1/p' "$SMOKE/input" \
+  > "$SMOKE/ere"
+printf '%s\n' selected=alpha 'selected=gamma[1]' > "$SMOKE/ere.expected"
+cmp "$SMOKE/ere.expected" "$SMOKE/ere"
+
+# Cover NUL-delimited records and multibyte case folding.
+printf 'alpha\\0beta\\0' > "$SMOKE/nul-input"
+"$BIN" -z 's/beta/gamma/' "$SMOKE/nul-input" > "$SMOKE/nul-output"
+printf 'alpha\\0gamma\\0' > "$SMOKE/nul-expected"
+cmp "$SMOKE/nul-expected" "$SMOKE/nul-output"
+printf '%s\n' 'Äpfel' > "$SMOKE/locale-input"
+LC_ALL=en_US.UTF-8 "$BIN" -n '/^äpfel$/Ip' "$SMOKE/locale-input" \
+  > "$SMOKE/locale-output"
+test "$(cat "$SMOKE/locale-output")" = 'Äpfel'
+
+# Validate in-place editing, backup creation and --follow-symlinks without
+# relying on the unavailable ACL/SELinux integrations described above.
+printf '%s\n' old > "$SMOKE/in-place"
+"$BIN" -i.bak 's/^old$/new/' "$SMOKE/in-place"
+test "$(cat "$SMOKE/in-place")" = new
+test "$(cat "$SMOKE/in-place.bak")" = old
+printf '%s\n' target-old > "$SMOKE/target"
+ln -s target "$SMOKE/link"
+"$BIN" --follow-symlinks -i 's/target-old/target-new/' "$SMOKE/link"
+test -L "$SMOKE/link"
+test "$(cat "$SMOKE/target")" = target-new
+
+# Sandbox mode must reject commands with filesystem/process side effects.
+status=0
+printf '%s\n' input | "$BIN" --sandbox 'e id' > "$SMOKE/sandbox.out" \
+  2> "$SMOKE/sandbox.err" || status=$?
+test "$status" -eq 1
+grep -F 'e/r/w commands disabled in sandbox mode' "$SMOKE/sandbox.err"
+
+# Enforce the inherited distribution hardening contract on the sole ELF.
+patchelf --remove-rpath "$BIN" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'sed.mo' -print -quit)"
+
+# Produce conventional build-ID debuginfo and exact DWARF-referenced source.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.sed \
+  -l "$PEKIT_OUT/.dl" -n usr/bin/sed
+bid=$(readelf -n usr/bin/sed \
+  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/sed \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/sed
+tr '\\0' '\\n' < "$PEKIT_OUT/.dl" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.sed/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.sed/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+glibc-bin          = ">= 2.43"
+glibc-langpack-en  = ">= 2.43"
+glibc-langpack-fr  = ">= 2.43"
+glibc-langpack-ja  = ">= 2.43"
+glibc-langpack-ru  = ">= 2.43"
+"org.gnu.gettext" = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+gettext         = "*"
+locales-all     = "*"
+patchelf        = "*"
+perl            = "*"

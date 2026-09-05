@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.sed-debuginfo"
+description = "GNU sed debugging symbols"
+
+[dependencies]
+"org.gnu.sed" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
