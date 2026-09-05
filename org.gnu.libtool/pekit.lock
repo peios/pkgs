@@ -8,4 +8,5 @@ schema = 1
   version = "2.6.2"
   url = "https://ftp.gnu.org/gnu/libtool/libtool-2.6.2.tar.xz"
   sha256 = "2ef1067c16c97db930fd740cc9bc3d3ba9a583804ae5ac42cc3e8719e49e191e"
-  locked_at = "2026-08-11T13:23:34Z"
+  signature_key = "fa26ca784be188927f22b99f6570ea01146f7354"
+  locked_at = "2026-09-05T00:52:39Z"

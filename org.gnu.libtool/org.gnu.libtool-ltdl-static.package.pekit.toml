@@ -1,0 +1,16 @@
+# Static libltdl linkage is opt-in and isolated from the normal devel package.
+
+[package]
+name        = "org.gnu.libtool-ltdl-static"
+description = "GNU Libtool - static libltdl library"
+license     = "LGPL-2.0-or-later WITH Libtool-exception"
+
+[provides]
+libltdl-static = "{{version}}"
+
+[dependencies]
+"org.gnu.libtool-ltdl-devel" = "{{version}}-1"
+
+[files]
+"@source:libltdl/COPYING.LIB" = "usr/share/licenses/org.gnu.libtool-ltdl-static/COPYING.LIB"
+":usr/lib/x86_64-linux-peios/libltdl.a" = "usr/lib/x86_64-linux-peios/libltdl.a"

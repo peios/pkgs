@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.libtool-ltdl-debuginfo"
+description = "GNU Libtool - libltdl debugging symbols"
+license     = "LGPL-2.0-or-later WITH Libtool-exception"
+
+[dependencies]
+"org.gnu.libtool-ltdl" = "{{version}}-1"
+
+[files]
+"@source:libltdl/COPYING.LIB"     = "usr/share/licenses/org.gnu.libtool-ltdl-debuginfo/COPYING.LIB"
+":usr/lib/debug/.build-id/**" = "usr/lib/debug/.build-id"

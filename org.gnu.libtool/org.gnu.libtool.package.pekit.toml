@@ -1,0 +1,24 @@
+# Configured Libtool programs, M4 macros and project integration data.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.libtool"
+description = "GNU Libtool - portable shared-library build tooling"
+license     = "GPL-2.0-or-later AND GPL-2.0-or-later WITH Autoconf-exception-generic AND GPL-2.0-or-later WITH Libtool-exception AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND MIT AND FSFAP AND FSFULLR AND FSFULLRWD AND X11 AND LicenseRef-Public-Domain"
+
+[provides]
+libtool = "{{version}}"
+
+[dependencies]
+build-essentials-c = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+tar                 = "*"
+
+[files]
+"@source:COPYING"       = "usr/share/licenses/org.gnu.libtool/COPYING"
+":usr/bin/**"            = "usr/bin"
+":usr/share/aclocal/**"  = "usr/share/aclocal"
+":usr/share/libtool/**"  = "usr/share/libtool"
+":usr/share/man/**"      = "usr/share/man"

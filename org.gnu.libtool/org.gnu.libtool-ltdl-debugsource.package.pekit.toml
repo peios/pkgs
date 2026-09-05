@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.libtool-ltdl-debugsource"
+description = "GNU Libtool - libltdl debug sources"
+license     = "LGPL-2.0-or-later WITH Libtool-exception"
+
+[dependencies]
+"org.gnu.libtool-ltdl-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:libltdl/COPYING.LIB"          = "usr/share/licenses/org.gnu.libtool-ltdl-debugsource/COPYING.LIB"
+":usr/src/debug/org.gnu.libtool/**" = "usr/src/debug/org.gnu.libtool"
