@@ -9,4 +9,5 @@ description = "libconfig - debug sources"
 "io.github.hyperrealm.libconfig-debuginfo" = "{{version}}-1"
 
 [files]
-":usr/src/debug/**" = "usr/src/debug"
+"@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig-debugsource/"
+":usr/src/debug/**"   = "usr/src/debug"

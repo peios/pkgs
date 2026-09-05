@@ -11,5 +11,6 @@ libconfig-static = "{{version}}"
 "io.github.hyperrealm.libconfig-devel" = "{{version}}-1"
 
 [files]
+"@source:COPYING.LIB"                      = "usr/share/licenses/io.github.hyperrealm.libconfig-static/"
 ":usr/lib/x86_64-linux-peios/libconfig.a"   = "usr/lib/x86_64-linux-peios/libconfig.a"
 ":usr/lib/x86_64-linux-peios/libconfig++.a" = "usr/lib/x86_64-linux-peios/libconfig++.a"

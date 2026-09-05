@@ -14,6 +14,7 @@ libconfig-devel = "{{version}}"
 "io.github.hyperrealm.libconfig-c++" = "{{version}}-1"
 
 [files]
+"@source:COPYING.LIB"                                = "usr/share/licenses/io.github.hyperrealm.libconfig-devel/"
 ":usr/include/libconfig.h"                           = "usr/include/libconfig.h"
 ":usr/include/libconfig.h++"                         = "usr/include/libconfig.h++"
 ":usr/lib/x86_64-linux-peios/libconfig.so"           = "usr/lib/x86_64-linux-peios/libconfig.so"

@@ -10,4 +10,5 @@ description = "libconfig - debugging symbols"
 "io.github.hyperrealm.libconfig-c++" = "{{version}}-1"
 
 [files]
-":usr/lib/debug/**" = "usr/lib/debug"
+"@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig-debuginfo/"
+":usr/lib/debug/**"   = "usr/lib/debug"
