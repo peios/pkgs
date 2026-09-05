@@ -131,6 +131,10 @@ objcopy --only-keep-debug usr/bin/which \
   "usr/lib/debug/.build-id/$p2/$rest.debug"
 chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
 strip usr/bin/which
+if strings usr/bin/which | grep -F "$ROOT"; then
+  echo "GNU which contains a build-root path after debug splitting" >&2
+  exit 1
+fi
 tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
   | while IFS= read -r rel; do
       [ -n "$rel" ] || continue
@@ -148,6 +152,8 @@ rm -f "$PEKIT_OUT/.srclist"
 # The installed binary is C-only, but upstream's cwm4 configure layer invokes
 # AC_PROG_CXX and tests C++ warning flags even for this package.
 "build-essentials-c++" = "*"
+debugedit              = "*"
+patchelf               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

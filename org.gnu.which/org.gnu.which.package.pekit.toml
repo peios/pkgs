@@ -7,7 +7,7 @@ license     = "GPL-3.0-or-later"
 which = "{{version}}-1"
 
 [replaces]
-which = "< {{version}}-1"
+which = "<= {{version}}-1"
 
 [dependencies]
 glibc                  = ">= 2.43"
