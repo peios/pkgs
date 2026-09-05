@@ -1,0 +1,13 @@
+[package]
+name        = "org.gnu.mpfr-static"
+description = "GNU MPFR static library"
+
+[provides]
+"mpfr-static" = "{{version}}"
+
+[dependencies]
+"org.gnu.mpfr-devel" = "{{version}}-1"
+"org.gnu.gmp-static" = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libmpfr.a" = "usr/lib/x86_64-linux-peios/libmpfr.a"

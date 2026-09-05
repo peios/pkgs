@@ -1,0 +1,161 @@
+# GNU MPFR — correctly rounded arbitrary-precision floating-point arithmetic.
+# GCC uses it for compile-time folding, so the complete upstream correctness
+# suite and installed shared/static API tests are release gates.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/mpfr/mpfr-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/mpfr/"
+extract     = true
+root        = "mpfr-{{version}}"
+file_regex  = 'mpfr-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance floor and major-version compatibility ceiling. Follow all
+# newer authenticated 4.x releases automatically; a major-version change or
+# build/test failure is the point at which maintainers should intervene.
+versions    = ">= 4.2, < 5"
+
+# MPFR's official release page publishes the signer fingerprint and detached
+# signatures. Pin Vincent Lefevre's current full primary fingerprint.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/vincent-lefevre.asc"]
+fingerprints = ["A534BE3F83E241D918280AEB5831D11A0D4DB02A"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios
+
+# Put --as-needed before libraries and suppress an rpath into the system
+# library directory. Fedora and Arch apply the same generated-libtool policy.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\(g..\)"|CC="\1 -Wl,--as-needed"|' \
+    -i libtool
+
+make -j"$(nproc)"
+
+# Correct rounding is the product. Force the suite to load the just-built
+# library rather than an older MPFR present in the composed build root.
+LD_LIBRARY_PATH="$PEKIT_OUT/src/.libs" make -j"$(nproc)" check
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+PCDIR="$LIBDIR/pkgconfig"
+MPFR_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libmpfr.so.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$MPFR_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libmpfr.so"
+test -L "$LIBDIR/libmpfr.so.6"
+test -f "$LIBDIR/libmpfr.a"
+test -f "$PCDIR/mpfr.pc"
+readelf -d "$MPFR_SO" | grep -Eq 'SONAME.*[[]libmpfr[.]so[.]6[]]'
+grep -F 'Version: ' "$PCDIR/mpfr.pc" | grep -F "$PEKIT_VERSION"
+grep -F 'MPFR_USE_THREAD_SAFE=1' config.log
+
+# Exercise the installed header and both linkage modes. Three eighths is exact
+# in binary, making this a deterministic public-interface check.
+SMOKE="$PEKIT_OUT/.mpfr-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/smoke.c" <<'EOF'
+#include <mpfr.h>
+
+int main(void)
+{
+  mpfr_t value;
+  mpfr_init2(value, 256);
+  mpfr_set_ui(value, 3, MPFR_RNDN);
+  mpfr_div_ui(value, value, 8, MPFR_RNDN);
+  int ok = mpfr_cmp_d(value, 0.375) == 0;
+  mpfr_clear(value);
+  return ok ? 0 : 1;
+}
+EOF
+MPFR_CFLAGS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --cflags mpfr)
+MPFR_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --libs mpfr)
+cc $MPFR_CFLAGS "$SMOKE/smoke.c" $MPFR_LIBS -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
+cc $MPFR_CFLAGS "$SMOKE/smoke.c" -Wl,-Bstatic $MPFR_LIBS \
+  -Wl,-Bdynamic -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Split build-ID-indexed debug data and stage the exact sources referenced by
+# rewritten DWARF paths. Static archives retain code but drop debug data.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f"; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f"
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.mpfr \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.mpfr/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.mpfr/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$SMOKE"
+
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find usr/src/debug/org.gnu.mpfr -type f -print -quit)"
+
+# Assert the properties of the stripped shared object that will ship.
+readelf -W -l "$MPFR_SO" | grep -F 'GNU_RELRO'
+readelf -d "$MPFR_SO" | grep -F 'BIND_NOW'
+readelf -W -l "$MPFR_SO" | grep -E 'GNU_STACK.*RW '
+# MPFR includes assembly that lacks GNU property notes in Debian's toolchain,
+# so its linker drops the aggregate CET note even though C objects are built
+# with -fcf-protection. The Peios toolchain preserves the published property;
+# make that native result a hard gate without rejecting the reference build.
+if cc --version | head -1 | grep -Fq 'Peios'; then
+  readelf -n "$MPFR_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+if readelf -d "$MPFR_SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+readelf -d "$MPFR_SO" | grep -F 'Shared library: [libgmp.so.10]'
+readelf -d "$MPFR_SO" | grep -F 'Shared library: [libc.so.6]'
+if readelf -d "$MPFR_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+gmp-devel          = "*"
+gmp-static         = "*"
+pkgconf            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"
+pkgconf         = "*"

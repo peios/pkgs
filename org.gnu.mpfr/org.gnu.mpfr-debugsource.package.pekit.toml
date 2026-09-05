@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.mpfr-debugsource"
+description = "GNU MPFR debug sources"
+
+[dependencies]
+"org.gnu.mpfr-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

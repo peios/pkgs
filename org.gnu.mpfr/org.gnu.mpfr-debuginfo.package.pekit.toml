@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.mpfr-debuginfo"
+description = "GNU MPFR debugging symbols"
+
+[dependencies]
+"org.gnu.mpfr" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

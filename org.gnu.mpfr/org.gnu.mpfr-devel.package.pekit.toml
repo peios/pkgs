@@ -1,0 +1,16 @@
+[package]
+name        = "org.gnu.mpfr-devel"
+description = "GNU MPFR development files"
+
+[provides]
+"mpfr-devel" = "{{version}}"
+
+[dependencies]
+"org.gnu.mpfr"      = "{{version}}-1"
+"org.gnu.gmp-devel" = ">= 6.3.0"
+
+[files]
+":usr/include/mpfr.h"                           = "usr/include/mpfr.h"
+":usr/include/mpf2mpfr.h"                       = "usr/include/mpf2mpfr.h"
+":usr/lib/x86_64-linux-peios/libmpfr.so"        = "usr/lib/x86_64-linux-peios/libmpfr.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/mpfr.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/mpfr.pc"

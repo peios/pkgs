@@ -1,0 +1,17 @@
+# Runtime shared library only. Headers, linker name, pkg-config metadata and
+# the static archive are split into sibling packages.
+
+[package]
+name        = "org.gnu.mpfr"
+description = "GNU correctly rounded multiple-precision floating-point library"
+
+[provides]
+mpfr = "{{version}}"
+
+[dependencies]
+glibc         = ">= 2.43"
+"org.gnu.gmp" = ">= 6.3.0"
+
+[files]
+"@source:COPYING*"                           = "usr/share/licenses/org.gnu.mpfr/"
+":usr/lib/x86_64-linux-peios/libmpfr.so.6*" = "usr/lib/x86_64-linux-peios"
