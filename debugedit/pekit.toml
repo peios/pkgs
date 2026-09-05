@@ -2,8 +2,8 @@
 # debug-split pipeline invokes it.
 #
 # Phase-1 build-base leaf (PEI-155): autotools from the release tarball.
-# Man pages are help2man-generated at build time (needs perl); acceptable on
-# the apt rung, revisit (disable) for the phase-2 closure rebuild.
+# Release tarballs contain the generated man pages, so the native build does
+# not need help2man or Perl unless a maintainer deliberately regenerates them.
 
 out_dir = "out"
 
@@ -25,7 +25,8 @@ make install DESTDIR="$PEKIT_OUT"
 # debugedit 5.x hard-requires xxhash (build-id hashing) — xxhash therefore
 # joins the phase-2 packaging list alongside elfutils.
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+build-essentials = "*"
+gcc = "*"
 pkgconf = "*"
 "org.sourceware.elfutils-devel" = "*"
 xxhash-devel = "*"

@@ -8,7 +8,7 @@ side_effects = ["man-db"]
 
 [package]
 name         = "debugedit"
-version      = "{{version}}-1"
+version      = "{{version}}-2"
 architecture = "x86_64"
 description  = "debugedit - DWARF build-path rewriting for debuginfo packaging"
 license      = "GPL-3.0-or-later"
