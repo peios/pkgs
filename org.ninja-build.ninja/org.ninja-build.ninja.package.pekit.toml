@@ -1,0 +1,20 @@
+[package]
+name        = "org.ninja-build.ninja"
+description = "Ninja high-speed build executor"
+
+[provides]
+ninja = "{{version}}"
+
+[dependencies]
+dash        = "*"
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+
+[files]
+"@source:COPYING"                  = "usr/share/licenses/org.ninja-build.ninja/"
+"@source:README.md"                = "usr/share/doc/org.ninja-build.ninja/"
+"@source:doc/manual.asciidoc"      = "usr/share/doc/org.ninja-build.ninja/"
+":usr/bin/ninja"                   = "usr/bin/ninja"
+":usr/share/bash-completion/**"    = "usr/share/bash-completion"
+":usr/share/zsh/site-functions/**" = "usr/share/zsh/site-functions"
+":usr/share/vim/vimfiles/**"       = "usr/share/vim/vimfiles"

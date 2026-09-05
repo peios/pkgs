@@ -1,0 +1,8 @@
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "Apache-2.0"
+license_class = "free"
+homepage      = "https://ninja-build.org/"

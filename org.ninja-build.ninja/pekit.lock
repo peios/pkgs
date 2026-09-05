@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "1.13.2"
-  url = "https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz"
-  sha256 = "974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17"
-  locked_at = "2026-08-30T02:21:48Z"
+  ref = "v1.13.2"
+  commit = "3441b633c2fe2c494e958780ba0f4227b1327634"
+  locked_at = "2026-09-05T03:48:50Z"

@@ -1,0 +1,118 @@
+# Ninja is a deliberately small build executor. Upstream does not sign release
+# tags, so Pekit's Git lock pins every accepted tag to its exact commit.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/ninja-build/ninja.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>1\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor and major-version compatibility ceiling. Stable 1.x
+# releases advance automatically; a new major or failed gate needs review.
+versions  = ">= 1.13.2, < 2"
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+BIN="$PEKIT_OUT/usr/bin/ninja"
+
+mkdir -p "$BUILD"
+cd "$BUILD"
+PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/configure.py" \
+  --bootstrap --with-python=python3
+
+# Rebuild Ninja with the just-bootstrapped executable. Keeping the bootstrap
+# copy outside the generated graph lets it clean and recreate the real target.
+cp ninja ninja.bootstrap
+./ninja.bootstrap -t clean ninja
+./ninja.bootstrap ninja
+cmp -s ninja.bootstrap ninja
+rm -f ninja.bootstrap
+test "$(./ninja --version)" = "$PEKIT_VERSION"
+
+# Dependency-closed upstream regression coverage. The pseudo-terminal output
+# suite needs util-linux's script and Bash, so it runs when that host tooling is
+# present (the Debian reference root). PEI-702 tracks the GoogleTest C++ suite.
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SRC/misc" \
+  python3 "$SRC/misc/ninja_syntax_test.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_pool_test.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_test.py"
+if command -v script >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
+  PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/output_test.py"
+fi
+
+install -Dm0755 ninja "$BIN"
+install -Dm0644 "$SRC/misc/bash-completion" \
+  "$PEKIT_OUT/usr/share/bash-completion/completions/ninja"
+install -Dm0644 "$SRC/misc/zsh-completion" \
+  "$PEKIT_OUT/usr/share/zsh/site-functions/_ninja"
+install -Dm0644 "$SRC/misc/ninja.vim" \
+  "$PEKIT_OUT/usr/share/vim/vimfiles/syntax/ninja.vim"
+
+# Exercise the installed executor, its shell integration and target tooling.
+SMOKE="$PEKIT_OUT/.ninja-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/build.ninja" <<'EOF'
+rule generate
+  command = printf 'ninja-smoke\n' > $out
+build result: generate
+default result
+EOF
+"$BIN" -C "$SMOKE" -j2
+grep -Fx ninja-smoke "$SMOKE/result"
+"$BIN" -C "$SMOKE" -t targets | grep -Fx 'result: generate'
+rm -rf "$SMOKE"
+
+# Enforce the workspace hardening contract before splitting debug data.
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -W -l "$BIN" | grep -E 'GNU_STACK.*RW '
+if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+if c++ --version | head -1 | grep -Fq 'Peios'; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+
+# Conventional build-ID debuginfo and the exact DWARF-referenced sources.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.ninja-build.ninja \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/ninja
+bid=$(readelf -n usr/bin/ninja | \
+  sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/ninja \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/ninja
+
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    case "$rel" in */) continue;; esac
+    [ -f "$ROOT/$rel" ] || continue
+    mkdir -p "usr/src/debug/org.ninja-build.ninja/$(dirname "$rel")"
+    cp "$ROOT/$rel" "usr/src/debug/org.ninja-build.ninja/$rel"
+  done
+test -s "usr/lib/debug/.build-id/$p2/$rest.debug"
+test -n "$(find usr/src/debug/org.ninja-build.ninja -type f -print -quit)"
+rm -f "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+dash                     = "*"
+debugedit                = "*"
+"org.gnu.coreutils"     = "*"
+python3                  = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+python3         = "*"

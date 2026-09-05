@@ -1,0 +1,9 @@
+[package]
+name        = "org.ninja-build.ninja-debuginfo"
+description = "Ninja debugging symbols"
+
+[dependencies]
+"org.ninja-build.ninja" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
