@@ -1,0 +1,81 @@
+# rust-stage0 — the pinned upstream Rust binaries that seed the rustc
+# bootstrap (PEI-158 item 8; anchor decision approved 2026-08-11: pin +
+# TOFU-lock upstream stage0 via the PEI-150 machinery).
+#
+# rustc is self-hosting: every rustc is compiled by a prior rustc, so the
+# chain bottoms out in somebody's binary. This recipe makes that seed an
+# explicit, signature-verified, lockfile-pinned artifact: the combined
+# upstream release tarball, verified against the pinned Rust release signing
+# key and installed under a private prefix nothing else looks at. It is not a
+# Peios runtime toolchain. The final Rust recipe is its sole intended consumer.
+#
+# Version tracks what rust's src/stage0 declares (rust 1.83.0 -> stage0
+# 1.82.0), NOT the rust version — bump the pair in lockstep. The binaries
+# are upstream linux-gnu builds; composed roots run them as-is (usrmerge
+# provides /lib64/ld-linux-x86-64.so.2, verified). mrustc remains the
+# later-adoptable source-trust upgrade (recorded on PEI-158) — swapping it
+# in replaces only this seed, nothing downstream.
+
+out_dir = "out"
+
+# This input is an upstream binary bootstrap seed, not corresponding source.
+# The final org.rust-lang.rust build emits the actual Rust source package.
+[source_package]
+enabled = false
+
+[source.url]
+url      = "https://static.rust-lang.org/dist/rust-{{version}}-x86_64-unknown-linux-gnu.tar.xz"
+extract  = true
+root     = "rust-{{version}}-x86_64-unknown-linux-gnu"
+# Compatibility pin, not an unattended update policy. Rust 1.83's src/stage0
+# requires the 1.82 compiler line; a later seed must accompany a reviewed
+# final-compiler transition.
+versions = ">= 1.82, < 1.83"
+
+[source.url.signature]
+key_files    = ["keys/rust-release.asc"]
+url          = "{{source_url}}.asc"
+fingerprints = ["108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd -P)"
+PREFIX=/usr/lib/x86_64-linux-peios/rust-stage0
+sh "$SRC/install.sh" \
+  --destdir="$PEKIT_OUT" --prefix="$PREFIX" \
+  --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu \
+  --disable-ldconfig
+# rust-installer bookkeeping (uninstaller, install log) isn't payload; the
+# component manifests stay because they document the exact seed components.
+rm -f "$PEKIT_OUT$PREFIX/lib/rustlib/uninstall.sh" \
+  "$PEKIT_OUT$PREFIX/lib/rustlib/install.log"
+
+# The combined upstream installer includes end-user integration that the
+# private compiler seed never uses. Removing it keeps the bootstrap boundary
+# narrow and avoids exposing duplicate rustc/cargo documentation or debugger
+# wrappers from a build-only package.
+rm -rf "$PEKIT_OUT$PREFIX/etc" \
+  "$PEKIT_OUT$PREFIX/share" \
+  "$PEKIT_OUT$PREFIX/libexec" \
+  "$PEKIT_OUT$PREFIX/lib/rustlib/etc"
+rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
+  "$PEKIT_OUT$PREFIX/bin/rust-gdb" \
+  "$PEKIT_OUT$PREFIX/bin/rust-gdbgui" \
+  "$PEKIT_OUT$PREFIX/bin/rust-lldb"
+
+# Assert the bootstrap contract at the installed prefix. This catches a lock
+# or recipe edit that would otherwise let x.py begin a many-hour build with a
+# seed different from the one required by Rust 1.83.
+test "$("$PEKIT_OUT$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$("$PEKIT_OUT$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rustc"
+test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-cargo"
+test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"

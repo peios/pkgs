@@ -1,0 +1,12 @@
+# Shared metadata for the Rust 1.83 compiler suite. The suite member preserves
+# the historical `rust` dependency contract while the payload is split into
+# independently accountable compiler, standard-library and tool packages.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-2"
+architecture  = "x86_64"
+license       = "Apache-2.0 OR MIT"
+license_class = "free"
+homepage      = "https://www.rust-lang.org/"

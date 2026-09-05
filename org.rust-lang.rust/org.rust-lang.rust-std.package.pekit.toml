@@ -1,0 +1,17 @@
+[package]
+name        = "org.rust-lang.rust-std"
+description = "Rust standard libraries for x86_64-unknown-linux-gnu"
+
+[provides]
+rust-std = "{{version}}"
+
+[dependencies]
+glibc  = ">= 2.43"
+libgcc = ">= 16"
+
+[files]
+"@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-std/"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-std/"
+"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-std/"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-std-*" = "usr/lib/x86_64-linux-peios/rustlib"
+":usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu/**" = "usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu"

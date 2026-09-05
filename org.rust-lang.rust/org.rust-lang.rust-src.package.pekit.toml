@@ -1,0 +1,16 @@
+[package]
+name         = "org.rust-lang.rust-src"
+description  = "Rust standard-library source for rust-analyzer and kernel builds"
+
+[provides]
+rust-src = "{{version}}"
+
+[dependencies]
+"org.rust-lang.rustc" = "{{version}}-2"
+
+[files]
+"@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-src/"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-src/"
+"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-src/"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src"
+":usr/lib/x86_64-linux-peios/rustlib/src/**" = "usr/lib/x86_64-linux-peios/rustlib/src"

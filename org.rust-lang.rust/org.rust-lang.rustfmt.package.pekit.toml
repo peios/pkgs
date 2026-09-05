@@ -1,0 +1,17 @@
+[package]
+name        = "org.rust-lang.rustfmt"
+description = "Rust source-code formatter and Cargo integration"
+
+[provides]
+rustfmt = "{{version}}"
+
+[dependencies]
+"org.rust-lang.rustc" = "{{version}}-2"
+glibc                   = ">= 2.43"
+libgcc                  = ">= 16"
+
+[files]
+":usr/bin/rustfmt" = "usr/bin/rustfmt"
+":usr/bin/cargo-fmt" = "usr/bin/cargo-fmt"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview"
+":usr/share/doc/rustfmt/**" = "usr/share/doc/org.rust-lang.rustfmt"

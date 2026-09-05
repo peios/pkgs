@@ -1,0 +1,11 @@
+[package]
+name        = "org.rust-lang.rust-debuginfo"
+description = "Rust compiler-suite detached debugging symbols"
+
+[dependencies]
+"org.rust-lang.rust" = "{{version}}-2"
+
+[files]
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-debuginfo/"
+"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

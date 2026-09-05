@@ -1,0 +1,29 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.rust-lang.rustc"
+description = "Rust compiler and rustdoc documentation generator"
+
+[provides]
+rustc   = "{{version}}"
+rustdoc = "{{version}}"
+
+[dependencies]
+"org.rust-lang.rust-std" = "{{version}}-2"
+glibc                     = ">= 2.43"
+libgcc                    = ">= 16"
+"libstdc++"               = ">= 16"
+llvm                      = ">= 18.1.8, < 19"
+# Functional rather than DT_NEEDED: rustc drives the system linker through cc.
+gcc                       = ">= 16"
+
+[files]
+":usr/bin/rustc" = "usr/bin/rustc"
+":usr/bin/rustdoc" = "usr/bin/rustdoc"
+":usr/lib/x86_64-linux-peios/librustc_driver-*.so" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/rustlib/components" = "usr/lib/x86_64-linux-peios/rustlib/components"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-rustc" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rustc"
+":usr/lib/x86_64-linux-peios/rustlib/rust-installer-version" = "usr/lib/x86_64-linux-peios/rustlib/rust-installer-version"
+":usr/share/doc/rustc/**" = "usr/share/doc/org.rust-lang.rustc"
+":usr/share/man/man1/rustc.1" = "usr/share/man/man1/rustc.1"
+":usr/share/man/man1/rustdoc.1" = "usr/share/man/man1/rustdoc.1"

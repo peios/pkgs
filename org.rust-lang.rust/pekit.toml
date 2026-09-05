@@ -1,0 +1,285 @@
+# Rust — the pinned compiler suite used by Peios kernel and userspace builds.
+#
+# This line intentionally does not follow current upstream automatically. The
+# kernel Kbuild contract in pkm/build/toolchain.lock pins Rust 1.83.0, and the
+# Rust bootstrap itself pins its predecessor compiler. Moving either line is a
+# coordinated toolchain transition, not a routine package refresh.
+#
+# x.py is pointed at org.rust-lang.rust-stage0's private prefix and performs the
+# ordinary stage0 -> stage1 -> stage2 self-hosting climb. The source release
+# vendors every crate, so both compilation and the installed-tree tests remain
+# offline. LLVM and OpenSSL are Peios system libraries rather than bundled
+# copies; the upstream llvm-project tree is never built.
+
+out_dir = "out"
+
+[source.url]
+url      = "https://static.rust-lang.org/dist/rustc-{{version}}-src.tar.xz"
+extract  = true
+root     = "rustc-{{version}}-src"
+# Compatibility pin: patch updates on the 1.83 line are acceptable, but a
+# feature-minor update must follow pkm's reviewed toolchain transition.
+versions = ">= 1.83, < 1.84"
+
+[source.url.signature]
+key_files    = ["keys/rust-release.asc"]
+url          = "{{source_url}}.asc"
+fingerprints = ["108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd -P)"
+TRIPLET=x86_64-unknown-linux-gnu
+TRIPLET_DIR=/usr/lib/x86_64-linux-peios
+STAGE0="$TRIPLET_DIR/rust-stage0"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+test -x "$STAGE0/bin/rustc" || {
+  echo "rust: build root is missing org.rust-lang.rust-stage0" >&2
+  exit 1
+}
+test -x "$STAGE0/bin/cargo"
+command -v llvm-config >/dev/null || {
+  echo "rust: build root is missing llvm-config" >&2
+  exit 1
+}
+
+# Rust's source tree is authoritative for the bootstrap compiler. Fail before
+# the expensive build if the package seed and source contract ever diverge.
+required_stage0=$(sed -n 's/^compiler_version=//p' "$SRC/src/stage0")
+test -n "$required_stage0"
+test "$("$STAGE0/bin/rustc" --version | cut -d' ' -f2)" = "$required_stage0"
+test "$("$STAGE0/bin/cargo" --version | cut -d' ' -f2)" = "$required_stage0"
+test "$required_stage0" = 1.82.0
+
+# Rust does not consume the workspace C/C++ linker flags for Rust crates. Feed
+# each linker token through rustc and enable LLVM's CET instrumentation so the
+# shipped Rust code, not merely its ELF note, satisfies the Peios hardening
+# contract. This is an upstream compiler-build use of the otherwise unstable
+# -Z option; x.py permits it for the self-hosted compiler stages.
+RUSTFLAGS_NOT_BOOTSTRAP=-Zcf-protection=full
+for flag in ${LDFLAGS:-}; do
+  RUSTFLAGS_NOT_BOOTSTRAP="$RUSTFLAGS_NOT_BOOTSTRAP -Clink-arg=$flag"
+done
+RUSTFLAGS_NOT_BOOTSTRAP="$RUSTFLAGS_NOT_BOOTSTRAP -Clink-arg=-Wl,-z,ibt -Clink-arg=-Wl,-z,shstk"
+export RUSTFLAGS_NOT_BOOTSTRAP
+
+mkdir -p "$PEKIT_OUT/build"
+cat > "$PEKIT_OUT/config.toml" <<EOF
+change-id = 131075
+
+[build]
+build = "$TRIPLET"
+host = ["$TRIPLET"]
+target = ["$TRIPLET"]
+rustc = "$STAGE0/bin/rustc"
+cargo = "$STAGE0/bin/cargo"
+build-dir = "$PEKIT_OUT/build"
+docs = false
+extended = true
+tools = ["cargo", "rustdoc", "rustfmt", "src"]
+vendor = true
+
+[install]
+prefix = "/usr"
+sysconfdir = "etc"
+libdir = "lib/x86_64-linux-peios"
+mandir = "share/man"
+
+[rust]
+channel = "stable"
+rpath = false
+incremental = false
+debuginfo-level-rustc = 1
+debuginfo-level-std = 1
+debuginfo-level-tools = 1
+
+[llvm]
+download-ci-llvm = false
+link-shared = true
+
+[target.$TRIPLET]
+llvm-config = "/usr/bin/llvm-config"
+# Bootstrap's sanity gate requires a FileCheck path although install and the
+# selected installed-tree tests never execute it. LLVM's test utility is not a
+# runtime or link dependency of the compiler.
+llvm-filecheck = "/usr/bin/true"
+EOF
+
+cd "$SRC"
+DESTDIR="$PEKIT_OUT" python3 x.py install \
+  --config "$PEKIT_OUT/config.toml" -j"$(nproc)"
+
+# Relocate Cargo's bash completion from upstream's mutable /etc location into
+# the immutable vendor tree. Rust-installer bookkeeping and debugger wrappers
+# are not package payload. The wrappers are omitted until Peios ships compatible
+# gdb/lldb packages; leaving them would advertise broken commands.
+if test -f "$PREFIX/etc/bash_completion.d/cargo"; then
+  mkdir -p "$PREFIX/share/bash-completion/completions"
+  mv "$PREFIX/etc/bash_completion.d/cargo" \
+    "$PREFIX/share/bash-completion/completions/cargo"
+fi
+rm -rf "$PEKIT_OUT/etc" "$PREFIX/etc" "$PEKIT_OUT/usr/lib/rustlib" \
+  "$PEKIT_OUT$TRIPLET_DIR/rustlib/etc"
+rm -f "$PEKIT_OUT$TRIPLET_DIR/rustlib/uninstall.sh" \
+  "$PEKIT_OUT$TRIPLET_DIR/rustlib/install.log" \
+  "$PREFIX/bin/rust-gdb" "$PREFIX/bin/rust-gdbgui" "$PREFIX/bin/rust-lldb"
+
+# Exercise the installed toolchain as downstream users see it. This checks the
+# compiler, linker, standard library, Cargo's offline build path, rustfmt and
+# rustdoc rather than treating a successful x.py install as sufficient.
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PATH="$PREFIX/bin:$PATH"
+test "$(rustc --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$(cargo --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$(rustdoc --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+rustfmt --version >/dev/null
+test "$(rustc --version --verbose | sed -n 's/^host: //p')" = "$TRIPLET"
+
+SMOKE="$PEKIT_OUT/.rust-smoke"
+mkdir -p "$SMOKE/src" "$SMOKE/cargo-home"
+cat > "$SMOKE/src/main.rs" <<'RS'
+fn main() {
+    println!("peios-rust-ok");
+}
+RS
+cat > "$SMOKE/Cargo.toml" <<'TOML'
+[package]
+name = "peios-rust-smoke"
+version = "0.0.0"
+edition = "2021"
+
+[profile.release]
+strip = false
+TOML
+cat > "$SMOKE/Cargo.lock" <<'LOCK'
+# This file is automatically @generated by Cargo.
+# It is not intended for manual editing.
+version = 3
+
+[[package]]
+name = "peios-rust-smoke"
+version = "0.0.0"
+LOCK
+rustfmt --check "$SMOKE/src/main.rs"
+rustdoc --edition=2021 --crate-name peios_rust_smoke \
+  "$SMOKE/src/main.rs" -o "$SMOKE/doc"
+test -s "$SMOKE/doc/peios_rust_smoke/index.html"
+CARGO_HOME="$SMOKE/cargo-home" cargo build --offline --locked --release \
+  --manifest-path "$SMOKE/Cargo.toml"
+test "$("$SMOKE/target/release/peios-rust-smoke")" = peios-rust-ok
+rm -rf "$SMOKE"
+
+# Split every shipped loadable ELF by build ID after normalizing its DWARF
+# paths. Rust binaries are large enough that leaving symbols in their runtime
+# packages is especially costly; retaining the exact referenced sources keeps
+# the detached symbols genuinely useful.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUGROOT=/usr/src/debug/org.rust-lang.rust
+: > "$PEKIT_OUT/.debug-sources"
+: > "$PEKIT_OUT/.debug-buildids"
+: > "$PEKIT_OUT/.debug-elfs"
+cd "$PEKIT_OUT"
+find usr/bin usr/lib/x86_64-linux-peios -type f -print | LC_ALL=C sort |
+while IFS= read -r elf; do
+  # readelf accepts ar/rlib archives and reports each relocatable member. Only
+  # installed executable/shared objects belong in runtime hardening and debug
+  # processing; touching an rlib would corrupt the Rust standard library.
+  readelf -h "$elf" 2>/dev/null |
+    grep -Eq 'Type:[[:space:]]+(DYN|EXEC)' || continue
+  chmod u+w "$elf"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid" || {
+    echo "rust: shipped ELF $elf has no build ID" >&2
+    exit 1
+  }
+  printf '%s\n' "$elf" >> "$PEKIT_OUT/.debug-elfs"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  dbg="usr/lib/debug/.build-id/$p2/$rest.debug"
+  if ! grep -Fxq "$bid" "$PEKIT_OUT/.debug-buildids"; then
+    printf '%s\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
+    : > "$PEKIT_OUT/.debug-one"
+    debugedit -b "$ROOT" -d "$DEBUGROOT" \
+      -l "$PEKIT_OUT/.debug-one" -n "$elf"
+    tr '\0' '\n' < "$PEKIT_OUT/.debug-one" >> "$PEKIT_OUT/.debug-sources"
+    mkdir -p "$(dirname "$dbg")"
+    objcopy --only-keep-debug "$elf" "$dbg"
+    chmod 0644 "$dbg"
+  fi
+  strip --strip-unneeded "$elf"
+  objcopy --add-gnu-debuglink="$dbg" "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.debug-sources" |
+while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue ;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PEKIT_OUT/usr/src/debug/org.rust-lang.rust/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/org.rust-lang.rust/$rel"
+done
+
+test -s "$PEKIT_OUT/.debug-elfs"
+debug_count=$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)
+buildid_count=$(wc -l < "$PEKIT_OUT/.debug-buildids")
+test "$debug_count" -eq "$buildid_count"
+test -n "$(find usr/src/debug/org.rust-lang.rust -type f -print -quit)"
+for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -Eq '\.debug_info|\.symtab'
+done
+
+# Verify the actual installed outputs against the workspace ELF contract. The
+# target's Rust-specific CET flag emits protected landing pads; -z ibt/shstk
+# records that property for loaders, and the forwarded LDFLAGS supply RELR and
+# full RELRO. No shipped compiler object may smuggle a build-tree search path.
+while IFS= read -r elf; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+(DYN|EXEC)'
+  readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
+  readelf -lW "$elf" | grep -q 'GNU_RELRO'
+  readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+  readelf -dW "$elf" | grep -q '(RELR)'
+  readelf -nW "$elf" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+  readelf -nW "$elf" | grep -q 'Build ID:'
+  if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
+    echo "rust: forbidden dynamic tag in $elf" >&2
+    exit 1
+  fi
+done < "$PEKIT_OUT/.debug-elfs"
+
+readelf -dW usr/lib/x86_64-linux-peios/librustc_driver-*.so |
+  grep -F 'Shared library: [libLLVM.so.18.1]'
+for needed in libssl.so.3 libcrypto.so.3 libz.so.1; do
+  readelf -dW usr/bin/cargo | grep -F "Shared library: [$needed]"
+done
+
+rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
+  "$PEKIT_OUT/.debug-buildids" "$PEKIT_OUT/.debug-elfs"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++"       = "*"
+"org.rust-lang.rust-stage0" = "= 1.82.0-2"
+python3                      = "*"
+llvm                         = ">= 18.1.8, < 19"
+"llvm-devel"                = ">= 18.1.8, < 19"
+"zlib-devel"                = "*"
+"zstd-devel"                = "*"
+pkgconf                      = "*"
+"openssl-devel"             = "*"
+debugedit                    = "*"
+
+# The final self-hosted compiler is a peipkg-rung build: Debian does not carry
+# the exact private stage0 prefix. These entries retain the declared non-seed
+# closure for diagnostics and any future Debian bootstrap adapter.
+[build.main.dependencies.apt]
+build-essential = "*"
+python3         = "*"
+"llvm-18-dev"  = "*"
+zlib1g-dev      = "*"
+libzstd-dev     = "*"
+pkg-config      = "*"
+libssl-dev      = "*"
+debugedit       = "*"
