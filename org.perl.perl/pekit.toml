@@ -9,6 +9,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://www.cpan.org/src/5.0/perl-{{version}}.tar.xz"
 listing_url = "https://www.cpan.org/src/5.0/"
@@ -193,8 +196,14 @@ BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
 make -j"$(nproc)" LDLIBPTH="$BUILD_LDLIBPTH"
 
 # Upstream's complete suite, excluding only the packaging-inappropriate
-# porting tests selected by upstream's documented switch. The no-TTY harness
-# is deterministic in Pekit's non-interactive sandbox.
+# porting tests selected by upstream's documented switch. The native Peipkg
+# rung also has an intentionally empty network namespace: use upstream's
+# NO_NETWORK_TESTING contract there, extended by our small patch to the IO and
+# raw-ICMP tests which otherwise mistake namespace uid 0 for network access.
+# The Debian reference rung retains the complete loopback/network suite.
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+  export NO_NETWORK_TESTING=1
+fi
 PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \\
   make LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
 
