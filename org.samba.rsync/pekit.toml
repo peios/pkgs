@@ -1,0 +1,188 @@
+# rsync — authenticated upstream tracking and the complete supported local
+# transfer feature set. A daemon remains available for explicit invocation,
+# but Peios does not ship a service definition until its identity and policy
+# integration have been designed.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://download.samba.org/pub/rsync/src/rsync-{{version}}.tar.gz"
+listing_url = "https://download.samba.org/pub/rsync/src/"
+file_regex  = '^rsync-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$'
+extract     = true
+root        = "rsync-{{version}}"
+# Soft maintenance floor. Follow authenticated stable 3.x releases
+# automatically; review the compatibility and feature contract for 4.x.
+versions    = ">= 3.5.0, < 4"
+
+# Samba's release archive supplies detached signatures. Pin the complete
+# primary fingerprint published for Andrew Tridgell rather than accepting any
+# signing subkey merely present in the vendored key material.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/andrew-tridgell.asc"]
+fingerprints = ["9FEF112DCE19A0DC7E882CB81BB24997A8535F6F"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+RSYNC="$PREFIX/bin/rsync"
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+# Bundled popt is the only popt implementation currently in the catalogue.
+# Use the system compression and cryptography libraries, retain generic xattrs,
+# and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead.
+CFLAGS="$CFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
+CXXFLAGS="$CXXFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+  "$SRC/configure" \
+    --prefix=/usr \
+    --bindir=/usr/bin \
+    --mandir=/usr/share/man \
+    --with-included-popt \
+    --with-included-zlib=no \
+    --with-rrsync \
+    --enable-roll-simd \
+    --disable-lz4 \
+    --disable-acl-support \
+    --disable-md2man
+
+make -j"$(nproc)"
+# The release suite covers protocol compatibility, daemon/input hardening,
+# restricted-rsync confinement, metadata, xattrs, checksums and compression.
+# The protected-regular test first tries chown and then a nested user namespace;
+# both are unavailable to the unprivileged build identity, and its unshare
+# capability probe blocks indefinitely in a container. Marking that fallback as
+# already attempted makes upstream report the case as an explicit privilege
+# skip while retaining every runnable test.
+RSYNC_UNSHARED=1 make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Installed interpreters are platform contracts, not PATH-dependent host
+# choices. The upstream scripts remain otherwise byte-for-byte release code.
+sed -i '1s|^#!/usr/bin/env bash$|#!/bin/bash|' "$PREFIX/bin/rsync-ssl"
+sed -i '1s|^#!/usr/bin/env python3$|#!/bin/python3|' "$PREFIX/bin/rrsync"
+test "$(head -n 1 "$PREFIX/bin/rsync-ssl")" = '#!/bin/bash'
+test "$(head -n 1 "$PREFIX/bin/rrsync")" = '#!/bin/python3'
+
+# Freeze the configured feature contract so dependency loss cannot silently
+# turn into a reduced rsync in a later rebuild.
+grep -Eq '^#define HAVE_OPENAT2 1$' config.h
+grep -Eq '^#define HAVE_XXHASH_H 1$' config.h
+grep -Eq '^#define HAVE_ZSTD_H 1$' config.h
+grep -Eq '^#define SUPPORT_XATTRS 1$' config.h
+grep -Eq '^#define USE_OPENSSL 1$' config.h
+grep -Eq '^#define USE_ROLL_SIMD 1$' config.h
+if grep -Eq '^#define (HAVE_LZ4_H|SUPPORT_ACLS) 1$' config.h; then exit 1; fi
+
+VERSION_OUT="$PEKIT_OUT/.rsync-version"
+"$RSYNC" --version > "$VERSION_OUT"
+grep -F "rsync  version $PEKIT_VERSION" "$VERSION_OUT"
+for feature in '64-bit files' hardlinks IPv6 xattrs iconv SIMD-roll openssl-crypto; do
+  grep -F "$feature" "$VERSION_OUT"
+done
+if grep -Eq 'no (xattrs|iconv|SIMD-roll|openssl-crypto)' "$VERSION_OUT"; then exit 1; fi
+grep -F 'xxh128' "$VERSION_OUT"
+grep -F 'zstd' "$VERSION_OUT"
+if grep -F 'lz4' "$VERSION_OUT"; then exit 1; fi
+
+# Exercise the staged binary as a local archive engine, including the metadata
+# semantics Peios relies on. The hardlink and symlink checks ensure this is not
+# merely a byte-copy smoke test.
+SMOKE="$PEKIT_OUT/.rsync-smoke"
+mkdir -p "$SMOKE/src/sub" "$SMOKE/dst"
+printf '%s\n' 'Peios rsync smoke' > "$SMOKE/src/sub/payload"
+ln "$SMOKE/src/sub/payload" "$SMOKE/src/hardlink"
+ln -s sub/payload "$SMOKE/src/symlink"
+touch -t 202601020304.05 "$SMOKE/src/sub/payload"
+/usr/bin/python3 - "$SMOKE/src/sub/payload" <<'PY'
+import os
+import sys
+os.setxattr(sys.argv[1], b'user.peios-rsync-test', b'preserved')
+PY
+"$RSYNC" -aHX "$SMOKE/src/" "$SMOKE/dst/"
+cmp "$SMOKE/src/sub/payload" "$SMOKE/dst/sub/payload"
+test "$(readlink "$SMOKE/dst/symlink")" = sub/payload
+test "$(stat -c %i "$SMOKE/dst/sub/payload")" = "$(stat -c %i "$SMOKE/dst/hardlink")"
+test "$(stat -c %Y "$SMOKE/src/sub/payload")" = "$(stat -c %Y "$SMOKE/dst/sub/payload")"
+/usr/bin/python3 - "$SMOKE/dst/sub/payload" <<'PY'
+import os
+import sys
+assert os.getxattr(sys.argv[1], b'user.peios-rsync-test') == b'preserved'
+PY
+
+# Build-ID-indexed debuginfo and exactly the rewritten source paths referenced
+# by DWARF. This covers rsync's C and rolling-checksum C++ compilation units.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+debugedit -b "$ROOT" -d /usr/src/debug/org.samba.rsync \
+  -l "$PEKIT_OUT/.dl" -n "$RSYNC"
+tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+bid=$(readelf -n "$RSYNC" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$RSYNC" \
+  "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+strip "$RSYNC"
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.samba.rsync/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.samba.rsync/$rel"
+done
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$PREFIX/src/debug/org.samba.rsync" -type f -print -quit)"
+readelf -S "$PREFIX/lib/debug/.build-id/$p2/$rest.debug" | grep -F '.debug_info'
+
+# Enforce the executable and dynamic-link closure expected from the production
+# profiles. Explicit CET linker properties make the result observable on both
+# the Debian reference rung and native Peios rung.
+readelf -h "$RSYNC" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$RSYNC" | grep -E 'GNU_STACK.*RW '
+readelf -W -l "$RSYNC" | grep -F 'GNU_RELRO'
+readelf -d "$RSYNC" | grep -F 'BIND_NOW'
+readelf -d "$RSYNC" | grep -F 'RELR'
+readelf -n "$RSYNC" | grep -E 'x86 feature:.*IBT.*SHSTK'
+for soname in libc.so.6 libcrypto.so.3 libxxhash.so.0 libzstd.so.1 libz.so.1; do
+  readelf -d "$RSYNC" | grep -F "Shared library: [$soname]"
+done
+if readelf -d "$RSYNC" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+
+# Debug paths have been rewritten and production payloads must not disclose the
+# ephemeral build root.
+if strings "$RSYNC" | grep -F "$ROOT"; then exit 1; fi
+
+rm -rf "$BUILD" "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$VERSION_OUT"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++"      = "*"
+debugedit                   = "*"
+"org.gnu.bash"              = "*"
+"org.openssl.openssl-devel" = "*"
+"org.python.python3"        = "*"
+"xxhash-devel"              = "*"
+"zstd-devel"                = "*"
+"zlib-devel"                = "*"
+
+[build.main.dependencies.apt]
+bash            = "*"
+build-essential = "*"
+debugedit       = "*"
+"g++"           = "*"
+libssl-dev      = "*"
+libxxhash-dev   = "*"
+libzstd-dev     = "*"
+python3         = "*"
+zlib1g-dev      = "*"

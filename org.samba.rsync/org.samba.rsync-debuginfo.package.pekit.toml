@@ -1,0 +1,11 @@
+[package]
+name        = "org.samba.rsync-debuginfo"
+description = "rsync - debugging symbols"
+
+[dependencies]
+"org.samba.rsync" = "{{version}}-1"
+
+[files]
+"@source:COPYING"      = "usr/share/licenses/org.samba.rsync-debuginfo/"
+"@source:popt/COPYING" = "usr/share/licenses/org.samba.rsync-debuginfo/popt-COPYING"
+":usr/lib/debug/**"    = "usr/lib/debug"

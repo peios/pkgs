@@ -1,0 +1,21 @@
+# Bash transport wrapper for daemon-style transfers authenticated and encrypted
+# with the platform OpenSSL client and trust store.
+
+side_effects = ["man-db"]
+
+[package]
+name         = "org.samba.rsync-ssl"
+description  = "rsync - TLS transport wrapper"
+architecture = "noarch"
+
+[dependencies]
+ca-certificates       = "*"
+"org.gnu.bash"        = "*"
+"org.openssl.openssl" = "*"
+"org.samba.rsync"     = "{{version}}-1"
+
+[files]
+"@source:COPYING"                 = "usr/share/licenses/org.samba.rsync-ssl/"
+"@source:popt/COPYING"            = "usr/share/licenses/org.samba.rsync-ssl/popt-COPYING"
+":usr/bin/rsync-ssl"              = "usr/bin/rsync-ssl"
+":usr/share/man/man1/rsync-ssl.1" = "usr/share/man/man1/rsync-ssl.1"

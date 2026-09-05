@@ -1,0 +1,28 @@
+# The core local/remote transfer engine. Daemon mode is available for explicit
+# use; this package intentionally does not install a Peios service definition.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.samba.rsync"
+description = "rsync - fast incremental file transfer"
+
+[provides]
+rsync = "{{version}}-1"
+
+[replaces]
+rsync = "< {{version}}-1"
+
+[dependencies]
+glibc                    = ">= 2.43"
+libzstd                  = ">= 1.5.7"
+"org.openssl.libcrypto" = ">= 3.5"
+xxhash                   = ">= 0.8.3"
+zlib                     = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                   = "usr/share/licenses/org.samba.rsync/"
+"@source:popt/COPYING"              = "usr/share/licenses/org.samba.rsync/popt-COPYING"
+":usr/bin/rsync"                    = "usr/bin/rsync"
+":usr/share/man/man1/rsync.1"       = "usr/share/man/man1/rsync.1"
+":usr/share/man/man5/rsyncd.conf.5" = "usr/share/man/man5/rsyncd.conf.5"

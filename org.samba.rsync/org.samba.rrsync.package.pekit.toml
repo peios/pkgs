@@ -1,0 +1,19 @@
+# Upstream's restricted-rsync command for forced SSH commands. It is separate
+# so ordinary rsync installations do not pull in Python.
+
+side_effects = ["man-db"]
+
+[package]
+name         = "org.samba.rrsync"
+description  = "rsync - restricted SSH command wrapper"
+architecture = "noarch"
+
+[dependencies]
+"org.python.python3" = "*"
+"org.samba.rsync"    = "{{version}}-1"
+
+[files]
+"@source:COPYING"              = "usr/share/licenses/org.samba.rrsync/"
+"@source:popt/COPYING"         = "usr/share/licenses/org.samba.rrsync/popt-COPYING"
+":usr/bin/rrsync"              = "usr/bin/rrsync"
+":usr/share/man/man1/rrsync.1" = "usr/share/man/man1/rrsync.1"

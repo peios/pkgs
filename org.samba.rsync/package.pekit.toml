@@ -1,0 +1,12 @@
+# Shared metadata for the rsync package family and its complete corresponding
+# source. The expression includes bundled popt and source-tree material even
+# when a component is not compiled into the runtime binary.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-3.0-or-later AND GPL-3.0-only AND GPL-2.0-or-later AND GPL-2.0-only AND PostgreSQL AND ISC AND LicenseRef-snprintf AND FSFUL AND FSFULLR AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND LicenseRef-Public-Domain AND X11 AND Zlib"
+license_class = "free"
+homepage      = "https://rsync.samba.org/"
