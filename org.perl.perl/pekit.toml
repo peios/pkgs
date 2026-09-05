@@ -348,6 +348,7 @@ rm -rf "$BUILD"
 [build.main.dependencies.peipkg]
 build-essentials-c             = "*"
 debugedit                      = ">= 5.2"
+"org.debian.netbase"          = ">= 6.6"
 zlib-devel                     = ">= 2.3.3"
 "org.nixos.patchelf"          = ">= 0.19.1"
 "org.sourceware.bzip2-devel"  = ">= 1.0.8"

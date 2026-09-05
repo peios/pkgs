@@ -1,0 +1,17 @@
+format = "peipkg"
+
+[package]
+name          = "org.debian.netbase"
+version       = "{{version}}-1"
+architecture  = "noarch"
+description   = "Standard network protocol and service databases"
+license       = "GPL-2.0-only"
+license_class = "free"
+homepage      = "https://salsa.debian.org/md/netbase"
+
+[provides]
+netbase = "{{version}}"
+
+[files]
+":usr/etc/**"             = "usr/etc"
+"@source:debian/copyright" = "usr/share/licenses/org.debian.netbase/copyright"

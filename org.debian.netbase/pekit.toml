@@ -1,0 +1,62 @@
+# netbase — the standard protocol, service, RPC and Ethernet type databases
+# consumed by libc and networking tools. Peios stores vendor configuration in
+# /usr/etc; StrataFS presents it through the conventional /etc view.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://salsa.debian.org/md/netbase.git"
+ref       = "debian/{{version}}"
+tag_regex = '^debian/(?P<version>[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. This package is architecture-independent data, so
+# later releases are selected automatically without an artificial major cap.
+versions  = ">= 6.6"
+
+# Upstream's annotated release tag is OpenPGP-signed, but Pekit cannot yet
+# authenticate Git tags (PEI-665). HTTPS plus the immutable commit in
+# pekit.lock is the explicit temporary source-authentication boundary.
+
+[build.main]
+command = """
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+DEST="$PEKIT_OUT/usr/etc"
+
+mkdir -p "$DEST"
+for name in ethertypes protocols rpc services; do
+  test -s "$SRC/etc/$name"
+  install -m 0644 "$SRC/etc/$name" "$DEST/$name"
+done
+
+# Retain Debian's release gate: no service name/alias may claim the same
+# port/protocol tuple twice. A duplicate makes libc lookup order ambiguous.
+if sed 's/#.*$//; s/[[:space:]][[:space:]]*/ /g' "$DEST/services" | \\
+  while read -r name service aliases; do
+    for alias in $name $aliases; do printf '%s %s\\n' "$alias" "$service"; done
+  done | sort | uniq -d | grep .; then
+  echo "duplicate service name and port/protocol tuple" >&2
+  exit 1
+fi
+
+# Structural and representative lookup-data gates catch truncation or a
+# future upstream layout/format change before publication.
+awk '$1 == "tcp" && $2 == 6 { found = 1 } END { exit !found }' "$DEST/protocols"
+awk '$1 == "udp" && $2 == 17 { found = 1 } END { exit !found }' "$DEST/protocols"
+awk '$1 == "domain" && $2 == "53/tcp" { found = 1 } END { exit !found }' "$DEST/services"
+awk '$1 == "domain" && $2 == "53/udp" { found = 1 } END { exit !found }' "$DEST/services"
+awk '$1 == "portmapper" && $2 == 100000 { found = 1 } END { exit !found }' "$DEST/rpc"
+awk '$1 == "IPv4" && $2 == "0800" { found = 1 } END { exit !found }' "$DEST/ethertypes"
+"""
+
+[build.main.dependencies.peipkg]
+dash                = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.gawk"      = "*"
+"org.gnu.grep"      = "*"
+sed                 = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+gawk      = "*"
+grep      = "*"
+sed       = "*"
