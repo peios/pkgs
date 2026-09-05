@@ -4,17 +4,17 @@ description = "GNU Texinfo converters for Texinfo and POD documents"
 license     = "GPL-3.0-or-later"
 
 [provides]
-texinfo  = "{{version}}"
-makeinfo = "{{version}}"
-texi2any = "{{version}}"
-pod2texi = "{{version}}"
+texinfo  = "{{version}}-1"
+makeinfo = "{{version}}-1"
+texi2any = "{{version}}-1"
+pod2texi = "{{version}}-1"
 
 [replaces]
-texinfo = "< {{version}}-1"
+texinfo = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.texinfo-common" = "{{version}}-1"
-perl                     = "*"
+"org.perl.perl"          = "*"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/org.gnu.texinfo/COPYING"

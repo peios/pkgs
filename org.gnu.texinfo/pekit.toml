@@ -173,8 +173,8 @@ build-essentials-c   = "*"
 "com.darwinsys.file" = "*"
 glibc-langpack-en    = ">= 2.43"
 glibc-langpack-fr    = ">= 2.43"
-"org.gnu.gettext"   = "*"
-perl                 = "*"
+"org.gnu.gettext" = "*"
+"org.perl.perl"    = "*"
 
 [build.main.dependencies.apt]
 build-essential   = "*"
