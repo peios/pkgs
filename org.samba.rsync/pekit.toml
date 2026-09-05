@@ -60,7 +60,17 @@ make -j"$(nproc)"
 # capability probe blocks indefinitely in a container. Marking that fallback as
 # already attempted makes upstream report the case as an explicit privilege
 # skip while retaining every runnable test.
-RSYNC_UNSHARED=1 make -j"$(nproc)" check
+RSYNC_EXCLUDE=
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  # Peiroot deliberately maps one uid/gid and has neither an account service
+  # nor Python's optional _ctypes module. Its fresh procfs also exposes the
+  # mount-root and /proc/self magic link as the unmapped overflow uid. Exclude
+  # only tests whose prerequisites are therefore absent; the Debian reference
+  # rung runs all of them, including the rrsync /proc pinning regressions.
+  # PEI-725 tracks the Python closure gap.
+  RSYNC_EXCLUDE='chgrp,daemon-auth-users-comma-only,daemon-chroot,daemon-groupmap-wild,dir-sgid,macos-setgid-ordinary-mode-regression,ownership-depth,preallocate,protected-regular,rrsync-backup-dir-inband-pivot,rrsync-pull-delivers-content'
+fi
+RSYNC_EXCLUDE="$RSYNC_EXCLUDE" RSYNC_UNSHARED=1 make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Installed interpreters are platform contracts, not PATH-dependent host
