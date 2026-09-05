@@ -1,0 +1,166 @@
+# patchelf — the ELF interpreter, run-path and dynamic-dependency editor used
+# throughout the package farm's debug-split and payload-normalisation stages.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/NixOS/patchelf/releases/download/{{version}}/patchelf-{{version}}.tar.gz"
+listing_url = "https://github.com/NixOS/patchelf/releases"
+extract     = true
+root        = "patchelf-{{version}}"
+file_regex  = 'patchelf-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance bounds. Follow later pre-1.0 stable releases automatically;
+# 1.x is a deliberate command-contract review point, not a claim that it must
+# be incompatible. The regression and installed-interface gates below decide
+# whether an otherwise eligible release is publishable without intervention.
+versions    = ">= 0.19.1, < 1"
+
+# Upstream publishes release archives and GitHub-recorded SHA-256 digests, but
+# no maintainer-signed detached checksum or archive signature. The release
+# commit's GitHub Actions signature uses GitHub's shared automation key rather
+# than a patchelf maintainer identity. This is therefore an explicit source-
+# authentication exception: HTTPS authenticates transport and Pekit's lock
+# makes accepted bytes immutable, but a newly discovered release is TOFU.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+BIN="$PEKIT_OUT/usr/bin/patchelf"
+
+mkdir -p "$BUILD"
+cd "$BUILD"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-silent-rules
+make -j"$(nproc)"
+
+# Run upstream's complete ELF-rewrite matrix. Fedora disables hardening for
+# this package because hardening its deliberately unusual test fixtures breaks
+# set-interpreter-long. Keep the shipped patchelf hardened; only clear linker
+# flags while building those fixtures.
+make check LDFLAGS= || {
+  find tests -type f -name '*.log' -exec sh -c 'echo "==> $1"; cat "$1"' sh {} \;
+  exit 1
+}
+make install DESTDIR="$PEKIT_OUT"
+
+# Upstream installs README into a versioned doc directory. Package the source
+# document explicitly under the canonical package name instead.
+rm -rf "$PEKIT_OUT/usr/share/doc"
+
+test -x "$BIN"
+test "$("$BIN" --version)" = "patchelf $PEKIT_VERSION"
+test -f "$PEKIT_OUT/usr/share/man/man1/patchelf.1"
+test -f "$PEKIT_OUT/usr/share/zsh/site-functions/_patchelf"
+test "$(find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f | wc -l)" -eq 1
+
+# Exercise the installed command rather than trusting build-tree tests alone.
+# Cover each stateful public operation package tooling relies on, and check the
+# resulting ELF metadata with both patchelf and binutils.
+SMOKE="$PEKIT_OUT/.patchelf-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/main.c" <<'EOF'
+int main(void) { return 0; }
+EOF
+cat > "$SMOKE/library.c" <<'EOF'
+int pekit_library(void) { return 42; }
+EOF
+cc -O2 -Wl,-rpath,/pekit/old "$SMOKE/main.c" -o "$SMOKE/main"
+cc -O2 -fPIC -shared "$SMOKE/library.c" -o "$SMOKE/libpekit.so"
+
+test "$("$BIN" --print-rpath "$SMOKE/main")" = /pekit/old
+"$BIN" --set-rpath /pekit/new "$SMOKE/main"
+test "$("$BIN" --print-rpath "$SMOKE/main")" = /pekit/new
+readelf -d "$SMOKE/main" | grep -F 'Library runpath: [/pekit/new]'
+
+"$BIN" --add-needed libpekit-before.so "$SMOKE/main"
+"$BIN" --print-needed "$SMOKE/main" | grep -Fx libpekit-before.so
+"$BIN" --replace-needed libpekit-before.so libpekit-after.so "$SMOKE/main"
+"$BIN" --print-needed "$SMOKE/main" | grep -Fx libpekit-after.so
+"$BIN" --remove-needed libpekit-after.so "$SMOKE/main"
+if "$BIN" --print-needed "$SMOKE/main" | grep -Fxq libpekit-after.so; then
+  exit 1
+fi
+
+"$BIN" --set-interpreter /pekit/ld.so "$SMOKE/main"
+test "$("$BIN" --print-interpreter "$SMOKE/main")" = /pekit/ld.so
+readelf -W -l "$SMOKE/main" | grep -F 'Requesting program interpreter: /pekit/ld.so'
+
+"$BIN" --set-soname libpekit.so.1 "$SMOKE/libpekit.so"
+test "$("$BIN" --print-soname "$SMOKE/libpekit.so")" = libpekit.so.1
+readelf -d "$SMOKE/libpekit.so" | grep -F 'Library soname: [libpekit.so.1]'
+
+"$BIN" --set-execstack "$SMOKE/main"
+"$BIN" --print-execstack "$SMOKE/main" | grep -F 'execstack: X'
+"$BIN" --clear-execstack "$SMOKE/main"
+"$BIN" --print-execstack "$SMOKE/main" | grep -F 'execstack: -'
+
+# Patchelf cannot be a build dependency of its own recipe. Use the just-built
+# command for the normal run-path cleanup, then assert the inherited Peios
+# hardening contract before splitting its debug data.
+"$BIN" --remove-rpath "$BIN"
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+if c++ --version | head -1 | grep -Fq Peios; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+
+# Produce the conventional build-ID-indexed debuginfo and exact source set.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+cd "$PEKIT_OUT"
+debugedit -b "$ROOT" -d /usr/src/debug/org.nixos.patchelf \
+  -l "$PEKIT_OUT/.debug-list" -n usr/bin/patchelf
+build_id=$(readelf -n usr/bin/patchelf | \
+  sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+test -n "$build_id"
+prefix=$(printf %s "$build_id" | cut -c1-2)
+suffix=$(printf %s "$build_id" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$prefix"
+objcopy --only-keep-debug usr/bin/patchelf \
+  "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+strip usr/bin/patchelf
+
+tr '\0' '\n' < "$PEKIT_OUT/.debug-list" | LC_ALL=C sort -u | \
+  while IFS= read -r source; do
+    test -n "$source" || continue
+    case "$source" in */) continue;; esac
+    test -f "$ROOT/$source" || continue
+    mkdir -p "usr/src/debug/org.nixos.patchelf/$(dirname "$source")"
+    cp "$ROOT/$source" "usr/src/debug/org.nixos.patchelf/$source"
+  done
+
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find usr/src/debug/org.nixos.patchelf -type f -print -quit)"
+
+rm -rf "$SMOKE" "$BUILD"
+rm -f "$PEKIT_OUT/.debug-list"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials = "*"
+"gcc-c++"        = "*"
+debugedit        = ">= 5.2-2"
+gzip             = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+binutils        = "*"
+coreutils       = "*"
+diffutils       = "*"
+findutils       = "*"
+gawk            = "*"
+grep            = "*"
+gzip            = "*"
+sed             = "*"
+debugedit       = "*"

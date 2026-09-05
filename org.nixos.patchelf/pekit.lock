@@ -9,3 +9,9 @@ schema = 1
   url = "https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0.tar.gz"
   sha256 = "64de10e4c6b8b8379db7e87f58030f336ea747c0515f381132e810dbf84a86e7"
   locked_at = "2026-08-10T19:47:14Z"
+
+[[source]]
+  version = "0.19.1"
+  url = "https://github.com/NixOS/patchelf/releases/download/0.19.1/patchelf-0.19.1.tar.gz"
+  sha256 = "491108728f120ce05b539934b41a750235031a6df8abc6b47e57aff7de15094d"
+  locked_at = "2026-09-05T06:04:10Z"

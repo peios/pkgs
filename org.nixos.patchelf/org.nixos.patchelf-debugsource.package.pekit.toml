@@ -1,0 +1,10 @@
+[package]
+name        = "org.nixos.patchelf-debugsource"
+description = "patchelf debug sources"
+
+[dependencies]
+"org.nixos.patchelf-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.nixos.patchelf-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"
