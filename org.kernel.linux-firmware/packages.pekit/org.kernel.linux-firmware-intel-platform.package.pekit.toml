@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-intel-platform"
+name          = "org.kernel.linux-firmware-intel-platform"
 description   = "Intel platform firmware: Bluetooth (ibt), ISH sensor hub, IPU cameras, VSC, NPU, QAT, E800 NICs"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-intel-platform" = "{{version}}-3"
+
+[replaces]
+"firmware-intel-platform" = "<= {{version}}-2"
 
 [files]
 ":family/intel-platform/usr/lib/firmware/**"   = "usr/lib/firmware"

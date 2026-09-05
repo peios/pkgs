@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-nvidia-graphics"
+name          = "org.kernel.linux-firmware-nvidia-graphics"
 description   = "NVIDIA GPU firmware for nouveau and nova (GSP)"
 license       = "LicenseRef-NVIDIA-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-nvidia-graphics" = "{{version}}-3"
+
+[replaces]
+"firmware-nvidia-graphics" = "<= {{version}}-2"
 
 [files]
 ":family/nvidia-graphics/usr/lib/firmware/**"   = "usr/lib/firmware"

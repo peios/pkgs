@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-intel-sound"
+name          = "org.kernel.linux-firmware-intel-sound"
 description   = "Intel audio DSP firmware (AVS, catpt, Skylake SST). Sound Open Firmware is a separate upstream."
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-intel-sound" = "{{version}}-3"
+
+[replaces]
+"firmware-intel-sound" = "<= {{version}}-2"
 
 [files]
 ":family/intel-sound/usr/lib/firmware/**"   = "usr/lib/firmware"

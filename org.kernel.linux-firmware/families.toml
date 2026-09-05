@@ -3,7 +3,8 @@
 # This file is the single source of truth for the split (PEI-466). Two
 # things consume it:
 #
-#   tools/gen-members.py   writes packages.pekit/firmware-<family>.package.pekit.toml
+#   tools/gen-members.py   writes one canonical
+#                          org.kernel.linux-firmware-<family> package member
 #                          for every family (run via `pekit gen members`; the
 #                          drift gate fails a build whose members are stale)
 #   tools/sort-firmware.py sorts the WHENCE-listed blobs into per-family
@@ -23,7 +24,8 @@
 # A block's Link: entries follow the family of the file they point at.
 #
 # `licenses` is the closed list of upstream LICEN[CS]E.* texts a family's
-# blobs may cite; they are shipped under /usr/share/licenses/firmware-<family>/.
+# blobs may cite; they are shipped under the canonical package's directory in
+# /usr/share/licenses/.
 # `license` is the SPDX expression the package declares; Peios follows SPDX's
 # LicenseRef- convention for vendor terms with no SPDX id, and `license_class`
 # is "firmware" (PSPU §18) unless a family is genuinely free software.

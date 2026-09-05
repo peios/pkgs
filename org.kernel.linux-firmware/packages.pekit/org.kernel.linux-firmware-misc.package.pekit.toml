@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-misc"
+name          = "org.kernel.linux-firmware-misc"
 description   = "Miscellaneous x86 device firmware: USB serial adapters, DVB/V4L tuners and capture devices, legacy Wi-Fi, PCMCIA CIS, sound cards"
 license       = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
+
+[provides]
+"firmware-misc" = "{{version}}-3"
+
+[replaces]
+"firmware-misc" = "<= {{version}}-2"
 
 [files]
 ":family/misc/usr/lib/firmware/**"   = "usr/lib/firmware"

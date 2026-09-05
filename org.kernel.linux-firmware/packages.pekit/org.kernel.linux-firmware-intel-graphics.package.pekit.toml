@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-intel-graphics"
+name          = "org.kernel.linux-firmware-intel-graphics"
 description   = "Intel graphics firmware (i915, xe: GuC, HuC, DMC)"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-intel-graphics" = "{{version}}-3"
+
+[replaces]
+"firmware-intel-graphics" = "<= {{version}}-2"
 
 [files]
 ":family/intel-graphics/usr/lib/firmware/**"   = "usr/lib/firmware"

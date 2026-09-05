@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-realtek"
+name          = "org.kernel.linux-firmware-realtek"
 description   = "Realtek Wi-Fi, Bluetooth, Ethernet and audio codec firmware (rtlwifi, rtw88/89, rtl_bt, r8169, r8152)"
 license       = "LicenseRef-Realtek-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-realtek" = "{{version}}-3"
+
+[replaces]
+"firmware-realtek" = "<= {{version}}-2"
 
 [files]
 ":family/realtek/usr/lib/firmware/**"   = "usr/lib/firmware"

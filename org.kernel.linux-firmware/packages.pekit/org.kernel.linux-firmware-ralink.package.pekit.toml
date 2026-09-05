@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-ralink"
+name          = "org.kernel.linux-firmware-ralink"
 description   = "Ralink rt2x00 Wi-Fi firmware"
 license       = "LicenseRef-Ralink-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-ralink" = "{{version}}-3"
+
+[replaces]
+"firmware-ralink" = "<= {{version}}-2"
 
 [files]
 ":family/ralink/usr/lib/firmware/**"   = "usr/lib/firmware"

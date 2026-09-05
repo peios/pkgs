@@ -220,7 +220,8 @@ def main():
             dst = os.path.join(fwdir, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             os.rename(os.path.join(stage, rel), dst)
-        licdir = os.path.join(root, "usr", "share", "licenses", f"firmware-{fam}")
+        licdir = os.path.join(root, "usr", "share", "licenses",
+                              f"org.kernel.linux-firmware-{fam}")
         os.makedirs(licdir, exist_ok=True)
         for lic in sorted(fams[fam]["licenses"]):
             shutil.copy2(os.path.join(args.source, "LICENSES", lic), os.path.join(licdir, lic))

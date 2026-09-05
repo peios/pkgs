@@ -8,4 +8,5 @@ schema = 1
   version = "20260810"
   url = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-20260810.tar.xz"
   sha256 = "ac17c34fe73756926a961fbafadf8d8f07a3bd2dd2f4ea31a0fb5d50c714a49a"
-  locked_at = "2026-08-28T13:35:34Z"
+  signature_key = "4cde8575e547bf835fe15807a31b6bd72486cfd6"
+  locked_at = "2026-09-05T19:10:58Z"

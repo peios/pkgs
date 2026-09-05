@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-atheros"
+name          = "org.kernel.linux-firmware-atheros"
 description   = "Qualcomm Atheros Wi-Fi and Bluetooth firmware (ath9k/10k/11k/12k, ath6kl, ar3k, btqca, wil6210)"
 license       = "LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Firmware AND BSD-3-Clause"
 license_class = "firmware"
+
+[provides]
+"firmware-atheros" = "{{version}}-3"
+
+[replaces]
+"firmware-atheros" = "<= {{version}}-2"
 
 [files]
 ":family/atheros/usr/lib/firmware/**"   = "usr/lib/firmware"

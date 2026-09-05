@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-storage"
+name          = "org.kernel.linux-firmware-storage"
 description   = "Storage HBA firmware (QLogic qla2xxx/qla1280, QLogic BR-series FC, AdvanSys, ENE UB6250 card reader)"
 license       = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND LicenseRef-ENE-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-storage" = "{{version}}-3"
+
+[replaces]
+"firmware-storage" = "<= {{version}}-2"
 
 [files]
 ":family/storage/usr/lib/firmware/**"   = "usr/lib/firmware"

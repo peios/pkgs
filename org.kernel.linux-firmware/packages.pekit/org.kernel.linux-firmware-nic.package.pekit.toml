@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-nic"
+name          = "org.kernel.linux-firmware-nic"
 description   = "Wired NIC firmware (Chelsio, QLogic qed, Myricom, Tehuti, 3Com, Exar, Alacritech, NetXen, Aeonsemi PHY, legacy USB Ethernet)"
 license       = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
+
+[provides]
+"firmware-nic" = "{{version}}-3"
+
+[replaces]
+"firmware-nic" = "<= {{version}}-2"
 
 [files]
 ":family/nic/usr/lib/firmware/**"   = "usr/lib/firmware"

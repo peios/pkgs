@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-iwlwifi"
+name          = "org.kernel.linux-firmware-iwlwifi"
 description   = "Intel Wireless Wi-Fi (iwlwifi) firmware"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-iwlwifi" = "{{version}}-3"
+
+[replaces]
+"firmware-iwlwifi" = "<= {{version}}-2"
 
 [files]
 ":family/iwlwifi/usr/lib/firmware/**"   = "usr/lib/firmware"

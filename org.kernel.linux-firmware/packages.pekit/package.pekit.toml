@@ -1,4 +1,4 @@
-# linux-firmware — shared defaults for the firmware-<family> members. The
+# linux-firmware — shared defaults for the canonical family members. The
 # members themselves are GENERATED from ../families.toml by
 # tools/gen-members.py; edit that file, not them.
 #
@@ -10,6 +10,6 @@
 format = "peipkg"
 
 [package]
-version      = "{{version}}-2"
+version      = "{{version}}-3"
 architecture = "noarch"
 homepage     = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"

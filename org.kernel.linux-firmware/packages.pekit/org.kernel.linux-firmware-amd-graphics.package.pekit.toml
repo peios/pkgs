@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-amd-graphics"
+name          = "org.kernel.linux-firmware-amd-graphics"
 description   = "AMD Radeon graphics firmware (amdgpu, radeon, r128)"
 license       = "LicenseRef-AMD-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-amd-graphics" = "{{version}}-3"
+
+[replaces]
+"firmware-amd-graphics" = "<= {{version}}-2"
 
 [files]
 ":family/amd-graphics/usr/lib/firmware/**"   = "usr/lib/firmware"

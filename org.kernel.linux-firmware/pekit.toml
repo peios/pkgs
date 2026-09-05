@@ -16,11 +16,11 @@
 # and accelerator blobs are ignored rather than packaged. Nothing here is
 # needed to reach a root filesystem, so no family homes in the initramfs.
 #
-# Trust: firmware is loaded unsigned in this release — jack's call on
-# PEI-466; PEI-493 is the PIP-signature verification at load. The upstream
-# tarball's kernel.org signature is over the uncompressed tar, which pekit's
-# [source.url.signature] cannot check against the .xz it downloads, so the
-# lock's sha256 is what pins a release.
+# Trust: each staged blob is PIP-signed for the kernel-side policy introduced
+# by PEI-493. The release input is independently authenticated below: kernel.org
+# signs the uncompressed tar, so Pekit verifies the detached signature after
+# decompressing the downloaded .tar.xz. The lock additionally pins the exact
+# compressed transport artifact.
 #
 # Not here: Intel Sound Open Firmware (SOF) lives in a separate upstream
 # (thesofproject/sof-bin), not in linux-firmware. The intel-sound family is
@@ -35,10 +35,22 @@ out_dir = "out"
 enabled = false
 
 [source.url]
-url      = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.xz"
-extract  = true
-root     = "linux-firmware-{{version}}"
-versions = ">= 20260810"
+url         = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/linux/kernel/firmware/"
+extract     = true
+root        = "linux-firmware-{{version}}"
+file_regex  = '^linux-firmware-[0-9]{8}\.tar\.xz$'
+# Soft maintenance floor: follow new dated upstream releases automatically;
+# the generated ownership/licence gate below stops any unreviewed new family.
+versions    = ">= 20260810"
+
+# kernel.org publishes linux-firmware-YYYYMMDD.tar.sign over the xz-decoded
+# tar stream. Pin Josh Boyer's complete primary-key fingerprint.
+[source.url.signature]
+url          = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.sign"
+of           = "decompressed"
+key_files    = ["keys/josh-boyer.asc"]
+fingerprints = ["4CDE8575E547BF835FE15807A31B6BD72486CFD6"]
 
 # The members under packages.pekit/ are derived from families.toml. The
 # verify_command is the drift gate: a build with stale members fails before

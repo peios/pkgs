@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-audio-codecs"
+name          = "org.kernel.linux-firmware-audio-codecs"
 description   = "Laptop audio codec and amplifier firmware (Cirrus CS35L41/56, CS42L43/45; TI TAS2781/2783/2563; Creative CA0132)"
 license       = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-audio-codecs" = "{{version}}-3"
+
+[replaces]
+"firmware-audio-codecs" = "<= {{version}}-2"
 
 [files]
 ":family/audio-codecs/usr/lib/firmware/**"   = "usr/lib/firmware"

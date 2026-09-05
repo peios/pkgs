@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-marvell"
+name          = "org.kernel.linux-firmware-marvell"
 description   = "Marvell and NXP Wi-Fi and Bluetooth firmware (mwifiex, libertas, mwl8k, mwlwifi, btnxpuart)"
 license       = "LicenseRef-Marvell-Firmware AND LicenseRef-NXP-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-marvell" = "{{version}}-3"
+
+[replaces]
+"firmware-marvell" = "<= {{version}}-2"
 
 [files]
 ":family/marvell/usr/lib/firmware/**"   = "usr/lib/firmware"

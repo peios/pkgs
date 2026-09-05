@@ -2,10 +2,16 @@
 # Regenerate with `pekit gen members`.
 
 [package]
-name          = "firmware-broadcom"
+name          = "org.kernel.linux-firmware-broadcom"
 description   = "Broadcom and Cypress Wi-Fi, Bluetooth and Ethernet firmware (brcmfmac, brcmsmac, tg3, bnx2, bnx2x)"
 license       = "LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
 license_class = "firmware"
+
+[provides]
+"firmware-broadcom" = "{{version}}-3"
+
+[replaces]
+"firmware-broadcom" = "<= {{version}}-2"
 
 [files]
 ":family/broadcom/usr/lib/firmware/**"   = "usr/lib/firmware"
