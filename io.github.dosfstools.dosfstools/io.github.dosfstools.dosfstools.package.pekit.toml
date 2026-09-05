@@ -4,21 +4,21 @@ description = "Utilities for creating, checking and labelling FAT filesystems"
 license     = "GPL-3.0-or-later AND LicenseRef-Public-Domain"
 
 [provides]
-dosfstools  = "{{version}}-3"
-"fatlabel" = "{{version}}-3"
-"fsck.fat" = "{{version}}-3"
-"fsck.msdos" = "{{version}}-3"
-"fsck.vfat" = "{{version}}-3"
-"mkfs.fat" = "{{version}}-3"
-"mkfs.msdos" = "{{version}}-3"
-"mkfs.vfat" = "{{version}}-3"
+dosfstools  = "{{version}}-4"
+"fatlabel" = "{{version}}-4"
+"fsck.fat" = "{{version}}-4"
+"fsck.msdos" = "{{version}}-4"
+"fsck.vfat" = "{{version}}-4"
+"mkfs.fat" = "{{version}}-4"
+"mkfs.msdos" = "{{version}}-4"
+"mkfs.vfat" = "{{version}}-4"
 
 [replaces]
-dosfstools = "<= {{version}}-3"
+dosfstools = "<= {{version}}-4"
 
 [dependencies]
 glibc = ">= 2.43"
-"io.github.dosfstools.dosfstools-common" = "= {{version}}-3"
+"io.github.dosfstools.dosfstools-common" = "= {{version}}-4"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/io.github.dosfstools.dosfstools/"

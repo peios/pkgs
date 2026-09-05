@@ -1,7 +1,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-3"
+version       = "{{version}}-4"
 architecture  = "x86_64"
 homepage      = "https://github.com/dosfstools/dosfstools"
 # Source-wide expression: the project is GPL-3.0-or-later, with public-domain
