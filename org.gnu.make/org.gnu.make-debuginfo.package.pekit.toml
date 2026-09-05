@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.make-debuginfo"
+description = "GNU Make - debugging symbols"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.make" = "{{version}}-1"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/org.gnu.make-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

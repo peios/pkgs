@@ -1,0 +1,24 @@
+# GNU Make has one command and a tiny header defining its loadable-module API.
+# Debian and Fedora keep that header with the command; a one-file -devel split
+# would add transaction and dependency overhead without isolating a library.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.make"
+description = "GNU Make build automation tool"
+license     = "GPL-3.0-or-later"
+
+[provides]
+make = "{{version}}"
+
+[dependencies]
+dash  = "*"
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/org.gnu.make/"
+":usr/bin/make"           = "usr/bin/make"
+":usr/include/gnumake.h"  = "usr/include/gnumake.h"
+":usr/share/locale/**"    = "usr/share/locale"
+":usr/share/man/man1/**"  = "usr/share/man/man1"

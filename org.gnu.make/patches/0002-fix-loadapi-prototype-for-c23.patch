@@ -1,0 +1,30 @@
+From: Peios Packaging <packages@peios.org>
+Subject: [PATCH] tests: use a typed load-module setup prototype
+
+C23 no longer treats an empty parameter list as an unspecified parameter
+list.  Give the generated loadable-module test the prototype implemented
+later in the same source so current compilers can build and exercise it.
+
+Current GNU Make development sources also use a typed prototype, with the
+newer load-module ABI.  This is the corresponding fix for the 4.4.1 ABI.
+
+Upstream-Status: Backport [adapted to the GNU Make 4.4.1 module ABI]
+---
+ tests/scripts/features/loadapi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/scripts/features/loadapi b/tests/scripts/features/loadapi
+index d42ec97..8a91745 100644
+--- a/tests/scripts/features/loadapi
++++ b/tests/scripts/features/loadapi
+@@ -28,7 +28,7 @@ char *getenv (const char*);
+ 
+ int plugin_is_GPL_compatible;
+ 
+-int testapi_gmk_setup ();
++int testapi_gmk_setup (const gmk_floc *);
+ 
+ static char *
+ test_eval (const char *buf)
+-- 
+2.51.0

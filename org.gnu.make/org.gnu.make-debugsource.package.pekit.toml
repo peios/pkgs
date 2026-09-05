@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.make-debugsource"
+description = "GNU Make - debug sources"
+license     = "GPL-3.0-or-later AND LGPL-2.1-or-later"
+
+[dependencies]
+"org.gnu.make-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                  = "usr/share/licenses/org.gnu.make-debugsource/COPYING"
+":usr/src/debug/org.gnu.make/**"   = "usr/src/debug/org.gnu.make"

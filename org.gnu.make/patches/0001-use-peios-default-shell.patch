@@ -1,0 +1,40 @@
+From: Peios Packaging <packages@peios.org>
+Subject: [PATCH] Use the Peios system shell path by default
+
+Peios intentionally has no legacy /bin contract. Recipes without an explicit
+SHELL assignment must therefore invoke the declared /usr/bin/sh provider.
+
+Upstream-Status: Inappropriate [Peios filesystem layout]
+---
+ src/job.c                 | 2 +-
+ tests/run_make_tests.pl   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/job.c b/src/job.c
+index 536993a..eed32e5 100644
+--- a/src/job.c
++++ b/src/job.c
+@@ -76,7 +76,7 @@ char * vms_strsignal (int status);
+ 
+ #else
+ 
+-const char *default_shell = "/bin/sh";
++const char *default_shell = "/usr/bin/sh";
+ int batch_mode_shell = 0;
+ 
+ #endif
+diff --git a/tests/run_make_tests.pl b/tests/run_make_tests.pl
+index c2438a2..ec8994c 100644
+--- a/tests/run_make_tests.pl
++++ b/tests/run_make_tests.pl
+@@ -469,7 +469,7 @@ sub set_more_defaults
+ 
+   unlink('file.out') or die "Failed to delete file.out: $!\n";
+ 
+-  $_ = `/bin/sh -c 'bad-command 2>&1'`;
++  $_ = `/usr/bin/sh -c 'bad-command 2>&1'`;
+   if ($? == 0) {
+       print "Invoked invalid file!  Skipping related tests.\n";
+   } else {
+-- 
+2.51.0

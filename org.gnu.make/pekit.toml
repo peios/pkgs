@@ -1,0 +1,177 @@
+# GNU Make — the build driver used throughout Peios native packaging.
+# Release tarballs contain the generated build system, so this recipe does not
+# create a bootstrap dependency on Autoconf or Automake.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/make/make-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/make/"
+extract     = true
+root        = "make-{{version}}"
+file_regex  = 'make-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance floor. Follow compatible 4.x releases automatically;
+# a new major version may change Makefile and loadable-module semantics.
+versions    = ">= 4.4.1, < 5"
+
+# GNU publishes detached signatures alongside its release archives. The full
+# primary fingerprint belongs to GNU Make maintainer Paul D. Smith; 4.4.1 is
+# signed by its B2508A90102F8AE3B12A0090DEACCAAEDB78137A signing subkey.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/paul-smith.asc"]
+fingerprints = ["6D4EEB02AD834703510B117680CB727A20C79BB2"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+BIN="$PEKIT_OUT/usr/bin/make"
+cd "$PEKIT_OUT"
+
+# Force the CET property note because Debian's unmarked startup objects can
+# otherwise make the linker's conservative note merge discard it.
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --localedir=/usr/share/locale \
+  --without-guile \
+  --disable-silent-rules
+
+make -j"$(nproc)"
+
+# GNU Make's Perl harness covers the parser, dependency graph, jobserver,
+# implicit rules, archives and loadable-module API. Require the positive
+# completion summary as well as the target's exit status so a skipped harness
+# cannot masquerade as a successful test run.
+make check
+test -s test-suite.log
+grep -Eq '^[0-9]+ Tests? in [0-9]+ Categor(y|ies) Complete .* No Failures' test-suite.log
+
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios does not currently ship an Info reader. Keep the command manual and
+# translated diagnostics, but omit orphaned Info and package documentation.
+rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+
+test -x "$BIN"
+test -f "$PEKIT_OUT/usr/include/gnumake.h"
+test -f "$PEKIT_OUT/usr/share/man/man1/make.1"
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'make.mo' -print -quit)"
+test "$(find "$PEKIT_OUT/usr/bin" -type f | wc -l)" -eq 1
+
+# Exercise the staged executable as a real build driver. No SHELL assignment
+# is supplied: successful recipes prove the Peios /usr/bin/sh default patch.
+SMOKE="$PEKIT_OUT/.make-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/Makefile" <<'EOF'
+.PHONY: all
+all: result
+
+result: left right | ordered
+	printf '%s\\n' 'left right' > $@
+
+left right:
+	printf '%s\\n' '$@' > $@
+
+ordered:
+	printf '%s\\n' ordered > $@
+EOF
+"$BIN" --no-builtin-rules -j2 -C "$SMOKE" all
+test "$(cat "$SMOKE/result")" = "left right"
+"$BIN" --no-builtin-rules -q -C "$SMOKE" all
+"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
+  | grep -E '(^| )jobserver( |$)'
+"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
+  | grep -E '(^| )load( |$)'
+
+# Compile and load a minimal external module against the installed gnumake.h.
+# This validates the small public extension ABI that intentionally stays in
+# the main package, matching GNU Make packaging practice.
+cat > "$SMOKE/smoke.c" <<'EOF'
+#include <gnumake.h>
+
+int plugin_is_GPL_compatible;
+
+int
+smoke_gmk_setup (gmk_floc *location)
+{
+  (void) location;
+  gmk_eval ("PLUGIN_OK := yes", 0);
+  return 1;
+}
+EOF
+cc -fPIC -shared -I"$PEKIT_OUT/usr/include" \
+  -o "$SMOKE/smoke.so" "$SMOKE/smoke.c"
+cat > "$SMOKE/Plugin.mk" <<'EOF'
+load ./smoke.so
+all:
+	@printf '%s\\n' '$(PLUGIN_OK)'
+EOF
+test "$(cd "$SMOKE" && "$BIN" --no-builtin-rules -f Plugin.mk all)" = yes
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+rm -rf "$SMOKE"
+
+# Split the shipped ELF by build ID, normalize its DWARF paths to the
+# canonical package namespace and retain every referenced source file.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+patchelf --remove-rpath usr/bin/make 2>/dev/null || true
+: > "$PEKIT_OUT/.srclist"
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.make \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/make
+bid=$(readelf -n usr/bin/make | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/make "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/org.gnu.make/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.make/$rel"
+    done
+strip usr/bin/make
+rm -f "$PEKIT_OUT/.srclist"
+
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find usr/src/debug/org.gnu.make -type f | wc -l)" -gt 20
+
+# Assert the exact stripped payload that will ship.
+readelf -h usr/bin/make | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l usr/bin/make | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l usr/bin/make | grep -F 'GNU_RELRO'
+readelf -d usr/bin/make | grep -F 'BIND_NOW'
+readelf -d usr/bin/make | grep -F 'RELR'
+readelf -n usr/bin/make | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d usr/bin/make | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+usr/bin/make --version | head -1 | grep -F "$PEKIT_VERSION"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+debugedit          = "*"
+gettext            = "*"
+patchelf           = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+gettext         = "*"
+patchelf        = "*"
+perl            = "*"

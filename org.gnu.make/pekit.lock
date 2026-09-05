@@ -8,4 +8,5 @@ schema = 1
   version = "4.4.1"
   url = "https://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz"
   sha256 = "dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3"
-  locked_at = "2026-08-10T19:44:17Z"
+  signature_key = "6d4eeb02ad834703510b117680cb727a20c79bb2"
+  locked_at = "2026-09-05T01:41:41Z"
