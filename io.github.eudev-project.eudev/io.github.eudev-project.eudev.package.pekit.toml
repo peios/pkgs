@@ -16,11 +16,14 @@ description = "eudev - device manager: driver loading from uevents, coldplug, st
 
 [dependencies]
 glibc                                         = ">= 2.43"
-"io.github.eudev-project.eudev-libudev"      = "{{version}}-1"
+"io.github.eudev-project.eudev-libudev"      = "{{version}}-2"
 libkmod                                       = ">= 33"
 libblkid                                      = ">= 2.42"
 sh                                            = ">= 1"
-"org.gnu.coreutils"                          = "*"
+# udev-coldplug uses uname, sleep, mkdir, dirname and mknod. Peiosutils is
+# Peios's system implementation of those core applets; eudev must not pull in
+# the GNU compatibility package merely to run its boot hook.
+peiosutils                                    = "*"
 
 [files]
 "@source:COPYING"                     = "usr/share/licenses/io.github.eudev-project.eudev/"

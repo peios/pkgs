@@ -222,7 +222,10 @@ perl                  = "*"
 python3               = "*"
 tar                   = "*"
 xz                    = "*"
-"org.gnu.coreutils"  = "*"
+# Peiosutils is the distro's coreutils implementation. Keeping GNU Coreutils
+# out of this root also proves the eudev build does not rely on an undeclared
+# GNU-only runtime assumption.
+peiosutils            = "*"
 debugedit             = "*"
 
 [build.main.dependencies.apt]
