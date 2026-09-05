@@ -3,7 +3,7 @@ name        = "org.gnu.ncurses-debugsource"
 description = "ncurses debug sources"
 
 [dependencies]
-"org.gnu.ncurses-debuginfo" = "{{version}}-2"
+"org.gnu.ncurses-debuginfo" = "{{version}}-3"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.ncurses-debugsource/COPYING"

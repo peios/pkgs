@@ -5,14 +5,14 @@ name        = "org.gnu.ncurses"
 description = "ncurses terminal-information utilities"
 
 [provides]
-ncurses = "{{version}}-2"
+ncurses = "{{version}}-3"
 
 [replaces]
-ncurses = "<= {{version}}-1"
+ncurses = "<= {{version}}-2"
 
 [dependencies]
 glibc                   = ">= 2.43"
-"org.gnu.ncurses-libs" = "{{version}}-2"
+"org.gnu.ncurses-libs" = "{{version}}-3"
 
 [files]
 "@source:COPYING"    = "usr/share/licenses/org.gnu.ncurses/COPYING"

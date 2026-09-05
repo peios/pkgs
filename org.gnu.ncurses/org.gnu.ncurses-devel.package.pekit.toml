@@ -5,13 +5,13 @@ name        = "org.gnu.ncurses-devel"
 description = "ncurses headers and development libraries"
 
 [provides]
-"ncurses-devel" = "{{version}}-2"
+"ncurses-devel" = "{{version}}-3"
 
 [replaces]
-"ncurses-devel" = "<= {{version}}-1"
+"ncurses-devel" = "<= {{version}}-2"
 
 [dependencies]
-"org.gnu.ncurses-libs" = "{{version}}-2"
+"org.gnu.ncurses-libs" = "{{version}}-3"
 
 [files]
 "@source:COPYING"                           = "usr/share/licenses/org.gnu.ncurses-devel/COPYING"

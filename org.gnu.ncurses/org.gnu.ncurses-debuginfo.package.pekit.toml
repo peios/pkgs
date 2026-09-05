@@ -3,8 +3,8 @@ name        = "org.gnu.ncurses-debuginfo"
 description = "ncurses debugging symbols"
 
 [dependencies]
-"org.gnu.ncurses"      = "{{version}}-2"
-"org.gnu.ncurses-libs" = "{{version}}-2"
+"org.gnu.ncurses"      = "{{version}}-3"
+"org.gnu.ncurses-libs" = "{{version}}-3"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.ncurses-debuginfo/COPYING"

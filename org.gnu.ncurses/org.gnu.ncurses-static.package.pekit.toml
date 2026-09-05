@@ -3,10 +3,10 @@ name        = "org.gnu.ncurses-static"
 description = "ncurses static libraries"
 
 [provides]
-"ncurses-static" = "{{version}}-2"
+"ncurses-static" = "{{version}}-3"
 
 [dependencies]
-"org.gnu.ncurses-devel" = "{{version}}-2"
+"org.gnu.ncurses-devel" = "{{version}}-3"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.ncurses-static/COPYING"

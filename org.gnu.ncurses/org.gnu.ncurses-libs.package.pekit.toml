@@ -3,14 +3,20 @@ name        = "org.gnu.ncurses-libs"
 description = "ncurses wide-character terminal runtime libraries"
 
 [provides]
-libncurses = "{{version}}-2"
+libncurses          = "{{version}}-3"
+"libformw.so.6"    = "{{version}}-3"
+"libmenuw.so.6"    = "{{version}}-3"
+"libncursesw.so.6" = "{{version}}-3"
+"libpanelw.so.6"   = "{{version}}-3"
+"libtic.so.6"      = "{{version}}-3"
+"libtinfo.so.6"    = "{{version}}-3"
 
 [replaces]
-libncurses = "<= {{version}}-1"
+libncurses = "<= {{version}}-2"
 
 [dependencies]
 glibc                       = ">= 2.43"
-"org.gnu.ncurses-terminfo" = "{{version}}-2"
+"org.gnu.ncurses-terminfo" = "{{version}}-3"
 
 [files]
 "@source:COPYING"                              = "usr/share/licenses/org.gnu.ncurses-libs/COPYING"
