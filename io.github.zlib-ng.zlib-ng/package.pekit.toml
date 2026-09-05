@@ -1,6 +1,9 @@
 # Shared metadata for the zlib-ng source family.  Binary members narrow this
 # source-wide expression to Zlib; the additional terms cover test vectors that
 # are redistributed only in the generated corresponding-source package.
+# PEI-741 tracks Pekit's current inability to carry those source-only terms
+# into the synthesized source manifest; binary members remain narrowly and
+# accurately licensed rather than being widened as a metadata workaround.
 
 format = "peipkg"
 
