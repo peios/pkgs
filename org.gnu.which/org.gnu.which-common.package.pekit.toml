@@ -1,0 +1,19 @@
+# PSPU §5.24: the package carrying the manual page declares man-db so that
+# man -k and apropos update their index rather than requiring a filesystem scan.
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.which-common"
+architecture = "noarch"
+description  = "GNU which command manual and documentation"
+license      = "GPL-3.0-or-later AND LicenseRef-Which-manual"
+
+[files]
+"@source:COPYING"                     = "usr/share/licenses/org.gnu.which-common/COPYING"
+"@source:which.texi"                  = "usr/share/licenses/org.gnu.which-common/which-manual.texi"
+"@source:AUTHORS"                     = "usr/share/doc/org.gnu.which/AUTHORS"
+"@source:EXAMPLES"                    = "usr/share/doc/org.gnu.which/EXAMPLES"
+"@source:NEWS"                        = "usr/share/doc/org.gnu.which/NEWS"
+"@source:README.md"                   = "usr/share/doc/org.gnu.which/README.md"
+"@source:README.alias"                = "usr/share/doc/org.gnu.which/README.alias"
+":usr/share/man/man1/which.1"         = "usr/share/man/man1/which.1"

@@ -1,0 +1,13 @@
+format = "peipkg"
+
+# Metadata shared by the GNU which package family. The aggregate expression
+# covers the executable, Bash/Readline-derived sources, old GNU getopt code,
+# generated build machinery, X11 install-sh, cwm4 macros, the custom manual
+# grant and the complete generated corresponding-source package. Binary
+# members narrow this to the licenses that actually apply to their payloads.
+[package]
+version      = "{{version}}-1"
+architecture = "x86_64"
+license      = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-1.0-or-later AND LGPL-2.0-or-later AND X11 AND FSFUL AND FSFULLR AND LicenseRef-Public-Domain AND LicenseRef-Which-manual AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0)"
+license_class = "free"
+homepage     = "https://carlowood.github.io/which/"

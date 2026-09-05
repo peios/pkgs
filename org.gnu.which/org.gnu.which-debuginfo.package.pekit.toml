@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.which-debuginfo"
+description = "GNU which debugging symbols"
+
+[dependencies]
+"org.gnu.which" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.which-debugsource"
+description = "GNU which debug sources"
+
+[dependencies]
+"org.gnu.which-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

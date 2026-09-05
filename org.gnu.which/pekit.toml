@@ -1,0 +1,155 @@
+# GNU which — report the executable a shell would select from PATH.
+#
+# The installed program is ANSI C and has no libstdc++ runtime dependency.
+# Upstream's shared cwm4 configure layer still performs mandatory C++ compiler
+# probes, however, so the build closure intentionally retains a C++ compiler.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/which/which-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/which/"
+extract     = true
+root        = "which-{{version}}"
+file_regex  = 'which-[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor. Follow authenticated stable 2.x releases
+# automatically; stop at a future major line for command/build review.
+versions    = ">= 2.25, < 3"
+
+# GNU which releases are signed by maintainer Carlo Wood. Pin the complete
+# primary-key fingerprint from GNU's official keyring so every release chosen
+# through unattended discovery must authenticate before it can be locked.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/carlo-wood.asc"]
+fingerprints = ["8020B2666305EE2FD53E6827C155A4EEE4E527A2"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+# Force a complete CET property note: conservative linker merging can discard
+# it when an implicit startup object carries no feature marker.
+CFLAGS="$CFLAGS -fcf-protection=full" \
+CXXFLAGS="$CXXFLAGS -fcf-protection=full" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --infodir=/usr/share/info \
+  --disable-silent-rules
+
+make -j"$(nproc)"
+# Release 2.25 has no dedicated test cases, but its Automake check target is
+# still the complete upstream verification entry point and will pick up tests
+# added by a future automatically selected 2.x release.
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios currently has no Info reader. The corresponding-source package retains
+# the Texinfo source; installed users receive the command manual and concise
+# upstream documentation in the noarch common package.
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+BIN="$PEKIT_OUT/usr/bin/which"
+SMOKE="$PEKIT_OUT/.which-smoke"
+mkdir -p "$SMOKE/a" "$SMOKE/b"
+test -x "$BIN"
+
+# Validate PATH order, --all, executable filtering and explicit paths using
+# only controlled staged fixtures rather than whichever commands the builder
+# happens to expose.
+printf '%s\\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/a/tool"
+printf '%s\\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/b/tool"
+printf '%s\\n' 'not executable' > "$SMOKE/a/hidden"
+chmod 0755 "$SMOKE/a/tool" "$SMOKE/b/tool"
+chmod 0644 "$SMOKE/a/hidden"
+PATH="$SMOKE/a:$SMOKE/b" "$BIN" tool > "$SMOKE/first"
+test "$(cat "$SMOKE/first")" = "$SMOKE/a/tool"
+PATH="$SMOKE/a:$SMOKE/b" "$BIN" --all tool > "$SMOKE/all"
+printf '%s\\n' "$SMOKE/a/tool" "$SMOKE/b/tool" > "$SMOKE/all.expected"
+cmp "$SMOKE/all.expected" "$SMOKE/all"
+status=0
+PATH="$SMOKE/a" "$BIN" hidden > "$SMOKE/hidden.out" \
+  2> "$SMOKE/hidden.err" || status=$?
+test "$status" -eq 1
+test ! -s "$SMOKE/hidden.out"
+grep -F 'no hidden in' "$SMOKE/hidden.err"
+(
+  cd "$SMOKE"
+  PATH="$SMOKE/a" "$BIN" ./a/tool > explicit
+  test "$(cat explicit)" = "$SMOKE/a/tool"
+  PATH='./a' "$BIN" tool > expanded-dot
+  test "$(cat expanded-dot)" = "$SMOKE/a/tool"
+  PATH='./a' "$BIN" --show-dot tool > shown-dot
+  test "$(cat shown-dot)" = './a/tool'
+)
+
+# Exercise the shell-alias input mode while resolving the alias body through
+# the same deterministic PATH fixtures.
+printf '%s\\n' "alias pick='tool --flag'" \
+  | PATH="$SMOKE/a:$SMOKE/b" "$BIN" --read-alias pick > "$SMOKE/alias"
+printf '%s\\n\\t%s\\n' "alias pick='tool --flag'" "$SMOKE/a/tool" \
+  > "$SMOKE/alias.expected"
+cmp "$SMOKE/alias.expected" "$SMOKE/alias"
+
+# Enforce the inherited distribution hardening and runtime-closure contract
+# on the sole installed ELF before creating conventional build-ID debuginfo.
+patchelf --remove-rpath "$BIN" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
+"$BIN" --version | head -1 | grep -F "v$PEKIT_VERSION"
+"$BIN" --help | grep -F 'Write the full path of COMMAND(s)'
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+needed=$(readelf -d "$BIN" \
+  | sed -n 's/.*Shared library: \\[\\([^]]*\\)\\].*/\\1/p' \
+  | LC_ALL=C sort -u)
+test "$needed" = 'libc.so.6'
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.which \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/which
+bid=$(readelf -n usr/bin/which \
+  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/which \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/which
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.which/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.which/$rel"
+    done
+test -n "$(find usr/src/debug/org.gnu.which -type f -print -quit)"
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+# The installed binary is C-only, but upstream's cwm4 configure layer invokes
+# AC_PROG_CXX and tests C++ warning flags even for this package.
+"build-essentials-c++" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
