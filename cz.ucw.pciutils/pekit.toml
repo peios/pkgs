@@ -1,0 +1,240 @@
+# pciutils — the signed upstream PCI bus tools and public libpci ABI.
+# This uses upstream's Makefiles, not autotools. Peios enables the complete
+# Linux-facing feature set used across Debian/Fedora: compressed-ID support,
+# explicit DNS lookup support, libkmod module lookup, and udev HWDB fallback.
+# The shipped database stays uncompressed so update-pciids has a stable target.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/software/utils/pciutils/pciutils-{{version}}.tar.xz"
+listing_url = "https://www.kernel.org/pub/software/utils/pciutils/"
+extract     = true
+root        = "pciutils-{{version}}"
+file_regex  = 'pciutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance bounds. Follow authenticated 3.x releases automatically;
+# 4.x is a deliberate public ABI and command-contract review point.
+versions    = ">= 3.15.0, < 4"
+
+# Upstream states that releases are signed by maintainer Martin Mares. The
+# detached signature covers the decompressed tar, independent of compression.
+[source.url.signature]
+key_files    = ["keys/martin-mares.asc"]
+url          = "https://cdn.kernel.org/pub/software/utils/pciutils/pciutils-{{version}}.tar.sign"
+fingerprints = ["C466A56CADA981F4297D20C31F3D0761D9B65F0B"]
+of           = "decompressed"
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+LIBDIR=/usr/lib/x86_64-linux-peios
+BUILD="$PEKIT_OUT/build"
+STATIC="$PEKIT_OUT/build-static"
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+
+mkdir -p "$BUILD" "$STATIC"
+cp -a "$SRC/." "$BUILD/"
+cp -a "$SRC/." "$STATIC/"
+
+# Do not use upstream's default install-time stripping: debug data is split
+# only after ABI and consumer validation. Build the shared and static variants
+# separately so the development package carries both conventional link forms.
+make -C "$BUILD" -j"$(nproc)" \
+  PREFIX=/usr LIBDIR="$LIBDIR" SBINDIR=/usr/bin MANDIR=/usr/share/man \
+  SHARED=yes ZLIB=yes DNS=yes LIBKMOD=yes HWDB=yes \
+  PCI_COMPRESSED_IDS=0 PCI_IDS=pci.ids STRIP= \
+  OPT="${CFLAGS:--O2 -g}" LDFLAGS="${LDFLAGS:-}"
+make -C "$BUILD" install install-lib DESTDIR="$PEKIT_OUT" \
+  PREFIX=/usr LIBDIR="$LIBDIR" SBINDIR=/usr/bin MANDIR=/usr/share/man \
+  SHARED=yes ZLIB=yes DNS=yes LIBKMOD=yes HWDB=yes \
+  PCI_COMPRESSED_IDS=0 PCI_IDS=pci.ids STRIP=
+
+make -C "$STATIC" -j"$(nproc)" lib/libpci.a \
+  PREFIX=/usr LIBDIR="$LIBDIR" SBINDIR=/usr/bin MANDIR=/usr/share/man \
+  SHARED=no ZLIB=yes DNS=yes LIBKMOD=yes HWDB=yes \
+  PCI_COMPRESSED_IDS=0 PCI_IDS=pci.ids STRIP= \
+  OPT="${CFLAGS:--O2 -g}" LDFLAGS="${LDFLAGS:-}"
+install -Dm0644 "$STATIC/lib/libpci.a" "$STAGED_LIBDIR/libpci.a"
+
+# The shared build correctly leaves its private dependency line empty. The
+# separately shipped archive needs those link inputs for `pkg-config --static`.
+# Use the static build's upstream-generated metadata for both forms.
+install -Dm0644 "$STATIC/lib/libpci.pc" \
+  "$STAGED_LIBDIR/pkgconfig/libpci.pc"
+
+install -d "$PEKIT_OUT/usr/share/doc/cz.ucw.pciutils"
+install -m0644 "$SRC/README" "$SRC/ChangeLog" "$SRC/pciutils.lsm" \
+  "$PEKIT_OUT/usr/share/doc/cz.ucw.pciutils/"
+
+BIN="$PEKIT_OUT/usr/bin"
+find "$BIN" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.installed-tools"
+printf '%s\n' lspci pcilmr setpci update-pciids | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-tools"
+diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
+for tool in lspci pcilmr setpci update-pciids; do
+  test -x "$BIN/$tool"
+done
+
+test "$(LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/lspci" --version)" = \
+  "lspci version $PEKIT_VERSION"
+test "$(LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/setpci" --version)" = \
+  "setpci version $PEKIT_VERSION"
+
+REAL="$STAGED_LIBDIR/libpci.so.$PEKIT_VERSION"
+test -f "$REAL"
+test -L "$STAGED_LIBDIR/libpci.so.3"
+test -L "$STAGED_LIBDIR/libpci.so"
+test "$(readlink "$STAGED_LIBDIR/libpci.so.3")" = \
+  "libpci.so.$PEKIT_VERSION"
+test "$(readlink "$STAGED_LIBDIR/libpci.so")" = "libpci.so.3"
+test -f "$STAGED_LIBDIR/libpci.a"
+readelf -d "$REAL" | grep -F 'Library soname: [libpci.so.3]'
+readelf -W --version-info "$REAL" | grep -F 'Name: LIBPCI_3.0'
+readelf -W --version-info "$REAL" | grep -F 'Name: LIBPCI_3.15'
+
+CONFIG="$PEKIT_OUT/usr/include/pci/config.h"
+grep -Fx '#define PCI_COMPRESSED_IDS' "$CONFIG"
+grep -Fx '#define PCI_USE_DNS' "$CONFIG"
+grep -Fx '#define PCI_USE_LIBKMOD' "$CONFIG"
+grep -Fx '#define PCI_HAVE_HWDB' "$CONFIG"
+test -s "$PEKIT_OUT/usr/share/pci.ids"
+grep -F '8086  Intel Corporation' "$PEKIT_OUT/usr/share/pci.ids"
+grep -Fx 'DEST=/usr/share/pci.ids' "$BIN/update-pciids"
+grep -Fx 'PCI_COMPRESSED_IDS=0' "$BIN/update-pciids"
+grep -Fx "VERSION=$PEKIT_VERSION" "$BIN/update-pciids"
+
+for manual in \
+  usr/share/man/man5/pci.ids.5 \
+  usr/share/man/man7/pcilib.7 \
+  usr/share/man/man8/lspci.8 \
+  usr/share/man/man8/pcilmr.8 \
+  usr/share/man/man8/setpci.8 \
+  usr/share/man/man8/update-pciids.8; do
+  test -f "$PEKIT_OUT/$manual"
+done
+
+# Exercise device decoding without host hardware or /sys by feeding lspci its
+# supported configuration-space dump format.
+SMOKE="$PEKIT_OUT/.pciutils-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/pci.dump" <<'EOF'
+0000:00:00.0 0600: 8086:1237 (rev 02)
+00: 86 80 37 12 00 00 00 00 02 00 00 06 00 00 00 00
+
+EOF
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/lspci" \
+  -F "$SMOKE/pci.dump" -nn > "$SMOKE/lspci.out"
+grep -F '[8086:1237]' "$SMOKE/lspci.out"
+
+# Compile and run shared and archive consumers through the staged public API.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <pci/pci.h>
+
+int main(void)
+{
+  struct pci_access *access = pci_alloc();
+  if (!access)
+    return 1;
+  pci_cleanup(access);
+  return 0;
+}
+EOF
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+export PKG_CONFIG_LIBDIR="$STAGED_LIBDIR/pkgconfig"
+test "$(pkg-config --modversion libpci)" = "$PEKIT_VERSION"
+cc -std=c17 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  $(pkg-config --cflags --libs libpci) \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+private_libs=$(pkg-config --static --libs libpci | sed 's/-lpci//')
+cc -std=c17 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  $(pkg-config --cflags libpci) "$STAGED_LIBDIR/libpci.a" \
+  $private_libs -o "$SMOKE/archive"
+"$SMOKE/archive"
+if readelf -d "$SMOKE/archive" | grep -F 'libpci.so'; then exit 1; fi
+
+# Produce build-ID-indexed debuginfo and the exact DWARF source set. Archives
+# retain code but not duplicate debug sections.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r file; do
+  case "$file" in
+    *.a) strip --strip-debug "$file"; continue;;
+  esac
+  readelf -h "$file" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$file"
+  debugedit -b "$ROOT" -d /usr/src/debug/cz.ucw.pciutils \
+    -l "$PEKIT_OUT/.debug-list" -n "$file"
+  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$file" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+  test -n "$build_id"
+  prefix=$(printf %s "$build_id" | cut -c1-2)
+  suffix=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$prefix"
+  objcopy --only-keep-debug "$file" \
+    "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  strip "$file"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
+  while IFS= read -r source; do
+    test -n "$source" || continue
+    case "$source" in */) continue;; esac
+    test -f "$ROOT/$source" || continue
+    mkdir -p "usr/src/debug/cz.ucw.pciutils/$(dirname "$source")"
+    cp "$ROOT/$source" "usr/src/debug/cz.ucw.pciutils/$source"
+  done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 4
+test -n "$(find usr/src/debug/cz.ucw.pciutils -type f -print -quit)"
+
+# Check the stripped production payload, not only the temporary consumers.
+for elf in usr/bin/lspci usr/bin/pcilmr usr/bin/setpci \
+  "usr/lib/x86_64-linux-peios/libpci.so.$PEKIT_VERSION"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if cc --version | head -1 | grep -Fq Peios; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+done
+
+rm -rf "$SMOKE" "$BUILD" "$STATIC"
+rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.installed-tools" "$PEKIT_OUT/.expected-tools"
+'''
+
+[build.main.dependencies.peipkg]
+dash                                      = "*"
+"org.gnu.coreutils"                     = "*"
+findutils                                 = "*"
+grep                                      = "*"
+sed                                       = "*"
+build-essentials-c                        = "*"
+pkgconf                                   = "*"
+"org.kernel.kmod-devel"                 = ">= 34.2"
+"io.github.eudev-project.eudev-devel"  = ">= 3.2.14"
+"zlib-devel"                            = ">= 2.3.3"
+debugedit                                 = ">= 5.2-2"
+patchelf                                  = ">= 0.19.1"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+coreutils       = "*"
+dash            = "*"
+findutils       = "*"
+grep            = "*"
+sed             = "*"
+pkg-config      = "*"
+libkmod-dev     = "*"
+libudev-dev     = "*"
+zlib1g-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"

@@ -1,0 +1,25 @@
+# Public libpci headers, shared-link input, pkg-config metadata and API manual.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "cz.ucw.libpci-devel"
+description = "pciutils - libpci development files"
+
+[provides]
+"libpci-devel"       = "{{version}}"
+"libpci-dev"         = "{{version}}"
+"pciutils-devel"     = "{{version}}"
+"pkgconfig(libpci)"  = "{{version}}"
+
+[dependencies]
+"cz.ucw.libpci"                         = "{{version}}-1"
+"io.github.eudev-project.eudev-devel" = ">= 3.2.14"
+"zlib-devel"                            = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                            = "usr/share/licenses/cz.ucw.libpci-devel/"
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libpci.so"    = "usr/lib/x86_64-linux-peios/libpci.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man7/**"                    = "usr/share/man/man7"

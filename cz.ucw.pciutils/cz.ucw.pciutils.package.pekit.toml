@@ -1,0 +1,29 @@
+# pciutils — the PCI tools (lspci, setpci) and the pci.ids database.
+
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+[package]
+name        = "cz.ucw.pciutils"
+description = "PCI bus inspection and configuration utilities"
+
+[provides]
+pciutils = "{{version}}"
+
+[dependencies]
+glibc                         = ">= 2.43"
+"cz.ucw.libpci"             = "{{version}}-1"
+"org.kernel.kmod-libs"      = ">= 34.2"
+dash                          = "*"
+"org.gnu.coreutils"         = "*"
+grep                          = "*"
+
+[files]
+"@source:COPYING"                  = "usr/share/licenses/cz.ucw.pciutils/"
+":usr/bin/**"                      = "usr/bin"
+":usr/share/doc/cz.ucw.pciutils/**" = "usr/share/doc/cz.ucw.pciutils"
+":usr/share/man/man5/**"           = "usr/share/man/man5"
+":usr/share/man/man8/**"           = "usr/share/man/man8"

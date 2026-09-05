@@ -1,0 +1,19 @@
+# libpci's public ABI and the PCI ID database it consumes at runtime.
+
+[package]
+name        = "cz.ucw.libpci"
+description = "pciutils - PCI access runtime library and device ID database"
+
+[provides]
+libpci        = "{{version}}"
+"libpci.so.3" = "{{version}}"
+
+[dependencies]
+glibc                                      = ">= 2.43"
+"io.github.eudev-project.eudev-libudev" = ">= 3.2.14"
+zlib                                       = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                            = "usr/share/licenses/cz.ucw.libpci/"
+":usr/lib/x86_64-linux-peios/libpci.so.3*" = "usr/lib/x86_64-linux-peios"
+":usr/share/pci.ids"                        = "usr/share/pci.ids"

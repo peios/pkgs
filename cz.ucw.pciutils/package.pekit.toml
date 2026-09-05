@@ -1,5 +1,4 @@
-# Shared defaults layer for the pciutils members (a bare package.pekit.toml
-# is never a package once named members exist).
+# Shared metadata for the upstream-owned cz.ucw.pciutils family.
 
 format = "peipkg"
 
@@ -7,4 +6,5 @@ format = "peipkg"
 version      = "{{version}}-1"
 architecture = "x86_64"
 license      = "GPL-2.0-or-later"
+license_class = "free"
 homepage     = "https://mj.ucw.cz/sw/pciutils/"

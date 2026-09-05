@@ -1,0 +1,18 @@
+# Static libpci archive and its private development closure.
+
+[package]
+name        = "cz.ucw.libpci-static"
+description = "pciutils - static libpci library"
+
+[provides]
+"libpci-static"     = "{{version}}"
+"pciutils-static"   = "{{version}}"
+
+[dependencies]
+"cz.ucw.libpci-devel"                   = "{{version}}-1"
+"io.github.eudev-project.eudev-devel" = ">= 3.2.14"
+"zlib-devel"                            = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                            = "usr/share/licenses/cz.ucw.libpci-static/"
+":usr/lib/x86_64-linux-peios/libpci.a"     = "usr/lib/x86_64-linux-peios/libpci.a"

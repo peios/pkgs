@@ -1,0 +1,11 @@
+[package]
+name        = "cz.ucw.pciutils-debuginfo"
+description = "pciutils and libpci debugging symbols"
+
+[dependencies]
+"cz.ucw.pciutils" = "{{version}}-1"
+"cz.ucw.libpci"   = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/cz.ucw.pciutils-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"
