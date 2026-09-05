@@ -1,0 +1,17 @@
+# io.github.hyperrealm.libconfig — C configuration parser runtime. The C++
+# binding is independently installable so C-only consumers do not acquire
+# libstdc++.
+
+[package]
+name        = "io.github.hyperrealm.libconfig"
+description = "libconfig - structured configuration C runtime"
+
+[provides]
+libconfig = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig/"
+":usr/lib/x86_64-linux-peios/libconfig.so.15*" = "usr/lib/x86_64-linux-peios"

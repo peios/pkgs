@@ -1,0 +1,14 @@
+# Base metadata shared by the libconfig package family. The default
+# corresponding-source package remains enabled and carries the complete locked
+# release tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# Upstream library code is LGPL; generated grammar sources also contain the
+# GPLv3-or-later Bison skeleton under its redistribution exception.
+license       = "LGPL-2.1-or-later AND (GPL-3.0-or-later WITH Bison-exception-2.2)"
+license_class = "free"
+homepage      = "https://hyperrealm.github.io/libconfig/"

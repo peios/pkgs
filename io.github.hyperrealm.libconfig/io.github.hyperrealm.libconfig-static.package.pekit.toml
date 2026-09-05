@@ -1,0 +1,15 @@
+# io.github.hyperrealm.libconfig-static — C and C++ static archives.
+
+[package]
+name        = "io.github.hyperrealm.libconfig-static"
+description = "libconfig - static libraries"
+
+[provides]
+libconfig-static = "{{version}}"
+
+[dependencies]
+"io.github.hyperrealm.libconfig-devel" = "{{version}}-1"
+
+[files]
+":usr/lib/x86_64-linux-peios/libconfig.a"   = "usr/lib/x86_64-linux-peios/libconfig.a"
+":usr/lib/x86_64-linux-peios/libconfig++.a" = "usr/lib/x86_64-linux-peios/libconfig++.a"

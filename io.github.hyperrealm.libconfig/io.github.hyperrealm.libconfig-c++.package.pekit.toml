@@ -1,0 +1,18 @@
+# io.github.hyperrealm.libconfig-c++ — C++ binding runtime. Upstream builds it
+# as a self-contained implementation rather than a wrapper around libconfig.so,
+# so it does not depend on the C runtime sibling.
+
+[package]
+name        = "io.github.hyperrealm.libconfig-c++"
+description = "libconfig - structured configuration C++ runtime"
+
+[provides]
+"libconfig-c++" = "{{version}}"
+
+[dependencies]
+glibc      = ">= 2.43"
+"libstdc++" = ">= 16.1.0"
+
+[files]
+"@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig-c++/"
+":usr/lib/x86_64-linux-peios/libconfig++.so.15*" = "usr/lib/x86_64-linux-peios"

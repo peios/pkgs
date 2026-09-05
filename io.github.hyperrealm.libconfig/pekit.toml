@@ -1,0 +1,236 @@
+# libconfig — compact C/C++ library for structured configuration files. Build
+# and test both public APIs, then split the C++ runtime so a C-only consumer does
+# not acquire libstdc++.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://hyperrealm.github.io/libconfig/dist/libconfig-{{version}}.tar.gz"
+listing_url = "https://hyperrealm.github.io/libconfig/"
+root        = "libconfig-{{version}}"
+extract     = true
+file_regex  = '^libconfig-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz$'
+# Soft maintenance floor. Follow later stable 1.x releases automatically; an
+# ABI/source-layout change is expected to fail a gate below and receive an
+# intentional packaging update before publication.
+versions    = ">= 1.8.2, < 2"
+
+# Upstream's project page publishes the release tarball but neither it nor the
+# GitHub release publishes a detached signature. The v1.8.2 tag is lightweight,
+# not a signed tag. This is an explicit authentication exception: HTTPS
+# authenticates transport and pekit's immutable SHA-256 lock detects changed
+# bytes, but neither proves that a maintainer signed a newly discovered release.
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-cxx \
+  --enable-static \
+  --disable-examples \
+  --disable-doc \
+  --disable-silent-rules
+
+# The Peios library directory is in the loader's default search contract; do
+# not let libtool hard-code it. The inherited distro flags compile every C/C++
+# object with control-flow protection; the explicit ibt/shstk link options
+# preserve the feature note even with provider CRT objects that lack one.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -i libtool
+
+make -j"$(nproc)"
+
+# Upstream's suite tests the C parser, mutations, serialization, includes and
+# malformed-input handling. Its test binary assumes testdata/ is relative to
+# the current directory, which `make check` gets wrong for an out-of-source
+# build. Run that complete binary from the source tests directory, while
+# resolving the library from this build tree rather than an older composition.
+(
+  cd "$SRC/tests"
+  LD_LIBRARY_PATH="$PEKIT_OUT/lib/.libs" \
+    "$PEKIT_OUT/tests/.libs/libconfig_tests"
+)
+make install DESTDIR="$PEKIT_OUT"
+
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+# Upstream 1.8.2 installs legacy CMake variable files whose version is still
+# hard-coded to 1.7 and whose include path references an undefined `prefix`.
+# Keep the compatibility metadata Fedora ships, but make its installed values
+# truthful and deterministic before validating it below.
+for cfg in \
+  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake" \
+  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"; do
+  sed -E \
+    -e "s|1[.]7|$PEKIT_VERSION|" \
+    -e 's|"\\$\\{prefix\\}/include"|"/usr/include"|' \
+    -i "$cfg"
+done
+
+# The current upstream libtool ABI is 15 for both libraries. Discover the real
+# objects without hard-coding the release suffix, but deliberately stop on a
+# future SONAME transition so dependency metadata can be reviewed.
+CONFIG_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig.so.15.*' | LC_ALL=C sort)
+CONFIGXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig++.so.15.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$CONFIG_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$CONFIGXX_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libconfig.so"
+test -L "$LIBDIR/libconfig.so.15"
+test -L "$LIBDIR/libconfig++.so"
+test -L "$LIBDIR/libconfig++.so.15"
+test -s "$LIBDIR/libconfig.a"
+test -s "$LIBDIR/libconfig++.a"
+test -f "$INCLUDEDIR/libconfig.h"
+test -f "$INCLUDEDIR/libconfig.h++"
+readelf -d "$CONFIG_SO" | grep -F 'Library soname: [libconfig.so.15]'
+readelf -d "$CONFIGXX_SO" | grep -F 'Library soname: [libconfig++.so.15]'
+readelf --dyn-syms -W "$CONFIG_SO" | grep -E ' config_read(@|$)'
+readelf --dyn-syms -W "$CONFIGXX_SO" | c++filt | grep -F 'libconfig::Config::readString'
+
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkg-config --validate libconfig libconfig++
+test "$(pkg-config --modversion libconfig)" = "$PEKIT_VERSION"
+test "$(pkg-config --modversion libconfig++)" = "$PEKIT_VERSION"
+pkg-config --libs libconfig | grep -Eq '(^|[[:space:]])-lconfig([[:space:]]|$)'
+pkg-config --libs libconfig++ | grep -Eq '(^|[[:space:]])-lconfig[+][+]([[:space:]]|$)'
+
+grep -F "$PEKIT_VERSION" \
+  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
+grep -F 'set(LIBCONFIG_INCLUDE_DIRS "/usr/include")' \
+  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
+grep -F "$PEKIT_VERSION" \
+  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
+grep -F 'set(LIBCONFIG++_INCLUDE_DIRS "/usr/include")' \
+  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
+
+# Exercise the staged headers and libraries through both APIs, using shared and
+# static linkage. The checks parse typed nested data and verify the result.
+SMOKE="$PEKIT_OUT/.libconfig-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <libconfig.h>
+
+int main(void)
+{
+  config_t cfg;
+  int answer = 0;
+  config_init(&cfg);
+  if (!config_read_string(&cfg, "app: { answer = 42; enabled = true; };"))
+    return 1;
+  if (!config_lookup_int(&cfg, "app.answer", &answer) || answer != 42)
+    return 2;
+  if (!config_lookup_bool(&cfg, "app.enabled", &answer) || !answer)
+    return 3;
+  config_destroy(&cfg);
+  return 0;
+}
+EOF
+cat > "$SMOKE/consumer.cc" <<'EOF'
+#include <libconfig.h++>
+#include <string>
+
+int main()
+{
+  libconfig::Config cfg;
+  cfg.readString("app: { name = \\\"peios\\\"; workers = 4; };");
+  std::string name;
+  int workers = 0;
+  if (!cfg.lookupValue("app.name", name) || name != "peios")
+    return 1;
+  if (!cfg.lookupValue("app.workers", workers) || workers != 4)
+    return 2;
+  return 0;
+}
+EOF
+cc "$SMOKE/consumer.c" $(pkg-config --cflags --libs libconfig) \
+  -o "$SMOKE/c-shared"
+g++ "$SMOKE/consumer.cc" $(pkg-config --cflags --libs libconfig++) \
+  -o "$SMOKE/cxx-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libconfig.a" \
+  -o "$SMOKE/c-static"
+g++ "$SMOKE/consumer.cc" -I"$INCLUDEDIR" "$LIBDIR/libconfig++.a" \
+  -o "$SMOKE/cxx-static"
+"$SMOKE/c-static"
+"$SMOKE/cxx-static"
+
+# libconfig++ is intentionally self-contained. A future switch to wrapping the
+# C ABI needs a package dependency update, so make that architecture visible.
+if readelf -d "$CONFIGXX_SO" | grep -F 'Shared library: [libconfig.so.15]'; then
+  echo 'libconfig++ gained a libconfig runtime dependency' >&2
+  exit 1
+fi
+
+# Build-ID-indexed debug symbols and the exact source files named by rewritten
+# DWARF. Static archives have no build ID, so retain code but discard debug.
+strip --strip-debug "$LIBDIR/libconfig.a" "$LIBDIR/libconfig++.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$CONFIG_SO" "$CONFIGXX_SO"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.hyperrealm.libconfig \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "usr/src/debug/io.github.hyperrealm.libconfig/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/io.github.hyperrealm.libconfig/$rel"
+done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find usr/src/debug/io.github.hyperrealm.libconfig -type f -print -quit)"
+for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Validate the final stripped shared objects and their dependency separation.
+for elf in "$CONFIG_SO" "$CONFIGXX_SO"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+test "$(readelf -d "$CONFIG_SO" | grep -c 'Shared library:')" -eq 1
+readelf -d "$CONFIG_SO" | grep -F 'Shared library: [libc.so.6]'
+readelf -d "$CONFIGXX_SO" | grep -F 'Shared library: [libstdc++.so.6]'
+
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+pkgconf                  = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkgconf         = "*"
+debugedit       = "*"
+patchelf        = "*"

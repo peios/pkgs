@@ -1,0 +1,13 @@
+# io.github.hyperrealm.libconfig-debuginfo — build-ID-indexed symbols for both
+# shared libraries. Static-archive debug is discarded at build time.
+
+[package]
+name        = "io.github.hyperrealm.libconfig-debuginfo"
+description = "libconfig - debugging symbols"
+
+[dependencies]
+"io.github.hyperrealm.libconfig"     = "{{version}}-1"
+"io.github.hyperrealm.libconfig-c++" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,23 @@
+# io.github.hyperrealm.libconfig-devel — both public interfaces, linker names,
+# pkg-config metadata and the corrected upstream CMake package metadata. Static
+# archives are kept in the static sibling.
+
+[package]
+name        = "io.github.hyperrealm.libconfig-devel"
+description = "libconfig - C and C++ development files"
+
+[provides]
+libconfig-devel = "{{version}}"
+
+[dependencies]
+"io.github.hyperrealm.libconfig"     = "{{version}}-1"
+"io.github.hyperrealm.libconfig-c++" = "{{version}}-1"
+
+[files]
+":usr/include/libconfig.h"                           = "usr/include/libconfig.h"
+":usr/include/libconfig.h++"                         = "usr/include/libconfig.h++"
+":usr/lib/x86_64-linux-peios/libconfig.so"           = "usr/lib/x86_64-linux-peios/libconfig.so"
+":usr/lib/x86_64-linux-peios/libconfig++.so"         = "usr/lib/x86_64-linux-peios/libconfig++.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"           = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/cmake/libconfig/**"     = "usr/lib/x86_64-linux-peios/cmake/libconfig"
+":usr/lib/x86_64-linux-peios/cmake/libconfig++/**"   = "usr/lib/x86_64-linux-peios/cmake/libconfig++"

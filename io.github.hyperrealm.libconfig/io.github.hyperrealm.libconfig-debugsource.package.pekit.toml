@@ -1,0 +1,12 @@
+# io.github.hyperrealm.libconfig-debugsource — exact source files referenced by
+# the rewritten DWARF under /usr/src/debug/io.github.hyperrealm.libconfig.
+
+[package]
+name        = "io.github.hyperrealm.libconfig-debugsource"
+description = "libconfig - debug sources"
+
+[dependencies]
+"io.github.hyperrealm.libconfig-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"
