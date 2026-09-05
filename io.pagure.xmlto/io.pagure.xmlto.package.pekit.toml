@@ -1,0 +1,39 @@
+# PSPU §5.24: the main payload carries man pages, so declare man-db for
+# cache refresh. Debug and source packages deliberately do not inherit it.
+side_effects = ["man-db"]
+
+[package]
+name        = "io.pagure.xmlto"
+description = "Convert DocBook XML to man pages and other formats"
+
+[provides]
+xmlto = "{{version}}-1"
+
+[replaces]
+xmlto = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+# The script's own toolchain. Everything here is named in the generated
+# script or by a format script, so none of it is optional.
+"org.gnu.bash"                  = "*"
+"org.kernel.util-linux-getopt" = ">= 2.42.3"
+peiosutils                      = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.sed"                  = "*"
+"org.gnu.findutils"            = "*"
+"glibc-bin"                    = "*"
+xsltproc                        = ">= 1.1.45"
+libxml2-utils                   = ">= 2.15.3"
+docbook-xsl                     = ">= 1.79.2-2"
+docbook-xml                     = ">= 4.5"
+
+[files]
+"@source:COPYING"    = "usr/share/licenses/io.pagure.xmlto/"
+"@source:AUTHORS.md" = "usr/share/doc/io.pagure.xmlto/"
+"@source:FAQ.md"     = "usr/share/doc/io.pagure.xmlto/"
+"@source:NEWS.md"    = "usr/share/doc/io.pagure.xmlto/"
+"@source:README.md"  = "usr/share/doc/io.pagure.xmlto/"
+":usr/bin/**"         = "usr/bin"
+":usr/share/xmlto/**" = "usr/share/xmlto"
+":usr/share/man/**"   = "usr/share/man"

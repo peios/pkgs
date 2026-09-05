@@ -1,0 +1,10 @@
+# Metadata shared by the xmlto package family and its generated source package.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-or-later"
+license_class = "free"
+homepage      = "https://pagure.io/xmlto"

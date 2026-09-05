@@ -20,7 +20,11 @@
 # would name /usr/bin directly where a payload script should go through the
 # /bin runtime view (pkgs 38a56b4). Both are fixed by stating the paths.
 #
-#   pekit publish --version 0.0.29 --env peipkg --keyring dev
+# Upstream publishes SHA-256/SHA-512 sums but did not sign the 0.0.29
+# release, tag, or commit. The reviewed recipe lock pins the exact bytes
+# obtained over the official Pagure HTTPS release service, and the emitted
+# Peipkg is signed; a future upstream signing mechanism can strengthen this
+# without changing the automatic-update shape.
 
 out_dir = "out"
 
@@ -28,27 +32,42 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url      = "https://releases.pagure.org/xmlto/xmlto-{{version}}.tar.bz2"
-extract  = true
-root     = "xmlto-{{version}}"
-versions = ">= 0.0.29"
+url         = "https://releases.pagure.org/xmlto/xmlto-{{version}}.tar.bz2"
+listing_url = "https://releases.pagure.org/xmlto/"
+file_regex  = 'xmlto-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2'
+extract     = true
+root        = "xmlto-{{version}}"
+# Soft maintenance floor. Follow future releases throughout the pre-1 line;
+# a 1.x transition is the point for an explicit compatibility review.
+versions    = ">= 0.0.29, < 1"
 
 [build.main]
-command = """
+command = '''
+set -eu
 SRC="$(pwd)"
 (cd "$SRC" && autoreconf -fi)
 cd "$PEKIT_OUT"
 
 # xmlto builds its OWN man pages with the toolchain it is installing, so the
 # catalog has to be in the environment before make, not merely before the
-# smoke test below. A build root has no /etc merge to find it through.
-export XML_CATALOG_FILES=/usr/etc/xml/catalog
+# smoke test below. Peios installs configuration under /usr/etc; the Debian
+# validation environment uses the conventional /etc path.
+if test -r /usr/etc/xml/catalog; then
+  export XML_CATALOG_FILES=/usr/etc/xml/catalog
+elif test -r /etc/xml/catalog; then
+  export XML_CATALOG_FILES=/etc/xml/catalog
+else
+  echo "xmlto: no XML catalog found" >&2
+  exit 1
+fi
 
 # The pinned helpers, all through /bin. Deliberately NOT pinned, and so left
 # as bare names that resolve to nothing: dblatex, fop, xmltex and pdfxmltex
 # (PDF output), and lynx, links and w3m (text output). Peios packages none of
 # them, so those formats are unavailable; `xmlto man` and `xmlto html` are
 # what the kernel tools need and neither touches them.
+CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=/usr/src/debug/io.pagure.xmlto" \
+LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   XMLTO_BASH_PATH=/bin/bash \
   XSLTPROC=/bin/xsltproc \
@@ -58,10 +77,12 @@ export XML_CATALOG_FILES=/usr/etc/xml/catalog
   GREP=/bin/grep \
   TAIL=/bin/tail \
   LOCALE=/bin/locale \
-  GETOPT=getopt \
-  MKTEMP=mktemp \
-  FIND=find
+  GETOPT=/bin/getopt \
+  MKTEMP=/bin/mktemp \
+  FIND=/bin/find
 make -j"$(nproc)"
+# Upstream's complete xmlif conditional-processing regression suite.
+make check
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/doc"
 
@@ -86,30 +107,71 @@ FORMAT_DIR="$PEKIT_OUT/usr/share/xmlto/format" \
 test -s peios-smoke.1 || { echo "xmlto: produced no man page" >&2; exit 1; }
 grep -q 'peios-smoke' peios-smoke.1 || { echo "xmlto: man page has no content" >&2; exit 1; }
 echo "xmlto: rendered DocBook to troff ($(wc -c < peios-smoke.1) bytes)"
+"$PEKIT_OUT/usr/bin/xmlto" --version | grep -F "xmlto version $PEKIT_VERSION"
 rm -f smoke.xml peios-smoke.1
-"""
+
+# xmlif is the sole ELF. Split its build-ID debug data and retain every
+# DWARF-referenced source in the canonical debugsource package.
+ELF="$PEKIT_OUT/usr/bin/xmlif"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+patchelf --remove-rpath "$ELF" 2>/dev/null || true
+readelf -h "$ELF" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$ELF" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$ELF" | grep -F 'GNU_RELRO'
+readelf -d "$ELF" | grep -F 'BIND_NOW'
+readelf -d "$ELF" | grep -F 'RELR'
+readelf -n "$ELF" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$ELF" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+
+debugedit -b "$ROOT" -d /usr/src/debug/io.pagure.xmlto \
+  -l "$PEKIT_OUT/.dl" -n "$ELF"
+bid=$(readelf -n "$ELF" | sed -n \
+  's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$ELF" \
+  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+strip "$ELF"
+if strings "$ELF" | grep -F "$ROOT"; then exit 1; fi
+
+tr '\0' '\n' < "$PEKIT_OUT/.dl" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$(dirname "$rel")"
+      cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$rel"
+    done
+test -n "$(find "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto" -type f -print -quit)"
+rm -f "$PEKIT_OUT/.dl"
+'''
 
 [build.main.dependencies.peipkg]
-dash               = "*"
-"org.gnu.coreutils" = "*"
-grep               = "*"
-sed                = "*"
-findutils          = "*"
-"org.gnu.bash"     = "*"
-build-essentials-c = "*"
-make               = "*"
-"org.gnu.autoconf" = "*"
-"org.gnu.automake" = "*"
-libtool            = "*"
-m4                 = "*"
-perl               = "*"
+dash                 = "*"
+peiosutils           = "*"
+"org.gnu.grep"       = "*"
+"org.gnu.sed"        = "*"
+"org.gnu.findutils"  = "*"
+"org.gnu.bash"       = "*"
+build-essentials-c   = "*"
+"org.gnu.make"       = "*"
+"org.gnu.autoconf"   = "*"
+"org.gnu.automake"   = "*"
+"org.gnu.libtool"    = "*"
+"org.gnu.m4"         = "*"
+"org.perl.perl"      = "*"
+debugedit             = "*"
+patchelf              = "*"
 # The runtime chain, present here because the build smoke-tests it.
 "org.kernel.util-linux-getopt" = "*"
-xsltproc        = "*"
-"libxml2-utils" = "*"
-"docbook-xsl"   = "*"
-"docbook-xml"   = "*"
-"glibc-bin"     = "*"
+xsltproc                         = "*"
+"libxml2-utils"                  = "*"
+"docbook-xsl"                    = "*"
+"docbook-xml"                    = "*"
+"glibc-bin"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -120,3 +182,5 @@ xsltproc        = "*"
 libxml2-utils   = "*"
 docbook-xsl     = "*"
 docbook-xml     = "*"
+debugedit       = "*"
+patchelf        = "*"
