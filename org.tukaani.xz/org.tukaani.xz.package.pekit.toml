@@ -7,7 +7,7 @@ license     = "0BSD"
 xz = "{{version}}-1"
 
 [replaces]
-xz = "< {{version}}-1"
+xz = "<= {{version}}-1"
 
 [dependencies]
 glibc                    = ">= 2.43"

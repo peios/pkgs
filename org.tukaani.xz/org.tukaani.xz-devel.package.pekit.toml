@@ -7,7 +7,7 @@ license     = "0BSD"
 "xz-devel" = "{{version}}-1"
 
 [replaces]
-"xz-devel" = "< {{version}}-1"
+"xz-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.tukaani.xz-libs" = "{{version}}-1"

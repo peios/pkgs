@@ -7,7 +7,7 @@ license     = "0BSD"
 liblzma = "{{version}}-1"
 
 [replaces]
-liblzma = "< {{version}}-1"
+liblzma = "<= {{version}}-1"
 
 [dependencies]
 glibc = ">= 2.43"
