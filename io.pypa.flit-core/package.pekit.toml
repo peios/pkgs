@@ -1,0 +1,35 @@
+# Shared metadata for Flit Core's binary and generated corresponding-source
+# package. Both carry Flit's BSD code, the BSD-licensed PEP 440 regex retained
+# from packaging, and the vendored MIT-licensed Tomli bootstrap parser.
+
+format = "peipkg"
+
+[package]
+name         = "io.pypa.flit-core"
+version      = "{{version}}-2"
+# x86_64, not noarch: the one site-packages is inside the triplet
+# directory (no purelib/platlib split), so a pure-Python payload is
+# still installed at an arch-specific path.
+architecture = "x86_64"
+description  = "Flit Core PEP 517 build backend for Python projects"
+license      = "BSD-3-Clause AND BSD-2-Clause AND MIT"
+license_class = "free"
+homepage     = "https://flit.pypa.io/"
+
+[provides]
+# Preserve the bootstrap-era package identity while downstream recipes migrate
+# to the authenticated reverse-DNS name.
+"python3-flit-core" = "{{version}}-2"
+
+[replaces]
+"python3-flit-core" = "<= {{version}}-1"
+
+[dependencies]
+# Bytecode and the site-packages path are bound to the interpreter's
+# feature version: a python3 minor bump is a rebuild of this package.
+"org.python.python3" = ">= 3.14, < 3.15"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/io.pypa.flit-core/LICENSE"
+"@source:flit_core/vendor/tomli-1.2.3.dist-info/LICENSE" = "usr/share/licenses/io.pypa.flit-core/TOMLI-LICENSE"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"
