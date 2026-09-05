@@ -69,6 +69,19 @@ for view in bin sbin lib; do
   [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
 done
 
+# /etc is also a StrataFS view on a booted Peios system. Packages put vendor
+# defaults in /usr/etc, registry-derived values in /system/retc, and local
+# overrides in /lcl/etc; the build root has no StrataFS mount, so materialise
+# an effective snapshot in the same low-to-high precedence order. This is only
+# sandbox state and is discarded with the root. It makes configure scripts and
+# test suites observe the runtime paths without allowing package payloads to
+# claim /etc itself.
+mkdir -p "$work/root/etc"
+for tier in usr/etc system/retc lcl/etc; do
+  [ -d "$work/root/$tier" ] || continue
+  cp -a "$work/root/$tier/." "$work/root/etc/"
+done
+
 status=0
 bwrap \
   --die-with-parent \
