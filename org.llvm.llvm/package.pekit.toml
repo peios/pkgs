@@ -1,0 +1,10 @@
+# Metadata shared by the authenticated LLVM, Clang and LLD package family.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-2"
+architecture = "x86_64"
+license      = "Apache-2.0 WITH LLVM-exception"
+homepage     = "https://llvm.org/"
+license_class = "free"

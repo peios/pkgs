@@ -2,26 +2,33 @@
 # llvm-nm, llvm-objcopy, llvm-objdump, llvm-readelf, llvm-strip, ...) +
 # llc/opt + the libLLVM dylib everything here links.
 
+excludes = [
+  ":usr/bin/llvm-config",
+]
+
 [package]
-name        = "llvm"
-description = "LLVM - compiler infrastructure tools and libLLVM runtime"
+name        = "org.llvm.llvm"
+description = "LLVM compiler infrastructure tools"
+
+[provides]
+llvm = "{{version}}-2"
+
+[replaces]
+llvm = "<= {{version}}-1"
 
 [dependencies]
-glibc       = ">= 2.43"
-"libstdc++" = ">= 16"
-zlib        = ">= 2.3.3"
-libzstd     = ">= 1.5.7"
+"org.llvm.llvm-libs" = "{{version}}-2"
 
 [files]
-"@source:llvm/LICENSE.TXT" = "usr/share/licenses/llvm/"
+"@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm/LICENSE.TXT"
 ":usr/bin/llvm-*"       = "usr/bin"
 ":usr/bin/llc"          = "usr/bin/llc"
+":usr/bin/lli"          = "usr/bin/lli"
 ":usr/bin/opt"          = "usr/bin/opt"
 ":usr/bin/bugpoint"     = "usr/bin/bugpoint"
 ":usr/bin/sancov"       = "usr/bin/sancov"
 ":usr/bin/sanstats"     = "usr/bin/sanstats"
 ":usr/bin/dsymutil"     = "usr/bin/dsymutil"
 ":usr/bin/verify-uselistorder" = "usr/bin/verify-uselistorder"
-":usr/lib/x86_64-linux-peios/libLLVM*.so*"   = "usr/lib/x86_64-linux-peios"
-":usr/lib/x86_64-linux-peios/libLTO.so*"     = "usr/lib/x86_64-linux-peios"
-":usr/lib/x86_64-linux-peios/libRemarks.so*" = "usr/lib/x86_64-linux-peios"
+":usr/bin/amdgpu-arch" = "usr/bin/amdgpu-arch"
+":usr/bin/nvptx-arch"  = "usr/bin/nvptx-arch"

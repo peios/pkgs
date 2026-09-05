@@ -1,0 +1,4 @@
+# Peios LLVM patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+gcc16/missing-cstdint.patch  # GCC 16's libstdc++ dropped transitive <cstdint>; SmallVector.h uses uint64_t bare (upstream-fixed after 18)
+peios/triplet-resource-dir-test.patch  # Peios keeps Clang resources in the target-triplet libdir; accept that deliberate layout in the upstream test

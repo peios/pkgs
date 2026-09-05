@@ -1,0 +1,15 @@
+[package]
+name        = "org.llvm.clang-devel"
+description = "Clang development headers and CMake metadata"
+
+[dependencies]
+"org.llvm.clang-libs" = "{{version}}-2"
+"org.llvm.llvm-devel" = "{{version}}-2"
+
+[files]
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-devel/LICENSE.TXT"
+":usr/include/clang/**"   = "usr/include/clang"
+":usr/include/clang-c/**" = "usr/include/clang-c"
+":usr/lib/x86_64-linux-peios/libclang-cpp.so" = "usr/lib/x86_64-linux-peios/libclang-cpp.so"
+":usr/lib/x86_64-linux-peios/libclang.so"     = "usr/lib/x86_64-linux-peios/libclang.so"
+":usr/lib/x86_64-linux-peios/cmake/clang/**"  = "usr/lib/x86_64-linux-peios/cmake/clang"

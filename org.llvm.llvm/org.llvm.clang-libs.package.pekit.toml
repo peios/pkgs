@@ -1,0 +1,14 @@
+[package]
+name        = "org.llvm.clang-libs"
+description = "Clang shared runtime libraries"
+
+[dependencies]
+glibc                  = ">= 2.43"
+"libstdc++"            = ">= 16"
+libgcc                 = ">= 16"
+"org.llvm.llvm-libs"   = "{{version}}-2"
+
+[files]
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-libs/LICENSE.TXT"
+":usr/lib/x86_64-linux-peios/libclang-cpp.so.*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libclang.so.*"     = "usr/lib/x86_64-linux-peios"

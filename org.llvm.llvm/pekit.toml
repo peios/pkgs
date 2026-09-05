@@ -1,0 +1,304 @@
+# LLVM, Clang and LLD. Peios' kernel uses this toolchain under LLVM=1 and
+# rustc links the system libLLVM through llvm-config.
+#
+# LLVM 18 remains an intentional compatibility line because pkm's toolchain
+# lock selects major 18. Point releases within the signed 18.x line are
+# automatic; a major upgrade is coordinated with pkm rather than pinned here.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{{version}}/llvm-project-{{version}}.src.tar.xz"
+listing_url = "https://github.com/llvm/llvm-project/releases"
+extract     = true
+root        = "llvm-project-{{version}}.src"
+file_regex  = '^llvm-project-(?P<version>18\.[0-9]+\.[0-9]+)\.src\.tar\.xz$'
+# Soft compatibility window: this is an automatic maintenance floor and an
+# explicit toolchain-major review boundary, not a point-version pin.
+versions    = ">= 18.1.8, < 19"
+
+# LLVM signs release tarballs after the release-manager verification pass.
+# Pin the full primary fingerprint of the signer used for LLVM 18.1.8.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/tom-stellard.asc"]
+fingerprints = ["474E22316ABF4785A88C6E8EA2C794A986419D8A"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+TRIPLET=x86_64-linux-peios
+LIBDIR="$PREFIX/lib/$TRIPLET"
+LLVM_MAJOR=${PEKIT_VERSION%%.*}
+LLVM_MAJOR_MINOR=$(printf '%s' "$PEKIT_VERSION" | cut -d. -f1,2)
+DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUG_DEST=/usr/src/debug/org.llvm.llvm
+
+# LLVM translation units and shared-library links are memory-heavy. Bound both
+# compile and link concurrency instead of allowing the host's core count to
+# turn memory pressure into nondeterministic build failures.
+JOBS=$(nproc)
+MEM_KIB=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+MEM_JOBS=$((MEM_KIB / 2200000))
+[ "$MEM_JOBS" -lt "$JOBS" ] && JOBS=$MEM_JOBS
+[ "$JOBS" -lt 1 ] && JOBS=1
+LINK_JOBS=$((MEM_KIB / 6000000))
+[ "$LINK_JOBS" -gt 3 ] && LINK_JOBS=3
+[ "$LINK_JOBS" -lt 1 ] && LINK_JOBS=1
+
+# Preserve the workspace policy while supplying a safe production fallback.
+# The forced cstdint include is the narrow LLVM-18/GCC-16 compatibility bridge;
+# unlike the old recipe it is appended and cannot discard inherited flags.
+export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -include cstdint -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk"
+
+rm -rf "$BUILD"
+cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS -pie" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_MODULE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_RPATH= \
+  -DCMAKE_SKIP_INSTALL_RPATH=ON \
+  -DLLVM_LIBDIR_SUFFIX=/$TRIPLET \
+  -DLLVM_HOST_TRIPLE=$TRIPLET \
+  -DLLVM_ENABLE_PROJECTS='clang;lld' \
+  -DLLVM_TARGETS_TO_BUILD='X86;BPF' \
+  -DLLVM_BUILD_LLVM_DYLIB=ON \
+  -DLLVM_LINK_LLVM_DYLIB=ON \
+  -DLLVM_DYLIB_COMPONENTS=all \
+  -DCLANG_LINK_CLANG_DYLIB=ON \
+  -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_ASSERTIONS=OFF \
+  -DLLVM_ENABLE_PIC=ON \
+  -DLLVM_ENABLE_ZLIB=FORCE_ON \
+  -DLLVM_ENABLE_ZSTD=FORCE_ON \
+  -DLLVM_ENABLE_TERMINFO=OFF \
+  -DLLVM_ENABLE_LIBEDIT=OFF \
+  -DLLVM_ENABLE_LIBXML2=OFF \
+  -DLLVM_ENABLE_FFI=OFF \
+  -DLLVM_ENABLE_BINDINGS=OFF \
+  -DLLVM_INCLUDE_TESTS=ON \
+  -DLLVM_INCLUDE_EXAMPLES=OFF \
+  -DLLVM_INCLUDE_BENCHMARKS=OFF \
+  -DLLVM_INCLUDE_DOCS=OFF \
+  -DLLVM_PARALLEL_COMPILE_JOBS="$JOBS" \
+  -DLLVM_PARALLEL_LINK_JOBS="$LINK_JOBS"
+
+cmake --build "$BUILD" -j"$JOBS"
+
+# LLVM_LIBDIR_SUFFIX is designed for flat names such as lib64. Peios' triplet
+# suffix deliberately contains a slash; LLVM places the libraries correctly,
+# but Clang 18's build-tree resource-header rule prefixes an extra `lib/`.
+# Normalise that build-only location before running the suites. The install
+# rule already writes the headers to the intended /usr/lib/$TRIPLET path.
+BUILT_RESOURCE_DIR=$("$BUILD/bin/clang" -print-resource-dir)
+GENERATED_RESOURCE_DIR="$BUILD/lib/lib/$TRIPLET/clang/$LLVM_MAJOR"
+test -f "$GENERATED_RESOURCE_DIR/include/stddef.h"
+test -f "$GENERATED_RESOURCE_DIR/include/hlsl.h"
+mkdir -p "$(dirname "$BUILT_RESOURCE_DIR")"
+cp -a "$GENERATED_RESOURCE_DIR" "$BUILT_RESOURCE_DIR"
+test -f "$BUILT_RESOURCE_DIR/include/stddef.h"
+test -f "$BUILT_RESOURCE_DIR/include/hlsl.h"
+
+# Full dependency-closed upstream coverage for every shipped project. The
+# targets contain LLVM's unit tests plus lit integration and regression suites.
+cmake --build "$BUILD" --target check-llvm check-clang check-lld -- -j"$JOBS"
+
+DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+
+# scan-build/scan-view and other interpreter frontends are separate products,
+# not hidden runtime dependencies of the compiler. Keep this package family to
+# the native LLVM/Clang/LLD surface until those tools receive their own split.
+find "$PREFIX/bin" -type f ! -type l -exec sh -c '
+  for file do
+    if [ "$(head -c 2 "$file")" = "#!" ]; then rm -f "$file"; fi
+  done
+' sh {} +
+find "$PREFIX/bin" -type l ! -exec test -e {} ';' -delete
+rm -rf "$PREFIX/lib/$TRIPLET/libear" \
+  "$PREFIX/lib/$TRIPLET/libscanbuild" "$PREFIX/libexec" "$PREFIX/share"
+
+# Freeze the installed ABI and layout before destructive debug processing.
+test -x "$PREFIX/bin/llvm-config"
+test -x "$PREFIX/bin/clang-$LLVM_MAJOR"
+test -x "$PREFIX/bin/ld.lld"
+test -L "$LIBDIR/libLLVM-$LLVM_MAJOR.so"
+test -f "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR"
+test -f "$LIBDIR/libclang-cpp.so.$LLVM_MAJOR_MINOR"
+test -f "$LIBDIR/libclang.so.$PEKIT_VERSION"
+test -d "$PREFIX/include/llvm"
+test -d "$PREFIX/include/clang-c"
+test -d "$PREFIX/include/lld"
+test -d "$LIBDIR/cmake/llvm"
+test -d "$LIBDIR/cmake/clang"
+test -d "$LIBDIR/cmake/lld"
+test -n "$(find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -print -quit)"
+
+readelf -d "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F "Library soname: [libLLVM.so.$LLVM_MAJOR_MINOR]"
+readelf -d "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F "Library soname: [libclang.so.$LLVM_MAJOR_MINOR]"
+readelf --dyn-syms -W "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F ' LLVMContextCreate'
+readelf --dyn-syms -W "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F ' clang_createIndex'
+
+# Exercise the installed tools, not merely build-tree executables.
+BIN="$PREFIX/bin"
+SMOKE="$PEKIT_OUT/.llvm-smoke"
+mkdir -p "$SMOKE"
+export LD_LIBRARY_PATH="$LIBDIR"
+"$BIN/llvm-config" --version | grep -Fx "$PEKIT_VERSION"
+"$BIN/clang" --version | grep -F "clang version $PEKIT_VERSION"
+"$BIN/ld.lld" --version | grep -F "LLD $PEKIT_VERSION"
+
+printf '%s\n' 'define i32 @answer() { ret i32 42 }' > "$SMOKE/input.ll"
+"$BIN/llvm-as" "$SMOKE/input.ll" -o "$SMOKE/input.bc"
+"$BIN/llvm-dis" "$SMOKE/input.bc" -o "$SMOKE/output.ll"
+grep -F 'ret i32 42' "$SMOKE/output.ll"
+
+cat > "$SMOKE/freestanding.c" <<'EOF'
+__attribute__((noreturn)) void _start(void) {
+  __asm__ volatile("syscall" : : "a"(60), "D"(0) : "rcx", "r11", "memory");
+  __builtin_unreachable();
+}
+EOF
+"$BIN/clang" --target=x86_64-linux-peios -ffreestanding -fno-pic \
+  -fno-stack-protector -c "$SMOKE/freestanding.c" -o "$SMOKE/freestanding.o"
+"$BIN/ld.lld" -static -e _start "$SMOKE/freestanding.o" -o "$SMOKE/freestanding"
+"$SMOKE/freestanding"
+
+cat > "$SMOKE/llvm-api.c" <<'EOF'
+#include <llvm-c/Core.h>
+int main(void) {
+  LLVMContextRef context = LLVMContextCreate();
+  if (!context) return 1;
+  LLVMContextDispose(context);
+  return 0;
+}
+EOF
+cc "$SMOKE/llvm-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lLLVM -o "$SMOKE/llvm-api"
+"$SMOKE/llvm-api"
+
+cat > "$SMOKE/clang-api.c" <<'EOF'
+#include <clang-c/Index.h>
+int main(void) {
+  CXIndex index = clang_createIndex(0, 0);
+  if (!index) return 1;
+  clang_disposeIndex(index);
+  return 0;
+}
+EOF
+cc "$SMOKE/clang-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lclang -o "$SMOKE/clang-api"
+"$SMOKE/clang-api"
+
+# Static archives retain linkable symbols but not duplicate DWARF. Split every
+# installed ELF by build ID and stage the exact source files its DWARF names.
+# The binutils helpers may themselves link libLLVM/libzstd; never let them mmap
+# a staged library which they are about to rewrite in place.
+unset LD_LIBRARY_PATH
+find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec strip --strip-debug {} +
+if find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec readelf -SW {} + 2>/dev/null \
+  | grep -Eq '\.debug_(info|line)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.source-list"
+: > "$PEKIT_OUT/.build-ids"
+find usr/bin "usr/lib/$TRIPLET" -type f ! -type l \
+  -not -name '*.a' -not -path 'usr/lib/debug/*' | LC_ALL=C sort | while IFS= read -r elf; do
+    readelf -h "$elf" >/dev/null 2>&1 || continue
+    patchelf --remove-rpath "$elf" 2>/dev/null || true
+    debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
+      -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
+    cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
+    build_id=$(readelf -n "$elf" | \
+      sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+    test -n "$build_id"
+    printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
+    case "$elf" in
+      usr/bin/clang-*|usr/bin/c-index-test|usr/bin/diagtool)
+        debug_component=clang ;;
+      usr/lib/$TRIPLET/libclang*.so*)
+        debug_component=clang-libs ;;
+      usr/bin/lld)
+        debug_component=lld ;;
+      *)
+        debug_component=llvm ;;
+    esac
+    first=$(printf %s "$build_id" | cut -c1-2)
+    rest=$(printf %s "$build_id" | cut -c3-)
+    debug_file=".debuginfo/$debug_component/usr/lib/debug/.build-id/$first/$rest.debug"
+    test ! -e "$debug_file"
+    mkdir -p "$(dirname "$debug_file")"
+    objcopy --only-keep-debug "$elf" "$debug_file"
+    chmod 0644 "$debug_file"
+    strip "$elf"
+  done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" -o "$PEKIT_OUT/.build-ids"
+# The shared-dylib build intentionally consolidates most LLVM code into a
+# compact ELF surface. Keep a generous floor that catches a truncated install
+# while allowing signed 18.x point releases to add or remove auxiliary tools.
+test "$(wc -l < "$PEKIT_OUT/.build-ids")" -ge 80
+tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$DEBUG_ROOT/$rel" || continue
+      destination="usr/src/debug/org.llvm.llvm/$rel"
+      mkdir -p "$(dirname "$destination")"
+      cp "$DEBUG_ROOT/$rel" "$destination"
+    done
+test -n "$(find usr/src/debug/org.llvm.llvm -type f -print -quit)"
+test "$(find .debuginfo -type f -path '*/usr/lib/debug/.build-id/*/*.debug' | wc -l)" \
+  -eq "$(wc -l < "$PEKIT_OUT/.build-ids")"
+
+# Validate the exact stripped payload's baseline hardening. The representative
+# executables and shared libraries cover every linker mode used by this build.
+for elf in usr/bin/llvm-config usr/bin/clang-$LLVM_MAJOR usr/bin/lld \
+  "usr/lib/$TRIPLET/libLLVM.so.$LLVM_MAJOR_MINOR" \
+  "usr/lib/$TRIPLET/libclang-cpp.so.$LLVM_MAJOR_MINOR" \
+  "usr/lib/$TRIPLET/libclang.so.$PEKIT_VERSION"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$SMOKE" "$BUILD"
+rm -f "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.source-list" \
+  "$PEKIT_OUT/.build-ids"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+"org.cmake.cmake"      = "*"
+"org.ninja-build.ninja" = "*"
+python3                 = "*"
+"zlib-devel"            = "*"
+"zstd-devel"            = "*"
+debugedit                = "*"
+patchelf                 = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake            = "*"
+ninja-build      = "*"
+python3          = "*"
+zlib1g-dev       = "*"
+libzstd-dev      = "*"
+debugedit        = "*"
+patchelf         = "*"

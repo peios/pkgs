@@ -1,15 +1,20 @@
 # lld — the LLVM linker (the kernel's LD under LLVM=1: ld.lld).
 
 [package]
-name        = "lld"
+name        = "org.llvm.lld"
 description = "lld - the LLVM linker (ld.lld)"
 
+[provides]
+lld = "{{version}}-2"
+
+[replaces]
+lld = "<= {{version}}-1"
+
 [dependencies]
-glibc       = ">= 2.43"
-"libstdc++" = ">= 16"
-llvm        = "{{version}}"
+"org.llvm.llvm-libs" = "{{version}}-2"
 
 [files]
+"@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld/LICENSE.TXT"
 ":usr/bin/lld*"    = "usr/bin"
 ":usr/bin/ld.lld"  = "usr/bin/ld.lld"
 ":usr/bin/ld64.lld" = "usr/bin/ld64.lld"

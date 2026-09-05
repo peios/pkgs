@@ -4,17 +4,22 @@
 # headers (stdarg.h & co) the driver hands every compile.
 
 [package]
-name        = "clang"
-description = "clang - LLVM C/C++ compiler and libclang"
+name        = "org.llvm.clang"
+description = "Clang C, C++ and Objective-C compiler"
+
+[provides]
+clang = "{{version}}-2"
+
+[replaces]
+clang = "<= {{version}}-1"
 
 [dependencies]
-glibc       = ">= 2.43"
-"libstdc++" = ">= 16"
-llvm        = "{{version}}"
+"org.llvm.llvm"       = "{{version}}-2"
+"org.llvm.clang-libs" = "{{version}}-2"
 
 [files]
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang/LICENSE.TXT"
 ":usr/bin/clang*"   = "usr/bin"
 ":usr/bin/c-index-test" = "usr/bin/c-index-test"
 ":usr/bin/diagtool"     = "usr/bin/diagtool"
-":usr/lib/x86_64-linux-peios/libclang*.so*" = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/clang/**"      = "usr/lib/x86_64-linux-peios/clang"
