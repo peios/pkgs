@@ -30,5 +30,16 @@ exec docker run --rm \
       find /var/lib/apt/lists -maxdepth 1 -name "*_Packages*" -mmin -1440 | grep -q . || apt-get update -q
       DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends $DEBROOT_DEPS
     fi
+
+    # setpriv accepts numeric identities that are absent from the container
+    # databases, but build/test programs reasonably expect getpwuid(3),
+    # getgrgid(3), ~ expansion and Path.home() to work. Give the invoking
+    # identity an ephemeral entry before dropping privileges.
+    getent group "$DEBROOT_GID" >/dev/null ||
+      printf "pekit-build-%s:x:%s:\n" "$DEBROOT_GID" "$DEBROOT_GID" >> /etc/group
+    getent passwd "$DEBROOT_UID" >/dev/null ||
+      printf "pekit-build-%s:x:%s:%s:Pekit build user:/tmp:/bin/sh\n" \
+        "$DEBROOT_UID" "$DEBROOT_UID" "$DEBROOT_GID" >> /etc/passwd
+
     exec setpriv --reuid "$DEBROOT_UID" --regid "$DEBROOT_GID" --clear-groups env HOME=/tmp sh -euc "$1"
   ' debroot "$script"
