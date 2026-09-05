@@ -5,13 +5,17 @@ name        = "org.gnu.ncurses-devel"
 description = "ncurses headers and development libraries"
 
 [provides]
-"ncurses-devel" = "{{version}}"
+"ncurses-devel" = "{{version}}-2"
+
+[replaces]
+"ncurses-devel" = "<= {{version}}-1"
 
 [dependencies]
-"org.gnu.ncurses-libs" = "{{version}}-1"
+"org.gnu.ncurses-libs" = "{{version}}-2"
 
 [files]
-":usr/include/**"                              = "usr/include"
+"@source:COPYING"                           = "usr/share/licenses/org.gnu.ncurses-devel/COPYING"
+":usr/include/**"                           = "usr/include"
 ":usr/bin/ncursesw6-config"                    = "usr/bin/ncursesw6-config"
 ":usr/share/man/man1/ncursesw6-config.1.gz"    = "usr/share/man/man1/ncursesw6-config.1.gz"
 ":usr/share/man/man3/**"                       = "usr/share/man/man3"

@@ -5,13 +5,17 @@ name        = "org.gnu.ncurses"
 description = "ncurses terminal-information utilities"
 
 [provides]
-ncurses = "{{version}}"
+ncurses = "{{version}}-2"
+
+[replaces]
+ncurses = "<= {{version}}-1"
 
 [dependencies]
 glibc                   = ">= 2.43"
-"org.gnu.ncurses-libs" = "{{version}}-1"
+"org.gnu.ncurses-libs" = "{{version}}-2"
 
 [files]
+"@source:COPYING"    = "usr/share/licenses/org.gnu.ncurses/COPYING"
 ":usr/bin/captoinfo" = "usr/bin/captoinfo"
 ":usr/bin/clear"     = "usr/bin/clear"
 ":usr/bin/infocmp"   = "usr/bin/infocmp"

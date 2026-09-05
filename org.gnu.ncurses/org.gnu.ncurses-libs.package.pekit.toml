@@ -3,13 +3,17 @@ name        = "org.gnu.ncurses-libs"
 description = "ncurses wide-character terminal runtime libraries"
 
 [provides]
-libncurses = "{{version}}"
+libncurses = "{{version}}-2"
+
+[replaces]
+libncurses = "<= {{version}}-1"
 
 [dependencies]
 glibc                       = ">= 2.43"
-"org.gnu.ncurses-terminfo" = "{{version}}-1"
+"org.gnu.ncurses-terminfo" = "{{version}}-2"
 
 [files]
+"@source:COPYING"                              = "usr/share/licenses/org.gnu.ncurses-libs/COPYING"
 ":usr/lib/x86_64-linux-peios/libncursesw.so.6*" = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/libpanelw.so.6*"   = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/libmenuw.so.6*"    = "usr/lib/x86_64-linux-peios"
