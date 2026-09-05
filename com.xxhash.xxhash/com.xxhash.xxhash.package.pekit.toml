@@ -11,11 +11,11 @@ license     = "BSD-2-Clause AND GPL-2.0-or-later"
 
 [provides]
 xxhash    = "{{version}}-1"
-xxhsum    = "{{version}}"
-xxh32sum  = "{{version}}"
-xxh64sum  = "{{version}}"
-xxh128sum = "{{version}}"
-xxh3sum   = "{{version}}"
+xxhsum    = "{{version}}-1"
+xxh32sum  = "{{version}}-1"
+xxh64sum  = "{{version}}-1"
+xxh128sum = "{{version}}-1"
+xxh3sum   = "{{version}}-1"
 
 [replaces]
 xxhash = "<= {{version}}-1"
