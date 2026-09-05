@@ -1,0 +1,19 @@
+# Capability inspection and file-capability administration commands.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.libcap-tools"
+description = "Linux POSIX capabilities command-line tools"
+
+[provides]
+libcap-tools = "{{version}}"
+
+[dependencies]
+"org.kernel.libcap" = "{{version}}-1"
+
+[files]
+"@source:License"        = "usr/share/licenses/org.kernel.libcap-tools/License"
+":usr/bin/**"            = "usr/bin"
+":usr/share/man/man1/**" = "usr/share/man/man1"
+":usr/share/man/man8/**" = "usr/share/man/man8"

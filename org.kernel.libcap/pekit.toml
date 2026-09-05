@@ -1,0 +1,194 @@
+# libcap — POSIX capabilities library + tools; turbostat links libcap
+# (PEI-158 Tier 2).
+#
+# NOT autotools — kernel.org Make.Rules variables, built in a tree copy because
+# objects land in-tree. Go and PAM integrations remain disabled until their
+# complete production dependency stacks are available. The C libraries,
+# capability tools and complete unprivileged upstream suite are enabled.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/"
+extract     = true
+root        = "libcap-{{version}}"
+file_regex  = '^libcap-[0-9]+\.[0-9]+\.tar\.xz$'
+# Soft maintenance floor. Follow authenticated stable 2.x releases; a future
+# major line receives an ABI and command-interface review.
+versions    = ">= 2.78, < 3"
+
+# kernel.org signs the decompressed release tar, not its xz transport. Pin the
+# complete fingerprint of Andrew G. Morgan's kernel.org automation key, which
+# upstream's release target uses for the uploaded tar signature.
+[source.url.signature]
+url          = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-{{version}}.tar.sign"
+of           = "decompressed"
+key_files    = ["keys/andrew-morgan-korg.asc"]
+fingerprints = ["38A644698C69787344E954CE29EE848AE2CCF3F4"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+BIN="$PEKIT_OUT/usr/bin"
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+make -j"$(nproc)" prefix=/usr lib=lib/x86_64-linux-peios \
+  SBINDIR=/usr/bin GOLANG=no PAM_CAP=no RAISE_SETFCAP=no
+
+# Run every upstream test that does not require host-global privilege. These
+# cover libcap/libpsx process state, threaded syscall propagation and the
+# shared loader path. Privileged launch/chroot tests are unsuitable for an
+# isolated package builder and are covered by installed-interface probes.
+make -j"$(nproc)" test prefix=/usr lib=lib/x86_64-linux-peios \
+  SBINDIR=/usr/bin GOLANG=no PAM_CAP=no RAISE_SETFCAP=no
+
+make install DESTDIR="$PEKIT_OUT" prefix=/usr lib=lib/x86_64-linux-peios \
+  SBINDIR=/usr/bin GOLANG=no PAM_CAP=no RAISE_SETFCAP=no
+
+# Do not ship manuals for disabled Go/PAM components as if their commands and
+# module were installed.
+rm -f "$PEKIT_OUT/usr/share/man/man8/captree.8" \
+      "$PEKIT_OUT/usr/share/man/man8/pam_cap.8" \
+      "$PEKIT_OUT/usr/share/man/man5/capability.conf.5"
+
+test -x "$BIN/capsh"
+test -x "$BIN/getcap"
+test -x "$BIN/getpcaps"
+test -x "$BIN/setcap"
+CAP_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libcap.so.2.*' -print)
+PSX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libpsx.so.2.*' -print)
+test "$(printf '%s\n' "$CAP_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$PSX_SO" | grep -c .)" -eq 1
+test -s "$LIBDIR/libcap.a"
+test -s "$LIBDIR/libpsx.a"
+test -L "$LIBDIR/libcap.so"
+test -L "$LIBDIR/libpsx.so"
+readelf -d "$CAP_SO" | grep -F 'Library soname: [libcap.so.2]'
+readelf -d "$PSX_SO" | grep -F 'Library soname: [libpsx.so.2]'
+LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios"
+export LD_LIBRARY_PATH
+
+# Exercise installed libraries and metadata rather than build-tree linkage.
+SMOKE="$PEKIT_OUT/.libcap-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <stddef.h>
+#include <sys/capability.h>
+
+int main(void)
+{
+  cap_t caps = cap_from_text("cap_net_bind_service=ep");
+  cap_flag_value_t value = CAP_CLEAR;
+  if (caps == NULL)
+    return 1;
+  if (cap_get_flag(caps, CAP_NET_BIND_SERVICE, CAP_EFFECTIVE, &value) != 0)
+    return 2;
+  cap_free(caps);
+  return value == CAP_SET ? 0 : 3;
+}
+EOF
+cat > "$SMOKE/psx-consumer.c" <<'EOF'
+#include <sys/psx_syscall.h>
+
+int main(void)
+{
+  return psx_set_sensitivity(PSX_IGNORE) == 0 ? 0 : 1;
+}
+EOF
+PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --validate libcap libpsx
+test "$(PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --modversion libcap)" = "$PEKIT_VERSION"
+cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lcap -o "$SMOKE/shared"
+"$SMOKE/shared"
+cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" "$LIBDIR/libcap.a" \
+  -o "$SMOKE/static"
+"$SMOKE/static"
+cc "$SMOKE/psx-consumer.c" -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lpsx -pthread -o "$SMOKE/psx-shared"
+"$SMOKE/psx-shared"
+cc "$SMOKE/psx-consumer.c" -I"$PEKIT_OUT/usr/include" \
+  "$LIBDIR/libpsx.a" -pthread -o "$SMOKE/psx-static"
+"$SMOKE/psx-static"
+
+# Capability command behaviour that does not require CAP_SETFCAP. Pekit's
+# intentionally unprivileged build namespace cannot mutate security.capability
+# xattrs; privileged file-capability behaviour remains upstream's sudotest.
+: > "$SMOKE/file"
+test -z "$("$BIN/getcap" "$SMOKE/file")"
+"$BIN/setcap" -h > "$SMOKE/setcap.help" 2>&1
+grep -F 'cap_from_text(3) formatted file capability' "$SMOKE/setcap.help"
+"$BIN/capsh" --decode=0000000000000400 | grep -F 'cap_net_bind_service'
+"$BIN/capsh" --print | grep -F 'Current:'
+"$BIN/getpcaps" $$ | grep -F "$$:"
+
+# Produce conventional build-ID debuginfo for both libraries and all four
+# commands, and copy precisely the source paths referenced by rewritten DWARF.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$CAP_SO" "$PSX_SO" \
+           "$BIN/capsh" "$BIN/getcap" "$BIN/getpcaps" "$BIN/setcap"; do
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then
+    patchelf --remove-rpath "$elf"
+  fi
+  if readelf -d "$elf" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then
+    patchelf --remove-needed ld-linux-x86-64.so.2 "$elf"
+  fi
+  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.libcap \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  id_dir=$(printf %s "$build_id" | cut -c1-2)
+  id_file=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$id_dir"
+  objcopy --only-keep-debug "$elf" \
+    "$PEKIT_OUT/usr/lib/debug/.build-id/$id_dir/$id_file.debug"
+  chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$id_dir/$id_file.debug"
+  strip "$elf"
+done
+strip --strip-debug "$LIBDIR/libcap.a" "$LIBDIR/libpsx.a"
+
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "$PEKIT_OUT/usr/src/debug/org.kernel.libcap/$(dirname "$rel")"
+      cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/org.kernel.libcap/$rel"
+    done
+test "$(find "$PEKIT_OUT/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 6
+test -n "$(find "$PEKIT_OUT/usr/src/debug/org.kernel.libcap" -type f -print -quit)"
+
+# Enforce the inherited distribution hardening contract on shipped ELF files.
+for elf in "$CAP_SO" "$PSX_SO" \
+           "$BIN/capsh" "$BIN/getcap" "$BIN/getpcaps" "$BIN/setcap"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$PEKIT_OUT/build"
+"""
+
+# bash: progs/mkcapshdoc.sh is a bash script.
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+"org.gnu.bash" = "*"
+pkgconf = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bash = "*"
+debugedit = "*"
+patchelf = "*"
+pkgconf = "*"

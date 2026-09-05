@@ -8,4 +8,5 @@ schema = 1
   version = "2.78"
   url = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz"
   sha256 = "0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11"
-  locked_at = "2026-08-11T13:12:39Z"
+  signature_key = "38a644698c69787344e954ce29ee848ae2ccf3f4"
+  locked_at = "2026-09-05T00:03:35Z"

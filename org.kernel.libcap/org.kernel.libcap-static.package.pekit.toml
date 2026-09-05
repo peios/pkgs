@@ -1,0 +1,14 @@
+[package]
+name        = "org.kernel.libcap-static"
+description = "Linux POSIX capabilities static libraries"
+
+[provides]
+libcap-static = "{{version}}"
+
+[dependencies]
+"org.kernel.libcap-devel" = "{{version}}-1"
+
+[files]
+"@source:License"                          = "usr/share/licenses/org.kernel.libcap-static/License"
+":usr/lib/x86_64-linux-peios/libcap.a" = "usr/lib/x86_64-linux-peios/libcap.a"
+":usr/lib/x86_64-linux-peios/libpsx.a" = "usr/lib/x86_64-linux-peios/libpsx.a"

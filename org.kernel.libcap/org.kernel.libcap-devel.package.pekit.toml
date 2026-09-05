@@ -1,0 +1,23 @@
+# org.kernel.libcap-devel — headers, linker names, pkg-config metadata and API
+# manuals. Public headers expose libc and Linux UAPI types.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.libcap-devel"
+description = "Linux POSIX capabilities development files"
+
+[provides]
+libcap-devel = "{{version}}"
+
+[dependencies]
+"org.kernel.libcap" = "{{version}}-1"
+
+[files]
+"@source:License"                          = "usr/share/licenses/org.kernel.libcap-devel/License"
+":usr/include/**"                          = "usr/include"
+":usr/lib/x86_64-linux-peios/libcap.so"    = "usr/lib/x86_64-linux-peios/libcap.so"
+":usr/lib/x86_64-linux-peios/libpsx.so"    = "usr/lib/x86_64-linux-peios/libpsx.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"                   = "usr/share/man/man3"
+":usr/share/man/man7/**"                   = "usr/share/man/man7"

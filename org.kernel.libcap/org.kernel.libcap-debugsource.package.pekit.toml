@@ -1,0 +1,10 @@
+[package]
+name        = "org.kernel.libcap-debugsource"
+description = "Linux POSIX capabilities debug sources"
+
+[dependencies]
+"org.kernel.libcap-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:License"   = "usr/share/licenses/org.kernel.libcap-debugsource/License"
+":usr/src/debug/**" = "usr/src/debug"

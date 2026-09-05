@@ -1,0 +1,16 @@
+# org.kernel.libcap — the libcap and libpsx runtime ABIs.
+
+[package]
+name        = "org.kernel.libcap"
+description = "Linux POSIX capabilities runtime libraries"
+
+[provides]
+libcap = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:License" = "usr/share/licenses/org.kernel.libcap/License"
+":usr/lib/x86_64-linux-peios/libcap.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libpsx.so.2*" = "usr/lib/x86_64-linux-peios"
