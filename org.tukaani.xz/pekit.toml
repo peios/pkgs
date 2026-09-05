@@ -1,0 +1,231 @@
+# XZ Utils — the liblzma ABI, core compression tools, and non-interactive
+# grep/diff wrappers. Pager wrappers remain omitted until Peios has a pager
+# provider; all other normal upstream functionality is built and tested.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/tukaani-project/xz/releases/download/v{{version}}/xz-{{version}}.tar.xz"
+listing_url = "https://tukaani.org/xz/"
+extract     = true
+root        = "xz-{{version}}"
+file_regex  = 'xz-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance bounds. Follow authenticated stable 5.8 releases
+# automatically; review ABI and command compatibility before a new branch.
+versions    = ">= 5.8.3, < 5.9"
+
+# XZ release archives are signed by maintainer Lasse Collin. Pin the complete
+# primary-key fingerprint so unattended discovery cannot accept another key.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/lasse-collin.asc"]
+fingerprints = ["3690C240CE51B4670D30AD1C38EE757D69184620"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+
+# Autotools is upstream's most-tested build and the release archive includes
+# generated catalogs and translated manuals, so the build needs no regeneration.
+# Force CET notes because optimized assembly objects otherwise make the GNU
+# linker's conservative property merge discard them.
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --enable-shared \
+  --enable-static \
+  --enable-nls \
+  --enable-symbol-versions \
+  --enable-sandbox=auto \
+  --disable-rpath \
+  --disable-doc \
+  --disable-silent-rules
+
+make -j"$(nproc)"
+# Run the complete suite selected by the production configuration, including
+# liblzma API/unit, format corpus, CLI, script, threading, and sandbox tests.
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/liblzma.la"
+
+# Peios has no pager provider yet. Omit only wrappers whose advertised default
+# cannot be fulfilled; grep/diff wrappers below retain explicit dependencies.
+rm -f \
+  "$PEKIT_OUT/usr/bin/xzless" \
+  "$PEKIT_OUT/usr/bin/lzless" \
+  "$PEKIT_OUT/usr/bin/xzmore" \
+  "$PEKIT_OUT/usr/bin/lzmore"
+find "$PEKIT_OUT/usr/share/man" \
+  \\( -name 'xzless.1' -o -name 'lzless.1' -o \
+     -name 'xzmore.1' -o -name 'lzmore.1' \\) -delete
+
+# Installed scripts target Peios' canonical shell path. Their compatibility
+# aliases are symlinks to these two audited implementations.
+for script in xzdiff xzgrep; do
+  sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
+  test "$(sed -n '1p' "$PEKIT_OUT/usr/bin/$script")" = '#!/usr/bin/sh'
+done
+
+BIN="$PEKIT_OUT/usr/bin"
+LIB="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/.xz-smoke"
+mkdir -p "$SMOKE"
+export PATH="$BIN:$PATH"
+
+# Exercise each supported integrity check, parallel compression, corruption
+# rejection, concatenated streams, XZ/LZMA decoders, and compatibility names.
+printf '%s\n' alpha beta 'literal[1]' > "$SMOKE/plain"
+for check in crc32 crc64 sha256; do
+  "$BIN/xz" -T2 --check="$check" -c "$SMOKE/plain" \
+    > "$SMOKE/plain-$check.xz"
+  "$BIN/xz" -t "$SMOKE/plain-$check.xz"
+  "$BIN/xz" -dc "$SMOKE/plain-$check.xz" > "$SMOKE/out-$check"
+  cmp "$SMOKE/plain" "$SMOKE/out-$check"
+done
+
+head -c -1 "$SMOKE/plain-crc64.xz" > "$SMOKE/truncated.xz"
+status=0
+"$BIN/xz" -t "$SMOKE/truncated.xz" 2>/dev/null || status=$?
+[ "$status" -ne 0 ]
+
+printf '%s\n' first > "$SMOKE/first"
+printf '%s\n' second > "$SMOKE/second"
+"$BIN/xz" -c "$SMOKE/first" > "$SMOKE/first.xz"
+"$BIN/xz" -c "$SMOKE/second" > "$SMOKE/second.xz"
+cat "$SMOKE/first.xz" "$SMOKE/second.xz" > "$SMOKE/combined.xz"
+cat "$SMOKE/first" "$SMOKE/second" > "$SMOKE/combined.expected"
+"$BIN/xz" -dc "$SMOKE/combined.xz" > "$SMOKE/combined.out"
+cmp "$SMOKE/combined.expected" "$SMOKE/combined.out"
+
+"$BIN/xzdec" "$SMOKE/plain-crc64.xz" > "$SMOKE/xzdec.out"
+cmp "$SMOKE/plain" "$SMOKE/xzdec.out"
+"$BIN/xz" --format=lzma -c "$SMOKE/plain" > "$SMOKE/plain.lzma"
+"$BIN/lzmadec" "$SMOKE/plain.lzma" > "$SMOKE/lzmadec.out"
+cmp "$SMOKE/plain" "$SMOKE/lzmadec.out"
+"$BIN/lzmainfo" "$SMOKE/plain.lzma" | grep -F 'Uncompressed size'
+"$BIN/lzma" -dc "$SMOKE/plain.lzma" > "$SMOKE/lzma.out"
+"$BIN/lzcat" "$SMOKE/plain.lzma" > "$SMOKE/lzcat.out"
+cmp "$SMOKE/plain" "$SMOKE/lzma.out"
+cmp "$SMOKE/plain" "$SMOKE/lzcat.out"
+
+# Exercise every shipped shell-wrapper family and both GNU and legacy names.
+"$BIN/xzgrep" -q '^beta$' "$SMOKE/plain-crc64.xz"
+"$BIN/xzegrep" -q '^(alpha|beta)$' "$SMOKE/plain-crc64.xz"
+"$BIN/xzfgrep" -q 'literal[1]' "$SMOKE/plain-crc64.xz"
+"$BIN/lzgrep" -q '^beta$' "$SMOKE/plain.lzma"
+"$BIN/xzcmp" "$SMOKE/plain-crc64.xz" "$SMOKE/plain-crc64.xz"
+"$BIN/lzcmp" "$SMOKE/plain.lzma" "$SMOKE/plain.lzma"
+printf '%s\n' alpha gamma > "$SMOKE/other"
+"$BIN/xz" -c "$SMOKE/other" > "$SMOKE/other.xz"
+status=0
+"$BIN/xzdiff" "$SMOKE/plain-crc64.xz" "$SMOKE/other.xz" \
+  > "$SMOKE/xzdiff.out" || status=$?
+[ "$status" -eq 1 ]
+grep -F beta "$SMOKE/xzdiff.out"
+grep -F gamma "$SMOKE/xzdiff.out"
+
+# Compile and execute consumers against both the staged shared and static ABI.
+cat > "$SMOKE/api.c" <<'EOF'
+#include <lzma.h>
+#include <stdint.h>
+#include <string.h>
+int main(void) {
+    static const uint8_t input[] = "liblzma staged API smoke";
+    uint8_t encoded[256], decoded[256];
+    size_t encoded_pos = 0, decoded_pos = 0, input_pos = 0;
+    uint64_t memlimit = UINT64_MAX;
+    if (lzma_easy_buffer_encode(6, LZMA_CHECK_CRC64, NULL,
+            input, sizeof input, encoded, &encoded_pos, sizeof encoded) != LZMA_OK)
+        return 1;
+    if (lzma_stream_buffer_decode(&memlimit, 0, NULL,
+            encoded, &input_pos, encoded_pos,
+            decoded, &decoded_pos, sizeof decoded) != LZMA_OK)
+        return 2;
+    return decoded_pos == sizeof input && memcmp(input, decoded, sizeof input) == 0
+        ? 0 : 3;
+}
+EOF
+cc -I"$PEKIT_OUT/usr/include" "$SMOKE/api.c" -L"$LIB" -llzma \
+  -Wl,-rpath,"$LIB" -o "$SMOKE/api-shared"
+"$SMOKE/api-shared"
+cc -I"$PEKIT_OUT/usr/include" "$SMOKE/api.c" "$LIB/liblzma.a" \
+  -pthread -o "$SMOKE/api-static"
+"$SMOKE/api-static"
+
+for command in xz xzdec lzmadec lzmainfo xzgrep xzdiff; do
+  "$BIN/$command" --version | head -n 1 | grep -F "$PEKIT_VERSION"
+done
+test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'xz.mo' -print -quit)"
+test -f "$LIB/liblzma.a"
+
+# Enforce the inherited distribution hardening and dependency contracts on
+# every shipped ELF before splitting conventional build-ID debuginfo.
+rm -f "$SMOKE/api-shared" "$SMOKE/api-static"
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+ELFS="usr/bin/xz usr/bin/xzdec usr/bin/lzmadec usr/bin/lzmainfo \
+$(find usr/lib/x86_64-linux-peios -type f -name 'liblzma.so.5.*' -print)"
+for elf in $ELFS; do
+  test -f "$elf"
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  readelf -d "$elf" | sed -n 's/.*Shared library: \\[\\(.*\\)\\]/\\1/p' \
+    | while IFS= read -r needed; do
+        case "$needed" in
+          libc.so.6|liblzma.so.5) ;;
+          *) printf '%s: unexpected dependency %s\n' "$elf" "$needed" >&2; exit 1;;
+        esac
+      done
+
+  debugedit -b "$ROOT" -d /usr/src/debug/org.tukaani.xz \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" \
+    | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+strip --strip-debug usr/lib/x86_64-linux-peios/liblzma.a
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.tukaani.xz/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.tukaani.xz/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+"org.gnu.gettext" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+gettext         = "*"
+patchelf        = "*"

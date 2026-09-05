@@ -1,0 +1,12 @@
+# Shared metadata covers the complete upstream tree retained by Pekit's
+# generated corresponding-source package, including build helpers and old
+# public-domain translations. Binary members narrow this where appropriate.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+homepage      = "https://tukaani.org/xz/"
+license       = "0BSD AND GPL-2.0-or-later AND LGPL-2.1-or-later AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-2.0-or-later WITH Libtool-exception) AND (GPL-3.0-or-later WITH Autoconf-exception-macro) AND FSFUL AND FSFULLR AND X11 AND LicenseRef-Public-Domain"
+license_class = "free"

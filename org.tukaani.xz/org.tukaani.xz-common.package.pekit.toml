@@ -1,0 +1,20 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.tukaani.xz-common"
+architecture = "noarch"
+description  = "XZ Utils translations, documentation, and command manuals"
+license      = "0BSD AND LicenseRef-Public-Domain"
+
+[provides]
+"xz-common" = "{{version}}-1"
+
+[files]
+"@source:COPYING"      = "usr/share/licenses/org.tukaani.xz-common/COPYING"
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-common/COPYING.0BSD"
+"@source:AUTHORS"      = "usr/share/doc/org.tukaani.xz/AUTHORS"
+"@source:NEWS"         = "usr/share/doc/org.tukaani.xz/NEWS"
+"@source:PACKAGERS"    = "usr/share/doc/org.tukaani.xz/PACKAGERS"
+"@source:README"       = "usr/share/doc/org.tukaani.xz/README"
+":usr/share/locale/**" = "usr/share/locale"
+":usr/share/man/**"    = "usr/share/man"

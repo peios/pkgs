@@ -1,0 +1,11 @@
+[package]
+name        = "org.tukaani.xz-debugsource"
+description = "XZ Utils command and liblzma debug sources"
+license     = "0BSD"
+
+[dependencies]
+"org.tukaani.xz-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-debugsource/COPYING.0BSD"
+":usr/src/debug/**"    = "usr/src/debug"

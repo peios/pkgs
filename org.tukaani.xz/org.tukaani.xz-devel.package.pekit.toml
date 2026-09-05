@@ -1,0 +1,19 @@
+[package]
+name        = "org.tukaani.xz-devel"
+description = "XZ Utils liblzma headers and shared-library link metadata"
+license     = "0BSD"
+
+[provides]
+"xz-devel" = "{{version}}-1"
+
+[replaces]
+"xz-devel" = "< {{version}}-1"
+
+[dependencies]
+"org.tukaani.xz-libs" = "{{version}}-1"
+
+[files]
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-devel/COPYING.0BSD"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/liblzma.so" = "usr/lib/x86_64-linux-peios/liblzma.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/liblzma.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/liblzma.pc"

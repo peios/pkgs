@@ -1,0 +1,17 @@
+[package]
+name        = "org.tukaani.xz-libs"
+description = "XZ Utils liblzma compression runtime library"
+license     = "0BSD"
+
+[provides]
+liblzma = "{{version}}-1"
+
+[replaces]
+liblzma = "< {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-libs/COPYING.0BSD"
+":usr/lib/x86_64-linux-peios/liblzma.so.5*" = "usr/lib/x86_64-linux-peios"

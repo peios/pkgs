@@ -1,0 +1,28 @@
+[package]
+name        = "org.tukaani.xz-utils"
+description = "XZ-aware grep and file-comparison shell utilities"
+license     = "GPL-2.0-or-later"
+
+[provides]
+"xz-utils" = "{{version}}-1"
+
+[dependencies]
+dash                = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.grep"      = "*"
+"org.gnu.sed"       = "*"
+"org.tukaani.xz"    = "{{version}}-1"
+
+[files]
+"@source:COPYING.GPLv2" = "usr/share/licenses/org.tukaani.xz-utils/COPYING.GPLv2"
+":usr/bin/xzcmp"   = "usr/bin/xzcmp"
+":usr/bin/xzdiff"  = "usr/bin/xzdiff"
+":usr/bin/xzegrep" = "usr/bin/xzegrep"
+":usr/bin/xzfgrep" = "usr/bin/xzfgrep"
+":usr/bin/xzgrep"  = "usr/bin/xzgrep"
+":usr/bin/lzcmp"   = "usr/bin/lzcmp"
+":usr/bin/lzdiff"  = "usr/bin/lzdiff"
+":usr/bin/lzegrep" = "usr/bin/lzegrep"
+":usr/bin/lzfgrep" = "usr/bin/lzfgrep"
+":usr/bin/lzgrep"  = "usr/bin/lzgrep"

@@ -1,0 +1,14 @@
+[package]
+name        = "org.tukaani.xz-static"
+description = "XZ Utils static liblzma library"
+license     = "0BSD"
+
+[provides]
+"xz-static" = "{{version}}-1"
+
+[dependencies]
+"org.tukaani.xz-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-static/COPYING.0BSD"
+":usr/lib/x86_64-linux-peios/liblzma.a" = "usr/lib/x86_64-linux-peios/liblzma.a"

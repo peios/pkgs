@@ -1,0 +1,27 @@
+[package]
+name        = "org.tukaani.xz"
+description = "XZ-format compression and decompression tools"
+license     = "0BSD"
+
+[provides]
+xz = "{{version}}-1"
+
+[replaces]
+xz = "< {{version}}-1"
+
+[dependencies]
+glibc                    = ">= 2.43"
+"org.tukaani.xz-common" = "{{version}}-1"
+"org.tukaani.xz-libs"   = "{{version}}-1"
+
+[files]
+"@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz/COPYING.0BSD"
+":usr/bin/xz"          = "usr/bin/xz"
+":usr/bin/unxz"        = "usr/bin/unxz"
+":usr/bin/xzcat"       = "usr/bin/xzcat"
+":usr/bin/lzma"        = "usr/bin/lzma"
+":usr/bin/unlzma"      = "usr/bin/unlzma"
+":usr/bin/lzcat"       = "usr/bin/lzcat"
+":usr/bin/xzdec"       = "usr/bin/xzdec"
+":usr/bin/lzmadec"     = "usr/bin/lzmadec"
+":usr/bin/lzmainfo"    = "usr/bin/lzmainfo"
