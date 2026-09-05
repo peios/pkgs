@@ -1,0 +1,24 @@
+# Opt-in compatibility for binaries linked against glibc's historical
+# libcrypt.so.1. This build exports the glibc ABI plus libxcrypt extensions,
+# while avoiding vendor-specific Owl/SUSE aliases that Peios does not promise.
+
+[package]
+name        = "io.github.besser82.libxcrypt-compat"
+description = "Modern password-hashing library - glibc legacy ABI compatibility"
+license     = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND BSD-2-Clause-FreeBSD AND 0BSD AND CC0-1.0 AND LicenseRef-Public-Domain"
+
+[provides]
+libxcrypt-compat = "{{version}}-2"
+"libcrypt.so.1"  = "{{version}}-2"
+
+[replaces]
+libxcrypt-compat = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-compat/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt-compat/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt-compat/"
+":usr/lib/x86_64-linux-peios/libcrypt.so.1*" = "usr/lib/x86_64-linux-peios"

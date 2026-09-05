@@ -1,0 +1,22 @@
+# Static archive split from the ordinary development surface. Archive-member
+# DWARF is discarded because static objects have no stable build-id index.
+
+[package]
+name        = "io.github.besser82.libxcrypt-static"
+description = "Modern password-hashing static library"
+license     = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND BSD-2-Clause-FreeBSD AND 0BSD AND CC0-1.0 AND LicenseRef-Public-Domain"
+
+[provides]
+libxcrypt-static = "{{version}}-2"
+
+[replaces]
+libxcrypt-static = "<= {{version}}-1"
+
+[dependencies]
+"io.github.besser82.libxcrypt-devel" = "{{version}}-2"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-static/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt-static/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt-static/"
+":usr/lib/x86_64-linux-peios/libcrypt.a" = "usr/lib/x86_64-linux-peios/libcrypt.a"

@@ -1,0 +1,28 @@
+# Headers, linker name, pkg-config metadata and API manual pages. The linker
+# name deliberately resolves to libcrypt.so.2, so newly built software never
+# acquires the legacy compatibility ABI.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.besser82.libxcrypt-devel"
+description = "Modern password-hashing library development files"
+license     = "LGPL-2.1-or-later AND BSD-2-Clause"
+
+[provides]
+libxcrypt-devel = "{{version}}-2"
+
+[replaces]
+libxcrypt-devel = "<= {{version}}-1"
+
+[dependencies]
+"io.github.besser82.libxcrypt" = "{{version}}-2"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-devel/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt-devel/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt-devel/"
+":usr/include/crypt.h"                          = "usr/include/crypt.h"
+":usr/lib/x86_64-linux-peios/libcrypt.so"       = "usr/lib/x86_64-linux-peios/libcrypt.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"      = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"                        = "usr/share/man/man3"

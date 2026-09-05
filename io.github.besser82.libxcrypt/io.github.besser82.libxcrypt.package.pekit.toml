@@ -1,0 +1,26 @@
+# The canonical runtime is the modern libcrypt.so.2 ABI. The glibc-compatible
+# libcrypt.so.1 ABI remains independently installable in the -compat package.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.besser82.libxcrypt"
+description = "Modern password-hashing runtime library"
+license     = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND BSD-2-Clause-FreeBSD AND 0BSD AND CC0-1.0 AND LicenseRef-Public-Domain"
+
+[provides]
+libxcrypt       = "{{version}}-2"
+"libcrypt.so.2" = "{{version}}-2"
+
+[replaces]
+libxcrypt = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt/"
+":usr/lib/x86_64-linux-peios/libcrypt.so.2*" = "usr/lib/x86_64-linux-peios"
+":usr/share/man/man5/crypt.5"                = "usr/share/man/man5/crypt.5"

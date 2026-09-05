@@ -68,7 +68,8 @@ sed -i '/\\/zlib-src\\//d; /\\/bzip2-src\\//d' MANIFEST
 
 # Debian's build-essential happens to expose libcrypt while the current Peios
 # bootstrap closure does not. Keep both reference rungs feature-identical until
-# org.gnu.libxcrypt is independently productionized: Perl treats crypt() as an
+# io.github.besser82.libxcrypt is independently productionized: Perl treats
+# crypt() as an
 # optional platform facility, and config.over is upstream's supported final
 # override for Configure probes.
 cat > config.over <<EOF

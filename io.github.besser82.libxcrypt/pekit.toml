@@ -1,0 +1,223 @@
+# libxcrypt — modern crypt(3), crypt_r(3), and crypt_gensalt(3) implementation.
+# Build the ordinary libcrypt.so.2 API and an independent glibc-compatible
+# libcrypt.so.1 payload from the same authenticated release archive.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://github.com/besser82/libxcrypt/releases/download/v{{version}}/libxcrypt-{{version}}.tar.xz"
+listing_url = "https://github.com/besser82/libxcrypt/releases"
+root        = "libxcrypt-{{version}}"
+extract     = true
+file_regex  = '^libxcrypt-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz$'
+# Soft maintenance floor. Future releases remain eligible automatically; the
+# ABI, test, payload and hardening gates below stop incompatible publication.
+versions    = ">= 4.5.2"
+
+# Every upstream release supplies a detached signature and the maintainer's
+# key beside the archive. Pin the complete primary fingerprint rather than
+# trusting arbitrary key material downloaded with a newly discovered release.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/bjorn-esser.asc"]
+fingerprints = ["678CE3FEE430311596DB8C16F52E98007594C21D"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+
+# Inherit the workspace optimisation and distro hardening policy. Prefix-map
+# source paths for reproducible, relocatable DWARF; explicit linker CET options
+# retain the GNU property note when provider CRT objects do not carry one.
+export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.besser82.libxcrypt"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+# The ordinary build intentionally excludes obsolete entry points and owns the
+# complete development surface. Upstream's release archive is bootstrapped, so
+# no Autoconf/Automake/Libtool dependency or network-generating autogen step is
+# involved.
+MODERN="$PEKIT_OUT/build-modern"
+mkdir -p "$MODERN"
+cd "$MODERN"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir="$LIBDIR" \
+  --disable-obsolete-api \
+  --enable-shared \
+  --enable-static \
+  --disable-silent-rules
+
+# The Peios triplet directory is a loader default. Prevent libtool from adding
+# a build- or target-path RUNPATH to the shared objects and test executables.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -i libtool
+
+make -j"$(nproc)"
+# Full upstream release suite: algorithm known-answer vectors, invalid input,
+# entropy/error fallbacks, static symbol surfaces, nested calls and API tests.
+# On Linux with all modern entropy APIs, one fallback-only case skips.
+make -j"$(nproc)" check
+grep -Fx '# FAIL:  0' test-suite.log
+grep -Fx '# ERROR: 0' test-suite.log
+make install DESTDIR="$PEKIT_OUT"
+
+# Build only glibc's historic compatibility ABI in a separate tree. Selecting
+# `glibc` instead of `yes` avoids promising the unrelated Owl/SUSE aliases.
+COMPAT="$PEKIT_OUT/build-compat"
+mkdir -p "$COMPAT"
+cd "$COMPAT"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir="$LIBDIR" \
+  --enable-obsolete-api=glibc \
+  --enable-shared \
+  --disable-static \
+  --disable-silent-rules
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -i libtool
+make -j"$(nproc)"
+make -j"$(nproc)" check
+grep -Fx '# FAIL:  0' test-suite.log
+grep -Fx '# ERROR: 0' test-suite.log
+make install DESTDIR="$PEKIT_OUT/compat-root"
+
+COMPAT_LIBDIR="$PEKIT_OUT/compat-root$LIBDIR"
+test "$(find "$COMPAT_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.1.*' | wc -l)" -eq 1
+test -L "$COMPAT_LIBDIR/libcrypt.so.1"
+mkdir -p "$STAGED_LIBDIR"
+cp -a "$COMPAT_LIBDIR/"libcrypt.so.1* "$STAGED_LIBDIR/"
+
+# Libtool archives encode paths and encourage overlinking; pkg-config and the
+# shared-object linker names are the supported development interfaces.
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# Freeze both ABIs and the development surface before destructive debug/strip
+# processing. A future SONAME or file-layout change must receive explicit
+# package metadata rather than leaking across splits.
+MODERN_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.2.*' | LC_ALL=C sort)
+COMPAT_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.1.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$MODERN_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$COMPAT_SO" | grep -c .)" -eq 1
+test -L "$STAGED_LIBDIR/libcrypt.so"
+test -L "$STAGED_LIBDIR/libcrypt.so.2"
+test -L "$STAGED_LIBDIR/libcrypt.so.1"
+test -s "$STAGED_LIBDIR/libcrypt.a"
+test -f "$INCLUDEDIR/crypt.h"
+test ! -e "$INCLUDEDIR/xcrypt.h"
+test -f "$STAGED_LIBDIR/pkgconfig/libcrypt.pc"
+test -f "$STAGED_LIBDIR/pkgconfig/libxcrypt.pc"
+readelf -d "$MODERN_SO" | grep -F 'Library soname: [libcrypt.so.2]'
+readelf -d "$COMPAT_SO" | grep -F 'Library soname: [libcrypt.so.1]'
+readelf --dyn-syms -W "$MODERN_SO" | grep -E ' crypt@@XCRYPT_2[.]0$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' crypt@GLIBC_2[.]2[.]5$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' encrypt@GLIBC_2[.]2[.]5$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' setkey@GLIBC_2[.]2[.]5$'
+
+export PKG_CONFIG_LIBDIR="$STAGED_LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkg-config --validate libcrypt libxcrypt
+test "$(pkg-config --modversion libcrypt)" = "$PEKIT_VERSION"
+test "$(pkg-config --modversion libxcrypt)" = "$PEKIT_VERSION"
+
+# Compile and execute a known SHA-512 crypt vector through both dynamic and
+# static linkage against the staged header/library, not the host libcrypt.
+SMOKE="$PEKIT_OUT/.libxcrypt-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <crypt.h>
+#include <string.h>
+
+int main(void)
+{
+  const char *expected = "$6$saltstring$o.lX/OaU2BzTI4xKucC0wOS/UNGkMMQmo.oR0lK8c02WCKnUDCDwFqIpBVCQIbVQJIQ4Faa9gWyJzey0r8KtF0";
+  char *actual = crypt("U*U*U", "$6$saltstring");
+  return actual == 0 || strcmp(actual, expected) != 0;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$STAGED_LIBDIR" -lcrypt \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$STAGED_LIBDIR/libcrypt.a" \
+  -pthread -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Produce build-ID-indexed symbols for both shipped ELF objects, rewrite their
+# compilation roots, and stage every source file referenced by the final DWARF.
+# Static-archive members have no stable build ID, so retain symbols needed for
+# linking but discard their debug sections.
+strip --strip-debug "$STAGED_LIBDIR/libcrypt.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$MODERN_SO" "$COMPAT_SO"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.besser82.libxcrypt \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt/$rel"
+done
+test "$(find "$PEKIT_OUT/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt" -type f -print -quit)"
+for dbg in $(find "$PEKIT_OUT/usr/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Final payload hardening and dependency assertions. These run after stripping
+# so they describe exactly the objects that enter packages.
+for elf in "$MODERN_SO" "$COMPAT_SO"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$SMOKE" "$MODERN" "$COMPAT" "$PEKIT_OUT/compat-root"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c" = "*"
+"org.perl.perl"      = "*"
+debugedit             = "*"
+patchelf              = "*"
+pkgconf               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+perl            = "*"
+debugedit        = "*"
+patchelf         = "*"
+pkgconf          = "*"

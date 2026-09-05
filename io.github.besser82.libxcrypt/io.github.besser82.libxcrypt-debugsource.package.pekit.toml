@@ -1,0 +1,21 @@
+# Exact sources referenced by the rewritten DWARF. Source without symbols is
+# not useful, so this package depends on the matching debuginfo payload.
+
+[package]
+name        = "io.github.besser82.libxcrypt-debugsource"
+description = "Modern password-hashing library debug sources"
+
+[provides]
+libxcrypt-debugsource = "{{version}}-2"
+
+[replaces]
+libxcrypt-debugsource = "<= {{version}}-1"
+
+[dependencies]
+"io.github.besser82.libxcrypt-debuginfo" = "{{version}}-2"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-debugsource/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt-debugsource/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt-debugsource/"
+":usr/src/debug/**"    = "usr/src/debug"

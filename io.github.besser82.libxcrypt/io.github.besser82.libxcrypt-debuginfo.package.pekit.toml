@@ -1,0 +1,22 @@
+# Build-ID-indexed symbols for both the modern and compatibility shared
+# libraries. The exact sibling dependencies keep symbols and payload in step.
+
+[package]
+name        = "io.github.besser82.libxcrypt-debuginfo"
+description = "Modern password-hashing library debugging symbols"
+
+[provides]
+libxcrypt-debuginfo = "{{version}}-2"
+
+[replaces]
+libxcrypt-debuginfo = "<= {{version}}-1"
+
+[dependencies]
+"io.github.besser82.libxcrypt"        = "{{version}}-2"
+"io.github.besser82.libxcrypt-compat" = "{{version}}-2"
+
+[files]
+"@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-debuginfo/"
+"@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt-debuginfo/"
+"@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt-debuginfo/"
+":usr/lib/debug/**"    = "usr/lib/debug"
