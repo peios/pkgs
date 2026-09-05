@@ -1,0 +1,15 @@
+[package]
+name         = "io.github.zlib-ng.zlib-ng-doc"
+description  = "zlib-ng documentation"
+architecture = "noarch"
+license      = "Zlib"
+
+[provides]
+zlib-ng-doc = "{{version}}-2"
+
+[files]
+"@source:LICENSE.md" = "usr/share/licenses/io.github.zlib-ng.zlib-ng-doc/"
+"@source:README.md"  = "usr/share/doc/io.github.zlib-ng.zlib-ng/"
+"@source:FAQ.zlib"   = "usr/share/doc/io.github.zlib-ng.zlib-ng/"
+"@source:INDEX.md"   = "usr/share/doc/io.github.zlib-ng.zlib-ng/"
+"@source:PORTING.md" = "usr/share/doc/io.github.zlib-ng.zlib-ng/"

@@ -1,0 +1,18 @@
+[package]
+name        = "io.github.zlib-ng.zlib-ng-debuginfo"
+description = "zlib-ng and zlib-compatible library debugging symbols"
+license     = "Zlib"
+
+[provides]
+zlib-debuginfo = "{{version}}-2"
+
+[replaces]
+zlib-debuginfo = "<= {{version}}-1"
+
+[dependencies]
+"io.github.zlib-ng.zlib-ng"        = "{{version}}-2"
+"io.github.zlib-ng.zlib-ng-compat" = "{{version}}-2"
+
+[files]
+"@source:LICENSE.md" = "usr/share/licenses/io.github.zlib-ng.zlib-ng-debuginfo/"
+":usr/lib/debug/**"  = "usr/lib/debug"

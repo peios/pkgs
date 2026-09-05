@@ -1,0 +1,311 @@
+# zlib-ng ships two deliberately distinct ABIs from one source: the native
+# zng_-prefixed API and a drop-in classic-zlib compatibility ABI.  The
+# canonical package name follows the upstream GitHub organisation because the
+# project publishes no independently controlled domain.  Compatibility
+# packages use an explicit -compat suffix, matching upstream terminology and
+# Fedora's production split.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/zlib-ng/zlib-ng.git"
+ref       = "{{version}}"
+tag_regex = '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance bounds: automatically follow stable 2.x releases.  The
+# 2.3.3 floor is catalogue policy, not a compatibility claim; 3.x is an ABI and
+# package-contract review point.
+versions  = ">= 2.3.3, < 3"
+
+# Upstream publishes GitHub-generated source archives and Windows binaries,
+# but no maintainer-signed detached source checksum or signature.  Release
+# 2.3.3 is a lightweight, unsigned tag at the commit pinned in pekit.lock.
+# This is an explicit authentication exception: HTTPS authenticates transport
+# and Pekit's immutable commit lock prevents later tag movement from changing
+# accepted source, while discovery of a new release remains TOFU until Pekit
+# can authenticate signed Git identities (PEI-665).
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/$TRIPLET"
+COMPAT_BUILD="$PEKIT_OUT/build-compat"
+NATIVE_BUILD="$PEKIT_OUT/build-native"
+DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUG_DEST=/usr/src/debug/io.github.zlib-ng.zlib-ng
+
+# Preserve workspace policy explicitly through CMake's cache.  Linker IBT and
+# SHSTK flags force a complete CET property note even though architecture-
+# specific objects are compiled under separate intrinsic flag sets.
+export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+# Leaving BUILD_SHARED_LIBS unset is intentional: zlib-ng then emits both the
+# shared and PIC static libraries.  Runtime CPU detection keeps a baseline
+# x86-64 binary while selecting accelerated implementations at runtime;
+# WITH_NATIVE_INSTRUCTIONS must remain off to avoid build-host coupling.
+set -- \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS_RELWITHDEBINFO=-DNDEBUG \
+  -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_MODULE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR="lib/$TRIPLET" \
+  -DCMAKE_SKIP_INSTALL_RPATH=ON \
+  -DWITH_GZFILEOP=ON \
+  -DWITH_RUNTIME_CPU_DETECTION=ON \
+  -DWITH_NATIVE_INSTRUCTIONS=OFF \
+  -DINSTALL_UTILS=OFF \
+  -DBUILD_TESTING=ON \
+  -DWITH_GTEST=OFF
+
+# GTest is optional and otherwise fetched from the network during configure.
+# WITH_GTEST=OFF leaves the complete self-contained upstream release suite:
+# public API/examples, inflate coverage, compression mode/data matrices, and
+# all bundled CVE/GitHub regression cases.  Run every configured test for both
+# ABIs and require at least the current upstream test count so silent test loss
+# is a maintenance failure rather than an unnoticed release change.
+cmake -S "$SRC" -B "$COMPAT_BUILD" "$@" \
+  -DZLIB_COMPAT=ON -DWITH_NEW_STRATEGIES=OFF
+cmake --build "$COMPAT_BUILD" -j"$(nproc)"
+COMPAT_TESTS=$(ctest --test-dir "$COMPAT_BUILD" -N | \
+  sed -n 's/^Total Tests: //p')
+test "$COMPAT_TESTS" -ge 69
+ctest --test-dir "$COMPAT_BUILD" --output-on-failure
+DESTDIR="$PEKIT_OUT" cmake --install "$COMPAT_BUILD"
+
+cmake -S "$SRC" -B "$NATIVE_BUILD" "$@" -DZLIB_COMPAT=OFF
+cmake --build "$NATIVE_BUILD" -j"$(nproc)"
+NATIVE_TESTS=$(ctest --test-dir "$NATIVE_BUILD" -N | \
+  sed -n 's/^Total Tests: //p')
+test "$NATIVE_TESTS" -ge 69
+ctest --test-dir "$NATIVE_BUILD" --output-on-failure
+DESTDIR="$PEKIT_OUT" cmake --install "$NATIVE_BUILD"
+
+# CMake records the effective compiler policy for each library target.  Check
+# that the inherited workspace fortification flag reached both ABI builds;
+# unlike the optional .GCC.command.line ELF note, these target files are a
+# deterministic part of the configured build tree.
+grep -F -- '-D_FORTIFY_SOURCE=3' \
+  "$COMPAT_BUILD/CMakeFiles/zlib-ng.dir/flags.make"
+grep -F -- '-D_FORTIFY_SOURCE=3' \
+  "$NATIVE_BUILD/CMakeFiles/zlib-ng.dir/flags.make"
+
+# Pin the exact installed contract while allowing upstream's classic-zlib
+# compatibility version to evolve independently of the zlib-ng release.
+test "$(readlink "$LIBDIR/libz.so")" = libz.so.1
+COMPAT_REAL=$(readlink "$LIBDIR/libz.so.1")
+case "$COMPAT_REAL" in libz.so.*.zlib-ng) ;; *) exit 1;; esac
+test -f "$LIBDIR/$COMPAT_REAL"
+
+test "$(readlink "$LIBDIR/libz-ng.so")" = libz-ng.so.2
+NATIVE_REAL=$(readlink "$LIBDIR/libz-ng.so.2")
+test "$NATIVE_REAL" = "libz-ng.so.$PEKIT_VERSION"
+test -f "$LIBDIR/$NATIVE_REAL"
+
+find "$PREFIX" -mindepth 1 \( -type f -o -type l \) \
+  -printf '%P\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-install"
+printf '%s\n' \
+  include/zconf-ng.h \
+  include/zconf.h \
+  include/zlib-ng.h \
+  include/zlib.h \
+  include/zlib_name_mangling-ng.h \
+  include/zlib_name_mangling.h \
+  "lib/$TRIPLET/$COMPAT_REAL" \
+  "lib/$TRIPLET/$NATIVE_REAL" \
+  "lib/$TRIPLET/libz-ng.a" \
+  "lib/$TRIPLET/libz-ng.so" \
+  "lib/$TRIPLET/libz-ng.so.2" \
+  "lib/$TRIPLET/libz.a" \
+  "lib/$TRIPLET/libz.so" \
+  "lib/$TRIPLET/libz.so.1" \
+  "lib/$TRIPLET/cmake/ZLIB/ZLIB-targets-relwithdebinfo.cmake" \
+  "lib/$TRIPLET/cmake/ZLIB/ZLIB-targets.cmake" \
+  "lib/$TRIPLET/cmake/ZLIB/zlib-config-version.cmake" \
+  "lib/$TRIPLET/cmake/ZLIB/zlib-config.cmake" \
+  "lib/$TRIPLET/cmake/zlib-ng/zlib-ng-config-version.cmake" \
+  "lib/$TRIPLET/cmake/zlib-ng/zlib-ng-config.cmake" \
+  "lib/$TRIPLET/cmake/zlib-ng/zlib-ng-targets-relwithdebinfo.cmake" \
+  "lib/$TRIPLET/cmake/zlib-ng/zlib-ng-targets.cmake" \
+  "lib/$TRIPLET/pkgconfig/zlib-ng.pc" \
+  "lib/$TRIPLET/pkgconfig/zlib.pc" \
+  | LC_ALL=C sort > "$PEKIT_OUT/.expected-install"
+diff -u "$PEKIT_OUT/.expected-install" "$PEKIT_OUT/.actual-install"
+
+COMPAT_SO="$LIBDIR/$COMPAT_REAL"
+NATIVE_SO="$LIBDIR/$NATIVE_REAL"
+readelf -d "$COMPAT_SO" | grep -F 'Library soname: [libz.so.1]'
+readelf -d "$NATIVE_SO" | grep -F 'Library soname: [libz-ng.so.2]'
+readelf --version-info "$COMPAT_SO" | grep -F 'ZLIB_1.2.12'
+readelf --version-info "$NATIVE_SO" | grep -F 'ZLIB_NG_2.1.0'
+nm -D --defined-only "$COMPAT_SO" | grep -E '[[:space:]]deflate(@@[^[:space:]]+)?$'
+nm -D --defined-only "$COMPAT_SO" | grep -E '[[:space:]]inflate(@@[^[:space:]]+)?$'
+nm -D --defined-only "$NATIVE_SO" | grep -E '[[:space:]]zng_deflate@@ZLIB_NG_2.0.0$'
+nm -D --defined-only "$NATIVE_SO" | grep -E '[[:space:]]zng_inflate@@ZLIB_NG_2.0.0$'
+if nm -D --defined-only "$COMPAT_SO" | grep -Eq '[[:space:]]zng_deflate(@@[^[:space:]]+)?$'; then exit 1; fi
+if nm -D --defined-only "$NATIVE_SO" | grep -Eq '[[:space:]]deflate(@@[^[:space:]]+)?$'; then exit 1; fi
+
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkgconf --validate "$LIBDIR/pkgconfig/zlib.pc"
+pkgconf --validate "$LIBDIR/pkgconfig/zlib-ng.pc"
+COMPAT_API_VERSION=$(sed -n 's/^#define ZLIB_VERSION "\([^"]*\)"/\1/p' \
+  "$PREFIX/include/zlib.h")
+test -n "$COMPAT_API_VERSION"
+test "$(pkgconf --modversion zlib)" = "$COMPAT_API_VERSION"
+test "$(pkgconf --modversion zlib-ng)" = "$PEKIT_VERSION"
+pkgconf --libs zlib | grep -Eq '(^|[[:space:]])-lz([[:space:]]|$)'
+pkgconf --libs zlib-ng | grep -Eq '(^|[[:space:]])-lz-ng([[:space:]]|$)'
+
+# Exercise each installed ABI through its public headers and shared and static
+# linker surfaces.  Linking every archive member into a temporary DSO is also
+# a direct gate that both installed static archives are genuinely PIC.
+SMOKE="$PEKIT_OUT/.zlib-ng-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/compat.c" <<'EOF'
+#include <string.h>
+#include <zlib.h>
+
+int main(void)
+{
+    static const Bytef input[] = "Peios zlib compatibility API";
+    Bytef compressed[256], output[256];
+    uLongf compressed_len = sizeof(compressed), output_len = sizeof(output);
+    if (strcmp(zlibVersion(), ZLIB_VERSION) != 0) return 1;
+    if (compress2(compressed, &compressed_len, input, sizeof(input), Z_BEST_COMPRESSION) != Z_OK) return 2;
+    if (uncompress(output, &output_len, compressed, compressed_len) != Z_OK) return 3;
+    return output_len != sizeof(input) || memcmp(output, input, sizeof(input)) != 0;
+}
+EOF
+cat > "$SMOKE/native.c" <<'EOF'
+#include <stdint.h>
+#include <string.h>
+#include <zlib-ng.h>
+
+int main(void)
+{
+    static const uint8_t input[] = "Peios zlib-ng native API";
+    uint8_t compressed[256], output[256];
+    size_t compressed_len = sizeof(compressed), output_len = sizeof(output);
+    if (strcmp(zlibng_version(), ZLIBNG_VERSION) != 0) return 1;
+    if (zng_compress(compressed, &compressed_len, input, sizeof(input)) != Z_OK) return 2;
+    if (zng_uncompress(output, &output_len, compressed, compressed_len) != Z_OK) return 3;
+    return output_len != sizeof(input) || memcmp(output, input, sizeof(input)) != 0;
+}
+EOF
+
+cc "$SMOKE/compat.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lz -o "$SMOKE/compat-shared"
+readelf -d "$SMOKE/compat-shared" | grep -F 'Shared library: [libz.so.1]'
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/compat-shared"
+cc "$SMOKE/compat.c" -I"$PREFIX/include" "$LIBDIR/libz.a" \
+  -o "$SMOKE/compat-static"
+"$SMOKE/compat-static"
+
+cc "$SMOKE/native.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lz-ng -o "$SMOKE/native-shared"
+readelf -d "$SMOKE/native-shared" | grep -F 'Shared library: [libz-ng.so.2]'
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/native-shared"
+cc "$SMOKE/native.c" -I"$PREFIX/include" "$LIBDIR/libz-ng.a" \
+  -o "$SMOKE/native-static"
+"$SMOKE/native-static"
+
+cc -shared $LDFLAGS -Wl,--whole-archive "$LIBDIR/libz.a" \
+  -Wl,--no-whole-archive -o "$SMOKE/libcompat-pic.so"
+cc -shared $LDFLAGS -Wl,--whole-archive "$LIBDIR/libz-ng.a" \
+  -Wl,--no-whole-archive -o "$SMOKE/libnative-pic.so"
+if readelf -d "$SMOKE/libcompat-pic.so" | grep -Eq '(TEXTREL|RPATH|RUNPATH)'; then exit 1; fi
+if readelf -d "$SMOKE/libnative-pic.so" | grep -Eq '(TEXTREL|RPATH|RUNPATH)'; then exit 1; fi
+
+# Static objects retain link symbols but not duplicate DWARF.  Shared-library
+# debug info is rewritten, indexed by build ID, and paired with exactly the
+# source files named by that DWARF.
+strip --strip-debug "$LIBDIR/libz.a" "$LIBDIR/libz-ng.a"
+if readelf -SW "$LIBDIR/libz.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
+if readelf -SW "$LIBDIR/libz-ng.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.source-list"
+: > "$PEKIT_OUT/.build-ids"
+for elf in "usr/lib/$TRIPLET/$COMPAT_REAL" "usr/lib/$TRIPLET/$NATIVE_REAL"; do
+  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
+    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
+  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
+  build_id=$(readelf -n "$elf" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
+  test ! -e "$debug_file"
+  mkdir -p "$(dirname "$debug_file")"
+  objcopy --only-keep-debug "$elf" "$debug_file"
+  chmod 0644 "$debug_file"
+  strip "$elf"
+done
+
+: > "$PEKIT_OUT/.expected-debugsource"
+tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$DEBUG_ROOT/$rel" || continue
+      destination="usr/src/debug/io.github.zlib-ng.zlib-ng/$rel"
+      mkdir -p "$(dirname "$destination")"
+      cp "$DEBUG_ROOT/$rel" "$destination"
+      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
+    done
+LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
+  -o "$PEKIT_OUT/.expected-debugsource"
+find usr/src/debug/io.github.zlib-ng.zlib-ng -type f -printf '%p\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-debugsource"
+diff -u "$PEKIT_OUT/.expected-debugsource" "$PEKIT_OUT/.actual-debugsource"
+
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" | wc -l)" -eq 2
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find usr/src/debug/io.github.zlib-ng.zlib-ng -type f -print -quit)"
+for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$debug_file" | grep -F '.debug_info'
+done
+
+# Final payload policy: both shared objects are ET_DYN, have NX stack, full
+# RELRO, packed relative relocations, CET, a single libc dependency, no
+# writable search path or text relocations, and no build-root strings.
+for elf in "usr/lib/$TRIPLET/$COMPAT_REAL" "usr/lib/$TRIPLET/$NATIVE_REAL"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
+  readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if strings "$elf" | grep -F "$DEBUG_ROOT"; then exit 1; fi
+done
+
+rm -rf "$COMPAT_BUILD" "$NATIVE_BUILD" "$SMOKE"
+rm -f "$PEKIT_OUT/.actual-install" "$PEKIT_OUT/.expected-install" \
+  "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
+  "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.expected-debugsource" \
+  "$PEKIT_OUT/.actual-debugsource"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c" = "*"
+"org.cmake.cmake"     = "*"
+debugedit             = "*"
+pkgconf               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake           = "*"
+debugedit       = "*"
+pkgconf         = "*"

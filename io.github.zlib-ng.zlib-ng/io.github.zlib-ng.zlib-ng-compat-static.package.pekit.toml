@@ -1,0 +1,18 @@
+[package]
+name        = "io.github.zlib-ng.zlib-ng-compat-static"
+description = "zlib-ng compatibility static library"
+license     = "Zlib"
+
+[provides]
+zlib-static           = "{{version}}-2"
+zlib-ng-compat-static = "{{version}}-2"
+
+[replaces]
+zlib-static = "<= {{version}}-1"
+
+[dependencies]
+"io.github.zlib-ng.zlib-ng-compat-devel" = "{{version}}-2"
+
+[files]
+"@source:LICENSE.md"                           = "usr/share/licenses/io.github.zlib-ng.zlib-ng-compat-static/"
+":usr/lib/x86_64-linux-peios/libz.a"           = "usr/lib/x86_64-linux-peios/libz.a"

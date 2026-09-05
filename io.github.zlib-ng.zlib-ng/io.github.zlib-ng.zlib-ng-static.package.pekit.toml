@@ -1,0 +1,17 @@
+[package]
+name        = "io.github.zlib-ng.zlib-ng-static"
+description = "zlib-ng native API static library"
+license     = "Zlib"
+
+[provides]
+zlib-ng-static = "{{version}}-2"
+
+[replaces]
+zlib-ng-static = "<= {{version}}-1"
+
+[dependencies]
+"io.github.zlib-ng.zlib-ng-devel" = "{{version}}-2"
+
+[files]
+"@source:LICENSE.md"                           = "usr/share/licenses/io.github.zlib-ng.zlib-ng-static/"
+":usr/lib/x86_64-linux-peios/libz-ng.a"        = "usr/lib/x86_64-linux-peios/libz-ng.a"

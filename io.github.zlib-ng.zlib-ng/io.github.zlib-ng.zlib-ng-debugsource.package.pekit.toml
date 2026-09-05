@@ -1,0 +1,17 @@
+[package]
+name        = "io.github.zlib-ng.zlib-ng-debugsource"
+description = "zlib-ng corresponding debug sources"
+license     = "Zlib"
+
+[provides]
+zlib-debugsource = "{{version}}-2"
+
+[replaces]
+zlib-debugsource = "<= {{version}}-1"
+
+[dependencies]
+"io.github.zlib-ng.zlib-ng-debuginfo" = "{{version}}-2"
+
+[files]
+"@source:LICENSE.md" = "usr/share/licenses/io.github.zlib-ng.zlib-ng-debugsource/"
+":usr/src/debug/**"  = "usr/src/debug"

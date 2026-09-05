@@ -1,18 +1,22 @@
-# zlib-ng-devel — headers, dev symlink, pkg-config, and CMake package config for
-# building against the NATIVE zlib-ng API. The dev symlink (libz-ng.so) points
-# at libz-ng.so.2.*. Static archive is split into zlib-ng-static.
-
 [package]
-description = "Compression library (zlib-ng native API) - development files"
+name        = "io.github.zlib-ng.zlib-ng-devel"
+description = "zlib-ng native API headers and linker metadata"
+license     = "Zlib"
+
+[provides]
+zlib-ng-devel = "{{version}}-2"
+
+[replaces]
+zlib-ng-devel = "<= {{version}}-1"
 
 [dependencies]
-zlib-ng = "{{version}}"
+"io.github.zlib-ng.zlib-ng" = "{{version}}-2"
 
 [files]
+"@source:LICENSE.md"                                      = "usr/share/licenses/io.github.zlib-ng.zlib-ng-devel/"
 ":usr/include/zlib-ng.h"                                 = "usr/include/zlib-ng.h"
 ":usr/include/zconf-ng.h"                                = "usr/include/zconf-ng.h"
 ":usr/include/zlib_name_mangling-ng.h"                   = "usr/include/zlib_name_mangling-ng.h"
 ":usr/lib/x86_64-linux-peios/libz-ng.so"                 = "usr/lib/x86_64-linux-peios/libz-ng.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/zlib-ng.pc"       = "usr/lib/x86_64-linux-peios/pkgconfig/zlib-ng.pc"
-# CMake package config for find_package(zlib-ng).
 ":usr/lib/x86_64-linux-peios/cmake/zlib-ng/**"           = "usr/lib/x86_64-linux-peios/cmake/zlib-ng"

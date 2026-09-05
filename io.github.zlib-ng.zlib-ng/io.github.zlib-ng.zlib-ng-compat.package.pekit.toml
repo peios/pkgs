@@ -1,0 +1,21 @@
+# Drop-in zlib API/ABI provider built from the same authenticated source lock.
+
+[package]
+name        = "io.github.zlib-ng.zlib-ng-compat"
+description = "zlib-ng runtime library with the classic zlib ABI"
+license     = "Zlib"
+
+[provides]
+zlib           = "{{version}}-2"
+zlib-ng-compat = "{{version}}-2"
+"libz.so.1"   = "{{version}}"
+
+[replaces]
+zlib = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE.md"                                      = "usr/share/licenses/io.github.zlib-ng.zlib-ng-compat/"
+":usr/lib/x86_64-linux-peios/libz.so.1*"                  = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,22 @@
+# The canonical package is the native, zng_-prefixed ABI.  The system zlib ABI
+# is deliberately named -compat, matching upstream's build switch and Fedora's
+# independently installable zlib-ng-compat split.
+
+[package]
+name        = "io.github.zlib-ng.zlib-ng"
+description = "zlib-ng native API runtime library"
+license     = "Zlib"
+
+[provides]
+zlib-ng          = "{{version}}-2"
+"libz-ng.so.2" = "{{version}}"
+
+[replaces]
+zlib-ng = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE.md"                                      = "usr/share/licenses/io.github.zlib-ng.zlib-ng/"
+":usr/lib/x86_64-linux-peios/libz-ng.so.2*"               = "usr/lib/x86_64-linux-peios"
