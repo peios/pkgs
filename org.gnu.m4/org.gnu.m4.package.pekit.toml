@@ -1,0 +1,22 @@
+# GNU M4 has one public executable and no linkable library or development
+# interface, so artificial tools/devel/static subpackages would add no value.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.m4"
+description = "GNU M4 macro processor"
+license     = "GPL-3.0-or-later"
+
+[provides]
+m4 = "{{version}}"
+
+[dependencies]
+dash  = "*"
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/org.gnu.m4/"
+":usr/bin/m4"            = "usr/bin/m4"
+":usr/share/locale/**"   = "usr/share/locale"
+":usr/share/man/man1/**" = "usr/share/man/man1"

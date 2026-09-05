@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.m4-debugsource"
+description = "GNU M4 macro processor - debug sources"
+license     = "GPL-3.0-or-later AND GPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND FSFULLR"
+
+[dependencies]
+"org.gnu.m4-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING"          = "usr/share/licenses/org.gnu.m4-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

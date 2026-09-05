@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.m4-debuginfo"
+description = "GNU M4 macro processor - debugging symbols"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.m4" = "{{version}}-1"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/org.gnu.m4-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"
