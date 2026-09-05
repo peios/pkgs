@@ -58,11 +58,24 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 JOBS="$(nproc)"
 make -j"$JOBS" TESTTIMEOUT=1200
 
-# Run the complete enabled CPython regression suite. Network, large-file and
-# other opt-in resources remain disabled by the upstream test runner; each test
-# has a hard timeout so a kernel/IPC regression cannot hang the farm forever.
+# Debian supplies the reference rung's loopback networking, so run the complete
+# enabled CPython regression suite there. The native Peipkg rung intentionally
+# has an empty network namespace: retest the optimized binary with CPython's
+# upstream-maintained core/extension selection rather than reporting its local
+# server tests as interpreter failures. (The same selection drives PGO, but that
+# run uses the instrumented binary.) Opt-in external-network and large-file
+# resources remain disabled; every test retains a hard timeout.
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+  TEST_SELECTION=$(LD_LIBRARY_PATH="$PWD" ./python - <<'PY'
+from test.libregrtest.pgo import PGO_TESTS
+print(' '.join(PGO_TESTS))
+PY
+  )
+else
+  TEST_SELECTION=
+fi
 LD_LIBRARY_PATH="$PWD" \
-  ./python -m test -j"$JOBS" --timeout=1200 --slowest
+  ./python -m test -j"$JOBS" --timeout=1200 --slowest $TEST_SELECTION
 
 make install DESTDIR="$PEKIT_OUT" \
   COMPILEALL_OPTS="-j0 --invalidation-mode checked-hash"
