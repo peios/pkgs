@@ -59,6 +59,10 @@ format = "peipkg"
 # cannot read back: the inherited SYSTEM and Administrators ACEs are a
 # non-empty DACL, and a token's default DACL is only consulted when inheritance
 # yields nothing at all.
-version      = "1.0.0-14"
+# 1.0.0-15: the shipped cmdline names no console. The kernel picks one the way
+# it does on any distribution: tty0 on a machine with a display, the serial
+# port otherwise. Development boots that want serial add console=ttyS0
+# themselves (dist/release/Makefile, drive.py, provium). PEI-716.
+version      = "1.0.0-15"
 architecture = "x86_64"
 license      = "MIT"

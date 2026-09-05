@@ -36,6 +36,10 @@ format = "peipkg"
 # behaviour — the point is the recipe comment, which described the token as
 # load-bearing and would have sent anyone debugging a missing login prompt to
 # the wrong place.
-version      = "1.0.0-7"
+# 1.0.0-8: the shipped cmdline names no console. The kernel picks one the way
+# it does on any distribution: tty0 on a machine with a display, the serial
+# port otherwise. Development boots that want serial add console=ttyS0
+# themselves (dist/release/Makefile, drive.py, provium). PEI-716.
+version      = "1.0.0-8"
 architecture = "x86_64"
 license      = "MIT"

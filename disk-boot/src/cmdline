@@ -1,1 +1,1 @@
-console=ttyS0 loglevel=7 ignore_loglevel init=/bin/peinit2
+loglevel=7 ignore_loglevel init=/bin/peinit2
