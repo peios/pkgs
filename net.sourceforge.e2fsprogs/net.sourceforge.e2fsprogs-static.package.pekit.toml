@@ -1,5 +1,5 @@
 # e2fsprogs-static — the static archives for consumers that link them directly.
-# Excludes libblkid.a (util-linux-lib's).
+# Excludes libblkid.a (org.kernel.libblkid-static's).
 
 [package]
 name        = "net.sourceforge.e2fsprogs-static"

@@ -1,0 +1,11 @@
+# Shared metadata for the complete util-linux source package. Individual
+# binary packages narrow this expression to the files they actually ship.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-1.0-or-later AND GPL-2.0-only AND GPL-2.0-or-later AND GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT AND BSD-2-Clause AND BSD-3-Clause AND BSD-4-Clause-UC AND EUPL-1.2 AND LicenseRef-Public-Domain"
+license_class = "free"
+homepage      = "https://github.com/util-linux/util-linux"

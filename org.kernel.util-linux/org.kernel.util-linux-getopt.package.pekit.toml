@@ -1,0 +1,23 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.util-linux-getopt"
+description = "Enhanced getopt command-line parser for shell scripts"
+license     = "GPL-2.0-or-later"
+
+[provides]
+getopt = "{{version}}-1"
+
+[replaces]
+getopt = "< {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-getopt/"
+"@source:AUTHORS"                   = "usr/share/doc/org.kernel.util-linux/"
+"@source:NEWS"                      = "usr/share/doc/org.kernel.util-linux/"
+"@source:README"                    = "usr/share/doc/org.kernel.util-linux/"
+":usr/bin/getopt"                   = "usr/bin/getopt"
+":usr/share/man/man1/getopt.1"      = "usr/share/man/man1/getopt.1"

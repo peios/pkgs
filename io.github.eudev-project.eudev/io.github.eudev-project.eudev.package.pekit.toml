@@ -18,7 +18,7 @@ description = "eudev - device manager: driver loading from uevents, coldplug, st
 glibc                                         = ">= 2.43"
 "io.github.eudev-project.eudev-libudev"      = "{{version}}-3"
 libkmod                                       = ">= 33"
-libblkid                                      = ">= 2.42"
+"org.kernel.libblkid"                        = ">= 2.42.3"
 sh                                            = ">= 1"
 # udev-coldplug uses uname, sleep, mkdir, dirname and mknod. Peiosutils is
 # Peios's system implementation of those core applets; eudev must not pull in

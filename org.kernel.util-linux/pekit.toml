@@ -1,0 +1,181 @@
+# util-linux: build only libblkid and enhanced getopt(1).
+#
+# Peiosutils owns the command surfaces normally supplied by util-linux. A
+# second implementation of mount, lsblk, dmesg, and the other tools would
+# create ambiguous policy and PATH ownership. libblkid remains the platform
+# filesystem-signature library used by peiosutils, eudev and e2fsprogs;
+# getopt remains because shell tooling such as xmlto requires it.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/linux/utils/util-linux/v{{major}}.{{minor}}/util-linux-{{version}}.tar.xz"
+listing_url = "https://api.github.com/repos/util-linux/util-linux/tags?per_page=100"
+extract     = true
+root        = "util-linux-{{version}}"
+file_regex  = '"name"[[:space:]]*:[[:space:]]*"v?[0-9]+\.[0-9]+(?:\.[0-9]+)?"'
+# Soft maintenance floor. Follow authenticated stable releases throughout the
+# current major line; util-linux documents a major bump as a fatal/deep change.
+versions    = ">= 2.42.3, < 3"
+
+# kernel.org signs the decompressed tar rather than its xz transport. Karel
+# Zak's complete primary fingerprint is embedded in the 2.42.3 signature.
+[source.url.signature]
+url          = "https://cdn.kernel.org/pub/linux/utils/util-linux/v{{major}}.{{minor}}/util-linux-{{version}}.tar.sign"
+of           = "decompressed"
+key_files    = ["keys/karel-zak.asc"]
+fingerprints = ["B0C64D14301CC6EFAEDF60E4E4B71D5EEC39C284"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+GETOPT_BUILD="$PEKIT_OUT/getopt-build"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+mkdir -p "$BUILD" "$GETOPT_BUILD"
+
+# Configure one deliberately narrow library build. All command programs and
+# sibling libraries remain disabled; static and shared libblkid are both
+# useful package outputs.
+cd "$BUILD"
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --disable-all-programs \
+  --enable-libblkid \
+  --disable-libuuid \
+  --disable-libmount \
+  --disable-libfdisk \
+  --disable-libsmartcols \
+  --enable-static \
+  --enable-shared \
+  --disable-nls \
+  --without-python \
+  --disable-rpath \
+  --disable-silent-rules
+make -j"$(nproc)"
+
+# Autotools' check target covers the configured library and common support
+# units. Any upstream failure blocks the package.
+make -j"$(nproc)" check
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# getopt's old Automake declaration cannot override --disable-all-programs,
+# so configure a separate build tree and compile only that explicit target.
+cd "$GETOPT_BUILD"
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --disable-nls \
+  --without-python \
+  --disable-rpath \
+  --disable-silent-rules
+make -j"$(nproc)" getopt
+install -D -m 0755 getopt "$PEKIT_OUT/usr/bin/getopt"
+install -D -m 0644 "$SRC/misc-utils/getopt.1" \
+  "$PEKIT_OUT/usr/share/man/man1/getopt.1"
+
+# Run every upstream getopt case against this build. The component suite is
+# unprivileged and must pass without exclusions.
+"$SRC/tests/run.sh" --srcdir="$SRC" --builddir="$GETOPT_BUILD" \
+  --parallel="$(nproc)" getopt
+
+cd "$PEKIT_OUT"
+LIB=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libblkid.so.*' -print)
+test "$(printf '%s\n' "$LIB" | grep -c .)" -eq 1
+test -s "$LIBDIR/libblkid.a"
+test -L "$LIBDIR/libblkid.so"
+test -L "$LIBDIR/libblkid.so.1"
+test -x usr/bin/getopt
+
+# Installed-interface checks: enhanced getopt parsing and a consumer compiled
+# and run against the staged libblkid headers and SONAME.
+rc=0
+usr/bin/getopt --test >/dev/null 2>&1 || rc=$?
+test "$rc" -eq 4
+test "$(usr/bin/getopt -o ab: --long alpha,beta: -- -a --beta value tail)" \
+  = " -a --beta 'value' -- 'tail'"
+printf '%s\n' \
+  '#include <blkid/blkid.h>' \
+  '#include <stdlib.h>' \
+  '#include <string.h>' \
+  'int main(void) {' \
+  '  const char *version = 0, *date = 0; char *type = 0, *value = 0;' \
+  '  if (blkid_get_library_version(&version, &date) <= 0 || !version || !date) return 1;' \
+  '  if (blkid_parse_tag_string("UUID=peios", &type, &value) != 0) return 2;' \
+  '  if (strcmp(type, "UUID") || strcmp(value, "peios")) return 3;' \
+  '  free(type); free(value); return 0;' \
+  '}' > .libblkid-smoke.c
+gcc ${CPPFLAGS:-} ${CFLAGS:-} -Iusr/include .libblkid-smoke.c \
+  -L"$LIBDIR" -lblkid \
+  -o .libblkid-smoke
+LD_LIBRARY_PATH="$LIBDIR" ./.libblkid-smoke
+rm -f .libblkid-smoke .libblkid-smoke.c
+
+# Enforce the inherited production hardening contract before symbol stripping.
+for elf in "$LIB" usr/bin/getopt; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+readelf -d "$LIB" | grep -F 'Library soname: [libblkid.so.1]'
+readelf -d "$LIB" | grep -F 'Shared library: [libc.so.6]'
+
+# Split build-ID symbols per binary package and gather every DWARF-referenced
+# source once in the source-family debugsource package.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > .srclist
+split_debug() {
+  elf=$1
+  debug_root=$2
+  : > .dl
+  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.util-linux \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat .dl >> .srclist
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$debug_root/usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$debug_root/usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$debug_root/usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+}
+split_debug "$LIB" "$PEKIT_OUT"
+mkdir -p "$PEKIT_OUT/getopt-debug"
+split_debug usr/bin/getopt "$PEKIT_OUT/getopt-debug"
+strip --strip-debug "$LIBDIR/libblkid.a"
+
+tr '\0' '\n' < .srclist | LC_ALL=C sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "usr/src/debug/org.kernel.util-linux/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.kernel.util-linux/$rel"
+done
+rm -f .dl .srclist
+rm -rf "$BUILD" "$GETOPT_BUILD"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+debugedit          = "*"
+patchelf           = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"

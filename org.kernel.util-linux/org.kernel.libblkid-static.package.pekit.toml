@@ -1,0 +1,17 @@
+[package]
+name        = "org.kernel.libblkid-static"
+description = "libblkid static library"
+license     = "LGPL-2.1-or-later"
+
+[provides]
+libblkid-static = "{{version}}-1"
+
+[replaces]
+libblkid-static = "< {{version}}-1"
+
+[dependencies]
+"org.kernel.libblkid-devel" = "{{version}}-1"
+
+[files]
+"@source:libblkid/COPYING"                    = "usr/share/licenses/org.kernel.libblkid-static/"
+":usr/lib/x86_64-linux-peios/libblkid.a"      = "usr/lib/x86_64-linux-peios/libblkid.a"

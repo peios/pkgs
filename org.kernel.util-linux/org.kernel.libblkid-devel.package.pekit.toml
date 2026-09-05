@@ -1,0 +1,22 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.libblkid-devel"
+description = "libblkid headers, linker name, pkg-config data and API manuals"
+license     = "LGPL-2.1-or-later"
+
+[provides]
+libblkid-devel = "{{version}}-1"
+
+[replaces]
+libblkid-devel = "< {{version}}-1"
+
+[dependencies]
+"org.kernel.libblkid" = "{{version}}-1"
+
+[files]
+"@source:libblkid/COPYING"                          = "usr/share/licenses/org.kernel.libblkid-devel/"
+":usr/include/blkid/**"                             = "usr/include/blkid"
+":usr/lib/x86_64-linux-peios/libblkid.so"           = "usr/lib/x86_64-linux-peios/libblkid.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/blkid.pc"    = "usr/lib/x86_64-linux-peios/pkgconfig/blkid.pc"
+":usr/share/man/man3/**"                            = "usr/share/man/man3"

@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. To accept changed upstream bytes for a version, run:
+#   pekit lock --repin --version <version>
+
+schema = 1
+
+[[source]]
+  version = "2.42.3"
+  url = "https://cdn.kernel.org/pub/linux/utils/util-linux/v2.42/util-linux-2.42.3.tar.xz"
+  sha256 = "66ac7c0e725278eb2b039e3104f2c91119341d941b41bac7a285c695f940bd57"
+  signature_key = "b0c64d14301cc6efaedf60e4e4b71d5eec39c284"
+  locked_at = "2026-09-05T16:38:46Z"

@@ -1,0 +1,10 @@
+[package]
+name        = "org.kernel.util-linux-getopt-debuginfo"
+description = "util-linux getopt debugging symbols"
+license     = "GPL-2.0-or-later"
+
+[dependencies]
+"org.kernel.util-linux-getopt" = "{{version}}-1"
+
+[files]
+":getopt-debug/usr/lib/debug/**" = "usr/lib/debug"

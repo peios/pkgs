@@ -1,0 +1,10 @@
+[package]
+name        = "org.kernel.util-linux-debugsource"
+description = "util-linux sources referenced by packaged debugging data"
+
+[dependencies]
+"org.kernel.libblkid-debuginfo"         = "{{version}}-1"
+"org.kernel.util-linux-getopt-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

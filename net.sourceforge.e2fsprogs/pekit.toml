@@ -57,13 +57,13 @@ of           = "decompressed"
 # --- main: out-of-source configure/make/install -----------------------------
 #   --enable-elf-shlibs : build the shared support libraries.
 #   bundled libblkid/libuuid left ON (default). The split of ownership is
-#       deliberate and asymmetric: e2fsprogs SHIPS libuuid (util-linux-lib
-#       builds with --disable-libuuid), and util-linux-lib SHIPS libblkid
+#       deliberate and asymmetric: e2fsprogs SHIPS libuuid (org.kernel.util-linux
+#       builds with --disable-libuuid), and org.kernel.libblkid SHIPS libblkid
 #       (this build's copy is compiled but claimed by no package, so it never
 #       enters a payload). The tools therefore link the bundled libblkid at
 #       build time and resolve DT_NEEDED libblkid.so.1 to util-linux-lib's at
 #       runtime. Verified safe: all 20 blkid_* symbols the shipped binaries
-#       reference are exported by util-linux 2.42.2's libblkid.so.1, and the
+#       reference are exported by util-linux 2.42.3's libblkid.so.1, and the
 #       bundled library is unversioned so the loader binds the defaults.
 #       Building --disable-libblkid instead would be tidier but needs
 #       libblkid-devel, which is not published.

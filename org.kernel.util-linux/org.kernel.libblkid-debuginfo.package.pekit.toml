@@ -1,0 +1,10 @@
+[package]
+name        = "org.kernel.libblkid-debuginfo"
+description = "libblkid debugging symbols"
+license     = "LGPL-2.1-or-later"
+
+[dependencies]
+"org.kernel.libblkid" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

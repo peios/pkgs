@@ -4,7 +4,7 @@
 #
 # e2fsprogs fans into: the e2fsprogs tools, the four support libraries
 # (libcom_err/libss/libext2fs/libe2p) + libuuid, the -devel and -static sets.
-# It deliberately does NOT ship libblkid — util-linux-lib owns libblkid.so.1;
+# It deliberately does NOT ship libblkid — org.kernel.libblkid owns libblkid.so.1;
 # e2fsprogs' bundled copy is built but left unclaimed, and the tools resolve
 # the platform libblkid at runtime (see the recipe's lib-dedup note).
 

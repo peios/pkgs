@@ -215,7 +215,7 @@ build-essentials-c  = "*"
 gperf                = "*"
 pkgconf              = "*"
 kmod-devel           = "*"
-libblkid-devel       = "*"
+"org.kernel.libblkid-devel" = "*"
 # libtool's configure shells out to file(1); absent, the run dies mid-way.
 file                  = "*"
 perl                  = "*"

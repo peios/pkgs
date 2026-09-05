@@ -20,7 +20,7 @@ glibc = ">= 2.43"
 # The script's own toolchain. Everything here is named in the generated
 # script or by a format script, so none of it is optional.
 "org.gnu.bash" = "*"
-getopt        = ">= 2.42.2"
+"org.kernel.util-linux-getopt" = ">= 2.42.3"
 xsltproc      = ">= 1.1.45"
 libxml2-utils = ">= 2.15.3"
 docbook-xsl   = ">= 1.79.2-2"

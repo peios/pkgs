@@ -1,6 +1,6 @@
 # e2fsprogs-devel — headers, the dev .so symlinks, and pkg-config files for
 # building against libcom_err/libss/libext2fs/libe2p/libuuid. Excludes the
-# blkid header/.pc/.so — those are util-linux-lib's (libblkid-devel).
+# blkid header/.pc/.so — those are org.kernel.libblkid-devel's.
 
 [package]
 name        = "net.sourceforge.e2fsprogs-devel"

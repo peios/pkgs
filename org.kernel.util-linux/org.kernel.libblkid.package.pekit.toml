@@ -1,0 +1,17 @@
+[package]
+name        = "org.kernel.libblkid"
+description = "Block-device signature and identifier library"
+license     = "LGPL-2.1-or-later"
+
+[provides]
+libblkid = "{{version}}-1"
+
+[replaces]
+libblkid = "< {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:libblkid/COPYING"                         = "usr/share/licenses/org.kernel.libblkid/"
+":usr/lib/x86_64-linux-peios/libblkid.so.*"        = "usr/lib/x86_64-linux-peios"

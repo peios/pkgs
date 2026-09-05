@@ -6,7 +6,7 @@
 # debugfs — satisfiable once libpeios publishes a package).
 
 # libblkid.3 documents the libblkid library, which e2fsprogs does NOT ship
-# (util-linux-lib owns libblkid) — drop it from the usr/share/man/** glob so we
+# (org.kernel.libblkid owns it) — drop it from the usr/share/man/** glob so we
 # don't carry a man page for an absent library.
 excludes = [
   ":usr/share/man/man3/libblkid.3",
@@ -29,8 +29,8 @@ glibc      = ">= 2.43"
 "net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"
 "net.sourceforge.e2fsprogs-libe2p"     = "{{version}}-1"
 "net.sourceforge.e2fsprogs-libuuid"    = "{{version}}-1"
-# libblkid.so.1 comes from util-linux-lib (e2fsprogs' bundled copy is unshipped).
-libblkid   = "*"
+# libblkid.so.1 comes from org.kernel.libblkid (the bundled copy is unshipped).
+"org.kernel.libblkid" = "*"
 
 [files]
 "@source:NOTICE"          = "usr/share/licenses/net.sourceforge.e2fsprogs/"
