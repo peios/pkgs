@@ -1,0 +1,244 @@
+# dosfstools — the FAT12/16/32 formatter, checker and label utility.
+#
+# Peios uses this package to create and maintain EFI system partitions. FAT
+# has no extended attributes, so unlike e2fsprogs there is no functional
+# Peios security-descriptor patch: access policy is synthesized by the mount.
+# Release 4.2's test harness expects its optional argument fixtures in the
+# working directory, so build it in-tree. Upstream master has fixed that
+# harness; carrying the same fix as a patch would make the next release fail
+# before it could prove itself through the suite.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/dosfstools/dosfstools/releases/download/v{{version}}/dosfstools-{{version}}.tar.gz"
+listing_url = "https://github.com/dosfstools/dosfstools/releases"
+extract     = true
+root        = "dosfstools-{{version}}"
+file_regex  = 'dosfstools-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance floor. Follow authenticated stable 4.x releases
+# automatically; a future major line requires an on-disk/CLI review.
+versions    = ">= 4.2, < 5"
+
+# Upstream attaches a detached OpenPGP signature to the release tarball.
+# Pin release maintainer Andreas Bombe's complete primary fingerprint; 4.2
+# was signed by subkey FDF277140B6DF9E8CDC8A9823164705B1DA31D4C.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/andreas-bombe.asc"]
+fingerprints = ["25714AECDBFDACEE1CE95FE77F6022516E869F64"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+BUILD="$SRC"
+BIN="$PEKIT_OUT/usr/bin"
+FSCKDIR="$PEKIT_OUT/usr/libexec/fsck"
+SMOKE="$PEKIT_OUT/.dosfstools-smoke"
+
+mkdir -p "$SMOKE"
+
+# The complete upstream suite depends on xxd only for reversing its committed
+# reference hexdumps. Peios does not yet package Vim's xxd, so provide that
+# narrow interface with the declared Perl interpreter on the self-hosted rung.
+# Debian still uses its real xxd. Offset-aware writes preserve xxd's sparse
+# `*` sections instead of expanding large runs through shell text handling.
+if ! command -v xxd >/dev/null 2>&1; then
+  mkdir -p "$PEKIT_OUT/.test-bin"
+  cat > "$PEKIT_OUT/.test-bin/xxd" <<'EOF'
+#!/usr/bin/perl
+die "usage: xxd -r INPUT OUTPUT\n" unless @ARGV == 3 && $ARGV[0] eq '-r';
+shift @ARGV;
+open(IN, '<', $ARGV[0]) or die "$ARGV[0]: $!\n";
+open(OUT, '>', $ARGV[1]) or die "$ARGV[1]: $!\n";
+binmode(IN);
+binmode(OUT);
+while (<IN>) {
+    next if /^\*\s*$/;
+    die "malformed xxd input: $_" unless /^([0-9A-Fa-f]{8}): /;
+    my $offset = hex($1);
+    my $bytes = substr($_, 10, 39);
+    $bytes =~ s/[^0-9A-Fa-f]//g;
+    seek(OUT, $offset, 0) or die "seek: $!\n";
+    print OUT pack('H*', $bytes) or die "write: $!\n";
+}
+close(OUT) or die "close: $!\n";
+EOF
+  chmod 0755 "$PEKIT_OUT/.test-bin/xxd"
+  PATH="$PEKIT_OUT/.test-bin:$PATH"
+  export PATH
+fi
+
+cd "$BUILD"
+# Force complete CET properties because conservative linker merging can drop
+# them when an implicit startup object is unmarked.
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --sbindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --enable-compat-symlinks \
+  --disable-silent-rules
+
+make -j"$(nproc)"
+make -j"$(nproc)" check
+
+# The release contains 40 filesystem-image tests. Require the complete suite,
+# no skip and no unexpected failure; permit upstream to add tests or retire
+# its one current expected-failure case without recipe churn.
+total=$(sed -n 's/^# TOTAL:[[:space:]]*//p' tests/test-suite.log)
+test "$total" -ge 40
+grep -Eq '^# SKIP:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# FAIL:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# XPASS:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# ERROR:[[:space:]]+0$' tests/test-suite.log
+
+make install DESTDIR="$PEKIT_OUT"
+
+# Retain the current mkfs/fsck type names but drop the pre-4.0 command aliases
+# that have never formed part of the Peios interface.
+for legacy in mkdosfs dosfsck dosfslabel; do
+  rm -f "$BIN/$legacy" "$PEKIT_OUT/usr/share/man/man8/$legacy.8"
+done
+
+# The fsck front-end dispatches through Peios's documented private backend
+# directory. Keep fsck.fat human-invokable and expose all three type names to
+# the front-end as relative links that also resolve through the merged /usr.
+mkdir -p "$FSCKDIR"
+rm -f "$BIN/fsck.vfat" "$BIN/fsck.msdos"
+for type in fat vfat msdos; do
+  ln -s ../../bin/fsck.fat "$FSCKDIR/fsck.$type"
+done
+
+# Package current documentation explicitly and leave historical 2.x/mkdosfs
+# documents to corresponding source.
+rm -rf "$PEKIT_OUT/usr/share/doc"
+
+# Exercise all three FAT widths and every installed program against ordinary
+# files. This covers the staged formatter/checker/label pipeline without a
+# privileged loop device or a host mount.
+"$BIN/mkfs.fat" -C --invariant -F 12 -n PEIFAT12 \
+  "$SMOKE/fat12.img" 1440
+"$BIN/fsck.fat" -n "$SMOKE/fat12.img"
+"$BIN/mkfs.msdos" -C --invariant -F 16 -n PEIFAT16 \
+  "$SMOKE/fat16.img" 32768
+"$BIN/fsck.fat" -n "$SMOKE/fat16.img"
+"$BIN/mkfs.vfat" -C --invariant -F 32 -n PEIOSESP -i 1234ABCD \
+  "$SMOKE/fat32.img" 65536
+"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
+test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = PEIOSESP
+test "$("$BIN/fatlabel" -i "$SMOKE/fat32.img")" = 1234abcd
+"$BIN/fatlabel" "$SMOKE/fat32.img" NEWLABEL
+test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = NEWLABEL
+"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
+"$BIN/fatlabel" -V | grep -F "$PEKIT_VERSION"
+
+# Enforce the intended installed interface exactly before debug payloads are
+# generated. A newly installed command, alias or manual requires review.
+find "$BIN" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.actual-bin"
+printf '%s\n' fatlabel fsck.fat mkfs.fat mkfs.msdos mkfs.vfat \
+  | LC_ALL=C sort > "$PEKIT_OUT/.expected-bin"
+cmp "$PEKIT_OUT/.expected-bin" "$PEKIT_OUT/.actual-bin"
+find "$FSCKDIR" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.actual-fsck"
+printf '%s\n' fsck.fat fsck.msdos fsck.vfat | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-fsck"
+cmp "$PEKIT_OUT/.expected-fsck" "$PEKIT_OUT/.actual-fsck"
+for type in fat msdos vfat; do
+  test "$(readlink "$FSCKDIR/fsck.$type")" = ../../bin/fsck.fat
+done
+test "$(readlink "$BIN/mkfs.msdos")" = mkfs.fat
+test "$(readlink "$BIN/mkfs.vfat")" = mkfs.fat
+find "$PEKIT_OUT/usr/share/man/man8" -mindepth 1 -maxdepth 1 -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-man"
+printf '%s\n' fatlabel.8 fsck.fat.8 fsck.msdos.8 fsck.vfat.8 \
+  mkfs.fat.8 mkfs.msdos.8 mkfs.vfat.8 | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-man"
+cmp "$PEKIT_OUT/.expected-man" "$PEKIT_OUT/.actual-man"
+test ! -e "$PEKIT_OUT/usr/sbin"
+test ! -e "$PEKIT_OUT/usr/share/doc"
+
+# Create conventional build-ID debuginfo and the exact corresponding source
+# referenced by DWARF for the three distinct ELF executables.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+for elf in usr/bin/fatlabel usr/bin/fsck.fat usr/bin/mkfs.fat; do
+  patchelf --remove-rpath "$elf" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.dosfstools.dosfstools \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$elf" \
+    | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$first"
+  objcopy --only-keep-debug "$elf" \
+    "usr/lib/debug/.build-id/$first/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
+  strip "$elf"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/io.github.dosfstools.dosfstools/$(dirname "$rel")"
+      cp "$ROOT/$rel" \
+        "usr/src/debug/io.github.dosfstools.dosfstools/$rel"
+    done
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 3
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find usr/src/debug/io.github.dosfstools.dosfstools \
+  -type f -print -quit)"
+for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the final inherited hardening, ABI closure and path-cleanliness
+# contract. All three tools use only libc (iconv is provided by glibc).
+for elf in usr/bin/fatlabel usr/bin/fsck.fat usr/bin/mkfs.fat; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
+  readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
+done
+
+# Leave the materialised source as a clean source tree rather than retaining
+# generated build products in Pekit's cache. The original authenticated
+# release archive remains the corresponding-source input.
+make -C "$BUILD" distclean
+rm -rf "$SMOKE" "$PEKIT_OUT/.test-bin"
+rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
+  "$PEKIT_OUT/.actual-fsck" "$PEKIT_OUT/.expected-fsck" \
+  "$PEKIT_OUT/.actual-man" "$PEKIT_OUT/.expected-man" \
+  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+debugedit          = "*"
+patchelf           = "*"
+perl               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"
+xxd             = "*"

@@ -1,0 +1,11 @@
+[package]
+name        = "io.github.dosfstools.dosfstools-debugsource"
+description = "dosfstools corresponding debug sources"
+license     = "GPL-3.0-or-later AND LicenseRef-Public-Domain"
+
+[dependencies]
+"io.github.dosfstools.dosfstools-debuginfo" = "= {{version}}-3"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.dosfstools.dosfstools-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

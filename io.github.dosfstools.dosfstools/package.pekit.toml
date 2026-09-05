@@ -1,0 +1,11 @@
+format = "peipkg"
+
+[package]
+version       = "{{version}}-3"
+architecture  = "x86_64"
+homepage      = "https://github.com/dosfstools/dosfstools"
+# Source-wide expression: the project is GPL-3.0-or-later, with public-domain
+# blkdev/boot-code material plus the standard Autoconf/Automake helper grants.
+# Binary members narrow this to only the terms present in their payloads.
+license       = "GPL-3.0-or-later AND LicenseRef-Public-Domain AND GPL-2.0-or-later WITH Autoconf-exception-generic AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND FSFUL AND FSFULLR AND X11"
+license_class = "free"

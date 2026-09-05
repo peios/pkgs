@@ -1,0 +1,14 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "io.github.dosfstools.dosfstools-common"
+architecture = "noarch"
+description  = "dosfstools manuals and release documentation"
+license      = "GPL-3.0-or-later"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/io.github.dosfstools.dosfstools-common/"
+"@source:ChangeLog" = "usr/share/doc/io.github.dosfstools.dosfstools/"
+"@source:NEWS"      = "usr/share/doc/io.github.dosfstools.dosfstools/"
+"@source:README"    = "usr/share/doc/io.github.dosfstools.dosfstools/"
+":usr/share/man/**" = "usr/share/man"
