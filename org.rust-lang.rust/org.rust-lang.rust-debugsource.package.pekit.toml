@@ -3,9 +3,8 @@ name        = "org.rust-lang.rust-debugsource"
 description = "Rust compiler-suite sources referenced by debugging information"
 
 [dependencies]
-"org.rust-lang.rust-debuginfo" = "{{version}}-2"
+"org.rust-lang.rust-debuginfo" = "= {{version}}-2"
+"org.rust-lang.rust-common"    = "= {{version}}-2"
 
 [files]
-"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-debugsource/"
-"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-debugsource/"
 ":usr/src/debug/org.rust-lang.rust/**" = "usr/src/debug/org.rust-lang.rust"

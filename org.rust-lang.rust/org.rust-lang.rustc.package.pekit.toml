@@ -5,11 +5,12 @@ name        = "org.rust-lang.rustc"
 description = "Rust compiler and rustdoc documentation generator"
 
 [provides]
-rustc   = "{{version}}"
-rustdoc = "{{version}}"
+rustc   = "{{version}}-2"
+rustdoc = "{{version}}-2"
 
 [dependencies]
-"org.rust-lang.rust-std" = "{{version}}-2"
+"org.rust-lang.rust-std"    = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
 glibc                     = ">= 2.43"
 libgcc                    = ">= 16"
 "libstdc++"               = ">= 16"

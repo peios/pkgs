@@ -7,6 +7,10 @@ format = "peipkg"
 [package]
 version       = "{{version}}-2"
 architecture  = "x86_64"
-license       = "Apache-2.0 OR MIT"
+# Rust itself is dual licensed.  The second group starts with Fedora's 1.83
+# audit and includes the additional terms present in Peios' selected runtime
+# cargo trees.  Peios also links Cargo's vendored native libraries rather than
+# Fedora's system libgit2, curl, libssh2 and SQLite packages.
+license       = "(Apache-2.0 OR MIT) AND (Apache-2.0 AND (Apache-2.0 WITH LLVM-exception) AND Artistic-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-3.0 AND Unicode-DFS-2016) AND LicenseRef-Callaway-GPLv2-with-exceptions AND curl AND blessing"
 license_class = "free"
 homepage      = "https://www.rust-lang.org/"

@@ -172,6 +172,97 @@ CARGO_HOME="$SMOKE/cargo-home" cargo build --offline --locked --release \
 test "$("$SMOKE/target/release/peios-rust-smoke")" = peios-rust-ok
 rm -rf "$SMOKE"
 
+# Record the precise Rust crates linked into each installed component, following
+# Fedora's component-specific cargo-tree methodology.  These inventories make
+# the family-level SPDX audit reproducible and prevent a future Rust transition
+# from silently inheriting 1.83's license conclusion.
+LICENSE_ROOT="$PEKIT_OUT/usr/share/licenses/org.rust-lang.rust-common/generated"
+mkdir -p "$LICENSE_ROOT/vendor-manifests"
+cargo_manifest() {
+  name=$1
+  shift
+  RUSTC_BOOTSTRAP=1 cargo tree \
+    --offline --edges normal,build --prefix none --format '{p}' "$@" |
+    sed '/([*/]/d; s/ (proc-macro)$//' |
+    LC_ALL=C sort -u > "$LICENSE_ROOT/vendor-manifests/$name.txt"
+  test -s "$LICENSE_ROOT/vendor-manifests/$name.txt"
+}
+cargo_manifest rustc -p rustc-main -p rustdoc
+cargo_manifest cargo --manifest-path src/tools/cargo/Cargo.toml
+cargo_manifest rustfmt --manifest-path src/tools/rustfmt/Cargo.toml
+cargo_manifest std --manifest-path library/Cargo.toml --features backtrace
+
+# Couple those component graphs to the exact upstream SPDX declarations.  The
+# normalized vendor manifests always carry a concrete package.license string;
+# refusing a missing declaration turns a future license change into an
+# explicit packaging review rather than NOASSERTION metadata.
+python3 - "$SRC" "$LICENSE_ROOT" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+source = pathlib.Path(sys.argv[1])
+license_root = pathlib.Path(sys.argv[2])
+selected = set()
+for manifest in (license_root / "vendor-manifests").glob("*.txt"):
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        if len(fields) >= 2 and fields[1].startswith("v"):
+            selected.add((fields[0], fields[1][1:]))
+
+rows = []
+for name, version in sorted(selected):
+    crate = source / "vendor" / f"{name}-{version}" / "Cargo.toml"
+    if not crate.is_file():
+        raise SystemExit(f"rust: installed crate is absent from vendor tree: {name} {version}")
+    with crate.open("rb") as stream:
+        license_id = tomllib.load(stream).get("package", {}).get("license")
+    if not isinstance(license_id, str) or not license_id.strip():
+        raise SystemExit(f"rust: installed crate has no license declaration: {name} {version}")
+    rows.append(f"{name}\t{version}\t{license_id.strip()}\n")
+
+(license_root / "crate-licenses.tsv").write_text("".join(rows), encoding="utf-8")
+PY
+test -s "$LICENSE_ROOT/crate-licenses.tsv"
+
+# Preserve every license/notice file shipped by the crates in those component
+# graphs.  One de-duplicated corpus in rust-common is both smaller and more
+# complete than repeating only Rust's top-level dual-license files everywhere.
+mkdir -p "$LICENSE_ROOT/crates"
+cat "$LICENSE_ROOT"/vendor-manifests/*.txt | LC_ALL=C sort -u |
+while read -r crate tagged_version _; do
+  case "$tagged_version" in
+    v*) version=${tagged_version#v} ;;
+    *) continue ;;
+  esac
+  crate_dir="$SRC/vendor/$crate-$version"
+  test -d "$crate_dir" || {
+    echo "rust: installed crate is absent from vendor tree: $crate $version" >&2
+    exit 1
+  }
+  notice_dir="$LICENSE_ROOT/crates/$crate-$version"
+  find "$crate_dir" -maxdepth 1 \( -type f -o -type l \) \
+    \( -iname 'COPYING*' -o -iname 'COPYRIGHT*' -o -iname 'LICENCE*' \
+       -o -iname 'LICENSE*' -o -iname 'NOTICE*' -o -iname 'UNLICENSE*' \) \
+    -print | LC_ALL=C sort |
+  while IFS= read -r notice; do
+    mkdir -p "$notice_dir"
+    cp -L "$notice" "$notice_dir/$(basename "$notice")"
+  done
+done
+test -n "$(find "$LICENSE_ROOT/crates" -type f -print -quit)"
+
+# Cargo's Rust crates and four native libraries are linked statically.  Keep a
+# machine-readable native inventory beside their canonical notices; OpenSSL,
+# zlib and LLVM are deliberately dynamic Peios dependencies and are therefore
+# not claimed as bundled payload licenses.
+cat > "$LICENSE_ROOT/native-bundles.txt" <<'EOF'
+blessing sqlite 3.46.0
+BSD-3-Clause libssh2 1.10.1_DEV
+curl curl 8.9.0
+LicenseRef-Callaway-GPLv2-with-exceptions libgit2 1.8.1
+EOF
+
 # Split every shipped loadable ELF by build ID after normalizing its DWARF
 # paths. Rust binaries are large enough that leaving symbols in their runtime
 # packages is especially costly; retaining the exact referenced sources keeps

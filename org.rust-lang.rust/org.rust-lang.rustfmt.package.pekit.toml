@@ -3,10 +3,11 @@ name        = "org.rust-lang.rustfmt"
 description = "Rust source-code formatter and Cargo integration"
 
 [provides]
-rustfmt = "{{version}}"
+rustfmt = "{{version}}-2"
 
 [dependencies]
-"org.rust-lang.rustc" = "{{version}}-2"
+"org.rust-lang.rustc"       = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
 glibc                   = ">= 2.43"
 libgcc                  = ">= 16"
 

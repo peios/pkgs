@@ -5,10 +5,11 @@ name        = "org.rust-lang.cargo"
 description = "Cargo package manager and build tool for Rust"
 
 [provides]
-cargo = "{{version}}"
+cargo = "{{version}}-2"
 
 [dependencies]
-"org.rust-lang.rustc" = "{{version}}-2"
+"org.rust-lang.rustc"       = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
 glibc                   = ">= 2.43"
 libgcc                  = ">= 16"
 zlib                    = ">= 2.3.3"

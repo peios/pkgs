@@ -1,0 +1,27 @@
+[package]
+name         = "org.rust-lang.rust-common"
+architecture = "noarch"
+description  = "Rust compiler-suite licenses and installed-component inventories"
+
+[provides]
+rust-license = "{{version}}-2"
+
+[files]
+"@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-common/COPYRIGHT"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-common/LICENSE-APACHE"
+"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-common/LICENSE-MIT"
+
+"@source:src/tools/cargo/LICENSE-APACHE"      = "usr/share/licenses/org.rust-lang.rust-common/cargo/LICENSE-APACHE"
+"@source:src/tools/cargo/LICENSE-MIT"         = "usr/share/licenses/org.rust-lang.rust-common/cargo/LICENSE-MIT"
+"@source:src/tools/cargo/LICENSE-THIRD-PARTY" = "usr/share/licenses/org.rust-lang.rust-common/cargo/LICENSE-THIRD-PARTY"
+"@source:src/tools/rustfmt/LICENSE-APACHE"    = "usr/share/licenses/org.rust-lang.rust-common/rustfmt/LICENSE-APACHE"
+"@source:src/tools/rustfmt/LICENSE-MIT"       = "usr/share/licenses/org.rust-lang.rust-common/rustfmt/LICENSE-MIT"
+
+# Cargo statically embeds these native libraries in this build.  Retain their
+# canonical notices in addition to Cargo's own historical third-party notice.
+"@source:vendor/libgit2-sys-0.17.0+1.8.1/libgit2/COPYING" = "usr/share/licenses/org.rust-lang.rust-common/native/libgit2-COPYING"
+"@source:vendor/libgit2-sys-0.17.0+1.8.1/libgit2/AUTHORS" = "usr/share/licenses/org.rust-lang.rust-common/native/libgit2-AUTHORS"
+"@source:vendor/libssh2-sys-0.3.0/libssh2/COPYING" = "usr/share/licenses/org.rust-lang.rust-common/native/libssh2-COPYING"
+"@source:vendor/curl-sys-0.4.74+curl-8.9.0/curl/COPYING" = "usr/share/licenses/org.rust-lang.rust-common/native/curl-COPYING"
+"@recipe:licenses/SQLITE" = "usr/share/licenses/org.rust-lang.rust-common/native/sqlite-blessing"
+":usr/share/licenses/org.rust-lang.rust-common/generated/**" = "usr/share/licenses/org.rust-lang.rust-common/generated"
