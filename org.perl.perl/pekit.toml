@@ -37,6 +37,10 @@ if [ -d /usr/lib/x86_64-linux-peios ]; then
 else
   DEPLIBDIR=/usr/lib/x86_64-linux-gnu
 fi
+# Dependency lookup is a property of the current build rung, not of the Perl
+# installation being produced. GCC honours LIBRARY_PATH for link-time probes
+# without baking Debian's triplet into Perl's target-facing Config metadata.
+export LIBRARY_PATH="$DEPLIBDIR${LIBRARY_PATH:+:$LIBRARY_PATH}"
 
 mkdir -p "$BUILD"
 cp -a "$SRC/." "$BUILD/"
@@ -64,12 +68,29 @@ sed -i '/\\/zlib-src\\//d; /\\/bzip2-src\\//d' MANIFEST
 # org.gnu.libxcrypt is independently productionized: Perl treats crypt() as an
 # optional platform facility, and config.over is upstream's supported final
 # override for Configure probes.
-cat > config.over <<'EOF'
+cat > config.over <<EOF
 cryptlib=''
 d_crypt='undef'
 d_crypt_r='undef'
 crypt_r_proto='0'
 i_crypt='undef'
+libpth='$LIBDIR /usr/lib'
+glibpth='$LIBDIR /usr/lib'
+plibpth='$LIBDIR /usr/lib'
+xlibpth=''
+loclibpth=''
+incpth='/usr/include'
+locincpth=''
+usrinc='/usr/include'
+libc='$LIBDIR/libc.so.6'
+libsdirs=''
+libsfound=''
+libspath='$LIBDIR /usr/lib'
+timeincl='/usr/include/sys/time.h '
+ccflags='${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
+cppflags='${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
+ldflags='${LDFLAGS:-}'
+lddlflags='-shared ${LDFLAGS:-}'
 EOF
 
 # Stable major.minor library paths allow locally installed modules to survive
@@ -91,7 +112,7 @@ EOF
   -Dvendorlib="/usr/share/perl5/vendor_perl/$API" \\
   -Dvendorarch="$LIBDIR/perl5/vendor_perl/$API" \\
   -Darchname=x86_64-linux-peios-thread-multi \\
-  -Dlibpth="$DEPLIBDIR /usr/lib" \\
+  -Dlibpth="$LIBDIR /usr/lib" \\
   -Dlibs='-lpthread -ldl -lm -lutil -lc' \\
   -Dcc=gcc \\
   -Dld=gcc \\
@@ -143,6 +164,17 @@ grep -Fx "d_crypt='undef'" config.sh
 grep -Fx "d_crypt_r='undef'" config.sh
 grep -Fx "privlib='/usr/share/perl5/$API'" config.sh
 grep -Fx "archlib='$LIBDIR/perl5/$API'" config.sh
+grep -Fx "libpth='$LIBDIR /usr/lib'" config.sh
+grep -Fx "glibpth='$LIBDIR /usr/lib'" config.sh
+grep -Fx "plibpth='$LIBDIR /usr/lib'" config.sh
+grep -Fx "incpth='/usr/include'" config.sh
+grep -Fx "libc='$LIBDIR/libc.so.6'" config.sh
+grep -Fx "locincpth=''" config.sh
+grep -Fx "loclibpth=''" config.sh
+grep -Fx "libsdirs=''" config.sh
+grep -Fx "libsfound=''" config.sh
+grep -Fx "libspath='$LIBDIR /usr/lib'" config.sh
+grep -Fx "timeincl='/usr/include/sys/time.h '" config.sh
 grep '^ccflags=' config.sh | grep -F '_FORTIFY_SOURCE=3'
 grep '^ldflags=' config.sh | grep -F -- '-z,now'
 
@@ -153,18 +185,36 @@ export BUILD_BZIP2=0
 export BZIP2_INCLUDE=/usr/include
 export BZIP2_LIB="$DEPLIBDIR"
 
-make -j"$(nproc)"
+# Perl's generated makefile controls LD_LIBRARY_PATH while running the
+# just-built interpreter. Include the current rung's dependency directory so
+# DynaLoader's upstream libc discovery test works on the Debian reference
+# rung, without making that host path part of installed Config metadata.
+BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
+make -j"$(nproc)" LDLIBPTH="$BUILD_LDLIBPTH"
 
 # Upstream's complete suite, excluding only the packaging-inappropriate
 # porting tests selected by upstream's documented switch. The no-TTY harness
 # is deterministic in Pekit's non-interactive sandbox.
 PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \\
-  make test_harness_notty
+  make LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
 
-make install DESTDIR="$PEKIT_OUT"
+make LDLIBPTH="$BUILD_LDLIBPTH" install DESTDIR="$PEKIT_OUT"
 
 ARCHROOT="$PEKIT_OUT$LIBDIR/perl5/$API"
 CORE="$ARCHROOT/CORE"
+CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
+
+# Config is consumed by ExtUtils when future XS modules are built. It must
+# describe the Peios target, never the Debian reference builder or Pekit's
+# disposable staging path.
+if grep -E -- 'x86_64-linux-gnu|/usr/local/include|-L/usr/local/lib' $CONFIG_FILES; then
+  echo "host search path leaked into installed Perl Config" >&2
+  exit 1
+fi
+if grep -F "$PEKIT_OUT" $CONFIG_FILES; then
+  echo "build path leaked into installed Perl Config" >&2
+  exit 1
+fi
 
 # Fedora/Debian-class shared-library layout: full-version real object, stable
 # major.minor SONAME link, and development-only unversioned links. Keep the
@@ -234,16 +284,25 @@ rm -rf "$SMOKE"
 # package namespace, split symbols, then stage exactly the referenced sources.
 cd "$PEKIT_OUT"
 : > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
   case "$f" in *.a|*.o) continue ;; esac
   readelf -h "$f" >/dev/null 2>&1 || continue
   # objcopy and strip replace their input; installed XS modules may be 0555.
   chmod u+w "$f"
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  [ -n "$bid" ] || { echo "ELF without build ID: $f" >&2; exit 1; }
+  # /usr/bin/perl and its full-version spelling are hardlinks. Preserve one
+  # complete debug object for a shared build ID, while still stripping a
+  # later distinct file should upstream ever install identical copies.
+  if grep -Fxq "$bid" "$PEKIT_OUT/.buildids"; then
+    strip "$f"
+    continue
+  fi
+  printf '%s\\n' "$bid" >> "$PEKIT_OUT/.buildids"
   debugedit -b "$BUILD" -d /usr/src/debug/org.perl.perl \\
     -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null \\
     && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  [ -n "$bid" ] || { echo "ELF without build ID: $f" >&2; exit 1; }
   p2=$(printf %s "$bid" | cut -c1-2)
   rest=$(printf %s "$bid" | cut -c3-)
   mkdir -p "usr/lib/debug/.build-id/$p2"
@@ -263,7 +322,11 @@ done
 # of letting Pekit fail later with an opaque empty-member error.
 find usr/lib/debug -type f -name '*.debug' -print -quit | grep -q .
 find usr/src/debug/org.perl.perl -type f -print -quit | grep -q .
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+perl_bid=$(readelf -n usr/bin/perl | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+perl_p2=$(printf %s "$perl_bid" | cut -c1-2)
+perl_rest=$(printf %s "$perl_bid" | cut -c3-)
+readelf -SW "usr/lib/debug/.build-id/$perl_p2/$perl_rest.debug" | grep -F '.debug_info'
+rm -f "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 
 # Final loader/hardening gates apply to the actual shipped ELF set.
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' | while IFS= read -r f; do
@@ -284,8 +347,10 @@ rm -rf "$BUILD"
 
 [build.main.dependencies.peipkg]
 build-essentials-c             = "*"
-zlib-devel                    = ">= 2.3.3"
-"org.sourceware.bzip2-devel" = ">= 1.0.8"
+debugedit                      = ">= 5.2"
+zlib-devel                     = ">= 2.3.3"
+"org.nixos.patchelf"          = ">= 0.19.1"
+"org.sourceware.bzip2-devel"  = ">= 1.0.8"
 
 [build.main.dependencies.apt]
 build-essential = "*"
