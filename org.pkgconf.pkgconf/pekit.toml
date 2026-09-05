@@ -1,0 +1,196 @@
+# pkgconf — the package compiler/linker metadata toolkit. The command suite and
+# reusable library are built together, tested upstream, and then split so
+# ordinary pkg-config consumers do not acquire development files.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://distfiles.ariadne.space/pkgconf/pkgconf-{{version}}.tar.xz"
+listing_url = "https://distfiles.ariadne.space/pkgconf/"
+file_regex  = '^pkgconf-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz$'
+extract     = true
+root        = "pkgconf-{{version}}"
+# Soft production-line floor. Track stable 3.x releases automatically while
+# excluding the 3.9.90+ development series for a future incompatible major.
+versions    = ">= 3.0.6, < 3.9.90"
+
+# Upstream release tags are SSH-signed on GitHub, but neither the official
+# tarball directory nor the release assets publish detached signatures Pekit
+# can authenticate. This is therefore an explicit HTTPS + immutable lockfile
+# hash exception until Pekit can verify signed Git tags (PEI-665).
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+meson setup "$BUILD" "$SRC" \
+  --prefix=/usr \
+  --libdir=lib/x86_64-linux-peios \
+  --buildtype=plain \
+  --default-library=both \
+  -Dwith-pkg-config-dir=/usr/lib/x86_64-linux-peios/pkgconfig:/usr/share/pkgconfig \
+  -Dwith-system-libdir=/usr/lib/x86_64-linux-peios \
+  -Dwith-system-includedir=/usr/include \
+  -Dfuzzing=false \
+  -Danalyzer=false \
+  -Dc_link_args="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+
+meson compile -C "$BUILD"
+# This covers the public C API, parser, dependency solver, sysroot and
+# personality behavior, all four command frontends, SBOM generation, malformed
+# inputs, symlink invocation, and deterministic allocation-failure paths.
+meson test -C "$BUILD" --print-errorlogs --timeout-multiplier 4
+DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
+
+# Upstream deliberately leaves this vendor choice to distributions. Peios uses
+# pkgconf as its pkg-config implementation, matching Debian and Fedora practice.
+ln -sfn pkgconf "$PREFIX/bin/pkg-config"
+ln -sfn pkgconf.1 "$PREFIX/share/man/man1/pkg-config.1"
+rm -rf "$PREFIX/share/doc/pkgconf"
+# These are staged Peios binaries being exercised on the build host. This is a
+# test-time loader path only; the final ELF carries no RPATH or RUNPATH.
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Assert the installed package discovery contract rather than accepting
+# whichever defaults a future build-system revision happens to choose.
+test "$("$PREFIX/bin/pkgconf" --version)" = "$PEKIT_VERSION"
+test "$("$PREFIX/bin/pkg-config" --version)" = "$PEKIT_VERSION"
+test -L "$PREFIX/bin/pkg-config"
+test "$(readlink "$PREFIX/bin/pkg-config")" = pkgconf
+
+SMOKE="$PEKIT_OUT/.pkgconf-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/peios-smoke.pc" <<'EOF'
+prefix=/usr
+libdir=${prefix}/lib/x86_64-linux-peios
+includedir=${prefix}/include
+
+Name: peios-smoke
+Description: pkgconf installed-command smoke test
+Version: 1.2.3
+Libs: -L${libdir} -lpeios-smoke
+Cflags: -I${includedir}/peios-smoke
+EOF
+PKG_CONFIG_LIBDIR="$SMOKE" "$PREFIX/bin/pkgconf" --validate peios-smoke
+test "$(PKG_CONFIG_LIBDIR="$SMOKE" "$PREFIX/bin/pkgconf" --modversion peios-smoke)" = 1.2.3
+test "$(PKG_CONFIG_LIBDIR="$SMOKE" "$PREFIX/bin/pkg-config" --modversion peios-smoke)" = 1.2.3
+PKG_CONFIG_LIBDIR="$SMOKE" "$PREFIX/bin/pkgconf" --cflags --libs peios-smoke |
+  grep -F -- '-I/usr/include/peios-smoke'
+for tool in bomtool spdxtool pccritic; do
+  "$PREFIX/bin/$tool" --help >/dev/null
+done
+
+# Validate both the shared and static public libpkgconf interfaces through the
+# metadata installed for downstream consumers.
+test -f "$LIBDIR/libpkgconf.so.8.0.0"
+test -L "$LIBDIR/libpkgconf.so.8"
+test -L "$LIBDIR/libpkgconf.so"
+test -s "$LIBDIR/libpkgconf.a"
+test -f "$PREFIX/include/pkgconf/libpkgconf/libpkgconf.h"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+"$PREFIX/bin/pkgconf" --validate libpkgconf
+test "$("$PREFIX/bin/pkgconf" --modversion libpkgconf)" = "$PEKIT_VERSION"
+
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <libpkgconf/libpkgconf.h>
+
+int main(void)
+{
+  return pkgconf_compare_version("3.0.5", "3.0.6") < 0 ? 0 : 1;
+}
+EOF
+PC_CFLAGS=$("$PREFIX/bin/pkgconf" --cflags libpkgconf)
+PC_LIBS=$("$PREFIX/bin/pkgconf" --libs libpkgconf)
+cc $PC_CFLAGS "$SMOKE/consumer.c" $PC_LIBS -o "$SMOKE/shared-consumer"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared-consumer"
+cc -I"$PREFIX/include/pkgconf" "$SMOKE/consumer.c" \
+  "$LIBDIR/libpkgconf.a" -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer"
+
+readelf -d "$LIBDIR/libpkgconf.so.8.0.0" |
+  grep -F 'Library soname: [libpkgconf.so.8]'
+readelf --dyn-syms -W "$LIBDIR/libpkgconf.so.8.0.0" |
+  grep -E ' pkgconf_compare_version(@|$)'
+
+# Produce build-ID-indexed symbols and the exact source tree referenced after
+# DWARF path rewriting. Static-library code is retained but debug sections are
+# deliberately left to the shared object's debuginfo.
+strip --strip-debug "$LIBDIR/libpkgconf.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in \
+  "$PREFIX/bin/pkgconf" \
+  "$PREFIX/bin/bomtool" \
+  "$PREFIX/bin/spdxtool" \
+  "$PREFIX/bin/pccritic" \
+  "$LIBDIR/libpkgconf.so.8.0.0"; do
+  debugedit -b "$ROOT" -d /usr/src/debug/org.pkgconf.pkgconf \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.pkgconf.pkgconf/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.pkgconf.pkgconf/$rel"
+done
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 5
+test -n "$(find "$PREFIX/src/debug/org.pkgconf.pkgconf" -type f -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the workspace ELF contract after stripping. Explicit GNU property
+# stamping keeps the CET contract observable even on the Debian reference rung.
+for elf in \
+  "$PREFIX/bin/pkgconf" \
+  "$PREFIX/bin/bomtool" \
+  "$PREFIX/bin/spdxtool" \
+  "$PREFIX/bin/pccritic" \
+  "$LIBDIR/libpkgconf.so.8.0.0"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+readelf -d "$LIBDIR/libpkgconf.so.8.0.0" | grep -F 'Shared library: [libc.so.6]'
+for elf in "$PREFIX/bin/pkgconf" "$PREFIX/bin/bomtool" \
+  "$PREFIX/bin/spdxtool" "$PREFIX/bin/pccritic"; do
+  readelf -d "$elf" | grep -F 'Shared library: [libpkgconf.so.8]'
+  readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
+done
+
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c" = "*"
+debugedit              = "*"
+meson                  = ">= 1.4"
+ninja                  = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+meson           = ">= 1.4"
+ninja-build     = "*"

@@ -1,0 +1,11 @@
+[package]
+name        = "org.pkgconf.pkgconf-debuginfo"
+description = "pkgconf - debugging symbols"
+
+[dependencies]
+"org.pkgconf.pkgconf"    = "{{version}}-1"
+"org.pkgconf.libpkgconf" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pkgconf.pkgconf-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

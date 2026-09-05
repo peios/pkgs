@@ -1,0 +1,16 @@
+# Static libpkgconf for the small number of consumers that deliberately need a
+# self-contained link.
+
+[package]
+name        = "org.pkgconf.libpkgconf-static"
+description = "pkgconf - static libpkgconf library"
+
+[provides]
+libpkgconf-static = "{{version}}"
+
+[dependencies]
+"org.pkgconf.libpkgconf-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf-static/"
+":usr/lib/x86_64-linux-peios/libpkgconf.a" = "usr/lib/x86_64-linux-peios/libpkgconf.a"

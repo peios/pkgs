@@ -1,0 +1,28 @@
+# The complete installed command surface. pkg-config is a compatibility name
+# for pkgconf; SBOM and metadata-critique tools share the same tiny runtime.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.pkgconf.pkgconf"
+description = "pkgconf - package compiler and linker metadata toolkit"
+
+[provides]
+pkgconf      = "{{version}}"
+pkg-config   = "{{version}}"
+
+[replaces]
+pkgconf = ">= 0"
+
+[dependencies]
+glibc                    = ">= 2.43"
+"org.pkgconf.libpkgconf" = "{{version}}-1"
+
+[files]
+"@source:COPYING"       = "usr/share/licenses/org.pkgconf.pkgconf/"
+"@source:AUTHORS"       = "usr/share/doc/org.pkgconf.pkgconf/"
+"@source:NEWS"          = "usr/share/doc/org.pkgconf.pkgconf/"
+"@source:README.md"     = "usr/share/doc/org.pkgconf.pkgconf/"
+":usr/bin/**"           = "usr/bin"
+":usr/share/aclocal/**" = "usr/share/aclocal"
+":usr/share/man/**"     = "usr/share/man"

@@ -1,0 +1,16 @@
+# The independently installable libpkgconf ABI used by the command suite and by
+# other metadata-aware tooling.
+
+[package]
+name        = "org.pkgconf.libpkgconf"
+description = "pkgconf - package metadata runtime library"
+
+[provides]
+libpkgconf = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf/"
+":usr/lib/x86_64-linux-peios/libpkgconf.so.8*" = "usr/lib/x86_64-linux-peios"

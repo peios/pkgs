@@ -1,0 +1,11 @@
+# Shared metadata for the pkgconf command and libpkgconf package family. The
+# default corresponding-source output carries the complete locked release tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "ISC AND BSD-2-Clause AND BSD-4-Clause AND MIT AND LicenseRef-pkgconf"
+license_class = "free"
+homepage      = "https://pkgconf.org/"

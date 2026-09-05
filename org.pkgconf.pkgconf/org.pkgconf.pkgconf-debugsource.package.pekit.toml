@@ -1,0 +1,10 @@
+[package]
+name        = "org.pkgconf.pkgconf-debugsource"
+description = "pkgconf - debug sources"
+
+[dependencies]
+"org.pkgconf.pkgconf-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pkgconf.pkgconf-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

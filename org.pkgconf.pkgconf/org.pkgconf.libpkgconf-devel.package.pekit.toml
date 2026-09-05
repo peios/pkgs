@@ -1,0 +1,19 @@
+# Public headers, the linker name and pkg-config metadata. Static linkage stays
+# opt-in through the static sibling.
+
+[package]
+name        = "org.pkgconf.libpkgconf-devel"
+description = "pkgconf - libpkgconf development files"
+
+[provides]
+libpkgconf-devel     = "{{version}}"
+"pkgconfig(libpkgconf)" = "{{version}}"
+
+[dependencies]
+"org.pkgconf.libpkgconf" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf-devel/"
+":usr/include/pkgconf/**" = "usr/include/pkgconf"
+":usr/lib/x86_64-linux-peios/libpkgconf.so" = "usr/lib/x86_64-linux-peios/libpkgconf.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libpkgconf.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libpkgconf.pc"
