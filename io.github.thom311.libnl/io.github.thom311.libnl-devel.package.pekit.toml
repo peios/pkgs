@@ -14,6 +14,7 @@ libnl3-devel = "{{version}}"
 "io.github.thom311.libnl-tools" = "{{version}}-1"
 
 [files]
+"@source:COPYING"                              = "usr/share/licenses/io.github.thom311.libnl-devel/"
 ":usr/include/libnl3/**"                       = "usr/include/libnl3"
 ":usr/lib/x86_64-linux-peios/libnl-3.so"       = "usr/lib/x86_64-linux-peios/libnl-3.so"
 ":usr/lib/x86_64-linux-peios/libnl-cli-3.so"   = "usr/lib/x86_64-linux-peios/libnl-cli-3.so"

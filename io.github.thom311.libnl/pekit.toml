@@ -259,11 +259,13 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "build-essentials-c++" = "*"
 "com.darwinsys.file"   = "*"
+debugedit               = "*"
 flex                    = "*"
 "org.gnu.bison"         = "*"
 "org.gnu.bash"          = "*"
 meson                   = "*"
 ninja                   = "*"
+patchelf                 = "*"
 pkgconf                 = "*"
 
 [build.main.dependencies.apt]

@@ -10,4 +10,5 @@ description = "Netlink protocol libraries and tools - debugging symbols"
 "io.github.thom311.libnl-tools" = "{{version}}-1"
 
 [files]
+"@source:COPYING"   = "usr/share/licenses/io.github.thom311.libnl-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

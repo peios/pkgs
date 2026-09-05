@@ -12,4 +12,5 @@ libnl3-static = "{{version}}"
 "io.github.thom311.libnl-devel" = "{{version}}-1"
 
 [files]
+"@source:COPYING"                           = "usr/share/licenses/io.github.thom311.libnl-static/"
 ":usr/lib/x86_64-linux-peios/libnl-*.a" = "usr/lib/x86_64-linux-peios"
