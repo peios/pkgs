@@ -179,7 +179,7 @@ libatomic-static     = "*"
 "org.gnu.gawk"      = "*"
 "org.gnu.grep"      = "*"
 "org.gnu.libtool"   = "*"
-"org.gnu.sed"       = "*"
+sed                 = "*"
 patchelf             = "*"
 pkgconf              = "*"
 
