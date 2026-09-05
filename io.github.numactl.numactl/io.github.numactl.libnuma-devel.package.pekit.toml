@@ -1,0 +1,22 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.numactl.libnuma-devel"
+description = "NUMA policy library development files"
+license     = "LGPL-2.1-only AND GPL-2.0-only AND LicenseRef-Linux-man-pages-copyleft"
+
+[provides]
+"libnuma-devel" = "{{version}}"
+"numactl-devel" = "{{version}}"
+
+[dependencies]
+"io.github.numactl.libnuma" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.GPL2"                          = "usr/share/licenses/io.github.numactl.libnuma-devel/"
+"@source:LICENSE.LGPL2.1"                       = "usr/share/licenses/io.github.numactl.libnuma-devel/"
+":usr/include/**"                               = "usr/include"
+":usr/lib/x86_64-linux-peios/libnuma.so"        = "usr/lib/x86_64-linux-peios/libnuma.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/numa.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/numa.pc"
+":usr/share/man/man2/**"                        = "usr/share/man/man2"
+":usr/share/man/man3/**"                        = "usr/share/man/man3"

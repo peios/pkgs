@@ -1,0 +1,16 @@
+[package]
+name        = "io.github.numactl.libnuma-static"
+description = "NUMA policy static library"
+license     = "LGPL-2.1-only AND GPL-2.0-only"
+
+[provides]
+"libnuma-static" = "{{version}}"
+
+[dependencies]
+"io.github.numactl.libnuma-devel" = "{{version}}-1"
+"libatomic-static"                 = "*"
+
+[files]
+"@source:LICENSE.GPL2"                   = "usr/share/licenses/io.github.numactl.libnuma-static/"
+"@source:LICENSE.LGPL2.1"                = "usr/share/licenses/io.github.numactl.libnuma-static/"
+":usr/lib/x86_64-linux-peios/libnuma.a" = "usr/lib/x86_64-linux-peios/libnuma.a"

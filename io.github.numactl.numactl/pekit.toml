@@ -1,0 +1,193 @@
+# numactl provides the libnuma ABI and NUMA policy command suite. Upstream's
+# release asset and tag are unsigned, so Pekit's Git lock pins every accepted
+# stable tag to its exact commit.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/numactl/numactl.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>2\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor and major-version compatibility ceiling. Stable 2.x
+# releases advance automatically; a new major or failed gate needs review.
+versions  = ">= 2.0.19, < 3"
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+BOOTSTRAP="$PEKIT_OUT/bootstrap-source"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+
+mkdir -p "$BUILD" "$BOOTSTRAP"
+cp -a "$SRC/." "$BOOTSTRAP/"
+cd "$BOOTSTRAP"
+autoreconf -fiv
+cd "$BUILD"
+"$BOOTSTRAP/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --libdir="$LIBDIR" \
+  --disable-silent-rules \
+  --enable-shared \
+  --enable-static
+
+make -j"$(nproc)"
+
+# Compile the complete upstream test-program set in every environment. Run the
+# full hardware suite when the build runner exposes a NUMA topology; Pekit's
+# isolated roots currently do not, so their mandatory gate is upstream's
+# topology-independent bitmap/API test. PEI-705 tracks a hardware test runner.
+if command -v taskset >/dev/null 2>&1 && \
+   ./numactl --hardware 2>/dev/null | grep -Eq '^available: [1-9][0-9]* nodes?'; then
+  make -j"$(nproc)" check
+else
+  make -j"$(nproc)" check TESTS='test/tbitmap'
+fi
+
+make install DESTDIR="$PEKIT_OUT"
+find "$STAGED_LIBDIR" -maxdepth 1 -name '*.la' -delete
+
+# Assert the installed command and ABI surfaces before debug splitting.
+find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f -printf '%f\n' | \
+  LC_ALL=C sort > "$PEKIT_OUT/.installed-tools"
+printf '%s\n' memhog migratepages migspeed numactl numademo numastat | \
+  LC_ALL=C sort > "$PEKIT_OUT/.expected-tools"
+diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
+
+NUMA_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libnuma.so.1.*')
+test "$(printf '%s\n' "$NUMA_SO" | grep -c .)" -eq 1
+test -L "$STAGED_LIBDIR/libnuma.so.1"
+test -L "$STAGED_LIBDIR/libnuma.so"
+test -f "$STAGED_LIBDIR/libnuma.a"
+test -f "$STAGED_LIBDIR/pkgconfig/numa.pc"
+readelf -d "$NUMA_SO" | grep -F 'Library soname: [libnuma.so.1]'
+readelf --version-info "$NUMA_SO" | grep -F 'libnuma_2.1'
+
+PCDIR="$STAGED_LIBDIR/pkgconfig"
+test "$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --modversion numa)" = "$PEKIT_VERSION"
+
+# Exercise the installed tools and both the shared and static public API.
+SMOKE="$PEKIT_OUT/.numactl-smoke"
+mkdir -p "$SMOKE"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$PEKIT_OUT/usr/bin/numactl" --version | \
+  grep -F "$PEKIT_VERSION"
+
+cat > "$SMOKE/numa.c" <<'EOF'
+#include <numa.h>
+
+int main(void)
+{
+  struct bitmask *mask;
+  int ok;
+
+  mask = numa_bitmask_alloc(64);
+  if (mask == NULL)
+    return 1;
+  numa_bitmask_setbit(mask, 3);
+  ok = numa_bitmask_isbitset(mask, 3) && numa_bitmask_weight(mask) == 1;
+  numa_bitmask_free(mask);
+  return ok ? 0 : 1;
+}
+EOF
+NUMA_CFLAGS="-I$PEKIT_OUT/usr/include $(PKG_CONFIG_PATH="$PCDIR" \
+  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --cflags numa)"
+NUMA_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --libs numa)
+NUMA_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" \
+  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --static --libs numa)
+cc $NUMA_CFLAGS "$SMOKE/numa.c" -L"$STAGED_LIBDIR" \
+  $NUMA_LIBS -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc $NUMA_CFLAGS "$SMOKE/numa.c" -L"$STAGED_LIBDIR" -Wl,-Bstatic \
+  $NUMA_STATIC_LIBS -Wl,-Bdynamic -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Split build-ID-indexed debug data and stage every DWARF-referenced source.
+# Static archives retain code while dropping their debug sections.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f"; continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f"
+  debugedit -b "$ROOT" -d /usr/src/debug/io.github.numactl.numactl \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  printf '%s\n' "$bid" >> "$PEKIT_OUT/.buildids"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    case "$rel" in */) continue;; esac
+    [ -f "$ROOT/$rel" ] || continue
+    mkdir -p "usr/src/debug/io.github.numactl.numactl/$(dirname "$rel")"
+    cp "$ROOT/$rel" "usr/src/debug/io.github.numactl.numactl/$rel"
+  done
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 7
+test -n "$(find usr/src/debug/io.github.numactl.numactl -type f -print -quit)"
+
+# Assert the properties of the stripped ELF payload that will ship.
+find usr/bin usr/lib/x86_64-linux-peios -type f ! -type l ! -name '*.a' | \
+  while IFS= read -r elf; do
+  readelf -h "$elf" >/dev/null 2>&1 || continue
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if cc --version | head -1 | grep -Fq 'Peios'; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+done
+
+rm -rf "$SMOKE" "$BUILD" "$BOOTSTRAP"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.installed-tools" \
+  "$PEKIT_OUT/.expected-tools"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c   = "*"
+debugedit            = "*"
+libatomic-static     = "*"
+"org.gnu.autoconf"  = "*"
+"org.gnu.automake"  = "*"
+"org.gnu.bash"      = "*"
+"org.gnu.coreutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.gawk"      = "*"
+"org.gnu.grep"      = "*"
+"org.gnu.libtool"   = "*"
+"org.gnu.sed"       = "*"
+patchelf             = "*"
+pkgconf              = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+autoconf        = "*"
+automake        = "*"
+debugedit       = "*"
+libtool         = "*"
+patchelf        = "*"
+pkg-config      = "*"

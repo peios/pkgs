@@ -1,0 +1,19 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.numactl.numactl"
+description = "NUMA policy control tools"
+license     = "GPL-2.0-only AND LicenseRef-Linux-man-pages-copyleft"
+
+[provides]
+numactl = "{{version}}"
+
+[dependencies]
+glibc                        = ">= 2.43"
+"io.github.numactl.libnuma" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.GPL2"   = "usr/share/licenses/io.github.numactl.numactl/"
+"@source:README.md"      = "usr/share/doc/io.github.numactl.numactl/"
+":usr/bin/**"            = "usr/bin"
+":usr/share/man/man8/**" = "usr/share/man/man8"

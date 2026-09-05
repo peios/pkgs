@@ -1,0 +1,15 @@
+[package]
+name        = "io.github.numactl.libnuma"
+description = "NUMA policy runtime library"
+license     = "LGPL-2.1-only AND GPL-2.0-only"
+
+[provides]
+libnuma = "{{version}}"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSE.GPL2"                       = "usr/share/licenses/io.github.numactl.libnuma/"
+"@source:LICENSE.LGPL2.1"                    = "usr/share/licenses/io.github.numactl.libnuma/"
+":usr/lib/x86_64-linux-peios/libnuma.so.1*" = "usr/lib/x86_64-linux-peios"

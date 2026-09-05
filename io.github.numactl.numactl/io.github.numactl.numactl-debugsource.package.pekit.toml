@@ -1,0 +1,9 @@
+[package]
+name        = "io.github.numactl.numactl-debugsource"
+description = "numactl and libnuma debug sources"
+
+[dependencies]
+"io.github.numactl.numactl-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

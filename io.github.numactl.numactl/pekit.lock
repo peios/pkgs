@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "2.0.19"
-  url = "https://github.com/numactl/numactl/releases/download/v2.0.19/numactl-2.0.19.tar.gz"
-  sha256 = "f2672a0381cb59196e9c246bf8bcc43d5568bc457700a697f1a1df762b9af884"
-  locked_at = "2026-08-11T13:13:47Z"
+  ref = "v2.0.19"
+  commit = "3bc85e37d5a30da6790cb7e8bb488bb8f679170f"
+  locked_at = "2026-09-05T04:07:21Z"
