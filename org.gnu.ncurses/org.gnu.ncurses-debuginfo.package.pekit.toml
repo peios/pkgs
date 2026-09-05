@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnu.ncurses-debuginfo"
+description = "ncurses debugging symbols"
+
+[dependencies]
+"org.gnu.ncurses"      = "{{version}}-1"
+"org.gnu.ncurses-libs" = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,13 @@
+[package]
+name         = "org.gnu.ncurses-terminfo"
+description  = "ncurses terminal capability database"
+architecture = "noarch"
+
+[provides]
+"ncurses-base" = "{{version}}"
+"ncurses-term" = "{{version}}"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/org.gnu.ncurses/"
+":usr/share/terminfo/**" = "usr/share/terminfo"
+":usr/share/tabset/**"   = "usr/share/tabset"

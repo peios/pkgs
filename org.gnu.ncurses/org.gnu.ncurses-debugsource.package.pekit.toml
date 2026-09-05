@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.ncurses-debugsource"
+description = "ncurses debug sources"
+
+[dependencies]
+"org.gnu.ncurses-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,27 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.ncurses-devel"
+description = "ncurses headers and development libraries"
+
+[provides]
+"ncurses-devel" = "{{version}}"
+
+[dependencies]
+"org.gnu.ncurses-libs" = "{{version}}-1"
+
+[files]
+":usr/include/**"                              = "usr/include"
+":usr/bin/ncursesw6-config"                    = "usr/bin/ncursesw6-config"
+":usr/share/man/man1/ncursesw6-config.1.gz"    = "usr/share/man/man1/ncursesw6-config.1.gz"
+":usr/share/man/man3/**"                       = "usr/share/man/man3"
+":usr/lib/x86_64-linux-peios/libncursesw.so"   = "usr/lib/x86_64-linux-peios/libncursesw.so"
+":usr/lib/x86_64-linux-peios/libcursesw.so"    = "usr/lib/x86_64-linux-peios/libcursesw.so"
+":usr/lib/x86_64-linux-peios/libcurses.so"     = "usr/lib/x86_64-linux-peios/libcurses.so"
+":usr/lib/x86_64-linux-peios/libtermcap.so"    = "usr/lib/x86_64-linux-peios/libtermcap.so"
+":usr/lib/x86_64-linux-peios/libpanelw.so"     = "usr/lib/x86_64-linux-peios/libpanelw.so"
+":usr/lib/x86_64-linux-peios/libmenuw.so"      = "usr/lib/x86_64-linux-peios/libmenuw.so"
+":usr/lib/x86_64-linux-peios/libformw.so"      = "usr/lib/x86_64-linux-peios/libformw.so"
+":usr/lib/x86_64-linux-peios/libtinfo.so"      = "usr/lib/x86_64-linux-peios/libtinfo.so"
+":usr/lib/x86_64-linux-peios/libtic.so"        = "usr/lib/x86_64-linux-peios/libtic.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"     = "usr/lib/x86_64-linux-peios/pkgconfig"

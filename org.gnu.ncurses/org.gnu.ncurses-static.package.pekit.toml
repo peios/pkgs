@@ -1,0 +1,12 @@
+[package]
+name        = "org.gnu.ncurses-static"
+description = "ncurses static libraries"
+
+[provides]
+"ncurses-static" = "{{version}}"
+
+[dependencies]
+"org.gnu.ncurses-devel" = "{{version}}-1"
+
+[files]
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"

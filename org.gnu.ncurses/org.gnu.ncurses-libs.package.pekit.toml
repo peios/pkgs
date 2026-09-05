@@ -1,0 +1,18 @@
+[package]
+name        = "org.gnu.ncurses-libs"
+description = "ncurses wide-character terminal runtime libraries"
+
+[provides]
+libncurses = "{{version}}"
+
+[dependencies]
+glibc                       = ">= 2.43"
+"org.gnu.ncurses-terminfo" = "{{version}}-1"
+
+[files]
+":usr/lib/x86_64-linux-peios/libncursesw.so.6*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libpanelw.so.6*"   = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libmenuw.so.6*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libformw.so.6*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libtinfo.so.6*"    = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libtic.so.6*"      = "usr/lib/x86_64-linux-peios"

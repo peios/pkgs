@@ -1,0 +1,8 @@
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT-open-group"
+license_class = "free"
+homepage      = "https://invisible-island.net/ncurses/"

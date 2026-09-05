@@ -6,6 +6,7 @@ schema = 1
 
 [[source]]
   version = "6.6"
-  url = "https://ftp.gnu.org/gnu/ncurses/ncurses-6.6.tar.gz"
+  url = "https://invisible-island.net/archives/ncurses/ncurses-6.6.tar.gz"
   sha256 = "355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11"
-  locked_at = "2026-08-11T13:12:15Z"
+  signature_key = "19882d92dda4c400c22c0d56cc2af4472167be03"
+  locked_at = "2026-09-05T03:00:00Z"
