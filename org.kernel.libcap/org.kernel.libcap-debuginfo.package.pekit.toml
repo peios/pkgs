@@ -3,8 +3,8 @@ name        = "org.kernel.libcap-debuginfo"
 description = "Linux POSIX capabilities debugging symbols"
 
 [dependencies]
-"org.kernel.libcap"       = "{{version}}-1"
-"org.kernel.libcap-tools" = "{{version}}-1"
+"org.kernel.libcap"       = "{{version}}-2"
+"org.kernel.libcap-tools" = "{{version}}-2"
 
 [files]
 "@source:License"   = "usr/share/licenses/org.kernel.libcap-debuginfo/License"

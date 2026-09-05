@@ -11,7 +11,7 @@ description = "Linux POSIX capabilities development files"
 libcap-devel = "{{version}}"
 
 [dependencies]
-"org.kernel.libcap" = "{{version}}-1"
+"org.kernel.libcap" = "{{version}}-2"
 
 [files]
 "@source:License"                          = "usr/share/licenses/org.kernel.libcap-devel/License"

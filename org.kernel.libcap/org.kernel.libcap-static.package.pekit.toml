@@ -6,7 +6,7 @@ description = "Linux POSIX capabilities static libraries"
 libcap-static = "{{version}}"
 
 [dependencies]
-"org.kernel.libcap-devel" = "{{version}}-1"
+"org.kernel.libcap-devel" = "{{version}}-2"
 
 [files]
 "@source:License"                          = "usr/share/licenses/org.kernel.libcap-static/License"

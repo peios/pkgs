@@ -3,7 +3,7 @@ name        = "org.kernel.libcap-debugsource"
 description = "Linux POSIX capabilities debug sources"
 
 [dependencies]
-"org.kernel.libcap-debuginfo" = "{{version}}-1"
+"org.kernel.libcap-debuginfo" = "{{version}}-2"
 
 [files]
 "@source:License"   = "usr/share/licenses/org.kernel.libcap-debugsource/License"
