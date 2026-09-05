@@ -1,0 +1,24 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.python.python3"
+description = "Python 3 interpreter and command-line tools"
+
+[provides]
+# Include the package revision so this canonical provider outranks the retained
+# 3.14.7-3 bootstrap artifact in mixed local pools.
+python3 = "{{version}}-4"
+
+[replaces]
+python3 = "< {{version}}-4"
+
+[dependencies]
+"org.python.python3-libs" = "{{version}}-4"
+
+[files]
+"@source:LICENSE"        = "usr/share/licenses/org.python.python3/LICENSE"
+":usr/bin/python3"       = "usr/bin/python3"
+":usr/bin/python3.14"    = "usr/bin/python3.14"
+":usr/bin/pydoc3"        = "usr/bin/pydoc3"
+":usr/bin/pydoc3.14"     = "usr/bin/pydoc3.14"
+":usr/share/man/man1/**" = "usr/share/man/man1"

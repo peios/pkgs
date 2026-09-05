@@ -1,0 +1,18 @@
+[package]
+name        = "org.python.python3-devel"
+description = "Python 3 headers, embedding library and build metadata"
+
+[provides]
+python3-devel = "{{version}}"
+
+[dependencies]
+"org.python.python3-libs" = "{{version}}-4"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.python.python3-devel/LICENSE"
+":usr/bin/python3-config" = "usr/bin/python3-config"
+":usr/bin/python3.14-config" = "usr/bin/python3.14-config"
+":usr/include/python3.14/**" = "usr/include/python3.14"
+":usr/lib/x86_64-linux-peios/libpython3.14.so" = "usr/lib/x86_64-linux-peios/libpython3.14.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":python-devel/usr/lib/x86_64-linux-peios/python3.14/**" = "usr/lib/x86_64-linux-peios/python3.14"

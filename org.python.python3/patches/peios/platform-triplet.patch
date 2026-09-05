@@ -14,3 +14,18 @@
  if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
    if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
      as_fn_error $? "internal configure error for the platform triplet, please file a bug report" "$LINENO" 5
+--- a/configure.ac
++++ b/configure.ac
+@@ -1177,6 +1177,12 @@
+ )
+ AC_SUBST([MULTIARCH])
+ 
++# Peios: keep the generated configure input in sync with the release script.
++# The toolchain's multiarch answer is the platform ABI name used by SOABI.
++if test x$MULTIARCH = xx86_64-linux-peios; then
++  PLATFORM_TRIPLET=x86_64-linux-peios
++fi
++
+ if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
+   if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
+     AC_MSG_ERROR([internal configure error for the platform triplet, please file a bug report])

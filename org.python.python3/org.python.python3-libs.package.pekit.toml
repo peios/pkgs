@@ -1,0 +1,18 @@
+[package]
+name        = "org.python.python3-libs"
+description = "Python 3 standard library and shared runtime"
+
+[provides]
+"python(abi)" = "3.14"
+
+[dependencies]
+glibc                = ">= 2.43"
+ca-certificates      = "*"
+"org.debian.netbase" = "*"
+
+[files]
+"@source:LICENSE"                = "usr/share/licenses/org.python.python3-libs/LICENSE"
+"@source:Modules/expat/COPYING" = "usr/share/licenses/org.python.python3-libs/EXPAT-COPYING"
+":usr/lib/x86_64-linux-peios/libpython3.14.so.1.0" = "usr/lib/x86_64-linux-peios/libpython3.14.so.1.0"
+":usr/lib/x86_64-linux-peios/libpython3.so"        = "usr/lib/x86_64-linux-peios/libpython3.so"
+":usr/lib/x86_64-linux-peios/python3.14/**"        = "usr/lib/x86_64-linux-peios/python3.14"

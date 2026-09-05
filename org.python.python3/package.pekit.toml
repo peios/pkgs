@@ -1,0 +1,12 @@
+# Shared metadata for the CPython 3.14 package family. The aggregate expression
+# follows the bundled stdlib/runtime code actually shipped (Python, Expat,
+# libmpdec, HACL, mimalloc, dtoa and Unicode-derived tables).
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-4"
+architecture  = "x86_64"
+license       = "Python-2.0.1 AND MIT AND BSD-3-Clause AND MIT-CMU AND HPND-SMC AND BSD-2-Clause AND dtoa AND Unicode-3.0"
+license_class = "free"
+homepage      = "https://www.python.org/"

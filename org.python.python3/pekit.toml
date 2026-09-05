@@ -1,0 +1,283 @@
+# CPython 3 — the system interpreter and standard library.
+#
+# Python's feature minor is an ABI transition: site-packages, extension-module
+# names, bytecode, and the install path all carry 3.14. The upper bound is
+# therefore intentional, not a stale-version pin. Patch releases within the
+# line are discovered and locked automatically; moving to 3.15 requires the
+# coordinated Python-package rebuild documented by PEI-725.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://www.python.org/ftp/python/{{version}}/Python-{{version}}.tar.xz"
+listing_url = "https://www.python.org/downloads/source/"
+file_regex  = 'Python-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+extract     = true
+root        = "Python-{{version}}"
+# Soft supported-ABI floor and transition ceiling. Follow all 3.14 maintenance
+# releases automatically; do not strand the version-bound package ecosystem.
+versions    = ">= 3.14.0, < 3.15"
+
+# CPython 3.14+ release archives are Sigstore-only (PEP 761). Pekit cannot yet
+# verify their bundles, so HTTPS plus the immutable lock is an explicit trust-
+# on-first-use exception. PEI-718 tracks identity/issuer verification; 3.14 and
+# 3.15 use hugo@python.org via https://github.com/login/oauth.
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd -P)"
+cd "$PEKIT_OUT"
+
+# Keep unavailable optional modules deterministic across the Debian reference
+# and Peios-native environments. PEI-725 tracks libffi, SQLite, GDBM and tzdata;
+# PEI-613 tracks Readline. The dependency set below deliberately enables TLS,
+# bzip2, XZ, Zstandard, curses, and UUID support now.
+#
+# Every object is compiled with the workspace's -fcf-protection. Force the
+# linker to retain the matching CET properties: Debian's unmarked startup
+# objects would otherwise make its conservative property merge discard them.
+py_cv_module__ctypes=disabled \
+py_cv_module__sqlite3=disabled \
+py_cv_module__dbm=disabled \
+py_cv_module__gdbm=disabled \
+py_cv_module__tkinter=disabled \
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
+  --with-platlibdir=lib/x86_64-linux-peios \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --enable-shared --enable-optimizations --with-lto=full \
+  --with-computed-gotos=yes --enable-ipv6 --with-pkg-config=yes \
+  --with-ssl-default-suites=openssl --with-openssl-rpath=no \
+  --without-readline --without-ensurepip
+
+JOBS="$(nproc)"
+make -j"$JOBS" TESTTIMEOUT=1200
+
+# Run the complete enabled CPython regression suite. Network, large-file and
+# other opt-in resources remain disabled by the upstream test runner; each test
+# has a hard timeout so a kernel/IPC regression cannot hang the farm forever.
+LD_LIBRARY_PATH="$PWD" \
+  ./python -m test -j"$JOBS" --timeout=1200 --slowest
+
+make install DESTDIR="$PEKIT_OUT" \
+  COMPILEALL_OPTS="-j0 --invalidation-mode checked-hash"
+
+set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*
+[ "$#" -eq 1 ] && [ -d "$1" ] || {
+  echo "python3: expected exactly one installed standard-library directory" >&2
+  exit 1
+}
+STDLIB="$1"
+PYVER="${STDLIB##*python}"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+PYTHON="$PEKIT_OUT/usr/bin/python$PYVER"
+
+# Peios packages Python software explicitly. Do not ship ensurepip's bundled
+# pip wheel, and retain venv only in its honest --without-pip form. GUI shells
+# remain absent until Tcl/Tk is packaged. Test-only Python and C modules have
+# already served their build gate and belong in corresponding source instead.
+rm -rf "$STDLIB/ensurepip" "$STDLIB/idlelib" "$STDLIB/turtledemo" \
+  "$STDLIB/tkinter" "$STDLIB/test" "$STDLIB/__phello__"
+rm -f "$STDLIB/turtle.py" "$PEKIT_OUT"/usr/bin/idle3*
+cat > "$STDLIB/EXTERNALLY-MANAGED" <<'EOM'
+[externally-managed]
+Error=This Python is managed by peipkg. /usr is package-owned and verified;
+ pip must not write into it. Install Python software as Peios packages, or
+ for local work use a virtual environment (python3 -m venv --without-pip) or
+ the operator tree under /lcl.
+EOM
+find "$STDLIB/lib-dynload" -maxdepth 1 -type f \
+  \\( -name '_test*.so' -o -name '_ctypes_test*.so' \
+     -o -name '_xxtestfuzz*.so' -o -name 'xxlimited*.so' \
+     -o -name 'xxsubtype*.so' \\) -delete
+
+# CPython installs its build/source directory into sysconfig and the developer
+# Makefile. Those paths make extension builds host-specific and disclose the
+# farm. Normalize both to the installed config directory before recompiling
+# checked-hash bytecode.
+set -- "$STDLIB"/config-*
+[ "$#" -eq 1 ] && [ -d "$1" ] || {
+  echo "python3: expected exactly one installed config directory" >&2
+  exit 1
+}
+CONFIGDIR="$1"
+CONFIGBASE="${CONFIGDIR##*/}"
+CANON_CONFIG="/usr/lib/x86_64-linux-peios/python$PYVER/$CONFIGBASE"
+for cfg in "$STDLIB"/_sysconfigdata_*.py \
+           "$STDLIB"/_sysconfig_vars_*.json \
+           "$STDLIB/build-details.json" "$CONFIGDIR/Makefile"; do
+  [ -f "$cfg" ] || continue
+  sed -i -e "s#$SRC#$CANON_CONFIG#g" \
+         -e "s#$PEKIT_OUT#$CANON_CONFIG#g" "$cfg"
+done
+export LD_LIBRARY_PATH="$LIBDIR"
+export PYTHONHOME="$PEKIT_OUT/usr"
+"$PYTHON" -m compileall -q -f -j0 --invalidation-mode checked-hash \
+  -o 0 -o 1 -o 2 -s "$PEKIT_OUT" -p / "$STDLIB"
+if grep -F -n -e "$SRC" -e "$PEKIT_OUT" \
+     "$STDLIB"/_sysconfigdata_*.py "$STDLIB"/_sysconfig_vars_*.json \
+     "$STDLIB/build-details.json" "$CONFIGDIR/Makefile" \
+     "$PEKIT_OUT"/usr/bin/python*-config; then
+  echo "python3: installed development metadata contains a build path" >&2
+  exit 1
+fi
+
+# Installed-tree correctness: version/layout, the intended extension closure,
+# subprocess/thread/IPC basics, a no-pip virtual environment, TLS, and the
+# public embedding interface used by perf.
+"$PYTHON" - "$PEKIT_VERSION" <<'PY'
+import bz2, compression.zstd, curses, hashlib, lzma, multiprocessing
+import ssl, subprocess, sys, sysconfig, threading, uuid
+assert sys.version_info[:3] == tuple(map(int, sys.argv[1].split('.')))
+assert sysconfig.get_path('purelib') == sysconfig.get_path('platlib')
+assert sysconfig.get_path('purelib') == (
+    f'{sys.prefix}/lib/x86_64-linux-peios/python3.14/site-packages')
+assert ssl.OPENSSL_VERSION.startswith('OpenSSL 3.')
+assert hashlib.sha256(b'peios').hexdigest()
+assert bz2.decompress(bz2.compress(b'peios')) == b'peios'
+assert lzma.decompress(lzma.compress(b'peios')) == b'peios'
+assert compression.zstd.decompress(compression.zstd.compress(b'peios')) == b'peios'
+assert uuid.uuid4().version == 4
+assert subprocess.check_output([sys.executable, '-c', 'print(42)']) == b'42\\n'
+t = threading.Thread(target=lambda: None); t.start(); t.join()
+parent, child = multiprocessing.Pipe(); child.send('ok'); assert parent.recv() == 'ok'
+PY
+
+SMOKE="$PEKIT_OUT/.python-smoke"
+mkdir -p "$SMOKE"
+"$PYTHON" -m venv --without-pip "$SMOKE/venv"
+"$SMOKE/venv/bin/python" -c 'import sys; assert sys.prefix != sys.base_prefix'
+test -f "$STDLIB/EXTERNALLY-MANAGED"
+test ! -e "$STDLIB/ensurepip"
+
+cat > "$SMOKE/embed.c" <<'C'
+#include <Python.h>
+int main(void) {
+  Py_Initialize();
+  if (!Py_IsInitialized()) return 1;
+  Py_Finalize();
+  return 0;
+}
+C
+cc "$SMOKE/embed.c" -I"$PEKIT_OUT/usr/include/python$PYVER" \
+  -L"$LIBDIR" -lpython$PYVER -o "$SMOKE/embed"
+"$SMOKE/embed"
+rm -rf "$SMOKE"
+
+# Strip the large static archive; detached build-ID debug information is for
+# loadable ELF objects. python.o is an intermediate, not a public SDK file.
+strip --strip-debug "$CONFIGDIR/libpython$PYVER.a"
+rm -f "$CONFIGDIR/python.o"
+
+# Scrub DWARF paths, split symbols by build ID, and retain every referenced
+# source under a stable path. Fail rather than silently ship half-debuggable
+# objects.
+ROOT="$(dirname "$(dirname "$PEKIT_OUT")")"
+DEBUGROOT=/usr/src/debug/org.python.python3
+: > "$PEKIT_OUT/.debug-sources"
+: > "$PEKIT_OUT/.debug-elfs"
+: > "$PEKIT_OUT/.debug-buildids"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' | sort |
+while IFS= read -r f; do
+  case "$f" in *.a|*.o) continue ;; esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  chmod u+w "$f"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  [ -n "$bid" ] || { echo "python3: $f has no build ID" >&2; exit 1; }
+  printf '%s\\n' "$f" >> "$PEKIT_OUT/.debug-elfs"
+  if grep -Fxq "$bid" "$PEKIT_OUT/.debug-buildids"; then
+    strip --strip-unneeded "$f"
+    continue
+  fi
+  printf '%s\\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
+  debugedit -b "$ROOT" -d "$DEBUGROOT" \
+    -l "$PEKIT_OUT/.debug-one" -n "$f"
+  cat "$PEKIT_OUT/.debug-one" >> "$PEKIT_OUT/.debug-sources"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  dbg="usr/lib/debug/.build-id/$p2/$rest.debug"
+  mkdir -p "$(dirname "$dbg")"
+  objcopy --only-keep-debug "$f" "$dbg"
+  chmod 0644 "$dbg"
+  strip --strip-unneeded "$f"
+  objcopy --add-gnu-debuglink="$dbg" "$f"
+done
+
+tr '\\0' '\\n' < "$PEKIT_OUT/.debug-sources" | sort -u |
+while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "$PEKIT_OUT/usr/src/debug/org.python.python3/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/org.python.python3/$rel"
+done
+rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources"
+
+test -s "$PEKIT_OUT/.debug-elfs"
+debug_count=$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)
+buildid_count=$(wc -l < "$PEKIT_OUT/.debug-buildids")
+[ "$debug_count" -eq "$buildid_count" ]
+test -n "$(find usr/src/debug/org.python.python3 -type f -print -quit)"
+rm -f "$PEKIT_OUT/.debug-elfs" "$PEKIT_OUT/.debug-buildids"
+
+# Keep runtime, development and the very large static archive independently
+# installable without overlapping the standard-library payload.
+DEVEL="$PEKIT_OUT/python-devel/usr/lib/x86_64-linux-peios/python$PYVER"
+STATIC="$PEKIT_OUT/python-static/usr/lib/x86_64-linux-peios/python$PYVER/$CONFIGBASE"
+mkdir -p "$DEVEL" "$STATIC"
+mv "$CONFIGDIR" "$DEVEL/$CONFIGBASE"
+mv "$DEVEL/$CONFIGBASE/libpython$PYVER.a" "$STATIC/libpython$PYVER.a"
+
+# Enforce the hardening inherited from the workspace on the actual shipped
+# interpreter/runtime, not merely on compiler flags.
+for elf in usr/bin/python$PYVER \
+           usr/lib/x86_64-linux-peios/libpython$PYVER.so.1.0 \
+           usr/lib/x86_64-linux-peios/libpython3.so; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -lW "$elf" | grep -q 'GNU_RELRO'
+  readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
+  readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+  readelf -dW "$elf" | grep -q '(RELR)'
+  ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
+  readelf -nW "$elf" | grep -q 'Build ID:'
+  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+done
+find usr/lib/x86_64-linux-peios/python$PYVER/lib-dynload -type f -name '*.so' |
+while IFS= read -r elf; do
+  readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
+  ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
+  readelf -nW "$elf" | grep -q 'Build ID:'
+  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+done
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c                 = "*"
+debugedit                         = "*"
+"org.pkgconf.pkgconf"             = "*"
+"org.openssl.openssl-devel"       = "*"
+"org.sourceware.bzip2-devel"      = "*"
+"org.gnu.ncurses-devel"           = "*"
+"net.sourceforge.e2fsprogs-devel" = "*"
+"org.debian.netbase"              = "*"
+zlib-devel                        = "*"
+xz-devel                          = "*"
+zstd-devel                        = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+pkgconf         = "*"
+libssl-dev      = "*"
+libbz2-dev      = "*"
+libncurses-dev  = "*"
+uuid-dev        = "*"
+netbase         = "*"
+zlib1g-dev      = "*"
+liblzma-dev     = "*"
+libzstd-dev     = "*"

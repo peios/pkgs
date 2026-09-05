@@ -1,0 +1,10 @@
+[package]
+name        = "org.python.python3-debuginfo"
+description = "Python 3 detached debugging symbols"
+
+[dependencies]
+"org.python.python3" = "{{version}}-4"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.python.python3-debuginfo/LICENSE"
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,10 @@
+[package]
+name        = "org.python.python3-static"
+description = "Python 3 static embedding library"
+
+[dependencies]
+"org.python.python3-devel" = "{{version}}-4"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.python.python3-static/LICENSE"
+":python-static/usr/lib/x86_64-linux-peios/python3.14/**" = "usr/lib/x86_64-linux-peios/python3.14"

@@ -1,0 +1,97 @@
+PEIOS-DIVERGENCE(purelib): one site-packages, inside the triplet directory.
+
+--with-platlibdir moves only platlib; the purelib scheme still names
+{base}/lib/python3.X/site-packages, a directory nothing on Peios searches
+(site.py adds only existing directories) and PSPU does not permit under
+/usr. Peios keeps a single site-packages for pure and platform-specific
+Python alike, so purelib is the same path as platlib -- for prefix, user and
+venv schemes. site.py must agree with sysconfig for user installs. Debian
+carries the same basic shape as a distributor patch; upstream's comment above
+posix_venv invites it. Keep the upstream regression tests aligned with this
+intentional layout divergence.
+
+--- a/Lib/sysconfig/__init__.py
++++ b/Lib/sysconfig/__init__.py
+@@ -29,7 +29,7 @@
+     'posix_prefix': {
+         'stdlib': '{installed_base}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+         'platstdlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+-        'purelib': '{base}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++        'purelib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'platlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'include':
+             '{installed_base}/include/{implementation_lower}{py_version_short}{abiflags}',
+@@ -79,7 +79,7 @@
+     'posix_venv': {
+         'stdlib': '{installed_base}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+         'platstdlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+-        'purelib': '{base}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++        'purelib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'platlib': '{platbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+         'include':
+             '{installed_base}/include/{implementation_lower}{py_version_short}{abiflags}',
+@@ -153,8 +153,8 @@
+         'posix_user': {
+             'stdlib': '{userbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+             'platstdlib': '{userbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}',
+-            'purelib': '{userbase}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+-            'platlib': '{userbase}/lib/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++            'purelib': '{userbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
++            'platlib': '{userbase}/{platlibdir}/{implementation_lower}{py_version_short}{abi_thread}/site-packages',
+             'include': '{userbase}/include/{implementation_lower}{py_version_short}{abi_thread}',
+             'scripts': '{userbase}/bin',
+             'data': '{userbase}',
+
+--- a/Lib/site.py
++++ b/Lib/site.py
+@@ -333,7 +333,7 @@
+     if sys.platform == 'darwin' and sys._framework:
+         return f'{userbase}/lib/{implementation_lower}/site-packages'
+ 
+-    return f'{userbase}/lib/python{version[0]}.{version[1]}{abi_thread}/site-packages'
++    return f'{userbase}/{sys.platlibdir}/python{version[0]}.{version[1]}{abi_thread}/site-packages'
+ 
+ 
+ def getuserbase():
+
+--- a/Lib/test/test_sysconfig.py
++++ b/Lib/test/test_sysconfig.py
+@@ -168,7 +168,7 @@
+         # before bpo-45413, here we assert the posix_venv scheme does not regress
+         binpath = 'bin'
+         incpath = 'include'
+-        libpath = os.path.join('lib',
++        libpath = os.path.join(sys.platlibdir,
+                                f'python{sysconfig._get_python_version_abi()}',
+                                'site-packages')
+ 
+@@ -435,15 +435,6 @@
+             if HAS_USER_BASE:
+                 user_path = get_path(name, 'posix_user')
+                 expected = os.path.normpath(global_path.replace(base, user, 1))
+-                # bpo-44860: platlib of posix_user doesn't use sys.platlibdir,
+-                # whereas posix_prefix does.
+-                if name == 'platlib':
+-                    # Replace "/lib64/python3.11/site-packages" suffix
+-                    # with "/lib/python3.11/site-packages".
+-                    py_version_abi = sysconfig._get_python_version_abi()
+-                    suffix = f'python{py_version_abi}/site-packages'
+-                    expected = expected.replace(f'/{sys.platlibdir}/{suffix}',
+-                                                f'/lib/{suffix}')
+                 self.assertEqual(user_path, expected)
+ 
+     def test_main(self):
+
+--- a/Lib/test/test_venv.py
++++ b/Lib/test/test_venv.py
+@@ -76,8 +76,9 @@
+             self.lib = ('Lib',)
+             self.include = 'Include'
+         else:
+             self.bindir = 'bin'
+-            self.lib = ('lib', f'python{sysconfig._get_python_version_abi()}')
++            self.lib = (sys.platlibdir,
++                        f'python{sysconfig._get_python_version_abi()}')
+             self.include = 'include'
+         executable = sys._base_executable
+         self.exe = os.path.split(executable)[-1]

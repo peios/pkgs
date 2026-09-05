@@ -1,0 +1,10 @@
+[package]
+name        = "org.python.python3-debugsource"
+description = "Python 3 sources referenced by debugging information"
+
+[dependencies]
+"org.python.python3-debuginfo" = "{{version}}-4"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.python.python3-debugsource/LICENSE"
+":usr/src/debug/org.python.python3/**" = "usr/src/debug/org.python.python3"
