@@ -3,7 +3,10 @@ name        = "org.jedsoft.slang-devel"
 description = "S-Lang headers, linker input, and pkg-config metadata"
 
 [provides]
-"slang-devel" = "{{version}}"
+"slang-devel" = "{{version}}-1"
+
+[replaces]
+"slang-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.jedsoft.slang-libs" = "{{version}}-1"

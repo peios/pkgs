@@ -212,7 +212,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 
 [build.main.dependencies.peipkg]
 build-essentials-c           = "*"
+debugedit                    = "*"
 "org.gnu.ncurses-terminfo" = "*"
+patchelf                     = "*"
 "zlib-devel"               = "*"
 
 [build.main.dependencies.apt]

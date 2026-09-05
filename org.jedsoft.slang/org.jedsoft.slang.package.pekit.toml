@@ -9,8 +9,8 @@ description = "S-Lang interpreter, standard library, and loadable modules"
 [provides]
 # Preserve the retired recipe identity while making the canonical package the
 # deterministic provider during migration.
-slang = "{{version}}"
-slsh  = "{{version}}"
+slang = "{{version}}-1"
+slsh  = "{{version}}-1"
 
 [dependencies]
 glibc                     = ">= 2.43"
