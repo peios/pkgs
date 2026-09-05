@@ -231,6 +231,11 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
 test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
 test -n "$(find usr/src/debug/org.kernel.kmod -type f -print -quit)"
 
+# Some compilation units use a rewritten build-directory comp_dir plus paths
+# such as ../../../source/tools/kmod.c. Preserve that empty directory chain so
+# debuggers can traverse the relative path to the packaged source tree.
+install -d usr/src/debug/org.kernel.kmod/build/main/build
+
 LIBKMOD_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libkmod.so.*' \
   -print | LC_ALL=C sort)
 test "$(printf '%s\n' "$LIBKMOD_SO" | grep -c .)" -eq 1

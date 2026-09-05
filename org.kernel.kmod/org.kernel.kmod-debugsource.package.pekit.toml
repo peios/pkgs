@@ -3,7 +3,7 @@ name        = "org.kernel.kmod-debugsource"
 description = "kmod and libkmod debug sources"
 
 [dependencies]
-"org.kernel.kmod-debuginfo" = "{{version}}-1"
+"org.kernel.kmod-debuginfo" = "{{version}}-2"
 
 [files]
 "@source:tools/COPYING"   = "usr/share/licenses/org.kernel.kmod-debugsource/GPL-2.0-or-later"

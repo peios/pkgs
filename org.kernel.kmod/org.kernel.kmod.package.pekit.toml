@@ -13,7 +13,7 @@ kmod = "{{version}}"
 
 [dependencies]
 glibc                  = ">= 2.43"
-"org.kernel.kmod-libs" = "{{version}}-1"
+"org.kernel.kmod-libs" = "{{version}}-2"
 
 [files]
 "@source:tools/COPYING" = "usr/share/licenses/org.kernel.kmod/COPYING"
