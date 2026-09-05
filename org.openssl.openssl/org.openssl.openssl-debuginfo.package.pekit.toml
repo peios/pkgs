@@ -1,0 +1,11 @@
+[package]
+name        = "org.openssl.openssl-debuginfo"
+description = "OpenSSL debugging symbols"
+
+[dependencies]
+"org.openssl.libcrypto" = "{{version}}-1"
+"org.openssl.libssl"    = "{{version}}-1"
+"org.openssl.openssl"   = "{{version}}-1"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,22 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.openssl.openssl"
+description = "OpenSSL cryptography and TLS command-line toolkit"
+
+[provides]
+openssl = "{{version}}"
+
+[dependencies]
+glibc                   = ">= 2.43"
+"org.openssl.libcrypto" = "{{version}}-1"
+"org.openssl.libssl"    = "{{version}}-1"
+
+[files]
+"@source:LICENSE.txt"         = "usr/share/licenses/org.openssl.openssl/"
+"@source:NEWS.md"             = "usr/share/doc/org.openssl.openssl/"
+"@source:README.md"           = "usr/share/doc/org.openssl.openssl/"
+":usr/bin/openssl"            = "usr/bin/openssl"
+":usr/share/man/man1/**"      = "usr/share/man/man1"
+":usr/share/man/man5/**"      = "usr/share/man/man5"
+":usr/share/man/man7/**"      = "usr/share/man/man7"

@@ -1,0 +1,22 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.openssl.openssl-devel"
+description = "OpenSSL development headers and linker metadata"
+
+[provides]
+"openssl-devel" = "{{version}}"
+
+[dependencies]
+"org.openssl.libcrypto" = "{{version}}-1"
+"org.openssl.libssl"    = "{{version}}-1"
+
+[files]
+"@source:CHANGES.md"                                  = "usr/share/doc/org.openssl.openssl-devel/"
+"@source:LICENSE.txt"                                 = "usr/share/licenses/org.openssl.openssl-devel/"
+":usr/include/**"                                     = "usr/include"
+":usr/lib/x86_64-linux-peios/libcrypto.so"            = "usr/lib/x86_64-linux-peios/libcrypto.so"
+":usr/lib/x86_64-linux-peios/libssl.so"               = "usr/lib/x86_64-linux-peios/libssl.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"            = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/cmake/OpenSSL/**"        = "usr/lib/x86_64-linux-peios/cmake/OpenSSL"
+":usr/share/man/man3/**"                              = "usr/share/man/man3"

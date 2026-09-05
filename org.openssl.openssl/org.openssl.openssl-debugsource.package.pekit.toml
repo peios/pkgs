@@ -1,0 +1,9 @@
+[package]
+name        = "org.openssl.openssl-debugsource"
+description = "OpenSSL debug sources"
+
+[dependencies]
+"org.openssl.openssl-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

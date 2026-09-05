@@ -1,0 +1,18 @@
+[package]
+name         = "org.openssl.openssl-perl"
+description  = "OpenSSL certificate-management Perl utilities"
+architecture = "noarch"
+
+[provides]
+"openssl-perl" = "{{version}}"
+
+[dependencies]
+"org.openssl.openssl" = "{{version}}-1"
+perl                    = "*"
+
+[files]
+"@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl-perl/"
+":usr/bin/CA.pl"      = "usr/bin/CA.pl"
+":usr/bin/c_rehash"   = "usr/bin/c_rehash"
+":usr/bin/tsget"      = "usr/bin/tsget"
+":usr/bin/tsget.pl"   = "usr/bin/tsget.pl"

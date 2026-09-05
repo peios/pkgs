@@ -1,0 +1,14 @@
+[package]
+name        = "org.openssl.openssl-static"
+description = "OpenSSL static cryptography and TLS libraries"
+
+[provides]
+"openssl-static" = "{{version}}"
+
+[dependencies]
+"org.openssl.openssl-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENSE.txt"                            = "usr/share/licenses/org.openssl.openssl-static/"
+":usr/lib/x86_64-linux-peios/libcrypto.a"        = "usr/lib/x86_64-linux-peios/libcrypto.a"
+":usr/lib/x86_64-linux-peios/libssl.a"           = "usr/lib/x86_64-linux-peios/libssl.a"
