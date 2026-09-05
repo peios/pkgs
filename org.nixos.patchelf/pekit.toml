@@ -153,8 +153,10 @@ build-essentials = "*"
 debugedit        = ">= 5.2-2"
 gzip             = "*"
 glibc-bin        = "*"
+"org.gnu.bash"   = "*"
 
 [build.main.dependencies.apt]
+bash            = "*"
 build-essential = "*"
 binutils        = "*"
 coreutils       = "*"
