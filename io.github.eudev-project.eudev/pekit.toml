@@ -222,10 +222,10 @@ perl                  = "*"
 python3               = "*"
 tar                   = "*"
 xz                    = "*"
-# Peiosutils is the distro's coreutils implementation. Keeping GNU Coreutils
-# out of this root also proves the eudev build does not rely on an undeclared
-# GNU-only runtime assumption.
-peiosutils            = "*"
+# This is build-only bootstrap tooling: build-essentials-c already composes
+# the GNU implementation into the build root. The shipped eudev package below
+# depends on Peios's peiosutils instead.
+"org.gnu.coreutils"  = "*"
 debugedit             = "*"
 
 [build.main.dependencies.apt]
