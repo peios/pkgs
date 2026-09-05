@@ -1,0 +1,21 @@
+# org.kernel.kmod — the multicall tool plus its modprobe/insmod/rmmod/lsmod/modinfo compat
+# names (plain symlinks). depmod is the exception: it is machine-facing —
+# peipkg's install side effect and `make modules_install` call it, people do
+# not — so it ships in usr/libexec rather than on PATH.
+
+[package]
+name        = "org.kernel.kmod"
+description = "Kernel module management tools (depmod, modprobe, ...)"
+license     = "GPL-2.0-or-later"
+
+[provides]
+kmod = "{{version}}"
+
+[dependencies]
+glibc                  = ">= 2.43"
+"org.kernel.kmod-libs" = "{{version}}-1"
+
+[files]
+"@source:tools/COPYING" = "usr/share/licenses/org.kernel.kmod/COPYING"
+":usr/bin/**"           = "usr/bin"
+":usr/libexec/**"       = "usr/libexec"

@@ -1,0 +1,13 @@
+# Shared metadata for the canonical org.kernel.kmod package family. Upstream's
+# own README and SPDX headers identify GPL-2.0-or-later for tools and
+# LGPL-2.1-or-later for libkmod, tests and helpers; individual binary packages
+# narrow this family-wide expression where their payload has only one side.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-or-later AND LGPL-2.1-or-later"
+license_class = "free"
+homepage      = "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"

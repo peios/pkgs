@@ -1,0 +1,328 @@
+# kmod — kernel module tools (depmod/modprobe/...) plus libkmod. The kernel's
+# `make modules_install` runs depmod over the staged module tree.
+#
+# kmod uses Meson for current releases. --sbindir=bin keeps the human-facing
+# compatibility names beside the multicall kmod binary; depmod is moved to
+# libexec below because it is invoked by package/build machinery, not users.
+# Compressed-module support is intentionally complete (zlib/xz/zstd), and
+# OpenSSL enables PKCS#7 signature reporting in modinfo. buildtype=plain leaves
+# optimisation and hardening to the inherited Peios workspace environment.
+#
+# The upstream testsuite runs. It builds a playground of dummy modules and
+# drives depmod/modprobe/modinfo over a fake rootfs with LD_PRELOAD shims,
+# which is real coverage for a TCB binary. Its Makefile defaults KDIR to the
+# RUNNING kernel's headers -- a build must not depend on what the farm booted
+# -- so KDIR is pointed at our own kernel-devel instead, making the modules
+# under test Peios modules. That kernel is clang-built, hence LLVM=1.
+#
+# The kernel-devel floor is the revision that first shipped
+# tools/objtool/objtool, without which Kbuild cannot compile a single external
+# module (CONFIG_OBJTOOL is on).
+
+out_dir = "out"
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/"
+extract     = true
+root        = "kmod-{{version}}"
+file_regex  = 'kmod-[0-9]+(?:\.[0-9]+)*\.tar\.xz'
+# Soft maintenance floor. kmod's leading number is a release sequence rather
+# than a semver compatibility line, so there is no artificial <35 ceiling:
+# follow every newer authenticated stable release and stop only on a real
+# build, test or package-contract incompatibility.
+versions    = ">= 34.2"
+
+# kernel.org publishes a detached signature by the kmod maintainer over the
+# DECOMPRESSED tar (PEI-150's `of = "decompressed"`), so the first pin of any
+# version is checked against the maintainer's key rather than merely recorded.
+# Worth the ten minutes for a TCB binary: TOFU alone attests that later fetches
+# match the first one, not that the first one was upstream's.
+[source.url.signature]
+key_files    = ["keys/kmod-maintainer.asc"]
+url          = "https://cdn.kernel.org/pub/linux/utils/kernel/kmod/kmod-{{version}}.tar.sign"
+fingerprints = ["EAB33C9690013C733916AC839BA2A5A630CBEA53"]
+of           = "decompressed"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+meson setup "$PEKIT_OUT/build" "$SRC" --prefix=/usr --bindir=bin --sbindir=bin \
+  --libdir=lib/x86_64-linux-peios --sysconfdir=/etc --buildtype=plain \
+  -Dmanpages=false -Dbashcompletiondir=no -Dfishcompletiondir=no \
+  -Dzshcompletiondir=no -Dopenssl=enabled -Dzlib=enabled -Dxz=enabled \
+  -Dzstd=enabled -Dbuild-tests=true
+meson compile -C "$PEKIT_OUT/build"
+# One kernel-devel is in the root; take its build tree whatever its release.
+KDIR="$(echo /usr/lib/modules/*/build)"
+test -d "$KDIR"
+
+# The test suite builds real dummy Peios modules against our packaged kernel
+# headers and drives depmod/modprobe/modinfo through its isolated rootfs. Run
+# the complete upstream suite: a new failure blocks the release rather than
+# silently reducing coverage for this TCB component.
+#
+# Current Peios LLVM/Kbuild emits the MODULE_ALIAS strings within each dummy
+# module in source order, while the two upstream golden files record the
+# reverse order produced by older toolchains. This does not change depmod's
+# cross-module priority, but it makes the byte-for-byte fixture check fail.
+# Keep the upstream suite unmodified and tolerate only that exact known result:
+# one failed test program, those two output comparisons, byte-identical alias
+# sets after sorting, and cciss still ahead of hpsa. Any new failure is fatal.
+if ! KDIR="$KDIR" LLVM=1 meson test -C "$PEKIT_OUT/build" --print-errorlogs; then
+  LOG="$PEKIT_OUT/build/meson-logs/testlog.txt"
+  RFS="$PEKIT_OUT/build/testsuite/rootfs/test-depmod"
+  test "$(grep -c 'TESTSUITE: ERR: FAILED: exit ok but outputs do not match:' "$LOG")" -eq 2
+  grep -F 'FAILED: exit ok but outputs do not match: depmod_modules_outdir' "$LOG"
+  grep -F 'FAILED: exit ok but outputs do not match: depmod_modules_order_for_compressed' "$LOG"
+  grep -Eq 'Ok:[[:space:]]+15' "$LOG"
+  grep -Eq 'Fail:[[:space:]]+1' "$LOG"
+  grep -Eq 'test-depmod[[:space:]]+FAIL' "$LOG"
+
+  cmp "$RFS/modules-outdir/correct-modules.dep" \
+    "$RFS/modules-outdir/outdir/lib/modules/4.4.4/modules.dep"
+  check_alias_order_fixture() {
+    expected=$1
+    actual=$2
+    LC_ALL=C sort "$expected" > "$PEKIT_OUT/.aliases.expected"
+    LC_ALL=C sort "$actual" > "$PEKIT_OUT/.aliases.actual"
+    cmp "$PEKIT_OUT/.aliases.expected" "$PEKIT_OUT/.aliases.actual"
+    awk '$1 == "alias" && $NF == "hpsa" { seen_hpsa = 1 }
+         $1 == "alias" && $NF == "cciss" && seen_hpsa { exit 1 }
+         END { if (!seen_hpsa) exit 1 }' "$actual"
+  }
+  check_alias_order_fixture \
+    "$RFS/modules-outdir/correct-modules.alias" \
+    "$RFS/modules-outdir/outdir/lib/modules/4.4.4/modules.alias"
+  check_alias_order_fixture \
+    "$RFS/modules-order-compressed/lib/modules/4.4.4/correct-modules.alias" \
+    "$RFS/modules-order-compressed/lib/modules/4.4.4/modules.alias"
+  rm -f "$PEKIT_OUT/.aliases.expected" "$PEKIT_OUT/.aliases.actual"
+fi
+DESTDIR="$PEKIT_OUT" meson install -C "$PEKIT_OUT/build" --no-rebuild
+
+# Meson builds the exact libkmod object set as an internal archive for the
+# multicall tool, but does not install a public static library. Combine that
+# archive with libshared (also part of the shared libkmod implementation) to
+# provide a complete libkmod.a without carrying a source patch.
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+ar -M <<EOF
+CREATE $LIBDIR/libkmod.a
+ADDLIB $PEKIT_OUT/build/libkmod-internal.a
+ADDLIB $PEKIT_OUT/build/libshared.a
+SAVE
+END
+EOF
+ranlib "$LIBDIR/libkmod.a"
+# depmod is machine-facing: peipkg runs it as an install side effect and the
+# kernel's `make modules_install` runs it at build time, but there is no
+# documented workflow in which a person invokes it. That puts it in libexec
+# rather than on PATH. kmod dispatches on argv[0]'s basename, so it stays a
+# symlink to the same multicall binary; the target is relative so it resolves
+# both as /usr/libexec/depmod -> /usr/bin/kmod and through the merged views as
+# /libexec/depmod -> /bin/kmod.
+install -d "$PEKIT_OUT/usr/libexec"
+rm -f "$PEKIT_OUT/usr/bin/depmod"
+ln -s ../bin/kmod "$PEKIT_OUT/usr/libexec/depmod"
+rm -rf "$PEKIT_OUT/etc"
+
+# Validate installed dispatch, a real depmod index operation, a compressed
+# test module through modinfo, and both public libkmod link surfaces. The
+# upstream suite runs from the build tree; these catch staging/split mistakes.
+BIN="$PEKIT_OUT/usr/bin"
+for command in insmod lsmod modinfo modprobe rmmod; do
+  test -L "$BIN/$command"
+  test "$(readlink "$BIN/$command")" = kmod
+  "$BIN/$command" --version | grep -F "$PEKIT_VERSION"
+done
+test -L "$PEKIT_OUT/usr/libexec/depmod"
+test "$(readlink "$PEKIT_OUT/usr/libexec/depmod")" = ../bin/kmod
+"$PEKIT_OUT/usr/libexec/depmod" --version | grep -F "$PEKIT_VERSION"
+"$BIN/kmod" --version | grep -F "$PEKIT_VERSION"
+
+SMOKE="$PEKIT_OUT/.kmod-smoke"
+mkdir -p "$SMOKE/root/lib/modules/1.0.0"
+: > "$SMOKE/root/lib/modules/1.0.0/modules.order"
+: > "$SMOKE/root/lib/modules/1.0.0/modules.builtin"
+: > "$SMOKE/root/lib/modules/1.0.0/modules.builtin.modinfo"
+"$PEKIT_OUT/usr/libexec/depmod" -b "$SMOKE/root" 1.0.0
+test -f "$SMOKE/root/lib/modules/1.0.0/modules.dep"
+test -f "$SMOKE/root/lib/modules/1.0.0/modules.alias"
+"$BIN/modprobe" -c -d "$SMOKE/root" -S 1.0.0 > "$SMOKE/modprobe.conf"
+
+TESTMOD=$(find "$PEKIT_OUT/build/testsuite/rootfs" -type f \
+  \\( -name '*.ko' -o -name '*.ko.gz' -o -name '*.ko.xz' -o -name '*.ko.zst' \\) \
+  -print | LC_ALL=C sort | head -n 1)
+test -n "$TESTMOD"
+test -n "$("$BIN/modinfo" -F name "$TESTMOD")"
+
+cat > "$SMOKE/libkmod.c" <<'EOF'
+#include <libkmod.h>
+#include <stdio.h>
+#include <string.h>
+
+int main(int argc, char **argv)
+{
+  struct kmod_ctx *ctx;
+  int ok;
+
+  if (argc != 2)
+    return 2;
+  ctx = kmod_new(argv[1], NULL);
+  if (ctx == NULL)
+    return 3;
+  ok = strcmp(kmod_get_dirname(ctx), argv[1]) == 0;
+  kmod_unref(ctx);
+  if (!ok)
+    return 4;
+  puts("libkmod-smoke: PASS");
+  return 0;
+}
+EOF
+# libkmod's public ABI intentionally uses 1U << 31 enum sentinels. GCC's
+# -Wpedantic rejects those under ISO C17 even though normal strict-warning
+# consumers are clean, so do not turn that upstream ABI choice into a false
+# packaging failure.
+cc -std=c17 -Wall -Wextra -Werror "$SMOKE/libkmod.c" \
+  -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
+  -lkmod -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared" "$SMOKE/root"
+cc -std=c17 -Wall -Wextra -Werror "$SMOKE/libkmod.c" \
+  -I"$PEKIT_OUT/usr/include" "$LIBDIR/libkmod.a" \
+  -lzstd -llzma -lz -lcrypto -ldl -o "$SMOKE/static"
+"$SMOKE/static" "$SMOKE/root"
+if readelf -d "$SMOKE/static" | grep -F 'libkmod.so'; then exit 1; fi
+
+# Produce conventional build-ID-indexed debuginfo and the exact source files
+# referenced by DWARF. Archives retain code but do not carry duplicate debug.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r file; do
+  case "$file" in
+    *.a) strip --strip-debug "$file"; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$file" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$file"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.kmod \
+    -l "$PEKIT_OUT/.debug-list" -n "$file"
+  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+  test -n "$build_id"
+  prefix=$(printf %s "$build_id" | cut -c1-2)
+  suffix=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$prefix"
+  objcopy --only-keep-debug "$file" \
+    "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  strip "$file"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r source; do
+      test -n "$source" || continue
+      case "$source" in */) continue;; esac
+      test -f "$ROOT/$source" || continue
+      mkdir -p "usr/src/debug/org.kernel.kmod/$(dirname "$source")"
+      cp "$ROOT/$source" "usr/src/debug/org.kernel.kmod/$source"
+    done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find usr/src/debug/org.kernel.kmod -type f -print -quit)"
+
+LIBKMOD_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libkmod.so.*' \
+  -print | LC_ALL=C sort)
+test "$(printf '%s\n' "$LIBKMOD_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libkmod.so"
+test -L "$LIBDIR/libkmod.so.2"
+test -f "$LIBDIR/libkmod.a"
+test -f "$LIBDIR/pkgconfig/libkmod.pc"
+readelf -d "$LIBKMOD_SO" | grep -Eq 'SONAME.*[[]libkmod[.]so[.]2[]]'
+
+# Assert hardening on the stripped executable and library that will ship.
+for elf in "$BIN/kmod" "$LIBKMOD_SO"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$SMOKE" "$PEKIT_OUT/build"
+rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist"
+"""
+
+# PIP: kmod is TCB. request_module() execs modprobe as a usermodehelper — the
+# kernel acting on its own behalf, at its own authority — and KACS refuses such
+# an exec unless the binary carries PeiosTcb trust (PEI-59). Without this the
+# floor denies every kernel-initiated module load.
+#
+# One entry, because kmod is a multicall binary: modprobe, insmod, rmmod, lsmod,
+# modinfo and depmod are all symlinks to this file, so signing it covers the set.
+# Signing the symlinks would be meaningless anyway — the tier comes from the
+# inode actually exec'd.
+#
+# The tier is decided by which key verified, so naming tcb.priv here is what
+# makes this TCB; there is nothing in the signature expressing intent. Keep this
+# table to files that genuinely belong in the trusted computing base.
+[build.main.sign.pip]
+"usr/bin/kmod" = "tcb.priv"
+
+[build.main.dependencies.peipkg]
+dash = "*"
+"org.gnu.coreutils" = "*"
+# The testsuite's harness is bash, and its module playground is an out-of-tree
+# kbuild against our own clang-built kernel.
+"org.gnu.bash" = "*"
+# The harness is a set of shell scripts: it rewrites fixture paths with sed,
+# walks the rootfs with find, and the bounded failure check uses grep.
+# find worked without being declared, which means it arrived transitively --
+# state it rather than rely on that.
+sed = "*"
+grep = "*"
+findutils = "*"
+# The harness compresses its dummy modules with all three algorithms to
+# exercise libkmod's decompressors.
+gzip = "*"
+xz = "*"
+zstd = "*"
+"kernel-devel" = ">= 0.20.1-rc12-13"
+clang = "*"
+llvm = "*"
+lld = "*"
+make = "*"
+build-essentials-c = "*"
+pkgconf = "*"
+meson = "*"
+ninja = "*"
+"zlib-devel" = "*"
+"xz-devel" = "*"
+"zstd-devel" = "*"
+"openssl-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bash = "*"
+clang = "*"
+llvm = "*"
+lld = "*"
+linux-headers-amd64 = "*"
+pkg-config = "*"
+meson = "*"
+ninja-build = "*"
+zlib1g-dev = "*"
+liblzma-dev = "*"
+libzstd-dev = "*"
+libssl-dev = "*"
+gzip = "*"
+xz-utils = "*"
+zstd = "*"
+grep = "*"
+sed = "*"
+findutils = "*"
+coreutils = "*"
+debugedit = "*"
+patchelf = "*"
