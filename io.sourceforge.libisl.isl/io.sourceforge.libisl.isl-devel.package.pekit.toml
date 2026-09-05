@@ -9,8 +9,8 @@ description = "Integer Set Library - development files"
 isl-devel = "{{version}}"
 
 [dependencies]
-"io.sourceforge.libisl.isl" = "{{version}}-1"
-"org.gnu.gmp-devel"         = ">= 6.3.0"
+"io.sourceforge.libisl.isl" = "{{version}}-2"
+"gmp-devel"                 = ">= 6.3.0"
 
 [files]
 ":usr/include/isl/**"                      = "usr/include/isl"

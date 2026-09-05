@@ -8,8 +8,11 @@ description = "Integer Set Library"
 isl = "{{version}}"
 
 [dependencies]
-glibc         = ">= 2.43"
-"org.gnu.gmp" = ">= 6.3.0"
+glibc = ">= 2.43"
+# Depend on the public capability so the legacy GCC build root and the
+# qualified package family converge on one implementation during migration.
+# The generated SONAME dependency independently enforces the runtime ABI.
+gmp = ">= 6.3.0"
 
 [files]
 # License text (distro convention: /usr/share/licenses/<name>/).

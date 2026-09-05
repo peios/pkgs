@@ -5,7 +5,7 @@ name        = "io.sourceforge.libisl.isl-debuginfo"
 description = "Integer Set Library - debugging symbols"
 
 [dependencies]
-"io.sourceforge.libisl.isl" = "{{version}}-1"
+"io.sourceforge.libisl.isl" = "{{version}}-2"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

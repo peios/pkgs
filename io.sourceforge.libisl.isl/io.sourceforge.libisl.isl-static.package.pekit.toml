@@ -8,8 +8,8 @@ description = "Integer Set Library - static library"
 isl-static = "{{version}}"
 
 [dependencies]
-"io.sourceforge.libisl.isl-devel" = "{{version}}-1"
-"org.gnu.gmp-static"              = ">= 6.3.0"
+"io.sourceforge.libisl.isl-devel" = "{{version}}-2"
+"gmp-static"                      = ">= 6.3.0"
 
 [files]
 ":usr/lib/x86_64-linux-peios/libisl.a" = "usr/lib/x86_64-linux-peios/libisl.a"
