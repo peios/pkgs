@@ -3,6 +3,12 @@ name        = "org.sourceware.elfutils-libelf"
 description = "elfutils - ELF object access runtime library"
 license     = "GPL-2.0-or-later OR LGPL-3.0-or-later"
 
+[provides]
+# Version this ABI capability so the resolver prefers the canonical split
+# package over the retired monolithic elfutils package, whose automatically
+# inferred SONAME provide is necessarily unversioned.
+"libelf.so.1" = "{{version}}"
+
 [dependencies]
 glibc = ">= 2.43"
 zlib  = ">= 2.3.3"

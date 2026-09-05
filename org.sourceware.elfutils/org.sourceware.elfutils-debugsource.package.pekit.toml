@@ -3,7 +3,7 @@ name        = "org.sourceware.elfutils-debugsource"
 description = "elfutils - debug sources"
 
 [dependencies]
-"org.sourceware.elfutils-debuginfo" = "{{version}}-1"
+"org.sourceware.elfutils-debuginfo" = "{{version}}-2"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

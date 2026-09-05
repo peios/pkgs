@@ -3,9 +3,15 @@ name        = "org.sourceware.elfutils-libs"
 description = "elfutils - DWARF and assembler runtime libraries"
 license     = "GPL-2.0-or-later OR LGPL-3.0-or-later"
 
+[provides]
+# Keep the canonical split packages ahead of the retired monolithic elfutils
+# provider when dependency scanners emit SONAME requirements.
+"libasm.so.1" = "{{version}}"
+"libdw.so.1"  = "{{version}}"
+
 [dependencies]
 glibc = ">= 2.43"
-"org.sourceware.elfutils-libelf" = "{{version}}-1"
+"org.sourceware.elfutils-libelf" = "{{version}}-2"
 
 [files]
 "@source:COPYING-GPLV2"  = "usr/share/licenses/org.sourceware.elfutils-libs/"
