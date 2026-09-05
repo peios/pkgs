@@ -1,0 +1,22 @@
+[package]
+name        = "org.sofproject.sof-firmware"
+description = "Intel Sound Open Firmware DSP firmware, modules and topologies"
+
+# Preserve the historical capability while consumers migrate to the canonical
+# upstream-qualified package name.
+[provides]
+firmware-intel-sof = "{{version}}-4"
+
+[replaces]
+firmware-intel-sof = "< {{version}}-4"
+
+[files]
+"@source:LICENCE.Intel"                            = "usr/share/licenses/org.sofproject.sof-firmware/"
+":usr/lib/firmware/intel/sof-ace-tplg"             = "usr/lib/firmware/intel/sof-ace-tplg"
+":usr/lib/firmware/intel/**/*.ri.zst"              = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.ri.zst.peios.sig"    = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.tplg.zst"            = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.tplg.zst.peios.sig"  = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.llext.zst"           = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.llext.zst.peios.sig" = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.bin.zst"             = "usr/lib/firmware/intel"

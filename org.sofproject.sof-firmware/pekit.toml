@@ -1,4 +1,4 @@
-# sof-firmware — Intel Sound Open Firmware (PEI-503).
+# SOF firmware — Intel Sound Open Firmware (PEI-503, PEI-732).
 #
 # The audio DSP firmware nearly every Intel laptop from ~2019 on needs before
 # it has speakers or a microphone. It is NOT in linux-firmware: SOF is its own
@@ -17,8 +17,8 @@
 # on disk (the kernel decompresses on load), the licence text shipped, and
 # firmware loaded unsigned in this release (PEI-493).
 #
-# Dropped: sof/community (public-key-signed dev builds), the NXP i.MX8
-# topologies (ARM), and tools/ (sof-ctl, sof-logger: prebuilt host binaries,
+# Dropped: sof/community (public-key-signed dev builds), non-x86 NXP i.MX8 and
+# MediaTek topologies, and tools/ (sof-ctl, sof-logger: prebuilt host binaries,
 # not firmware).
 
 out_dir = "out"
@@ -27,13 +27,18 @@ out_dir = "out"
 enabled = false
 
 [source.url]
-url      = "https://github.com/thesofproject/sof-bin/releases/download/v{{version}}/sof-bin-{{version}}.tar.gz"
-extract  = true
-root     = "sof-bin-{{version}}"
-versions = ">= 2025.12.2"
+url         = "https://github.com/thesofproject/sof-bin/releases/download/v{{version}}/sof-bin-{{version}}.tar.gz"
+listing_url = "https://api.github.com/repos/thesofproject/sof-bin/releases?per_page=100"
+file_regex  = 'sof-bin-[0-9]{4}\.[0-9]{2}(?:\.[0-9]+)?\.tar\.gz'
+extract     = true
+root        = "sof-bin-{{version}}"
+# Soft maintenance floor. The official GitHub release API lets Pekit follow
+# newer stable assets automatically. SOF publishes no detached signatures, so
+# accepting the newly locked SHA-256 is the explicit trust gate per release.
+versions    = ">= 2025.12.2"
 
 [build.main]
-command = """
+command = '''
 set -eu
 dest="$PEKIT_OUT/usr/lib/firmware/intel"
 mkdir -p "$dest"
@@ -46,25 +51,37 @@ done
 # community/ dirs exist per platform under sof-ipc4/ and sof-ipc4-lib/ too.
 find "$dest" -type d -name community -prune -exec rm -rf {} +
 find "$dest" -name 'sof-imx*' -delete
-left=$(find "$dest" -path '*community*' -o -name 'sof-imx*')
+find "$dest" -name 'sof-mt[0-9]*' -delete
+left=$(find "$dest" -path '*community*' -o -name 'sof-imx*' -o -name 'sof-mt[0-9]*')
 [ -z "$left" ] || { echo "sof-firmware: not dropped:" "$left" >&2; exit 1; }
-# Compress regular files, then repoint every symlink at the .zst name — the
-# kernel tries <name>.zst for the link itself, so the link must carry the
-# suffix and resolve to the compressed target.
+
+# Compress regular files, then repoint every non-directory symlink at the .zst
+# name. Transforming every link unconditionally makes link chains independent
+# of find traversal order. The kernel tries <name>.zst for the link itself, so
+# both the link and its target must carry the suffix.
 find "$dest" -type f ! -name '*.zst' -exec zstd -19 -q --rm {} +
 find "$dest" -type l | while read -r l; do
+  [ -d "$l" ] && continue
   t=$(readlink "$l")
-  if [ -e "$(dirname "$l")/$t.zst" ]; then
-    ln -sfn "$t.zst" "$l.zst"; rm -f "$l"
-  fi
+  ln -sfn "$t.zst" "$l.zst"
+  rm -f "$l"
 done
 broken=$(find "$dest" -xtype l)
 [ -z "$broken" ] || { echo "sof-firmware: broken symlinks:" "$broken" >&2; exit 1; }
-lic="$PEKIT_OUT/usr/share/licenses/firmware-intel-sof"
-mkdir -p "$lic"
-cp LICENCE.Intel "$lic/"
+
+# Freeze the expected production inventory without pinning exact counts: new
+# hardware should flow through automatically, while a release that silently
+# drops a whole payload class must stop for review.
+[ "$(find "$dest" -type f -name '*.ri.zst' | wc -l)" -ge 20 ]
+[ "$(find "$dest" -type f -name '*.tplg.zst' | wc -l)" -ge 400 ]
+[ "$(find "$dest" -type f -name '*.llext.zst' | wc -l)" -ge 1 ]
+[ "$(find "$dest" -type f -name '*.ldc.zst' | wc -l)" -ge 5 ]
+[ -z "$(find "$dest" -type f ! -name '*.zst' -print -quit)" ]
+find "$dest" -type f -name '*.zst' -exec zstd -q -t {} +
+test -L "$dest/sof-ace-tplg"
+test "$(readlink "$dest/sof-ace-tplg")" = sof-ipc4-tplg
 du -sm "$dest"
-"""
+'''
 
 # TCB-signed like linux-firmware (PEI-493): sidecar per blob and
 # topology, symlinks skipped.

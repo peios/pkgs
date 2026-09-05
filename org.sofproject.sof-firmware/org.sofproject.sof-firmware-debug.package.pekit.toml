@@ -1,0 +1,11 @@
+[package]
+name        = "org.sofproject.sof-firmware-debug"
+description = "Intel Sound Open Firmware DSP debugging data"
+
+[dependencies]
+"org.sofproject.sof-firmware" = "{{version}}-4"
+
+[files]
+"@source:LICENCE.Intel"                          = "usr/share/licenses/org.sofproject.sof-firmware-debug/"
+":usr/lib/firmware/intel/**/*.ldc.zst"           = "usr/lib/firmware/intel"
+":usr/lib/firmware/intel/**/*.ldc.zst.peios.sig" = "usr/lib/firmware/intel"
