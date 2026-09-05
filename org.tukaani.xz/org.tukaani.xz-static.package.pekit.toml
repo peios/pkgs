@@ -4,10 +4,10 @@ description = "XZ Utils static liblzma library"
 license     = "0BSD"
 
 [provides]
-"xz-static" = "{{version}}-1"
+"xz-static" = "{{version}}-2"
 
 [dependencies]
-"org.tukaani.xz-devel" = "{{version}}-1"
+"org.tukaani.xz-devel" = "{{version}}-2"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-static/COPYING.0BSD"

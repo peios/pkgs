@@ -7,7 +7,7 @@ description  = "XZ Utils translations, documentation, and command manuals"
 license      = "0BSD AND LicenseRef-Public-Domain"
 
 [provides]
-"xz-common" = "{{version}}-1"
+"xz-common" = "{{version}}-2"
 
 [files]
 "@source:COPYING"      = "usr/share/licenses/org.tukaani.xz-common/COPYING"

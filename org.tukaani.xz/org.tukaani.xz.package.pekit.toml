@@ -4,15 +4,15 @@ description = "XZ-format compression and decompression tools"
 license     = "0BSD"
 
 [provides]
-xz = "{{version}}-1"
+xz = "{{version}}-2"
 
 [replaces]
 xz = "<= {{version}}-1"
 
 [dependencies]
 glibc                    = ">= 2.43"
-"org.tukaani.xz-common" = "{{version}}-1"
-"org.tukaani.xz-libs"   = "{{version}}-1"
+"org.tukaani.xz-common" = "{{version}}-2"
+"org.tukaani.xz-libs"   = "{{version}}-2"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz/COPYING.0BSD"

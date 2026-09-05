@@ -4,7 +4,7 @@ description = "XZ Utils command and liblzma debug sources"
 license     = "0BSD"
 
 [dependencies]
-"org.tukaani.xz-debuginfo" = "{{version}}-1"
+"org.tukaani.xz-debuginfo" = "{{version}}-2"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-debugsource/COPYING.0BSD"

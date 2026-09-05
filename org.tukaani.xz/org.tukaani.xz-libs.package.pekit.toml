@@ -4,7 +4,7 @@ description = "XZ Utils liblzma compression runtime library"
 license     = "0BSD"
 
 [provides]
-liblzma = "{{version}}-1"
+liblzma = "{{version}}-2"
 
 [replaces]
 liblzma = "<= {{version}}-1"
