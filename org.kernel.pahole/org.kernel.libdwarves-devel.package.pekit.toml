@@ -1,0 +1,17 @@
+[package]
+name        = "org.kernel.libdwarves-devel"
+description = "libdwarves headers and shared-library development links"
+
+[provides]
+"libdwarves-devel" = "{{version}}"
+
+[dependencies]
+"org.kernel.libdwarves"         = "{{version}}-1"
+"org.sourceware.elfutils-devel" = ">= 0.196"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.libdwarves-devel/"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/libdwarves.so"            = "usr/lib/x86_64-linux-peios/libdwarves.so"
+":usr/lib/x86_64-linux-peios/libdwarves_emit.so"       = "usr/lib/x86_64-linux-peios/libdwarves_emit.so"
+":usr/lib/x86_64-linux-peios/libdwarves_reorganize.so" = "usr/lib/x86_64-linux-peios/libdwarves_reorganize.so"

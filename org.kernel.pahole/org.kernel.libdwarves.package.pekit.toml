@@ -1,0 +1,18 @@
+[package]
+name        = "org.kernel.libdwarves"
+description = "DWARF and BTF processing runtime libraries"
+
+[provides]
+libdwarves = "{{version}}"
+
+[dependencies]
+glibc                            = ">= 2.43"
+"org.sourceware.elfutils-libs"  = ">= 0.196"
+zlib                             = ">= 2.3.3"
+
+[files]
+"@source:COPYING"                     = "usr/share/licenses/org.kernel.libdwarves/"
+"@source:lib/bpf/LICENSE"              = "usr/share/licenses/org.kernel.libdwarves/libbpf/"
+"@source:lib/bpf/LICENSE.BSD-2-Clause" = "usr/share/licenses/org.kernel.libdwarves/libbpf/"
+"@source:lib/bpf/LICENSE.LGPL-2.1"      = "usr/share/licenses/org.kernel.libdwarves/libbpf/"
+":usr/lib/x86_64-linux-peios/libdwarves*.so.1*" = "usr/lib/x86_64-linux-peios"

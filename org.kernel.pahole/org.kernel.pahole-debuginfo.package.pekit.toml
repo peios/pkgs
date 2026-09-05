@@ -1,0 +1,11 @@
+[package]
+name        = "org.kernel.pahole-debuginfo"
+description = "pahole and libdwarves debugging symbols"
+
+[dependencies]
+"org.kernel.pahole"     = "{{version}}-1"
+"org.kernel.libdwarves" = "{{version}}-1"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.kernel.pahole-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

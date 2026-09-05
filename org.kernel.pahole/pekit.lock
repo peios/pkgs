@@ -8,4 +8,5 @@ schema = 1
   version = "1.31"
   url = "https://fedorapeople.org/~acme/dwarves/dwarves-1.31.tar.xz"
   sha256 = "0a7f255ccacf8cc7f8cd119099eb327179b4b3c67cb015af646af6d0cb03054d"
-  locked_at = "2026-08-11T09:00:42Z"
+  signature_key = "2dbf5baa46fb4ded338a335bd65016f35352aa40"
+  locked_at = "2026-09-05T05:27:46Z"

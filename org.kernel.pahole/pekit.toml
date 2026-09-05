@@ -1,0 +1,218 @@
+# pahole (dwarves) — the DWARF/BTF tooling used by Linux builds to encode
+# CONFIG_DEBUG_INFO_BTF. Release tarballs deliberately vendor libbpf; the
+# kernel BPF documentation says to use these tarballs rather than generated
+# source archives because the latter omit the submodule content.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://fedorapeople.org/~acme/dwarves/dwarves-{{version}}.tar.xz"
+listing_url = "https://fedorapeople.org/~acme/dwarves/"
+extract     = true
+root        = "dwarves-{{version}}"
+file_regex  = 'dwarves-[0-9]+(?:\.[0-9]+)*\.tar\.xz'
+# Soft maintenance bounds. Automatically follow authenticated 1.x releases;
+# 2.x is a deliberate review point for the public libdwarves ABI and package
+# split, not a claim that an upstream 2.x release would be incompatible.
+versions    = ">= 1.31, < 2"
+
+# Arnaldo Carvalho de Melo signs the decompressed release tar. The primary key
+# is obtained from kernel.org WKD; 1.31 is signed by its Ed25519 signing subkey
+# 761A221472D74E7D7DAA1E11B23CA2E9A4227E27.
+[source.url.signature]
+key_files    = ["keys/acme.asc"]
+url          = "https://fedorapeople.org/~acme/dwarves/dwarves-{{version}}.tar.sign"
+fingerprints = ["2DBF5BAA46FB4DED338A335BD65016F35352AA40"]
+of           = "decompressed"
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+
+cmake -S "$SRC" -B "$BUILD" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE \
+  -DGIT_SUBMODULE=OFF \
+  -DLIBBPF_EMBEDDED=ON \
+  -DLIB_INSTALL_DIR="$LIBDIR"
+cmake --build "$BUILD" --parallel "$(nproc)"
+DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+
+# Ostra is an old optional Python experiment and is not part of the maintained
+# Fedora/Debian interface. Disabling Python above makes this deterministic.
+rm -f "$PEKIT_OUT/usr/bin/ostra-cg"
+rm -rf "$PEKIT_OUT/usr/share/dwarves/runtime/python"
+
+# Assert the complete installed suite. Keep the two upstream shell utilities
+# and their runtime material; their interpreters/tools are explicit runtime
+# dependencies of org.kernel.pahole rather than hidden assumptions.
+BIN="$PEKIT_OUT/usr/bin"
+find "$BIN" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/.installed-tools"
+printf '%s\n' \
+  btfdiff codiff ctracer dtagnames fullcircle pahole pdwtags pfunct pglobal \
+  prefcnt scncopy syscse | LC_ALL=C sort > "$PEKIT_OUT/.expected-tools"
+diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
+while IFS= read -r tool; do
+  test -x "$BIN/$tool"
+done < "$PEKIT_OUT/.expected-tools"
+
+test -f "$PEKIT_OUT/usr/share/man/man1/pahole.1"
+test -f "$PEKIT_OUT/usr/share/dwarves/runtime/Makefile"
+test -f "$PEKIT_OUT/usr/share/dwarves/runtime/ctracer_relay.c"
+
+# libdwarves is a public ABI in both Fedora and Debian. Require all three
+# SONAME-1 libraries, development links and the published header set.
+for library in libdwarves libdwarves_emit libdwarves_reorganize; do
+  real="$STAGED_LIBDIR/$library.so.1.0.0"
+  test -f "$real"
+  test -L "$STAGED_LIBDIR/$library.so.1"
+  test -L "$STAGED_LIBDIR/$library.so"
+  test "$(readlink "$STAGED_LIBDIR/$library.so.1")" = "$library.so.1.0.0"
+  test "$(readlink "$STAGED_LIBDIR/$library.so")" = "$library.so.1"
+  readelf -d "$real" | grep -F "Library soname: [$library.so.1]"
+done
+test "$(find "$PEKIT_OUT/usr/include/dwarves" -maxdepth 1 -type f | wc -l)" -eq 14
+if find "$STAGED_LIBDIR" -maxdepth 1 -name 'libdwarves*.a' | grep -q .; then
+  exit 1
+fi
+
+# Exercise the installed executable against real DWARF, then encode and read
+# BTF. This is the package's kernel-facing contract, not merely a --version
+# smoke test.
+SMOKE="$PEKIT_OUT/.pahole-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/layout.c" <<'EOF'
+struct pekit_layout {
+  char lead;
+  unsigned long value;
+  unsigned short tail;
+};
+
+volatile struct pekit_layout pekit_layout_instance;
+
+int main(void)
+{
+  return pekit_layout_instance.lead;
+}
+EOF
+cc -g -O2 "$SMOKE/layout.c" -o "$SMOKE/layout"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" --version 2>&1 | \
+  grep -F "v$PEKIT_VERSION"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -C pekit_layout \
+  "$SMOKE/layout" > "$SMOKE/dwarf-layout"
+grep -F 'struct pekit_layout {' "$SMOKE/dwarf-layout"
+grep -F 'value;' "$SMOKE/dwarf-layout"
+
+cp "$SMOKE/layout" "$SMOKE/layout-btf"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -J "$SMOKE/layout-btf"
+readelf -W -S "$SMOKE/layout-btf" | grep -F '.BTF'
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -F btf -C pekit_layout \
+  "$SMOKE/layout-btf" > "$SMOKE/btf-layout"
+grep -F 'struct pekit_layout {' "$SMOKE/btf-layout"
+grep -F 'value;' "$SMOKE/btf-layout"
+
+# Compile and run a consumer through the installed public headers and shared
+# development links. A header payload that cannot build is not a devel ABI.
+cat > "$SMOKE/libdwarves.c" <<'EOF'
+#include <dwarves/dwarves.h>
+
+int main(void)
+{
+  if (dwarves__init() != 0)
+    return 1;
+  dwarves__exit();
+  return 0;
+}
+EOF
+# The public headers intentionally use the Linux-style GNU typeof extension.
+cc -std=gnu17 -Wall -Wextra -Werror "$SMOKE/libdwarves.c" \
+  -I"$PEKIT_OUT/usr/include" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -ldwarves -ldw -lelf -lz \
+  -o "$SMOKE/libdwarves"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libdwarves"
+
+# Produce conventional build-ID-indexed debuginfo and exact debug sources.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r file; do
+  readelf -h "$file" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$file"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.pahole \
+    -l "$PEKIT_OUT/.debug-list" -n "$file"
+  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+  test -n "$build_id"
+  prefix=$(printf %s "$build_id" | cut -c1-2)
+  suffix=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$prefix"
+  objcopy --only-keep-debug "$file" \
+    "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
+  strip "$file"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
+  while IFS= read -r source; do
+    test -n "$source" || continue
+    case "$source" in */) continue;; esac
+    test -f "$ROOT/$source" || continue
+    mkdir -p "usr/src/debug/org.kernel.pahole/$(dirname "$source")"
+    cp "$ROOT/$source" "usr/src/debug/org.kernel.pahole/$source"
+  done
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 13
+test -n "$(find usr/src/debug/org.kernel.pahole -type f -print -quit)"
+
+# Assert inherited Peios hardening on every shipped ELF: ten compiled tools and
+# three libraries. Shell programs are naturally excluded by readelf.
+: > "$PEKIT_OUT/.elf-list"
+find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort | \
+  while IFS= read -r file; do
+  readelf -h "$file" >/dev/null 2>&1 || continue
+  printf '%s\n' "$file" >> "$PEKIT_OUT/.elf-list"
+  readelf -h "$file" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$file" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$file" | grep -F 'GNU_RELRO'
+  readelf -d "$file" | grep -F 'BIND_NOW'
+  readelf -d "$file" | grep -F 'RELR'
+  if cc --version | head -1 | grep -Fq 'Peios'; then
+    readelf -n "$file" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$file" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+test "$(wc -l < "$PEKIT_OUT/.elf-list")" -eq 13
+
+rm -rf "$SMOKE" "$BUILD"
+rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.elf-list" \
+  "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools" \
+  "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c                 = "*"
+"org.cmake.cmake"                 = "*"
+"org.sourceware.elfutils-devel"   = "*"
+"zlib-devel"                      = "*"
+"org.gnu.bash"                    = "*"
+llvm                              = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake            = "*"
+libdw-dev        = "*"
+zlib1g-dev       = "*"
+llvm             = "*"
+bash             = "*"
+binutils         = "*"
+coreutils        = "*"
+diffutils        = "*"
+grep             = "*"
+sed              = "*"
+debugedit        = "*"
+patchelf         = "*"

@@ -1,0 +1,12 @@
+# Shared metadata for the pahole tool and public libdwarves package family.
+# The bundled libbpf is dual-licensed; selecting its permissive branches keeps
+# the effective linked work compatible with pahole's GPL-2.0-only code.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-only AND GPL-2.0-or-later AND (LGPL-2.1-only OR BSD-2-Clause) AND ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause)"
+license_class = "free"
+homepage      = "https://git.kernel.org/pub/scm/devel/pahole/pahole.git"
