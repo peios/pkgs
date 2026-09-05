@@ -1,6 +1,7 @@
-# netbase — the standard protocol, service, RPC and Ethernet type databases
-# consumed by libc and networking tools. Peios stores vendor configuration in
-# /usr/etc; StrataFS presents it through the conventional /etc view.
+# netbase — the standard protocol, service and Ethernet type databases consumed
+# by libc and networking tools. Peios stores vendor configuration in /usr/etc;
+# StrataFS presents it through the conventional /etc view. The RPC database is
+# already shipped by glibc and deliberately remains owned there.
 
 out_dir = "out"
 
@@ -23,7 +24,7 @@ SRC="$PEKIT_SOURCE_ROOT"
 DEST="$PEKIT_OUT/usr/etc"
 
 mkdir -p "$DEST"
-for name in ethertypes protocols rpc services; do
+for name in ethertypes protocols services; do
   test -s "$SRC/etc/$name"
   install -m 0644 "$SRC/etc/$name" "$DEST/$name"
 done
@@ -44,7 +45,6 @@ awk '$1 == "tcp" && $2 == 6 { found = 1 } END { exit !found }' "$DEST/protocols"
 awk '$1 == "udp" && $2 == 17 { found = 1 } END { exit !found }' "$DEST/protocols"
 awk '$1 == "domain" && $2 == "53/tcp" { found = 1 } END { exit !found }' "$DEST/services"
 awk '$1 == "domain" && $2 == "53/udp" { found = 1 } END { exit !found }' "$DEST/services"
-awk '$1 == "portmapper" && $2 == 100000 { found = 1 } END { exit !found }' "$DEST/rpc"
 awk '$1 == "IPv4" && $2 == "0800" { found = 1 } END { exit !found }' "$DEST/ethertypes"
 """
 

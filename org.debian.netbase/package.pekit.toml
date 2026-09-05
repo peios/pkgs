@@ -2,9 +2,9 @@ format = "peipkg"
 
 [package]
 name          = "org.debian.netbase"
-version       = "{{version}}-1"
+version       = "{{version}}-2"
 architecture  = "noarch"
-description   = "Standard network protocol and service databases"
+description   = "Standard network protocol, service and Ethernet type databases"
 license       = "GPL-2.0-only"
 license_class = "free"
 homepage      = "https://salsa.debian.org/md/netbase"
