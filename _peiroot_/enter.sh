@@ -82,11 +82,18 @@ for tier in usr/etc system/retc lcl/etc; do
   cp -a "$work/root/$tier/." "$work/root/etc/"
 done
 
+# The new namespace has no route or external interface, but Linux leaves its
+# loopback device down. Give the namespace-local root just enough authority to
+# initialise and exercise that private network. Compiler-bearing build roots
+# build the tiny helper in /tmp before the target runs; roots without a compiler
+# keep the previous no-network-device behaviour.
 status=0
 bwrap \
   --die-with-parent \
   --unshare-all \
   --uid 0 --gid 0 \
+  --cap-add CAP_NET_ADMIN \
+  --cap-add CAP_NET_RAW \
   --bind "$work/root" / \
   --dev /dev \
   --proc /proc \
@@ -97,5 +104,11 @@ bwrap \
   --setenv PATH /usr/bin \
   --setenv HOME /tmp \
   --setenv FORCE_UNSAFE_CONFIGURE 1 \
-  /usr/bin/sh -euc "$script" || status=$?
+  /usr/bin/sh -euc '
+if command -v cc >/dev/null 2>&1; then
+  cc -O2 -Wall -Werror -o /tmp/peiroot-loopback "$1"
+  /tmp/peiroot-loopback
+fi
+exec /usr/bin/sh -euc "$2"
+' peiroot "$PEKIT_WORKSPACE_ROOT/_peiroot_/loopback-up.c" "$script" || status=$?
 exit $status
