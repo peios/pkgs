@@ -1,0 +1,22 @@
+# libatomic-devel — the link-time .so symlink + as-needed link script for
+# building against libatomic (-latomic). The static archive is libatomic-static.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libatomic-devel"
+description = "GCC atomic operations runtime development files"
+
+[provides]
+"libatomic-devel" = "{{version}}-2"
+
+[replaces]
+"libatomic-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.gcc-libatomic" = "{{version}}-2"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libatomic-devel/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libatomic-devel/COPYING.RUNTIME"
+":usr/lib/x86_64-linux-peios/libatomic.so"          = "usr/lib/x86_64-linux-peios/libatomic.so"
+":usr/lib/x86_64-linux-peios/libatomic_asneeded.so" = "usr/lib/x86_64-linux-peios/libatomic_asneeded.so"

@@ -1,0 +1,31 @@
+# libgcc — GCC's low-level runtime support library (libgcc_s.so.1): the stack
+# unwinder (_Unwind_*, used by C++ exceptions, pthread_cancel, cleanup handlers)
+# and the soft-arithmetic helpers. The most fundamental compiler runtime — even
+# glibc depends on it, which is why the family debuginfo attaches here. The dev
+# .so symlink, static libgcc.a, and crt startup objects are compiler-internal
+# (milestone 2), not here.
+#
+# ":" = the default "main:" build. An exact-file source maps to a FULL path.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libgcc"
+description = "GCC low-level runtime library (libgcc_s.so.1)"
+
+[provides]
+libgcc = "{{version}}-2"
+
+[replaces]
+libgcc = "<= {{version}}-1"
+
+[dependencies]
+# Floor = the glibc we build & test against (Peios ships only 2.43); >= so a
+# future glibc still satisfies it (glibc is backward-compatible).
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libgcc/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libgcc/COPYING.RUNTIME"
+# The real SONAME object (libgcc_s has no further-versioned file). The libgcc_s.so
+# dev symlink is left for the milestone-2 toolchain.
+":usr/lib/x86_64-linux-peios/libgcc_s.so.1" = "usr/lib/x86_64-linux-peios/libgcc_s.so.1"

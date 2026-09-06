@@ -1,0 +1,25 @@
+# libgomp-devel — the link-time .so symlink for building against libgomp
+# (-fopenmp). The libgomp.spec driver fragment ships in gcc; the static archive
+# is libgomp-static.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libgomp-devel"
+description = "GCC OpenMP runtime development files"
+
+[provides]
+"libgomp-devel" = "{{version}}-2"
+
+[replaces]
+"libgomp-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.gcc-libgomp" = "{{version}}-2"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libgomp-devel/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libgomp-devel/COPYING.RUNTIME"
+":usr/lib/x86_64-linux-peios/libgomp.so" = "usr/lib/x86_64-linux-peios/libgomp.so"
+":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/omp.h" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/omp.h"
+":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/openacc.h" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/openacc.h"
+":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/acc_prof.h" = "usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/acc_prof.h"

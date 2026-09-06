@@ -1,0 +1,934 @@
+# gcc — the GCC compiler for Peios (milestone 3: the native self-build).
+#
+# Built NATIVELY on the rung-2 peipkg root (PEI-126/PEI-155 closure):
+# build=host=target=x86_64-linux-peios, compiled by the shipped Peios gcc
+# (itself born of the milestone-2 Canadian cross, preserved in _cross/ for
+# re-bootstrap). Full 3-stage bootstrap: the new gcc compiles itself twice
+# and the build compares stage2 vs stage3 object files — a built-in
+# determinism check on the whole toolchain.
+#
+# --enable-linker-build-id: the native compiler emits GNU build-ids by
+# default (the Debian/Fedora default), so debug-split pipelines downstream
+# no longer need per-recipe LDFLAGS=-Wl,--build-id.
+#
+# --enable-default-pie / --enable-default-ssp (PEI-159): the two hardening
+# features Peios compiles INTO the compiler rather than passing per build, as
+# Fedora, Debian and Arch all do. The workspace flag set reaches any build
+# system that honours CFLAGS; these reach the ones that don't (bzip2 sets its
+# own CFLAGS, xxhash uses make's built-ins). After this, bare `gcc foo.c`
+# produces a PIE binary with stack-protector-strong, and a package must pass
+# -no-pie / -fno-stack-protector explicitly to opt out.
+#
+# It ships the COMPILER (gcc, g++, cpp, cc1, cc1plus, crt*.o, libgcc.a, fixed
+# headers, specs) AND the runtime libs (libgcc_s/libstdc++/libatomic/libgomp/
+# libquadmath) built by the same toolchain — see the <name>.package.pekit.toml
+# split.
+#
+#   pekit package --all --env peipkg --version 16.2.0
+out_dir = "out"
+
+# Peios's three GCC patches — the OS-identity work that used to be in-recipe
+# `sed` calls, plus the LTO fix. See patches/series.
+[source]
+patches = "patches"
+
+# Build flags: GCC consumes the workspace CFLAGS, but not where it matters.
+#
+# The bootstrap compiles GCC three times — stage1 by the already-installed
+# compiler, stage2 by stage1, stage3 by stage2 — then byte-compares stages 2
+# and 3 to prove the toolchain is a fixed point. Stage3 is what gets installed.
+# Stage1's compiler is an unknown quantity and may not accept our flags, while
+# stages 2 and 3 must use identical flags or the comparison means nothing, so
+# GCC keeps the two on separate knobs:
+#
+#   CFLAGS            -> build-side tools and stage1. Thrown away.
+#   BOOT_CFLAGS       -> stages 2 and 3: the compiler we actually ship.
+#                        Defaults to "-g -O2" and does NOT inherit CFLAGS.
+#   CPPFLAGS_FOR_TARGET / CFLAGS_FOR_TARGET / CXXFLAGS_FOR_TARGET -> target
+#                        runtime libraries (libgcc, libstdc++, libatomic),
+#                        which do ship. CPPFLAGS is separate because some
+#                        libstdc++ configure probes deliberately replace
+#                        CXXFLAGS rather than extending it.
+#
+# Left alone, the workspace set therefore takes all of the breakage (it is what
+# failed build-libcpp under -Werror=format-security) and delivers none of the
+# hardening. BOOT_CFLAGS is what carries it to the shipped binaries.
+#
+# Two flags are also filtered out, matching Fedora's gcc.spec (which does the
+# same removals against %{optflags}):
+#
+#   -Werror=format-security -> -Wformat-security. GCC's own libcpp calls its
+#       diagnostic helpers with non-literal format strings, so the error form
+#       cannot build GCC at all (Fedora additionally carries
+#       gcc16-Wno-format-security.patch). Downgraded, not dropped.
+#   -Wp,-D_FORTIFY_SOURCE=3 removed. Fedora strips every _FORTIFY_SOURCE form
+#       before building GCC; the compiler's own sources are not built against
+#       the fortified glibc headers.
+#
+# CXXFLAGS additionally drops -Wall and -fexceptions, per Fedora gcc.spec.
+[env]
+CFLAGS = "-O2 -g -fexceptions -Wall -Wformat -Wformat-security -fstack-clash-protection -fcf-protection=full -grecord-gcc-switches"
+CXXFLAGS = "-O2 -g -Wformat -Wformat-security -fstack-clash-protection -fcf-protection=full -grecord-gcc-switches"
+
+[source.url]
+# GCC publishes release archives and detached signatures on GNU's canonical
+# mirror network. Enumerate version directories from the parent index so a new
+# 16.x point release is selected without recipe maintenance.
+url         = "https://ftp.gnu.org/gnu/gcc/gcc-{{version}}/gcc-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gcc/"
+extract     = true
+root        = "gcc-{{version}}"
+file_regex  = 'gcc-[0-9]+\.[0-9]+\.[0-9]+/'
+# Soft maintenance floor. Follow authenticated GCC 16 point releases
+# automatically, but stop at GCC 17 for an ABI/bootstrap and patch review.
+versions    = ">= 16, < 17"
+
+# GCC's official mirror page identifies both active release signers. The
+# bundled minimal keys were extracted from GNU's canonical gnu-keyring.gpg
+# rather than a public keyserver. GCC 16.1 was signed by Jakub Jelinek; GCC
+# 16.2 was signed by Richard Guenther's documented 7F74...A641 signing subkey.
+# Pekit records and pins that subkey's owning primary-key fingerprint below.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/jakub-jelinek.asc", "keys/richard-guenther.asc"]
+fingerprints = [
+  "D3A93CAD751C2AF4F8C7AD516C35B99309B5FA62",
+  "13975A70E63C361C73AE69EF6EEB81F8981C74C7",
+]
+
+# Out-of-source build (GCC refuses to build in its own tree). Layout per PSD-009
+# §3.4: usrmerge + ALL arch files under /usr/lib/<triplet>.
+#   --libdir=$LIBDIR          : puts gcc's internal tree at $LIBDIR/gcc/<t>/<v>/
+#       (crt*.o, libgcc.a, the runtime .so/.a/.spec, fixed headers).
+#   --libexecdir=$LIBDIR      : §3.4 has no /usr/libexec; this lands cc1/cc1plus/
+#       collect2/lto1 in $LIBDIR/gcc/<t>/<v>/ too (the driver still finds them).
+#   --with-slibdir=$LIBDIR    : libgcc_s.so.1/libstdc++.so.6 into the triplet dir
+#       (they otherwise go to the multilib os-dir ../lib64).
+#   --disable-multilib        : 64-bit only.
+#   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in. Ada and
+#       D are the time-sensitive omissions — both compilers are written in their
+#       own language, so they can only be bootstrapped while the Debian rung
+#       still exists to supply gnat/gdc. Deferred deliberately, not by accident.
+#   --disable-libsanitizer    : asan/ubsan/tsan deferred (large, dev-tooling).
+#   --disable-libssp          : dead weight on glibc, which provides
+#       __stack_chk_fail itself — our canaries already resolve there, so libssp
+#       was built and then dropped unpackaged. Fedora disables it for the same
+#       reason.
+#   --enable-__cxa_atexit     : correct C++ static-dtor ordering (distro default).
+#   --with-system-zlib        : link the root's libz, not the bundled copy.
+#
+# Hardening the COMPILER ITSELF, not just what it emits (PEI-159). gcc and cc1
+# were EXEC with no BIND_NOW — the least hardened binaries on the system, while
+# everything they produced was PIE + BIND_NOW + CET:
+#   --enable-host-pie --enable-host-bind-now : the shipped gcc/cc1/cc1plus get
+#       the same PIE + full RELRO the distro flag set gives everything else.
+#       Fedora enables both for RHEL.
+#   --enable-cet              : Intel CET (IBT + shadow stack) in gcc's own
+#       runtime libraries, matching -fcf-protection=full in the flag set.
+#       The linker is put in fail-closed cet-report=error mode below: unlike
+#       -z ibt/-z shstk, this does not force a property note onto incompatible
+#       output, and rejects any unmarked input instead.
+#   --with-tls=gnu2           : TLS descriptors — cheaper dynamic TLS than the
+#       traditional model.
+#   --with-linker-hash-style=gnu : .gnu.hash only, no legacy .hash (binutils is
+#       already configured this way; this makes gcc agree).
+#   --enable-initfini-array   : .init_array/.fini_array rather than the legacy
+#       .ctors/.dtors sections.
+#   --enable-gnu-unique-object : STB_GNU_UNIQUE for C++ template statics, so
+#       dlopen/dlclose cycles don't duplicate them.
+#   --enable-checking=release : explicit rather than inherited. GCC picks
+#       `release` only because gcc/DEV-PHASE is empty on a release tag; build a
+#       snapshot and the default silently becomes the far slower `yes`.
+#
+# Baseline ISA (PEI-159). --with-arch sets the oldest CPU Peios runs on;
+# --with-tune only biases scheduling and restricts nothing.
+#   x86-64-v2 (~2009 Nehalem/Bulldozer) buys SSE4.2, POPCNT and — the one that
+#   earns it on its own — CMPXCHG16B. Without that instruction a 16-byte atomic
+#   cannot be done inline at all: gcc emits a call into libatomic, which falls
+#   back to a global lock table. v3 (AVX2, 2013+) was rejected because Intel's
+#   budget N-series had no AVX2 until 2023, and locking those out of a new OS
+#   for a modest win is a poor trade. Note the hot paths dispatch at runtime
+#   anyway (zlib-ng, gmp --enable-fat, glibc ifuncs), so the baseline mostly
+#   governs undispatched code. RAISING this later breaks installed systems;
+#   lowering does not.
+#
+# Identity:
+#   --with-pkgversion: `gcc --version` says which distro built it, and
+#       __VERSION__ carries that into every binary compiled — so "was this
+#       built by Peios's gcc?" is answerable. Do not advertise a distribution
+#       bug URL until one actually exists.
+#   --with-gcc-major-version-only : internal paths become .../gcc/<triplet>/16/
+#       instead of .../16.1.0/, so they survive point releases and the [files]
+#       globs stop churning ({{major}}, not {{version}}).
+#   bignums: native default search finds gmp/mpfr/mpc/isl in the root
+#       (/usr/include + $LIBDIR via the -devel packages) — no --with-* paths.
+[build.main]
+command = """
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+
+for tool in flex bison debugedit patchelf file; do
+  command -v "$tool" >/dev/null || { echo "missing required gcc build tool: $tool" >&2; exit 1; }
+done
+# Probe through the compiler so both Peios's unified /usr/include layout and a
+# reference distro's multiarch include directory are handled correctly.
+printf '#include <gmp.h>\n' | cc -E -x c - >/dev/null 2>&1 || {
+  echo "gcc: build root cannot preprocess gmp.h — gmp-devel not composed" >&2
+  exit 1
+}
+
+# A reference Debian host stores glibc's bits/ headers and crt objects below
+# its own GNU multiarch directories. Stage 1 is already a Peios-target compiler,
+# so it quite correctly searches the Peios locations and otherwise cannot
+# bootstrap its target runtimes on Debian. Add the host directories only when
+# they exist and differ from the Peios target; a native Peios composition
+# therefore keeps its canonical /usr/include and triplet-lib searches unchanged.
+TARGET_SYSINC=
+DEJAGNU_TOOL_OPT=
+unset LIBRARY_PATH
+if HOST_MULTIARCH=$(cc -print-multiarch 2>/dev/null); then
+  :
+else
+  HOST_MULTIARCH=
+fi
+if [ -n "$HOST_MULTIARCH" ] && [ "$HOST_MULTIARCH" != "$TRIPLET" ] && \
+   [ -d "/usr/include/$HOST_MULTIARCH" ]; then
+  TARGET_SYSINC="-isystem /usr/include/$HOST_MULTIARCH"
+  # Joined spelling is one argv element, which makes it safe to forward via
+  # DejaGNU's --tool_opts without relying on nested shell quoting.
+  DEJAGNU_TOOL_OPT="--tool_opts=-isystem/usr/include/$HOST_MULTIARCH"
+  if [ -f "/usr/lib/$HOST_MULTIARCH/crti.o" ]; then
+    export LIBRARY_PATH="/usr/lib/$HOST_MULTIARCH"
+  fi
+fi
+
+# This recipe's dir is PEKIT_OUT up to "/out/" (for the config.sub script).
+GCC_DIR="${PEKIT_OUT%%/out/*}"
+
+# Defensive: exported tool vars would override configure's tool detection.
+unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE \
+      CC_FOR_TARGET CXX_FOR_TARGET GCC_FOR_TARGET CPP_FOR_TARGET GCJ_FOR_TARGET \
+      AS_FOR_TARGET LD_FOR_TARGET AR_FOR_TARGET RANLIB_FOR_TARGET NM_FOR_TARGET \
+      STRIP_FOR_TARGET OBJCOPY_FOR_TARGET OBJDUMP_FOR_TARGET READELF_FOR_TARGET
+
+# Memory-bounded parallelism: GCC's heaviest C++ TUs (insn-recog, gimple-match)
+# hit ~1-2 GB each. Use currently available memory rather than physical total,
+# reserve 6 GiB for the compositor/other builds, and cap at four jobs so a
+# package refresh cannot push a normal 32 GiB maintainer host into OOM.
+JOBS=$(nproc)
+AVAILABLE_KIB=$(awk '/MemAvailable/{print $2}' /proc/meminfo)
+if [ "$AVAILABLE_KIB" -gt 6000000 ]; then
+  MEMJOBS=$(( (AVAILABLE_KIB - 6000000) / 2000000 ))
+else
+  MEMJOBS=1
+fi
+[ "$MEMJOBS" -lt "$JOBS" ] && JOBS=$MEMJOBS
+[ "$JOBS" -gt 4 ] && JOBS=4
+[ "$JOBS" -lt 1 ] && JOBS=1
+
+# config.sub learns peios. Not in patches/ with the rest: config.sub ships in
+# several vintages across the toolchain and the script detects which, asserting
+# each edit landed. Everything else moved to patches/ (pekit's resolve resets
+# the tree, so a patch series re-applies cleanly on every run).
+sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
+
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+"$SRC/configure" \
+  --build="$TRIPLET" --host="$TRIPLET" --target="$TRIPLET" \
+  --prefix=/usr --libdir="$LIBDIR" --libexecdir="$LIBDIR" --with-slibdir="$LIBDIR" \
+  --disable-multilib --enable-languages=c,c++ \
+  --enable-shared --enable-threads=posix --enable-__cxa_atexit \
+  --enable-linker-build-id \
+  --enable-default-pie --enable-default-ssp \
+  --enable-host-pie --enable-host-bind-now \
+  --enable-cet --with-tls=gnu2 \
+  --with-arch=x86-64-v2 --with-tune=generic \
+  --with-linker-hash-style=gnu --enable-initfini-array \
+  --enable-gnu-unique-object --enable-checking=release \
+  --with-gcc-major-version-only \
+  --with-pkgversion="Peios $PEKIT_VERSION" \
+  --disable-libsanitizer --disable-libssp --disable-werror \
+  --with-system-zlib \
+  LDFLAGS="$LDFLAGS -Wl,-z,cet-report=error" \
+  CPPFLAGS_FOR_TARGET="$TARGET_SYSINC" \
+  CFLAGS_FOR_TARGET="$CFLAGS $TARGET_SYSINC" \
+  CXXFLAGS_FOR_TARGET="$CXXFLAGS $TARGET_SYSINC" \
+  LDFLAGS_FOR_TARGET="$LDFLAGS -Wl,-z,cet-report=error"
+# BOOT_CFLAGS and BOOT_LDFLAGS carry the hardening into stages 2/3 — see the
+# [env] note above. Pass them on the make line because that is where GCC reads
+# them, as Fedora's gcc.spec does. In particular, configure's LDFLAGS only
+# reaches stage 1; leaving BOOT_LDFLAGS empty silently drops RELR/build IDs and
+# the CET compatibility report
+# from the stage-3 compiler that is installed. GCC's top-level configure
+# persists CFLAGS_FOR_TARGET and CXXFLAGS_FOR_TARGET, but not
+# CPPFLAGS_FOR_TARGET; repeat that make variable explicitly so every
+# target-library configure probe receives the sysinclude.
+make -j"$JOBS" \
+  BOOT_CFLAGS="$CFLAGS $TARGET_SYSINC" \
+  BOOT_LDFLAGS="$LDFLAGS -Wl,-z,cet-report=error" \
+  CPPFLAGS_FOR_TARGET="$TARGET_SYSINC"
+
+# GCC's own DejaGNU suites are the regression gate on reference builders.
+# Peios does not yet package DejaGNU/Expect, so the native composition records
+# that explicit infrastructure exception and relies on the identical locked
+# source/patch set plus the staged native consumers below. A reference build
+# must never silently skip the suites: its dependency set includes runtest.
+if command -v runtest >/dev/null 2>&1; then
+  check_dejagnu_sum() {
+    label=$1
+    sum=$2
+    test -s "$sum"
+    awk '/^# of expected passes/{if ($NF + 0 > 0) found=1} END{exit !found}' "$sum"
+    # KPASS means a known failure unexpectedly passed and needs its expectation
+    # reviewed; UNTESTED/WARNING indicate incomplete test infrastructure. Treat
+    # both as release blockers alongside DejaGNU's ordinary unexpected states.
+    if grep -Eq '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS|UNTESTED|WARNING):' "$sum"; then
+      echo "gcc: unexpected DejaGNU result in $label ($sum)" >&2
+      grep -E '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS|UNTESTED|WARNING):' "$sum" >&2
+      exit 1
+    fi
+    awk -v label="$label" \
+      '/^# of (expected failures|known failures|unsupported tests)/ { print "gcc: " label ": " $0 }' "$sum"
+  }
+
+  rm -rf gcc/testsuite/gcc gcc/testsuite/g++
+  # Rebuild the master site.exp with the reference builder's computed
+  # multiarch include root. GCC's testsuite maps SYSROOT_CFLAGS_FOR_TARGET to
+  # TEST_ALWAYS_FLAGS, so both front ends see the same target headers used by
+  # the bootstrap without baking a Debian triplet into the recipe.
+  rm -f gcc/site.exp
+  make -C gcc check-gcc SYSROOT_CFLAGS_FOR_TARGET="$TARGET_SYSINC" \
+    RUNTESTFLAGS="--target_board=unix gcc.dg/torture/dg-torture.exp"
+  check_dejagnu_sum "gcc dg-torture" gcc/testsuite/gcc/gcc.sum
+  make -C gcc check-g++ SYSROOT_CFLAGS_FOR_TARGET="$TARGET_SYSINC" \
+    RUNTESTFLAGS="--target_board=unix g++.dg/torture/dg-torture.exp"
+  check_dejagnu_sum "g++ dg-torture" gcc/testsuite/g++/g++.sum
+
+  # dg-torture does not include the older, still-maintained c-torture corpus.
+  # Run both its compile-only and execution sets: these exercise optimizer
+  # levels, code generation, the assembler/linker path, and libgcc together.
+  rm -rf gcc/testsuite/gcc
+  make -C gcc check-gcc SYSROOT_CFLAGS_FOR_TARGET="$TARGET_SYSINC" \
+    RUNTESTFLAGS="--target_board=unix gcc.c-torture/compile/compile.exp gcc.c-torture/execute/execute.exp"
+  check_dejagnu_sum "gcc c-torture compile+execute" gcc/testsuite/gcc/gcc.sum
+
+  TARGET_BUILD="$PEKIT_OUT/build/$TRIPLET"
+  RUNTIME_RUNTESTFLAGS="--target_board=unix"
+  if [ -n "$DEJAGNU_TOOL_OPT" ]; then
+    RUNTIME_RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS $DEJAGNU_TOOL_OPT"
+  fi
+
+  # Complete upstream suites for the compact target runtimes.
+  rm -f "$TARGET_BUILD/libatomic/testsuite/libatomic.sum"
+  make -C "$TARGET_BUILD/libatomic" check \
+    RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS libatomic.c/c.exp"
+  check_dejagnu_sum "libatomic C suite" \
+    "$TARGET_BUILD/libatomic/testsuite/libatomic.sum"
+
+  rm -f "$TARGET_BUILD/libitm/testsuite/libitm.sum"
+  make -C "$TARGET_BUILD/libitm" check \
+    RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS libitm.c/c.exp libitm.c++/c++.exp"
+  check_dejagnu_sum "libitm C/C++ suites" \
+    "$TARGET_BUILD/libitm/testsuite/libitm.sum"
+
+  # libgomp's full matrix includes disabled front ends and offload targets.
+  # Run both complete host-language drivers: the C driver and the separate C++
+  # driver each exercise the shared libgomp.c-c++-common corpus in their own
+  # language mode. Those are the production suites relevant to this C/C++-only,
+  # host-runtime package.
+  rm -f "$TARGET_BUILD/libgomp/testsuite/libgomp.sum"
+  make -C "$TARGET_BUILD/libgomp" check \
+    RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS libgomp.c/c.exp libgomp.c++/c++.exp"
+  check_dejagnu_sum "libgomp host C/C++ suites" \
+    "$TARGET_BUILD/libgomp/testsuite/libgomp.sum"
+
+  # A bounded but broad libstdc++ conformance slice: headers, strings, atomics,
+  # and threads. Write the upstream harness's selection file so it still uses
+  # the normal conformance.exp driver and automatically picks up new tests in
+  # these API areas on a point release.
+  LIBSTDCXX_LIST="$TARGET_BUILD/libstdc++-v3/testsuite/testsuite_files"
+  {
+    for area in 17_intro 21_strings/basic_string 29_atomics 30_threads/thread; do
+      find "$SRC/libstdc++-v3/testsuite/$area" -type f \
+        \\( -name '*.cc' -o -name '*.c' \\)
+    done
+  } | sed "s#^$SRC/libstdc++-v3/testsuite/##" | LC_ALL=C sort -u > "$LIBSTDCXX_LIST"
+  test "$(wc -l < "$LIBSTDCXX_LIST")" -ge 400
+  rm -f "$TARGET_BUILD/libstdc++-v3/testsuite/libstdc++.sum"
+  make -C "$TARGET_BUILD/libstdc++-v3" check \
+    RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS conformance.exp"
+  check_dejagnu_sum "libstdc++ conformance subset" \
+    "$TARGET_BUILD/libstdc++-v3/testsuite/libstdc++.sum"
+
+  # The conformance driver does not include the dedicated ABI baseline check.
+  # Upstream deliberately ignores runtest's exit status for check-abi, so use a
+  # fresh summary and pass it through the same strict result parser ourselves.
+  rm -f "$TARGET_BUILD/libstdc++-v3/testsuite/libstdc++.sum"
+  make -C "$TARGET_BUILD/libstdc++-v3/testsuite" check-abi \
+    RUNTESTFLAGS="$RUNTIME_RUNTESTFLAGS"
+  check_dejagnu_sum "libstdc++ ABI baseline" \
+    "$TARGET_BUILD/libstdc++-v3/testsuite/libstdc++.sum"
+
+  # GCC 16 ships no standalone libquadmath/testsuite. Its upstream regression
+  # coverage lives in gcc.dg/torture. The GCC 16 driver does not honour a file
+  # glob after dg-torture.exp, so deliberately retain the complete torture
+  # corpus here as a strict libquadmath-relevant safety superset, in addition
+  # to the linked sqrtq/printf consumer exercised after installation below.
+  rm -rf gcc/testsuite/gcc
+  make -C gcc check-gcc SYSROOT_CFLAGS_FOR_TARGET="$TARGET_SYSINC" \
+    RUNTESTFLAGS="--target_board=unix gcc.dg/torture/dg-torture.exp=*float128*.c"
+  check_dejagnu_sum "libquadmath-relevant gcc torture safety superset" \
+    gcc/testsuite/gcc/gcc.sum
+else
+  echo "gcc: DejaGNU unavailable in the native Peios build root; Debian regression results are authoritative" >&2
+fi
+
+make install DESTDIR="$PEKIT_OUT"
+
+# GCC may still drop the target runtime libs in the multilib os-dir
+# ($LIBDIR/../lib64); relocate into the triplet dir so they resolve on Peios and
+# the debug-split below (which walks the install tree) processes them.
+if [ -d "$PEKIT_OUT/usr/lib/lib64" ]; then
+  for f in "$PEKIT_OUT/usr/lib/lib64/"*; do
+    # A link script/archive symlink can become dangling after its target is
+    # moved earlier in glob order. Preserve symlinks rather than letting -e
+    # skip them and leaving an unowned /usr/lib/lib64 tree behind.
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    mv "$f" "$PEKIT_OUT$LIBDIR/"
+  done
+  rmdir "$PEKIT_OUT/usr/lib/lib64"
+fi
+# Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED win).
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# libstdc++'s gdb pretty-printer installs beside the library, where gdb never
+# looks; move it under the auto-load tree (keyed by the library's install
+# path), exactly as the isl recipe does with its own. Left in place it is
+# simply dropped — it matches no package glob.
+if ls "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py >/dev/null 2>&1; then
+  mkdir -p "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR"
+  mv "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR/"
+fi
+
+# Info's generated `dir` index is host-global mutable state, not package
+# payload. Claim only the versioned/compressed manuals and fail if install
+# layout ever changes so the doc split cannot silently become empty.
+rm -f "$PEKIT_OUT/usr/share/info/dir"
+test -n "$(find "$PEKIT_OUT/usr/share/info" -maxdepth 1 -type f -name '*.info*' -print -quit)"
+test ! -e "$PEKIT_OUT/usr/share/info/dir"
+
+# Release gate against the freshly installed compiler. GCC's bootstrap
+# comparison proves stage 2 and stage 3 are a fixed point; these tests cover
+# the Peios identity/defaults, both installed front ends, LTO/plugin path, the
+# staged runtime linkage, and the hardening of the compiler that will ship.
+BIN="$PEKIT_OUT/usr/bin"
+GCC="$BIN/gcc"
+GXX="$BIN/g++"
+GCC_MAJOR=${PEKIT_VERSION%%.*}
+GCCLIB="$PEKIT_OUT$LIBDIR/gcc/$TRIPLET/$GCC_MAJOR"
+SMOKE="$PEKIT_OUT/.gcc-smoke"
+mkdir -p "$SMOKE"
+
+# These named tools are part of the compiler package's advertised surface.
+# Assert them independently of the broad package globs; the whole-tree ELF
+# gate below then verifies every one of their resolved binaries.
+for tool in gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool lto-dump; do
+  test -x "$BIN/$tool"
+done
+for tool in collect2 lto1 lto-wrapper; do
+  test -x "$GCCLIB/$tool"
+done
+
+test "$("$GCC" -dumpmachine)" = "$TRIPLET"
+"$GCC" --version | head -1 | grep -F "gcc (Peios $PEKIT_VERSION) $PEKIT_VERSION"
+MACROS=$("$GCC" $TARGET_SYSINC -dM -E -x c /dev/null)
+printf '%s\n' "$MACROS" | grep -Fx '#define __peios__ 1'
+printf '%s\n' "$MACROS" | grep -Fx '#define __linux__ 1'
+printf '%s\n' "$MACROS" | grep -Fx '#define __gnu_linux__ 1'
+"$GCC" -Q --help=target 2>/dev/null | grep -F -- '-march=' | grep -F 'x86-64-v2'
+"$GCC" -Q --help=target 2>/dev/null | grep -F -- '-mtune=' | grep -F 'generic'
+
+cat > "$SMOKE/c.c" <<'EOF'
+#include <stdio.h>
+static void consume(char *value) { puts(value); }
+int main(void) { char value[16] = "GCC C OK"; consume(value); return 0; }
+EOF
+cat > "$SMOKE/ssp.c" <<'EOF'
+__attribute__((noinline)) static void escape(char *value) {
+  __asm__ volatile ("" : : "r" (value) : "memory");
+}
+int main(void) { char value[4]; escape(value); return value[0]; }
+EOF
+cat > "$SMOKE/cxx.cc" <<'EOF'
+#include <iostream>
+#include <vector>
+int main() { std::vector<int> v{19, 23}; std::cout << (v[0] + v[1]) << std::endl; }
+EOF
+cat > "$SMOKE/atomic.c" <<'EOF'
+#include <stdio.h>
+struct value { unsigned long word[4]; };
+int main(void) {
+  struct value in = {{41, 1, 2, 3}}, out = {{0, 0, 0, 0}};
+  __atomic_store(&out, &in, __ATOMIC_SEQ_CST);
+  puts("42");
+  return out.word[0] != 41;
+}
+EOF
+cat > "$SMOKE/openmp.c" <<'EOF'
+#include <omp.h>
+#include <stdio.h>
+int main(void) {
+  int sum = 0;
+#pragma omp parallel for reduction(+:sum)
+  for (int i = 0; i < 10; ++i) sum += i;
+  puts("45");
+  return sum != 45 || omp_get_max_threads() < 1;
+}
+EOF
+cat > "$SMOKE/tm.cc" <<'EOF'
+#include <cstdio>
+int main() {
+  int value = 41;
+  __transaction_atomic { ++value; }
+  std::puts("42");
+  return value != 42;
+}
+EOF
+cat > "$SMOKE/quadmath.c" <<'EOF'
+#include <quadmath.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+  __float128 value = strtoflt128(argc > 1 ? argv[1] : "1764", 0);
+  char text[32];
+  quadmath_snprintf(text, sizeof text, "%.0Qf", sqrtq(value));
+  puts(text);
+  return 0;
+}
+EOF
+cat > "$SMOKE/libcc1.c" <<'EOF'
+#include <dlfcn.h>
+#include <stdint.h>
+#include <stdio.h>
+extern void gcc_c_fe_context(void);
+extern void gcc_cp_fe_context(void);
+int main(void) {
+  void *handle = dlopen("libcc1.so.0", RTLD_NOW | RTLD_LOCAL);
+  if (!handle) { fputs(dlerror(), stderr); return 1; }
+  void *c = dlsym(handle, "gcc_c_fe_context");
+  void *cp = dlsym(handle, "gcc_cp_fe_context");
+  if (!c || !cp || c != (void *)(uintptr_t)&gcc_c_fe_context ||
+      cp != (void *)(uintptr_t)&gcc_cp_fe_context) return 2;
+  return dlclose(handle) != 0;
+}
+EOF
+
+# The installed compiler deliberately searches Peios's lib directory. For the
+# reference Debian validation only, point it at Debian's crt objects as well;
+# the native gate exercises the unassisted Peios search path.
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" "$SMOKE/c.c" -o "$SMOKE/c"
+"$GXX" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" "$SMOKE/cxx.cc" -o "$SMOKE/cxx"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" -flto "$SMOKE/c.c" -o "$SMOKE/c-lto"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" "$SMOKE/atomic.c" -latomic -o "$SMOKE/atomic"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" -fopenmp "$SMOKE/openmp.c" -o "$SMOKE/openmp"
+"$GXX" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" -fgnu-tm "$SMOKE/tm.cc" -o "$SMOKE/tm"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" "$SMOKE/quadmath.c" -lquadmath -o "$SMOKE/quadmath"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" "$SMOKE/libcc1.c" \
+  -Wl,--no-as-needed -lcc1 -Wl,--as-needed -ldl -o "$SMOKE/libcc1"
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/c" | grep -Fx 'GCC C OK'
+test "$(LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/cxx")" = 42
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/c-lto" | grep -Fx 'GCC C OK'
+test "$(LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/atomic")" = 42
+test "$(LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" OMP_NUM_THREADS=2 "$SMOKE/openmp")" = 45
+test "$(LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/tm")" = 42
+test "$(LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/quadmath")" = 42
+LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/libcc1"
+readelf -d "$SMOKE/atomic" | grep -F 'libatomic.so.1'
+readelf -d "$SMOKE/openmp" | grep -F 'libgomp.so.1'
+readelf -d "$SMOKE/tm" | grep -F 'libitm.so.1'
+readelf -d "$SMOKE/quadmath" | grep -F 'libquadmath.so.0'
+readelf -d "$SMOKE/libcc1" | grep -F 'libcc1.so.0'
+
+# Bare gcc must produce PIE and stack-protector-strong output without callers
+# supplying distro flags. An address-taken four-byte array distinguishes
+# -fstack-protector-strong from the ordinary size-threshold protector.
+readelf -h "$SMOKE/c" | grep -Eq 'Type:[[:space:]]+DYN'
+"$GCC" -Q --help=common 2>/dev/null | \
+  grep -F -- '-fstack-protector-strong' | grep -F '[enabled]'
+"$GCC" $TARGET_SYSINC -O0 -c "$SMOKE/ssp.c" -o "$SMOKE/ssp.o"
+nm -u "$SMOKE/ssp.o" | grep -F '__stack_chk_fail'
+
+# Prove CET is natural compiler output, not a linker-forced note: a marked
+# object links and retains both properties, while one compiled with CET
+# explicitly disabled is rejected by cet-report=error.
+"$GCC" $TARGET_SYSINC -fcf-protection=full -c "$SMOKE/c.c" -o "$SMOKE/cet-ok.o"
+"$GCC" $TARGET_SYSINC -fcf-protection=none -c "$SMOKE/c.c" -o "$SMOKE/cet-bad.o"
+"$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+  -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" -Wl,-z,cet-report=error \
+  "$SMOKE/cet-ok.o" -o "$SMOKE/cet-ok"
+readelf -n "$SMOKE/cet-ok" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if "$GCC" $TARGET_SYSINC -L"$PEKIT_OUT$LIBDIR" \
+    -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" -Wl,-z,cet-report=error \
+    "$SMOKE/cet-bad.o" -o "$SMOKE/cet-bad" >"$SMOKE/cet-bad.log" 2>&1; then
+  echo "gcc: CET-negative link unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -Eq 'missing (IBT|SHSTK)' "$SMOKE/cet-bad.log"
+
+for elf in "$(readlink -f "$GCC")" "$GCCLIB/cc1" "$GCCLIB/cc1plus"; do
+  test -x "$elf"
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -n "$elf" | grep -F 'Build ID:'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+# Assert the complete runtime family and developer linker names before the
+# split recipes consume them.
+for stem in libstdc++ libatomic libgomp libitm libquadmath; do
+  test -L "$PEKIT_OUT$LIBDIR/$stem.so"
+  test -s "$PEKIT_OUT$LIBDIR/$stem.a"
+  so=$(find "$PEKIT_OUT$LIBDIR" -maxdepth 1 -type f -name "$stem.so.*" | LC_ALL=C sort | head -1)
+  test -n "$so"
+  readelf -d "$so" | grep -F 'SONAME'
+  readelf -W -l "$so" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$so" | grep -F 'GNU_RELRO'
+  readelf -d "$so" | grep -F 'BIND_NOW'
+  readelf -d "$so" | grep -F 'RELR'
+  readelf -n "$so" | grep -F 'Build ID:'
+  readelf -n "$so" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$so" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+LIBGCC_SO="$PEKIT_OUT$LIBDIR/libgcc_s.so.1"
+test -s "$LIBGCC_SO"
+readelf -d "$LIBGCC_SO" | grep -Eq 'SONAME.*[[]libgcc_s[.]so[.]1[]]'
+readelf -W -l "$LIBGCC_SO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$LIBGCC_SO" | grep -F 'GNU_RELRO'
+readelf -d "$LIBGCC_SO" | grep -F 'BIND_NOW'
+readelf -d "$LIBGCC_SO" | grep -F 'RELR'
+readelf -n "$LIBGCC_SO" | grep -F 'Build ID:'
+readelf -n "$LIBGCC_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$LIBGCC_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+test -f "$GCCLIB/include/omp.h"
+test -f "$GCCLIB/include/openacc.h"
+test -f "$GCCLIB/include/quadmath.h"
+test -f "$PEKIT_OUT$LIBDIR/libstdc++.modules.json"
+rm -rf "$SMOKE"
+
+# GCC records five generated/pre-generated inputs as build/gcc basenames even
+# though release tarballs keep their canonical copies below source/gcc[/cp].
+# Materialize those exact aliases before debugedit so the debugsource collector
+# remains fail-closed for every real path it is asked to package.
+for mapping in \
+  "gcc/cp/cfns.gperf:cfns.gperf" \
+  "gcc/gengtype-lex.cc:gengtype-lex.cc" \
+  "gcc/gengtype-lex.l:gengtype-lex.l" \
+  "gcc/cp/metafns.gperf:metafns.gperf" \
+  "gcc/cp/std-name-hint.gperf:std-name-hint.gperf"
+do
+  source_path=${mapping%%:*}
+  build_name=${mapping#*:}
+  test -f "$SRC/$source_path"
+  if [ ! -f "$PEKIT_OUT/build/gcc/$build_name" ]; then
+    install -m 0644 "$SRC/$source_path" "$PEKIT_OUT/build/gcc/$build_name"
+  fi
+done
+
+# Post-install debug pipeline over the WHOLE install tree (compiler binaries +
+# runtime libs). Scrub any stray rpath, scrub DWARF build paths
+# (-> /usr/src/debug/org.gnu.gcc), split debug build-id-indexed, strip, stage the
+# referenced sources. Static *.a get --strip-debug (no build-id to index).
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.elf-inodes"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  # GCC installs several driver aliases as hardlinks. Process each underlying
+  # inode once: a second objcopy after the first path has been stripped would
+  # overwrite the build-ID file with a symbol-poor copy while retaining the
+  # same build ID. GNU strip updates hardlinked inodes in place; the final
+  # whole-tree scan below verifies every alias is in fact stripped.
+  inode=$(stat -Lc '%d:%i' -- "$f") || {
+    echo "gcc: cannot identify installed payload inode: $f" >&2
+    exit 1
+  }
+  if grep -Fxq "$inode" "$PEKIT_OUT/.elf-inodes"; then
+    continue
+  fi
+  printf '%s\n' "$inode" >> "$PEKIT_OUT/.elf-inodes"
+  case "$f" in
+    *.a|*.o)
+      strip --strip-debug "$f"
+      if readelf -SW "$f" 2>/dev/null | grep -q '[.]debug_info'; then
+        echo "gcc: debug information remains in static ELF payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  if readelf -d "$f" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then
+    patchelf --remove-rpath "$f"
+    if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then
+      echo "gcc: failed to remove runtime search path from $f" >&2
+      exit 1
+    fi
+  fi
+  : > "$PEKIT_OUT/.dl"
+  if readelf -SW "$f" | grep -q '[.]debug_info'; then
+    debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gcc \
+      -l "$PEKIT_OUT/.dl" -n "$f"
+    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  fi
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid" || { echo "gcc: installed ELF has no build ID: $f" >&2; exit 1; }
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+  if readelf -SW "$f" | grep -q '[.]debug_info'; then
+    echo "gcc: debug information remains in stripped ELF $f" >&2
+    exit 1
+  fi
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in
+    */) continue;;
+    '<built-in>'|*/'<built-in>'|'<command-line>'|*/'<command-line>') continue;;
+  esac
+  if [ ! -f "$ROOT/$rel" ]; then
+    echo "gcc: debugedit listed missing source: $ROOT/$rel" >&2
+    exit 1
+  fi
+  mkdir -p "usr/src/debug/org.gnu.gcc/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.gcc/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
+test -n "$(find usr/lib/debug/.build-id -type f -name '*.debug' -print -quit)"
+test -n "$(find usr/src/debug/org.gnu.gcc -type f -print -quit)"
+# Every installed ELF that is not an explicit relocatable/static-archive
+# payload must be PIE/DSO, have non-executable stack + full RELRO/CET, be
+# stripped, be free of runtime paths, and have a build-id-matched split file.
+# The only explicit exceptions are *.o and archive members above: they are
+# relocatable rather than loadable images and have already been --strip-debug'd.
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' | while IFS= read -r f; do
+  case "$f" in *.a|*.o) continue;; esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  etype=$(readelf -h "$f" | awk '/Type:/{print $2; exit}')
+  if [ "$etype" != DYN ]; then
+    echo "gcc: installed loadable ELF is not PIE/DSO: $f ($etype)" >&2
+    exit 1
+  fi
+  if ! readelf -W -l "$f" | grep 'GNU_STACK' | grep -Fq 'RW '; then
+    echo "gcc: executable or missing GNU_STACK policy: $f" >&2
+    exit 1
+  fi
+  if readelf -W -l "$f" | grep -q ' DYNAMIC '; then
+    readelf -W -l "$f" | grep -Fq 'GNU_RELRO' || {
+      echo "gcc: full RELRO segment missing: $f" >&2
+      exit 1
+    }
+    readelf -d "$f" | grep -Fq 'BIND_NOW' || {
+      echo "gcc: immediate binding missing: $f" >&2
+      exit 1
+    }
+  fi
+  readelf -n "$f" | grep -Eq 'x86 feature:.*IBT.*SHSTK' || {
+    echo "gcc: CET IBT/SHSTK property missing: $f" >&2
+    exit 1
+  }
+  if readelf -d "$f" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then
+    echo "gcc: runtime search path remains in $f" >&2
+    exit 1
+  fi
+  if readelf -SW "$f" | grep -q '[.]debug_info'; then
+    echo "gcc: unstripped installed ELF remains: $f" >&2
+    exit 1
+  fi
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid" || { echo "gcc: installed ELF has no build ID: $f" >&2; exit 1; }
+  debug="usr/lib/debug/.build-id/$(printf %s "$bid" | cut -c1-2)/$(printf %s "$bid" | cut -c3-).debug"
+  test -s "$debug" || { echo "gcc: split debug file missing for $f" >&2; exit 1; }
+  dbid=$(readelf -n "$debug" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ "$dbid" != "$bid" ]; then
+    echo "gcc: split debug build ID mismatch for $f: $bid != $dbid" >&2
+    exit 1
+  fi
+  if readelf --debug-dump=info "$debug" 2>/dev/null | grep -Fq "$GCC_DIR"; then
+    echo "gcc: worktree path leaked into split debug file: $debug" >&2
+    exit 1
+  fi
+done
+
+# Reverse the build-id check as well: every emitted .debug file must be named
+# for its own note, preventing stale or orphan split files from slipping into
+# the single family-wide debuginfo package.
+find usr/lib/debug/.build-id -type f -name '*.debug' | while IFS= read -r debug; do
+  if ! readelf -SW "$debug" | grep -Fq '.debug_info'; then
+    echo "gcc: split debug file has no full DWARF payload: $debug" >&2
+    exit 1
+  fi
+  rel=${debug#usr/lib/debug/.build-id/}
+  p2=${rel%%/*}
+  rest=${rel#*/}
+  expected="$p2${rest%.debug}"
+  actual=$(readelf -n "$debug" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -z "$actual" ] || [ "$actual" != "$expected" ]; then
+    echo "gcc: orphan or misnamed split debug file: $debug" >&2
+    exit 1
+  fi
+done
+
+# Mirror every split package selector as a fail-closed ownership audit over the
+# complete installed payload. Every regular file and symlink below /usr must
+# belong to exactly one package. A new upstream-installed path or an overlap
+# therefore blocks release until its split is intentionally decided.
+find usr \\( -type f -o -type l \\) | LC_ALL=C sort | while IFS= read -r path; do
+  owners=
+  add_owner() {
+    case " $owners " in
+      *" $1 "*) ;;
+      *) owners="$owners $1" ;;
+    esac
+  }
+  add_lib_owner() {
+    lib_path=${path#usr/lib/$TRIPLET/}
+    case "$lib_path" in
+      */*)
+        echo "gcc: ownership audit matched a flat runtime selector recursively: $path ($1)" >&2
+        exit 1
+        ;;
+      *) add_owner "$1";;
+    esac
+  }
+
+  # org.gnu.gcc: broad driver/internal/data selectors with the same exclusions
+  # declared by org.gnu.gcc.package.pekit.toml.
+  case "$path" in
+    usr/bin/*)
+      case "$path" in
+        usr/bin/g++|usr/bin/c++|usr/bin/x86_64-linux-peios-g++|usr/bin/x86_64-linux-peios-c++|usr/bin/cpp) ;;
+        *) add_owner org.gnu.gcc;;
+      esac
+      ;;
+    usr/lib/$TRIPLET/gcc/*)
+      case "$path" in
+        usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1plus) ;;
+        usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/omp.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/openacc.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/acc_prof.h) ;;
+        usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/quadmath.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/quadmath_weak.h) ;;
+        *) add_owner org.gnu.gcc;;
+      esac
+      ;;
+    usr/lib/$TRIPLET/*.spec)
+      rest=${path#usr/lib/$TRIPLET/}
+      case "$rest" in */*) ;; *) add_owner org.gnu.gcc;; esac
+      ;;
+    usr/lib/$TRIPLET/libgcc_s.so|usr/lib/$TRIPLET/libgcc_s_asneeded.so)
+      add_owner org.gnu.gcc
+      ;;
+    usr/share/gcc-$GCC_MAJOR/*)
+      case "$path" in usr/share/gcc-$GCC_MAJOR/python/*) ;; *) add_owner org.gnu.gcc;; esac
+      ;;
+    usr/share/locale/*) add_owner org.gnu.gcc;;
+    usr/share/man/man1/gcc.1|usr/share/man/man1/gcov.1|usr/share/man/man1/gcov-dump.1|usr/share/man/man1/gcov-tool.1|usr/share/man/man1/lto-dump.1|usr/share/man/man7/*)
+      add_owner org.gnu.gcc
+      ;;
+  esac
+
+  case "$path" in
+    usr/bin/g++|usr/bin/c++|usr/bin/x86_64-linux-peios-g++|usr/bin/x86_64-linux-peios-c++|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1plus|usr/share/man/man1/g++.1)
+      add_owner org.gnu.gcc-c++;;
+  esac
+  case "$path" in
+    usr/bin/cpp|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1|usr/share/man/man1/cpp.1)
+      add_owner org.gnu.gcc-cpp;;
+    usr/lib/debug/*) add_owner org.gnu.gcc-debuginfo;;
+    usr/src/debug/*) add_owner org.gnu.gcc-debugsource;;
+  esac
+
+  case "$path" in
+    usr/share/info/*.info*)
+      rest=${path#usr/share/info/}
+      case "$rest" in */*) ;; *) add_owner org.gnu.gcc-doc;; esac
+      ;;
+    usr/lib/$TRIPLET/libatomic.so.1*) add_lib_owner org.gnu.gcc-libatomic;;
+    usr/lib/$TRIPLET/libatomic.so|usr/lib/$TRIPLET/libatomic_asneeded.so) add_lib_owner org.gnu.gcc-libatomic-devel;;
+    usr/lib/$TRIPLET/libatomic.a|usr/lib/$TRIPLET/libatomic_asneeded.a) add_lib_owner org.gnu.gcc-libatomic-static;;
+    usr/lib/$TRIPLET/libcc1.so*) add_lib_owner org.gnu.gcc-libcc1;;
+    usr/lib/$TRIPLET/libgcc_s.so.1) add_lib_owner org.gnu.gcc-libgcc;;
+    usr/lib/$TRIPLET/libgomp.so.1*) add_lib_owner org.gnu.gcc-libgomp;;
+    usr/lib/$TRIPLET/libgomp.so) add_lib_owner org.gnu.gcc-libgomp-devel;;
+    usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/omp.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/openacc.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/acc_prof.h) add_owner org.gnu.gcc-libgomp-devel;;
+    usr/lib/$TRIPLET/libgomp.a) add_lib_owner org.gnu.gcc-libgomp-static;;
+    usr/lib/$TRIPLET/libitm.so.1*) add_lib_owner org.gnu.gcc-libitm;;
+    usr/lib/$TRIPLET/libitm.so) add_lib_owner org.gnu.gcc-libitm-devel;;
+    usr/lib/$TRIPLET/libitm.a) add_lib_owner org.gnu.gcc-libitm-static;;
+    usr/lib/$TRIPLET/libquadmath.so.0*) add_lib_owner org.gnu.gcc-libquadmath;;
+    usr/lib/$TRIPLET/libquadmath.so) add_lib_owner org.gnu.gcc-libquadmath-devel;;
+    usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/quadmath.h|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/include/quadmath_weak.h) add_owner org.gnu.gcc-libquadmath-devel;;
+    usr/lib/$TRIPLET/libquadmath.a) add_lib_owner org.gnu.gcc-libquadmath-static;;
+    usr/lib/$TRIPLET/libstdc++.so.6*) add_lib_owner org.gnu.gcc-libstdc++;;
+    usr/share/gdb/auto-load/*|usr/share/gcc-$GCC_MAJOR/python/*) add_owner org.gnu.gcc-libstdc++;;
+    usr/include/c++/*) add_owner org.gnu.gcc-libstdc++-devel;;
+    usr/lib/$TRIPLET/libstdc++.so|usr/lib/$TRIPLET/libstdc++.modules.json) add_lib_owner org.gnu.gcc-libstdc++-devel;;
+    usr/lib/$TRIPLET/libstdc++.a|usr/lib/$TRIPLET/libstdc++exp.a|usr/lib/$TRIPLET/libstdc++fs.a|usr/lib/$TRIPLET/libsupc++.a) add_lib_owner org.gnu.gcc-libstdc++-static;;
+  esac
+
+  set -- $owners
+  if [ "$#" -ne 1 ]; then
+    echo "gcc: installed path has $# package owners: $path${owners:+ ($owners )}" >&2
+    exit 1
+  fi
+done
+"""
+
+# Build deps. Native self-build: the c++ floor supplies the compiler, make,
+# binutils, and the debug-split tools; flex + bison cover any generated parser
+# refresh required by a release; the bignum -devel packages and zlib-devel are what
+# cc1 compiles and links against — all from our own pool.
+[build.main.dependencies.peipkg]
+"build-essentials-c++" = "*"
+"io.github.westes.flex" = "*"
+"org.gnu.bison" = "*"
+"org.gnu.gmp-devel" = "*"
+"org.gnu.mpfr-devel" = "*"
+"org.gnu.mpc-devel" = "*"
+"io.sourceforge.libisl.isl-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.darwinsys.file" = "*"
+# gcc's bootstrap copies fixed headers between stages via tar.
+"org.gnu.tar" = "*"
+# Builds the shipped Info manuals. DejaGNU/Expect are not yet packaged for
+# Peios; the recipe records that native exception at the regression gate.
+"org.gnu.texinfo" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+flex = "*"
+bison = "*"
+libgmp-dev = "*"
+libmpfr-dev = "*"
+libmpc-dev = "*"
+libisl-dev = "*"
+zlib1g-dev = "*"
+debugedit = "*"
+patchelf = "*"
+texinfo = "*"
+dejagnu = "*"
+file = "*"

@@ -1,0 +1,27 @@
+# libatomic — GCC's out-of-line atomic operations runtime (libatomic.so.1),
+# linked in for atomics the hardware can't do inline (over-sized or misaligned
+# types). The dev .so symlink and static libatomic.a are deferred to the
+# milestone-2 toolchain.
+#
+# A glob source ("so.1*") maps to a DIRECTORY.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libatomic"
+description = "GCC atomic operations runtime library (libatomic.so.1)"
+
+[provides]
+libatomic = "{{version}}-2"
+
+[replaces]
+libatomic = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libatomic/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libatomic/COPYING.RUNTIME"
+# SONAME symlink (libatomic.so.1) + real object (libatomic.so.1.N.N). Excludes the
+# dev libatomic.so symlink and the libatomic_asneeded.* link-script variants.
+":usr/lib/x86_64-linux-peios/libatomic.so.1*" = "usr/lib/x86_64-linux-peios"
