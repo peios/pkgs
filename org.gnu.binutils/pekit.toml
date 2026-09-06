@@ -61,8 +61,8 @@ TRIPLET=x86_64-linux-peios
 
 # config.sub lives beside the gcc recipe (shared with it); PEKIT_OUT is
 # <recipe>/out/<ver>/build/main, so strip from "/out/" on to find the recipe
-# root, then hop to ../gcc.
-GCC_DIR="${PEKIT_OUT%%/out/*}/../gcc"
+# root, then hop to the qualified GCC recipe.
+GCC_DIR="${PEKIT_OUT%%/out/*}/../org.gnu.gcc"
 
 # Defensive: exported CC/CXX/AR/... would override configure's tool detection.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE
