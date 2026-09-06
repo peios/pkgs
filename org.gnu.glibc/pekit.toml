@@ -1117,7 +1117,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
   "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.inodes"
 '''
 
-# Build deps. glibc is autotools (gcc + make) but pulls in a wider host set than
+# Build deps. glibc is autotools (gcc + g++ + make) but pulls in a wider host set than
 # the bignums: bison (parser gen), gawk (its scripts need GNU awk specifically),
 # python3 + perl (build scripts), texinfo (makeinfo — checked at build start),
 # gettext (msgfmt — also checked), and the Linux UAPI headers (linux-libc-dev
@@ -1125,6 +1125,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 # split uses debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
+# Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
+# it to legacy GCC, while qualified GCC can satisfy the same provide later.
+gcc-c++                    = "*"
 "org.gnu.bash"             = "*"
 "org.gnu.bison"            = "*"
 "org.gnu.gawk"             = "*"
