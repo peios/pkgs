@@ -9,7 +9,7 @@ license     = "BSD-3-Clause"
 # Peios's selected POSIX `sh` provider; /bin resolves through usr-merge, so the
 # role needs to materialise only /usr/bin/sh.
 [provides]
-dash = "{{version}}-1"
+dash = "{{version}}-2"
 sh   = "1"
 
 [replaces]
@@ -20,7 +20,10 @@ target = "/usr/bin/dash"
 path   = "/usr/bin/sh"
 
 [dependencies]
-"org.gnu.glibc" = ">= 2.43"
+# Transitional edge: the qualified glibc package is not published yet. Keep
+# the native build and current repository resolvable through the legacy name;
+# migrate this dependency after org.gnu.glibc is released.
+glibc = ">= 2.43"
 
 [files]
 "@source:COPYING"             = "usr/share/licenses/org.git.kernel.dash/COPYING"
