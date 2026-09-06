@@ -1120,9 +1120,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 # Build deps. glibc is autotools (gcc + make) but pulls in a wider host set than
 # the bignums: bison (parser gen), gawk (its scripts need GNU awk specifically),
 # python3 + perl (build scripts), texinfo (makeinfo — checked at build start),
-# gettext (msgfmt — also checked), and the Linux UAPI headers (linux-libc-dev /
-# kernel-headers, which the compiler wrapper supplies). The debug split uses
-# debugedit (no patchelf — glibc scrubs no libtool rpath).
+# gettext (msgfmt — also checked), and the Linux UAPI headers (linux-libc-dev
+# on Debian; linux-kernel-headers via build-essentials-c on Peios). The debug
+# split uses debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 "org.gnu.bash"             = "*"
@@ -1134,7 +1134,6 @@ build-essentials-c = "*"
 "org.perl.perl"            = "*"
 "org.python.python3"       = "*"
 "org.sourceware.debugedit" = "*"
-kernel-headers               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
