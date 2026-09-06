@@ -52,8 +52,8 @@ directories. The remaining recipes in the current pass are listed below.
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
 | 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
-| 2 | `dash` | Next | |
-| 3 | `debugedit` | Pending | GDB/DWZ coverage remains a separate follow-up. |
+| 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
+| 3 | `debugedit` | Next | GDB/DWZ coverage remains a separate follow-up. |
 | 4 | `docbook-xsl` | Pending | |
 | 5 | `gcc` | Pending | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
 | 6 | `glibc` | Pending | Large native bootstrap and ABI-critical validation. |
@@ -81,6 +81,14 @@ directories. The remaining recipes in the current pass are listed below.
 - Fix `verify.sh` file/directory prefix ordering drift where the shell checker
   disagrees with canonical `archive.VerifyFormat`.
 - Package GDB and DWZ to close Debugedit's complete upstream-test coverage.
+- Extend Pekit's selected-version model or Git-tag mapping so upstream
+  four-component releases retain their spelling and ordering. Dash is now at
+  `v0.5.13.5`, while Pekit accepts at most `MAJOR.MINOR.PATCH`; mapping the
+  fourth component to build metadata would make it order-insignificant and
+  mapping it to a prerelease would be semantically wrong and eventually sort
+  `10` before `9`. The audited Dash production draft is preserved in the
+  isolated `codex/org-git-kernel-dash-production` worktree and should use the
+  official kernel.org Git tags once this representation is resolved.
 - Resolve the long-term coexistence boundary between `peiosutils` and the
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package
