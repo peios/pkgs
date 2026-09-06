@@ -1,0 +1,160 @@
+# io.sourceforge.docutils.docutils — the reStructuredText toolkit: the public
+# docutils library plus its rst2* converters. rst2man is the reason it is here:
+# the kernel tools' man pages (bpftool, rtla, rv, kvm_stat) are rst and
+# were docs-off in pkm until this existed.
+#
+# Docutils is a Flit project, so the wheel comes directly from Flit Core's
+# PEP 517 hook: no pip, build frontend, or isolated dependency resolver. The
+# build, install, launcher, and bytecode policy lives in the workspace helper;
+# see _pybuild_/README.md.
+#
+# Classification: a LIBRARY (other packages import docutils), so it lives
+# in site-packages, and its tools ride along in the same package — the
+# Fedora shape, not Debian's docutils-common split.
+#
+#   pekit publish --latest --env peipkg --keyring dev
+
+out_dir = "out"
+
+[source.pypi]
+project  = "docutils"
+artifact = "sdist"
+# Soft maintenance floor and major-version review boundary. Stable 0.x point
+# releases are selected and locked automatically; 1.x gets a deliberate
+# recipe/API review rather than silently crossing a compatibility boundary.
+versions = ">= 0.23, < 1"
+
+# The Python smoke source below doubles backslashes for this basic TOML string.
+[build.main]
+command = """
+set -eu
+SRC="$(pwd -P)"
+
+# The upstream suite (unittest, ~2,300 cases across parsers, transforms and
+# every writer) runs against a copy of the source tree so the fetched tree
+# stays pristine. The library is pure Python, so the tree under test is
+# byte-for-byte what the wheel carries.
+cp -r "$SRC" "$PEKIT_OUT/test-tree"
+(cd "$PEKIT_OUT/test-tree" && PYTHONDONTWRITEBYTECODE=1 python3 test/alltests.py)
+rm -rf "$PEKIT_OUT/test-tree"
+
+# Wheel -> site-packages, launchers, checked-hash bytecode. The workspace
+# helper is the one place that policy lives; see _pybuild_/README.md.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
+
+# In the Debian reference rung, install-wheel follows Debian's sysconfig path;
+# in the native rung it follows Peios' triplet path. Only the latter is
+# packageable, but both exercise the same installed wheel and launchers.
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
+  SITE="$PEKIT_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
+else
+  set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
+  [ "$#" -eq 1 ] && [ -d "$1" ] || {
+    echo "docutils: expected exactly one Peios site-packages directory" >&2
+    exit 1
+  }
+  SITE="$1"
+fi
+
+test -f "$SITE/docutils/core.py"
+test -f "$SITE/docutils/parsers/rst/__init__.py"
+test -f "$SITE"/docutils-*.dist-info/METADATA
+
+# Treat the public command surface as an API: catch a dropped converter or an
+# unexpected new launcher that would otherwise silently change the package.
+python3 - "$PEKIT_OUT/usr/bin" <<'PY'
+from pathlib import Path
+import sys
+
+expected = {
+    'docutils', 'rst2html', 'rst2html4', 'rst2html5', 'rst2latex',
+    'rst2man', 'rst2odt', 'rst2pseudoxml', 'rst2s5', 'rst2xetex',
+    'rst2xml',
+}
+bindir = Path(sys.argv[1])
+actual = {path.name for path in bindir.iterdir() if path.is_file()}
+assert actual == expected, (actual - expected, expected - actual)
+for path in bindir.iterdir():
+    assert path.read_text().splitlines()[0] == '#!/bin/python3'
+PY
+
+# Exercise the installed library and metadata, and verify all bytecode uses
+# checked-hash invalidation (PEP 552) rather than timestamps.
+cd "$PEKIT_OUT"
+PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
+python3 -S - "$SITE" "$PEKIT_VERSION" <<'PY'
+import importlib.metadata
+from pathlib import Path
+import sys
+
+site = Path(sys.argv[1]).resolve()
+version = sys.argv[2]
+
+assert not any(path.suffix in {'.so', '.a', '.o'} for path in site.rglob('*'))
+
+import docutils
+from docutils.core import publish_string
+
+assert Path(docutils.__file__).resolve().is_relative_to(site)
+assert docutils.__version__ == version
+assert importlib.metadata.version('docutils') == version
+html = publish_string('Heading\\n=======\\n', writer_name='html5')
+assert b'<h1 class="title">Heading</h1>' in html
+
+py_sources = sorted((site / 'docutils').rglob('*.py'))
+pycs = sorted((site / 'docutils').rglob('*.pyc'))
+assert len(py_sources) >= 120
+assert len(pycs) >= 120
+for pyc in pycs:
+    data = pyc.read_bytes()
+    assert len(data) >= 16
+    assert int.from_bytes(data[4:8], 'little') == 3
+PY
+
+# End-to-end staged-launcher gates for the two formats Peios consumes most:
+# man pages for system tools and HTML for general documentation.
+SMOKE="$PEKIT_OUT/.docutils-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/input.rst" <<'EOF'
+peios-docutils-smoke
+====================
+
+This is a **production** conversion test.
+EOF
+PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/rst2man" \
+  "$SMOKE/input.rst" "$SMOKE/output.1"
+PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/rst2html5" \
+  "$SMOKE/input.rst" "$SMOKE/output.html"
+python3 - "$SMOKE/output.1" "$SMOKE/output.html" <<'PY'
+from pathlib import Path
+import sys
+
+assert '.TH "peios-docutils-smoke"' in Path(sys.argv[1]).read_text()
+assert '<strong>production</strong>' in Path(sys.argv[2]).read_text()
+PY
+VERSION_OUTPUT="$(PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/docutils" --version)"
+case "$VERSION_OUTPUT" in
+  *"Docutils $PEKIT_VERSION"*) ;;
+  *) echo "docutils: unexpected --version output: $VERSION_OUTPUT" >&2; exit 1 ;;
+esac
+rm -rf "$SMOKE"
+
+# Neither testing nor building may dirty the immutable fetched source.
+python3 -S - "$SRC" <<'PY'
+from pathlib import Path
+import sys
+
+assert not any(path.is_dir() for path in Path(sys.argv[1]).rglob('__pycache__'))
+PY
+"""
+
+[build.main.dependencies.peipkg]
+dash                = "*"
+"org.gnu.coreutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
+"io.pypa.flit-core"  = "*"
+
+[build.main.dependencies.apt]
+python3 = "*"
+flit    = "*"

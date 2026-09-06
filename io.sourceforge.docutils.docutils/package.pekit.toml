@@ -1,8 +1,8 @@
 format = "peipkg"
 
 [package]
-name         = "python3-docutils"
-version      = "{{version}}-1"
+name         = "io.sourceforge.docutils.docutils"
+version      = "{{version}}-2"
 # x86_64, not noarch: the one site-packages is inside the triplet directory.
 architecture = "x86_64"
 description  = "Docutils - reStructuredText processing library and rst2* converters"
@@ -14,11 +14,19 @@ license       = "LicenseRef-Public-Domain AND BSD-2-Clause AND BSD-3-Clause"
 license_class = "free"
 homepage      = "https://docutils.sourceforge.io"
 
+[provides]
+# Preserve the bootstrap-era identity while downstream recipes migrate to the
+# authenticated reverse-DNS name.
+"python3-docutils" = "{{version}}-2"
+
+[replaces]
+"python3-docutils" = "<= {{version}}-1"
+
 [dependencies]
-python3 = ">= 3.14, < 3.15"
+"org.python.python3" = ">= 3.14, < 3.15"
 
 [files]
-"@source:COPYING.rst" = "usr/share/licenses/python3-docutils/"
-"@source:licenses/*"  = "usr/share/licenses/python3-docutils/"
+"@source:COPYING.rst" = "usr/share/licenses/io.sourceforge.docutils.docutils/"
+"@source:licenses/*"  = "usr/share/licenses/io.sourceforge.docutils.docutils/"
 ":usr/bin/**"         = "usr/bin"
 ":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"
