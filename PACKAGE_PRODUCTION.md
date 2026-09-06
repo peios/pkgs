@@ -35,16 +35,16 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.sourceware.debugedit` at pkgs commit `128b87d`.
-- Completed: **75 / 113** recipes (66.4%).
-- Current upstream/dependency pass: **75 / 85** recipes (88.2%).
+- Last completed recipe: `org.docbook.docbook-xsl` at pkgs commit `558d8b2`.
+- Completed: **76 / 113** recipes (67.3%).
+- Current upstream/dependency pass: **76 / 85** recipes (89.4%).
 - Deferred first-party pass: 28 recipes.
-- Repository after Debugedit publication: index version 164, 467 active entries,
-  714 archived entries, no verification problems.
+- Repository after DocBook XSL publication: index version 166, 468 active
+  entries, 719 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 75 completed recipes are the currently tracked reverse-DNS recipe
+The 76 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
@@ -53,14 +53,13 @@ directories. The remaining recipes in the current pass are listed below.
 | ---: | --- | --- | --- |
 | 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
 | 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
-| 3 | `docbook-xsl` | In progress | Isolated production worker active. |
-| 4 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
-| 5 | `glibc` | Pending | Large native bootstrap and ABI-critical validation. |
-| 6 | `libtraceevent` | In progress | Isolated production worker active. |
-| 7 | `libtracefs` | Pending | Depends on the libtraceevent migration. |
-| 8 | `libxml2` | In progress | Isolated production worker active. |
-| 9 | `libxslt` | Pending | |
-| 10 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 3 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
+| 4 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
+| 5 | `libtraceevent` | In progress | Isolated production worker active. |
+| 6 | `libtracefs` | Pending | Depends on the libtraceevent migration. |
+| 7 | `libxml2` | Ready to integrate | Production commit complete; native rerun follows publication. |
+| 8 | `libxslt` | In progress | Isolated production worker active. |
+| 9 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -118,7 +117,25 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: Debugedit 5.3-1
+## Latest completion: DocBook XSL 1.79.2-4
+
+DocBook XSL tracks the authoritative non-namespaced DocBook 4 stylesheet
+archive from a soft 1.79.2 floor. Upstream publishes no detached signature or
+checksum manifest for this release, so the immutable Pekit SHA-256 lock is the
+available provenance anchor. The noarch payload passed Debian and native Peios
+builds, offline DTD/catalog resolution, HTML/XHTML/FO/man transformations,
+permission normalization, and deterministic inventory checks.
+
+The signed package passed canonical `archive.VerifyFormat`, and the repository
+audit passed at index version 166 with 468 active and 719 archived entries. The
+shell verifier reports only its already-tracked prefix-order disagreement for
+the valid `xhtml-1_1` and `xhtml` sibling paths.
+
+Published SHA-256:
+
+- `org.docbook.docbook-xsl`: `64ca2034399ecf6be8e584aae2b73644cb01ab372a570f180f216178e1e061ec`
+
+## Previous completion: Debugedit 5.3-1
 
 Debugedit tracks authenticated Sourceware 5.x releases from a soft 5.3 floor
 and pins Mark Wielaard's complete release-signing fingerprint. The Debian
