@@ -1,0 +1,11 @@
+format = "peipkg"
+
+[package]
+version       = "{{version}}-4"
+architecture  = "noarch"
+# The DocBook project's modified MIT grant adds attribution/advertising and
+# derived-stylesheet naming conditions, so it is not SPDX MIT. Fedora names
+# this established licence text LicenseRef-DMIT.
+license       = "LicenseRef-DMIT"
+license_class = "free"
+homepage      = "https://docbook.org/"

@@ -1,0 +1,193 @@
+# DocBook XSLT 1.0 stylesheets for DocBook 4.x and earlier. The canonical
+# package uses upstream's non-namespaced ("nons") archive: DocBook 4 documents
+# have no namespace, so using the namespaced tree adds a conversion pass and
+# can exhaust libxslt's template-depth limit on large generated manual pages.
+
+out_dir = "out"
+
+# The installed XSL/XML payload is already the complete preferred form for
+# modification of everything shipped. A generated corresponding-source
+# package would only duplicate it while also embedding upstream's excluded
+# prebuilt Java toolchain, whose independent licence stack cannot currently be
+# expressed separately in Pekit's generated source-package metadata.
+[source_package]
+enabled = false
+
+[source.url]
+url         = "https://github.com/docbook/xslt10-stylesheets/releases/download/release/{{version}}/docbook-xsl-nons-{{version}}.tar.bz2"
+listing_url = "https://cdn.docbook.org/release/xsl-nons/"
+extract     = true
+root        = "docbook-xsl-nons-{{version}}"
+file_regex  = '[0-9]+\.[0-9]+\.[0-9]+/'
+# Soft maintenance floor. Follow stable 1.x releases automatically; a future
+# major line is a review boundary because XSLT engine and DocBook-version
+# requirements may change. Upstream still identifies 1.79.2 as its latest
+# stable release.
+versions    = ">= 1.79.2, < 2"
+
+# Upstream publishes this release as HTTPS-hosted GitHub assets from a
+# lightweight tag, without a detached signature or checksum manifest. The
+# lock therefore provides the immutable SHA-256 provenance anchor.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BASE="$PEKIT_OUT/usr/share/xml/docbook"
+XSL="$BASE/xsl-stylesheets-$PEKIT_VERSION-nons"
+CURRENT="$BASE/xsl-stylesheets"
+DOC="$PEKIT_OUT/usr/share/doc/org.docbook.docbook-xsl"
+LICENSES="$PEKIT_OUT/usr/share/licenses/org.docbook.docbook-xsl"
+SMOKE="$PEKIT_OUT/.docbook-xsl-smoke"
+
+mkdir -p "$XSL" "$DOC" "$LICENSES" "$SMOKE"
+cp -a "$SRC"/. "$XSL/"
+
+# Ship the complete stylesheet surface rather than only the formats Peios
+# currently consumes. Remove build/test inputs and bundled executable tools:
+# the Java extensions and build-tool JARs have independent dependency and
+# licence stacks, while dbtoepub and pdf2index require unshipped Ruby/pstotext
+# toolchains. The XSLT, localisation data, images, CSS, and format resources
+# remain in their upstream layout.
+rm -rf "$XSL/doc" "$XSL/docsrc" "$XSL/tests" "$XSL/extensions" "$XSL/tools"
+rm -rf "$XSL/epub/bin"
+rm -f "$XSL/fo/pdf2index"
+find "$XSL" -name build.xml -type f -delete
+rm -f "$XSL/Makefile" "$XSL/install.sh"
+
+# Move human-facing material out of the resolver tree, retain the compact
+# release notes, and keep the package licence alongside the payload.
+cp "$SRC/README" "$SRC/BUGS" "$SRC/TODO" "$SRC/RELEASE-NOTES.txt" "$DOC/"
+cp "$SRC/COPYING" "$LICENSES/COPYING"
+rm -f "$XSL/AUTHORS" "$XSL/BUGS" "$XSL/COPYING" "$XSL/INSTALL" \
+      "$XSL/NEWS" "$XSL/NEWS.html" "$XSL/NEWS.xml" "$XSL/README" \
+      "$XSL/TODO" "$XSL/RELEASE-NOTES.html" "$XSL/RELEASE-NOTES.pdf" \
+      "$XSL/RELEASE-NOTES.txt" "$XSL/RELEASE-NOTES.xml"
+
+# Preserve an explicit versioned tree and make the stable path an atomic
+# relative symlink. Consumers and the XML catalog can use the stable path,
+# while manifests still identify exactly which stylesheet release is present.
+ln -s "$(basename "$XSL")" "$CURRENT"
+
+# Upstream's catalog covers the HTTP cdn.docbook.org xsl-nons names. Add HTTPS
+# equivalents and the historical SourceForge identifiers still emitted by
+# AsciiDoc/xmlto customisation layers. Do not map cdn.docbook.org/release/xsl:
+# that URI names the distinct namespace-aware DocBook 5 tree.
+cat > "$XSL/catalog.xml" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteURI uriStartString="http://cdn.docbook.org/release/xsl-nons/current/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="http://cdn.docbook.org/release/xsl-nons/current/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="https://cdn.docbook.org/release/xsl-nons/current/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="https://cdn.docbook.org/release/xsl-nons/current/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="http://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="http://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="https://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="https://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="http://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="https://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="./"/>
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/$PEKIT_VERSION/" rewritePrefix="./"/>
+  <rewriteSystem systemIdStartString="http://docbook.sourceforge.net/release/xsl/$PEKIT_VERSION/" rewritePrefix="./"/>
+</catalog>
+EOF
+
+# This package currently owns Peios' merged system catalog. It delegates to
+# package-specific catalogs so the DocBook DTD and stylesheets both resolve
+# offline. When a third catalog provider appears, replace this two-provider
+# file with the package-manager-maintained drop-in mechanism tracked by the
+# XML packaging follow-up.
+mkdir -p "$PEKIT_OUT/usr/etc/xml"
+cat > "$PEKIT_OUT/usr/etc/xml/catalog" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <nextCatalog catalog="/usr/share/xml/docbook/xsl-stylesheets/catalog.xml"/>
+  <nextCatalog catalog="/usr/share/xml/docbook/schema/dtd/4.5/catalog.xml"/>
+</catalog>
+EOF
+
+# A future upstream release must preserve every canonical lookup. Test both
+# URI and system resolution, "current" and exact-version identifiers, and the
+# modern CDN plus compatibility namespace.
+for identifier in \
+  "http://cdn.docbook.org/release/xsl-nons/current/manpages/docbook.xsl" \
+  "https://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/html/docbook.xsl" \
+  "http://docbook.sourceforge.net/release/xsl/current/fo/docbook.xsl" \
+  "http://docbook.sourceforge.net/release/xsl/$PEKIT_VERSION/xhtml/docbook.xsl"
+do
+  resolved=$(XML_CATALOG_FILES="$XSL/catalog.xml" xmlcatalog "$XSL/catalog.xml" "$identifier")
+  test -f "$resolved" || {
+    echo "docbook-xsl: catalog did not resolve $identifier (got $resolved)" >&2
+    exit 1
+  }
+done
+
+# Validate one representative DocBook 4.5 refentry and transform it through
+# the HTML, XHTML, XSL-FO, and manpage entry points without network access.
+cat > "$SMOKE/peios-docbook.xml" <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<refentry>
+  <refmeta><refentrytitle>peios-docbook</refentrytitle><manvolnum>1</manvolnum></refmeta>
+  <refnamediv><refname>peios-docbook</refname><refpurpose>exercise packaged DocBook stylesheets</refpurpose></refnamediv>
+  <refsect1><title>Description</title><para>Offline transform smoke test.</para></refsect1>
+</refentry>
+EOF
+
+if test -f /usr/share/xml/docbook/schema/dtd/4.5/catalog.xml; then
+  DTD_CATALOG=/usr/share/xml/docbook/schema/dtd/4.5/catalog.xml
+elif test -f /etc/xml/catalog; then
+  DTD_CATALOG=/etc/xml/catalog
+else
+  echo "docbook-xsl: no DocBook 4.5 catalog found" >&2
+  exit 1
+fi
+XML_CATALOG_FILES="$DTD_CATALOG" xmllint --nonet --noout --valid "$SMOKE/peios-docbook.xml"
+
+XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
+  --output "$SMOKE/peios-docbook.html" "$XSL/html/docbook.xsl" "$SMOKE/peios-docbook.xml"
+XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
+  --output "$SMOKE/peios-docbook.xhtml" "$XSL/xhtml/docbook.xsl" "$SMOKE/peios-docbook.xml"
+XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
+  --output "$SMOKE/peios-docbook.fo" "$XSL/fo/docbook.xsl" "$SMOKE/peios-docbook.xml"
+(cd "$SMOKE" && XML_CATALOG_FILES="$DTD_CATALOG" \
+  xsltproc --nonet "$XSL/manpages/docbook.xsl" peios-docbook.xml)
+
+grep -q 'Offline transform smoke test' "$SMOKE/peios-docbook.html"
+grep -q 'Offline transform smoke test' "$SMOKE/peios-docbook.xhtml"
+grep -q 'fo:root' "$SMOKE/peios-docbook.fo"
+test -s "$SMOKE/peios-docbook.1"
+
+# Data payloads have no ELF hardening surface. Make their byte/permission
+# determinism explicit instead: no build detritus or bundled binaries remain,
+# directories are 0755, ordinary data 0644, and rebuilding the file inventory
+# from the same locked source yields the same sorted digest list.
+find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
+find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
+test -z "$(find "$XSL" -type f \( -name '*.jar' -o -name '*.class' \) -print -quit)"
+find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.one"
+find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.two"
+cmp "$SMOKE/inventory.one" "$SMOKE/inventory.two"
+rm -rf "$SMOKE"
+'''
+
+[build.main.dependencies.peipkg]
+dash                           = "*"
+"org.gnu.coreutils"            = "*"
+findutils                      = "*"
+grep                           = "*"
+"org.gnu.diffutils"            = "*"
+"libxml2-utils"                = "*"
+xsltproc                       = "*"
+"org.oasis-open.docbook-xml"  = ">= 4.5"
+
+[build.main.dependencies.apt]
+coreutils     = "*"
+findutils     = "*"
+grep          = "*"
+diffutils     = "*"
+libxml2-utils = "*"
+xsltproc      = "*"
+docbook-xml   = ">= 4.5"

@@ -1,0 +1,21 @@
+[package]
+name        = "org.docbook.docbook-xsl"
+description = "DocBook 4 XSLT 1.0 stylesheets for offline document rendering"
+
+[provides]
+docbook-xsl      = "{{version}}-4"
+docbook-xsl-nons = "{{version}}-4"
+
+[replaces]
+docbook-xsl = "<= {{version}}-3"
+
+[dependencies]
+# The installed system catalog delegates to the final DocBook 4 DTD as well
+# as this stylesheet catalog, and normal DocBook inputs declare that DTD.
+"org.oasis-open.docbook-xml" = ">= 4.5"
+
+[files]
+"@source:COPYING"                           = "usr/share/licenses/org.docbook.docbook-xsl/COPYING"
+":usr/share/doc/org.docbook.docbook-xsl/**" = "usr/share/doc/org.docbook.docbook-xsl"
+":usr/share/xml/**"                         = "usr/share/xml"
+":usr/etc/xml/catalog"                      = "usr/etc/xml/catalog"
