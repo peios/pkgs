@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnome.libxml2-debugsource"
+description = "libxml2 debug sources"
+
+[dependencies]
+"org.gnome.libxml2-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxml2-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

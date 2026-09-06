@@ -1,0 +1,24 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.libxml2-devel"
+description = "libxml2 headers and shared-library development metadata"
+
+[provides]
+"libxml2-devel" = "{{version}}-1"
+
+[replaces]
+"libxml2-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnome.libxml2" = "{{version}}-1"
+"zlib-devel"        = "*"
+
+[files]
+"@source:Copyright"                                   = "usr/share/licenses/org.gnome.libxml2-devel/"
+":usr/bin/xml2-config"                                = "usr/bin/xml2-config"
+":usr/include/libxml2/**"                            = "usr/include/libxml2"
+":usr/lib/x86_64-linux-peios/libxml2.so"             = "usr/lib/x86_64-linux-peios/libxml2.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libxml-2.0.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libxml-2.0.pc"
+":usr/lib/x86_64-linux-peios/cmake/libxml2/**"       = "usr/lib/x86_64-linux-peios/cmake/libxml2"
+":usr/share/man/man1/xml2-config.1"                  = "usr/share/man/man1/xml2-config.1"

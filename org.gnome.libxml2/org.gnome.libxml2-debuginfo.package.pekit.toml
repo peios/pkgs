@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnome.libxml2-debuginfo"
+description = "libxml2 library and command-line tool debugging symbols"
+
+[dependencies]
+"org.gnome.libxml2"       = "{{version}}-1"
+"org.gnome.libxml2-utils" = "{{version}}-1"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxml2-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

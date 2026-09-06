@@ -1,0 +1,12 @@
+# Shared defaults for the libxml2 package family. The broad expression also
+# covers the upstream conformance corpus retained in the source package; every
+# installed binary and header remains under the permissive upstream terms.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT AND ISC-Veillard AND W3C"
+license_class = "free"
+homepage      = "https://gnome.pages.gitlab.gnome.org/libxml2/"

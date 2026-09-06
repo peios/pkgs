@@ -1,0 +1,21 @@
+# The stable C library is independent of the command-line clients and
+# development surface. libxml2 2.14 introduced SONAME 16; the build gate keeps
+# this split from silently accepting another ABI transition.
+
+[package]
+name        = "org.gnome.libxml2"
+description = "libxml2 XML and HTML parser runtime library"
+
+[provides]
+libxml2 = "{{version}}-1"
+
+[replaces]
+libxml2 = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+zlib  = ">= 2.3.3"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxml2/"
+":usr/lib/x86_64-linux-peios/libxml2.so.16*" = "usr/lib/x86_64-linux-peios"

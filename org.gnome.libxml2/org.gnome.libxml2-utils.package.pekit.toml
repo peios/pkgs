@@ -1,0 +1,23 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.libxml2-utils"
+description = "libxml2 XML validation and catalog command-line tools"
+
+[provides]
+"libxml2-utils" = "{{version}}-1"
+
+[replaces]
+"libxml2-utils" = "<= {{version}}-1"
+
+[dependencies]
+glibc               = ">= 2.43"
+zlib                = ">= 2.3.3"
+"org.gnome.libxml2" = "{{version}}-1"
+
+[files]
+"@source:Copyright"                  = "usr/share/licenses/org.gnome.libxml2-utils/"
+":usr/bin/xmllint"                   = "usr/bin/xmllint"
+":usr/bin/xmlcatalog"                = "usr/bin/xmlcatalog"
+":usr/share/man/man1/xmllint.1"      = "usr/share/man/man1/xmllint.1"
+":usr/share/man/man1/xmlcatalog.1"   = "usr/share/man/man1/xmlcatalog.1"

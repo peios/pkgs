@@ -1,0 +1,13 @@
+[package]
+name        = "org.gnome.libxml2-static"
+description = "libxml2 static library"
+
+[provides]
+"libxml2-static" = "{{version}}-1"
+
+[dependencies]
+"org.gnome.libxml2-devel" = "{{version}}-1"
+
+[files]
+"@source:Copyright"                     = "usr/share/licenses/org.gnome.libxml2-static/"
+":usr/lib/x86_64-linux-peios/libxml2.a" = "usr/lib/x86_64-linux-peios/libxml2.a"

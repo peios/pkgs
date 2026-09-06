@@ -1,0 +1,270 @@
+# libxml2 — GNOME's C XML/HTML parser and toolkit. Preserve the full legacy
+# ABI feature set needed by broad distro consumers, but keep Python bindings
+# separate: upstream disabled them by default in 2.15 and plans removal in
+# 2.16. Generated API documentation and manuals come from the official release
+# archive, avoiding a circular Doxygen/xsltproc/DocBook bootstrap dependency.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://download.gnome.org/sources/libxml2/{{major}}.{{minor}}/libxml2-{{version}}.tar.xz"
+listing_url = "https://download.gnome.org/sources/libxml2/2.15/"
+# The filename's project stem ends in a digit, which Pekit's embedded-version
+# extractor could otherwise read as a prerelease. The listing is dedicated to
+# libxml2, so match the numeric archive suffix directly.
+file_regex  = '[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+extract     = true
+root        = "libxml2-{{version}}"
+# Soft maintenance floor within the SONAME-16 release line. New 2.15.x stable
+# releases advance automatically; 2.16 is an intentional API/ABI and Python-
+# removal review point. The build gates below catch contract drift within 2.15.
+versions    = ">= 2.15.3, < 2.16"
+
+# GNOME publishes the canonical archive and a checksum sidecar, but no detached
+# maintainer signature Pekit can verify. HTTPS plus Pekit's immutable SHA-256
+# lock is the explicit temporary authentication boundary for newly discovered
+# releases; every accepted lock entry must match GNOME's published checksum.
+
+[build.main]
+command = '''
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+"$SRC/configure" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --enable-static \
+  --with-legacy \
+  --with-zlib \
+  --without-docs \
+  --without-python \
+  --without-icu \
+  --without-readline \
+  --disable-silent-rules
+
+# Freeze the production feature and ABI policy. Upstream 2.15 removed LZMA and
+# its built-in HTTP client; legacy retains deprecated ABI, Schematron and all
+# normal parser/validation APIs while zlib remains an explicit dependency.
+grep -Fx '#define LIBXML_SCHEMATRON_ENABLED' include/libxml/xmlversion.h
+grep -Fx '#define LIBXML_ZLIB_ENABLED' include/libxml/xmlversion.h
+grep -Fx '#define LIBXML_MODULES_ENABLED' include/libxml/xmlversion.h
+grep -Fx '#define LIBXML_RELAXNG_ENABLED' include/libxml/xmlversion.h
+grep -Fx '#define LIBXML_SCHEMAS_ENABLED' include/libxml/xmlversion.h
+
+make -j"$(nproc)"
+
+# Upstream's complete bundled regression suite covers parser APIs, XPath,
+# catalogs, schemas, RELAX NG, modules, recursion/limit handling, encodings,
+# XML conformance fixtures, and generated API calls.
+make -j"$(nproc)" check
+
+# A clean second compilation in the same normalized build root must reproduce
+# every shipped ELF and the deterministic static archive byte for byte.
+REPRO="$PEKIT_OUT/.repro"
+mkdir -p "$REPRO"
+cp .libs/libxml2.so.16.1.* "$REPRO/libxml2.so"
+cp .libs/libxml2.a "$REPRO/libxml2.a"
+cp .libs/xmllint "$REPRO/xmllint"
+cp .libs/xmlcatalog "$REPRO/xmlcatalog"
+make clean
+make -j"$(nproc)"
+cmp "$REPRO/libxml2.so" .libs/libxml2.so.16.1.*
+cmp "$REPRO/libxml2.a" .libs/libxml2.a
+cmp "$REPRO/xmllint" .libs/xmllint
+cmp "$REPRO/xmlcatalog" .libs/xmlcatalog
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PREFIX" -name '*.la' -delete
+rm -rf "$PREFIX/share/doc/libxml2"
+
+# The 2.15 archive carries pre-generated docs. Install them directly rather
+# than creating a bootstrap cycle through libxslt and the DocBook toolchain.
+mkdir -p "$PREFIX/share/man/man1" \
+  "$PREFIX/share/doc/org.gnome.libxml2/html"
+install -m 0644 "$SRC/doc/xml2-config.1" \
+  "$PREFIX/share/man/man1/xml2-config.1"
+install -m 0644 "$SRC/dist-doc/xmllint.1" \
+  "$PREFIX/share/man/man1/xmllint.1"
+install -m 0644 "$SRC/dist-doc/xmlcatalog.1" \
+  "$PREFIX/share/man/man1/xmlcatalog.1"
+cp -a "$SRC/dist-doc/html/." \
+  "$PREFIX/share/doc/org.gnome.libxml2/html/"
+
+# Assert the installed surface and SONAME before packaging. The real object
+# suffix may advance within 2.15, but a SONAME/age change requires review.
+find "$PREFIX/bin" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-bin"
+printf '%s\n' xml2-config xmlcatalog xmllint | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-bin"
+diff -u "$PEKIT_OUT/.expected-bin" "$PEKIT_OUT/.actual-bin"
+
+LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.1.*' \
+  | LC_ALL=C sort)
+test "$(printf '%s\n' "$LIBXML_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libxml2.so.16"
+test -L "$LIBDIR/libxml2.so"
+test -s "$LIBDIR/libxml2.a"
+test -f "$PREFIX/include/libxml2/libxml/parser.h"
+test -f "$LIBDIR/pkgconfig/libxml-2.0.pc"
+test -f "$LIBDIR/cmake/libxml2/libxml2-config.cmake"
+readelf -d "$LIBXML_SO" | grep -F 'Library soname: [libxml2.so.16]'
+readelf --dyn-syms -W "$LIBXML_SO" | grep -E ' xmlReadMemory(@|$)'
+readelf --dyn-syms -W "$LIBXML_SO" | grep -E ' xmlXPathEvalExpression(@|$)'
+
+export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkg-config --validate libxml-2.0
+test "$(pkg-config --modversion libxml-2.0)" = "$PEKIT_VERSION"
+test "$("$PREFIX/bin/xml2-config" --version)" = "$PEKIT_VERSION"
+grep -F "set(LIBXML2_VERSION_STRING \"$PEKIT_VERSION\")" \
+  "$LIBDIR/cmake/libxml2/libxml2-config.cmake"
+
+# These are staged Peios binaries running on the reference build host. This
+# test-only loader path is not embedded in any output ELF.
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Exercise the installed shared and static public C interface. The probe parses
+# a document, evaluates XPath and checks typed node content.
+SMOKE="$PEKIT_OUT/.libxml2-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <string.h>
+
+int main(void)
+{
+  static const char input[] = "<root><item>42</item></root>";
+  xmlDocPtr doc = xmlReadMemory(input, (int) strlen(input), "probe.xml", 0,
+                                XML_PARSE_NONET);
+  if (doc == 0) return 1;
+  xmlXPathContextPtr ctxt = xmlXPathNewContext(doc);
+  if (ctxt == 0) return 2;
+  xmlXPathObjectPtr obj = xmlXPathEvalExpression(BAD_CAST "/root/item", ctxt);
+  if (obj == 0 || obj->nodesetval == 0 || obj->nodesetval->nodeNr != 1)
+    return 3;
+  xmlChar *value = xmlNodeGetContent(obj->nodesetval->nodeTab[0]);
+  int failed = value == 0 || xmlStrcmp(value, BAD_CAST "42") != 0;
+  xmlFree(value);
+  xmlXPathFreeObject(obj);
+  xmlXPathFreeContext(ctxt);
+  xmlFreeDoc(doc);
+  xmlCleanupParser();
+  return failed;
+}
+EOF
+cc "$SMOKE/consumer.c" $(pkg-config --cflags --libs libxml-2.0) \
+  -o "$SMOKE/shared-consumer"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared-consumer"
+cc "$SMOKE/consumer.c" $(pkg-config --cflags libxml-2.0) \
+  "$LIBDIR/libxml2.a" -lz -lm -ldl -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer"
+
+# Exercise installed DTD, XML Schema, XPath, canonicalization and offline XML
+# catalog resolution behavior rather than relying on build-tree binaries.
+cat > "$SMOKE/schema.dtd" <<'EOF'
+<!ELEMENT root (item)>
+<!ELEMENT item (#PCDATA)>
+EOF
+cat > "$SMOKE/schema.xsd" <<'EOF'
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root">
+    <xs:complexType><xs:sequence>
+      <xs:element name="item" type="xs:integer"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+</xs:schema>
+EOF
+cat > "$SMOKE/input.xml" <<'EOF'
+<!DOCTYPE root SYSTEM "https://example.invalid/schema.dtd">
+<root><item>42</item></root>
+EOF
+"$PREFIX/bin/xmlcatalog" --create > "$SMOKE/catalog.xml"
+"$PREFIX/bin/xmlcatalog" --noout --add system \
+  https://example.invalid/schema.dtd "$SMOKE/schema.dtd" "$SMOKE/catalog.xml"
+XML_CATALOG_FILES="$SMOKE/catalog.xml" LD_LIBRARY_PATH="$LIBDIR" \
+  "$PREFIX/bin/xmllint" --nonet --noout --valid "$SMOKE/input.xml"
+LD_LIBRARY_PATH="$LIBDIR" "$PREFIX/bin/xmllint" --noout \
+  --schema "$SMOKE/schema.xsd" "$SMOKE/input.xml"
+test "$(LD_LIBRARY_PATH="$LIBDIR" "$PREFIX/bin/xmllint" \
+  --xpath 'string(/root/item)' "$SMOKE/input.xml")" = 42
+LD_LIBRARY_PATH="$LIBDIR" "$PREFIX/bin/xmllint" --c14n "$SMOKE/input.xml" \
+  > "$SMOKE/canonical.xml"
+grep -Fx '<root><item>42</item></root>' "$SMOKE/canonical.xml"
+
+# Create conventional build-ID-indexed symbols and copy exactly the source
+# files named by rewritten DWARF into the debugsource payload.
+strip --strip-debug "$LIBDIR/libxml2.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.libxml2 \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.gnome.libxml2/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxml2/$rel"
+done
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$PREFIX/src/debug/org.gnome.libxml2" -type f -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the workspace hardening contract after the final strip and reject
+# embedded build-tree loader paths. Explicit CET link stamping keeps IBT/SHSTK
+# observable even when a reference-rung CRT object lacks the property note.
+for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+readelf -d "$LIBXML_SO" | grep -F 'Shared library: [libz.so.1]'
+readelf -d "$LIBXML_SO" | grep -F 'Shared library: [libc.so.6]'
+
+rm -rf "$REPRO" "$SMOKE"
+rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
+  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c" = "*"
+pkgconf                = "*"
+"zlib-devel"          = "*"
+"glibc-gconv-extra"   = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config      = "*"
+zlib1g-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"
