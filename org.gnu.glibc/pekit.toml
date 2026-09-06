@@ -260,6 +260,8 @@ check_result_sum()
 }
 ORDINARY_RESULTS="$BUILD/tests.sum"
 check_result_sum ordinary "$ORDINARY_RESULTS"
+# The installed kernel UAPI and glibc's shipped SYS_* table must remain exact.
+test "$(grep -Fc 'PASS: misc/tst-glibcsyscalls' "$ORDINARY_RESULTS")" -eq 1
 # The native preflight exception must not turn into a test exception: both
 # environments execute the actual static C++ cancellation test.
 test "$(grep -Fc 'PASS: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
@@ -371,6 +373,99 @@ cat > "$SMOKE/abi.c" <<'EOF'
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/syscall.h>
+
+#ifndef SYS_kacs_access_check
+# error "missing SYS_kacs_access_check"
+#endif
+#ifndef SYS_kacs_access_check_list
+# error "missing SYS_kacs_access_check_list"
+#endif
+#ifndef SYS_kacs_create_logon_session
+# error "missing SYS_kacs_create_logon_session"
+#endif
+#ifndef SYS_kacs_create_token
+# error "missing SYS_kacs_create_token"
+#endif
+#ifndef SYS_kacs_destroy_empty_logon_session
+# error "missing SYS_kacs_destroy_empty_logon_session"
+#endif
+#ifndef SYS_kacs_get_mount_policy
+# error "missing SYS_kacs_get_mount_policy"
+#endif
+#ifndef SYS_kacs_get_sd
+# error "missing SYS_kacs_get_sd"
+#endif
+#ifndef SYS_kacs_open
+# error "missing SYS_kacs_open"
+#endif
+#ifndef SYS_kacs_open_process_token
+# error "missing SYS_kacs_open_process_token"
+#endif
+#ifndef SYS_kacs_open_self_token
+# error "missing SYS_kacs_open_self_token"
+#endif
+#ifndef SYS_kacs_open_thread_token
+# error "missing SYS_kacs_open_thread_token"
+#endif
+#ifndef SYS_kacs_revert
+# error "missing SYS_kacs_revert"
+#endif
+#ifndef SYS_kacs_set_caap
+# error "missing SYS_kacs_set_caap"
+#endif
+#ifndef SYS_kacs_set_mount_policy
+# error "missing SYS_kacs_set_mount_policy"
+#endif
+#ifndef SYS_kacs_set_psb
+# error "missing SYS_kacs_set_psb"
+#endif
+#ifndef SYS_kacs_set_sd
+# error "missing SYS_kacs_set_sd"
+#endif
+#ifndef SYS_kmes_attach
+# error "missing SYS_kmes_attach"
+#endif
+#ifndef SYS_kmes_emit
+# error "missing SYS_kmes_emit"
+#endif
+#ifndef SYS_kmes_emit_batch
+# error "missing SYS_kmes_emit_batch"
+#endif
+#ifndef SYS_reg_begin_transaction
+# error "missing SYS_reg_begin_transaction"
+#endif
+#ifndef SYS_reg_create_key
+# error "missing SYS_reg_create_key"
+#endif
+#ifndef SYS_reg_open_key
+# error "missing SYS_reg_open_key"
+#endif
+
+#define CHECK_SYSCALL(name, number) \
+  _Static_assert(SYS_##name == number, #name " syscall number mismatch")
+CHECK_SYSCALL(kacs_open_self_token, 1000);
+CHECK_SYSCALL(kacs_open_process_token, 1001);
+CHECK_SYSCALL(kacs_open_thread_token, 1002);
+CHECK_SYSCALL(kacs_create_token, 1003);
+CHECK_SYSCALL(kacs_create_logon_session, 1004);
+CHECK_SYSCALL(kacs_set_psb, 1005);
+CHECK_SYSCALL(kacs_destroy_empty_logon_session, 1006);
+CHECK_SYSCALL(kacs_revert, 1012);
+CHECK_SYSCALL(kacs_open, 1020);
+CHECK_SYSCALL(kacs_get_sd, 1021);
+CHECK_SYSCALL(kacs_set_sd, 1022);
+CHECK_SYSCALL(kacs_access_check, 1023);
+CHECK_SYSCALL(kacs_access_check_list, 1024);
+CHECK_SYSCALL(kacs_set_caap, 1025);
+CHECK_SYSCALL(kacs_get_mount_policy, 1026);
+CHECK_SYSCALL(kacs_set_mount_policy, 1027);
+CHECK_SYSCALL(kmes_emit, 1090);
+CHECK_SYSCALL(kmes_attach, 1091);
+CHECK_SYSCALL(kmes_emit_batch, 1092);
+CHECK_SYSCALL(reg_open_key, 1100);
+CHECK_SYSCALL(reg_create_key, 1101);
+CHECK_SYSCALL(reg_begin_transaction, 1102);
 
 static void *worker(void *p) { return strdup((const char *) p); }
 
