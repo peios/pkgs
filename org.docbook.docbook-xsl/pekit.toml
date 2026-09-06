@@ -179,8 +179,8 @@ dash                           = "*"
 findutils                      = "*"
 grep                           = "*"
 "org.gnu.diffutils"            = "*"
-"libxml2-utils"                = "*"
-xsltproc                       = "*"
+"org.gnome.libxml2-utils"      = "*"
+"org.gnome.libxslt-utils"      = "*"
 "org.oasis-open.docbook-xml"  = ">= 4.5"
 
 [build.main.dependencies.apt]

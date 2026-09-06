@@ -7,7 +7,7 @@ name        = "io.pagure.xmlto"
 description = "Convert DocBook XML to man pages and other formats"
 
 [provides]
-xmlto = "{{version}}-1"
+xmlto = "{{version}}-2"
 
 [replaces]
 xmlto = "<= {{version}}-1"
@@ -23,10 +23,10 @@ peiosutils                      = "*"
 "org.gnu.sed"                  = "*"
 "org.gnu.findutils"            = "*"
 "glibc-bin"                    = "*"
-xsltproc                        = ">= 1.1.45"
-libxml2-utils                   = ">= 2.15.3"
-docbook-xsl                     = ">= 1.79.2-2"
-docbook-xml                     = ">= 4.5"
+"org.gnome.libxslt-utils"      = ">= 1.1.45"
+"org.gnome.libxml2-utils"      = ">= 2.15.3"
+"org.docbook.docbook-xsl"      = ">= 1.79.2-4"
+"org.oasis-open.docbook-xml"   = ">= 4.5"
 
 [files]
 "@source:COPYING"    = "usr/share/licenses/io.pagure.xmlto/"

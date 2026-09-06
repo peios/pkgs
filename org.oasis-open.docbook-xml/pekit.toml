@@ -104,11 +104,11 @@ find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
 """
 
 [build.main.dependencies.peipkg]
-dash                = "*"
-"org.gnu.coreutils" = "*"
-findutils           = "*"
-python3             = "*"
-"libxml2-utils"     = "*"
+dash                      = "*"
+"org.gnu.coreutils"       = "*"
+findutils                 = "*"
+python3                   = "*"
+"org.gnome.libxml2-utils" = "*"
 
 [build.main.dependencies.apt]
 python3       = "*"

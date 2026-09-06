@@ -151,7 +151,9 @@ rm -f "$PEKIT_OUT/.dl"
 
 [build.main.dependencies.peipkg]
 dash                 = "*"
-peiosutils           = "*"
+# build-essentials-c supplies the GNU Coreutils build baseline.  Do not add
+# peiosutils here as well: both intentionally own the POSIX core-tool paths.
+# The installed xmlto package still depends on Peios's runtime userland.
 "org.gnu.grep"       = "*"
 "org.gnu.sed"        = "*"
 "org.gnu.findutils"  = "*"
@@ -167,10 +169,10 @@ debugedit             = "*"
 patchelf              = "*"
 # The runtime chain, present here because the build smoke-tests it.
 "org.kernel.util-linux-getopt" = "*"
-xsltproc                         = "*"
-"libxml2-utils"                  = "*"
-"docbook-xsl"                    = "*"
-"docbook-xml"                    = "*"
+"org.gnome.libxslt-utils"       = "*"
+"org.gnome.libxml2-utils"       = "*"
+"org.docbook.docbook-xsl"        = "*"
+"org.oasis-open.docbook-xml"     = "*"
 "glibc-bin"                      = "*"
 
 [build.main.dependencies.apt]

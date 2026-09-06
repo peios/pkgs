@@ -3,7 +3,7 @@ name        = "io.pagure.xmlto-debugsource"
 description = "xmlto sources referenced by packaged debugging data"
 
 [dependencies]
-"io.pagure.xmlto-debuginfo" = "{{version}}-1"
+"io.pagure.xmlto-debuginfo" = "{{version}}-2"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"
