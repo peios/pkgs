@@ -35,16 +35,16 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.linux.traceevent` at pkgs commit `c7f0c74`.
-- Completed: **79 / 113** recipes (69.9%).
-- Current upstream/dependency pass: **79 / 85** recipes (92.9%).
+- Last completed recipe: `org.linux.tracefs` at pkgs commit `c4845b4`.
+- Completed: **80 / 113** recipes (70.8%).
+- Current upstream/dependency pass: **80 / 85** recipes (94.1%).
 - Deferred first-party pass: 28 recipes.
-- Repository after libtraceevent publication: index version 170, 492 active
-  entries, 745 archived entries, no verification problems.
+- Repository after libtracefs publication: index version 171, 499 active
+  entries, 752 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 79 completed recipes are the currently tracked reverse-DNS recipe
+The 80 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
@@ -55,8 +55,7 @@ directories. The remaining recipes in the current pass are listed below.
 | 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
 | 3 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
 | 4 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
-| 5 | `libtracefs` | In progress | Debian validation passed; native validation active against published libtraceevent. |
-| 6 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 5 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -90,8 +89,8 @@ directories. The remaining recipes in the current pass are listed below.
 - Keep migration dependencies compose-safe while qualified and legacy package
   names coexist.
 - The native build-root wrapper currently resolves every top-level artifact in
-  `_pkgsOut_`, including superseded migrations. Legacy libxml2/libxslt pool
-  artifacts were moved, recoverably, under
+  `_pkgsOut_`, including superseded migrations. Legacy libxml2, libxslt,
+  libtraceevent, and libtracefs pool artifacts were moved, recoverably, under
   `_pkgsOut_/archive/reverse-dns-migrated/` after their qualified replacements
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
@@ -120,7 +119,31 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: libtraceevent 1.9.0-2
+## Latest completion: libtracefs 1.8.3-2
+
+Libtracefs tracks kernel.org's signed stable 1.x tags from a soft 1.8.3 floor
+and locks commit `6fad6a14ba0d4c4b437d9e4eed7098d4bb07b4fc`. The 1.8.3 annotated tag was
+independently verified against Steven Rostedt's key from kernel.org's official
+`pgpkeys.git` snapshot. Debian and native passed the upstream CUnit runner's
+build/help path, 45 HTML and 217 manual-page inventory, shared/static staged
+consumers, ABI and pkg-config checks, split debug/source validation, hardening,
+and clean byte-for-byte rebuild comparisons.
+
+All seven signed packages passed both the strict shell verifier and canonical
+`archive.VerifyFormat`. The repository audit passed at index version 171 with
+499 active and 752 archived entries.
+
+Published SHA-256 values:
+
+- `org.linux.tracefs`: `dd02b946b9297d8bb90d8c7a5625faf69189275978f66c1e6368e3084990f4ac`
+- `org.linux.tracefs-debuginfo`: `d1c57ee1a62a5388a0b0e454ce3824031860e946623005e24c63470e6523c7a0`
+- `org.linux.tracefs-debugsource`: `7df6c32df662502f8b48b95309b51ba4885824ce7bc5ff9fcb98c1edcdcccd0c`
+- `org.linux.tracefs-devel`: `bbc0ff6a20d4e3a94b33a2700f8cddf19d84b951d4305be2e1491103f8363ffa`
+- `org.linux.tracefs-doc`: `8e1112ec40eec1455f257426d943bdcf86fec842e1d68a66f406db0db07b34be`
+- `org.linux.tracefs-static`: `9f14662cb480406787aaf2ca64c57baed85336607a98139a459a993784e5d6da`
+- `org.linux.tracefs-source`: `b1c4660712313d0b83c3b506459de2aefb09d4f137de7bc2ee1794aeab29f086`
+
+## Previous completion: libtraceevent 1.9.0-2
 
 Libtraceevent tracks kernel.org's stable signed 1.x Git tags from a soft 1.9
 floor and locks 1.9.0 commit
