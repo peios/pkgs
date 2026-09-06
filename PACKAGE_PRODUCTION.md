@@ -35,12 +35,12 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.git.kernel.dash` at pkgs commit `f9a71b1`.
+- Last completed recipe: `org.git.kernel.dash` at pkgs commit `7d371b3`.
 - Completed: **81 / 113** recipes (71.7%).
 - Current upstream/dependency pass: **81 / 85** recipes (95.3%).
 - Deferred first-party pass: 28 recipes.
-- Repository after Dash publication: index version 173, 503 active entries,
-  760 archived entries, no verification problems.
+- Repository after Dash publication: index version 174, 503 active entries,
+  764 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -110,7 +110,7 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: Dash 0.5.13.5-1
+## Latest completion: Dash 0.5.13.5-2
 
 Dash now tracks the official kernel.org Git tags from a soft 0.5.13.5 floor,
 with a review ceiling below 0.6, and locks commit
@@ -123,24 +123,30 @@ four numeric components remain significant and `0.5.13.10` orders after
 
 Debian and native builds passed same-path byte-reproducibility, the shipped
 `make check` recursion, a staged shell-semantics suite, exact payload and
-debug/source splits, PIE/RELRO/BIND_NOW/RELR/CET/build-ID checks, and the
-qualified `org.gnu.glibc` linkage contract. The package provides the legacy
-`dash` name and the `sh` role while replacing legacy Dash packages through
-the current release. Pekit's known source-license synthesis limitation means
-the generated source manifest cannot separately express the locked tree's
-GPL-2.0-or-later `src/mksignames.c` build helper; the emitted binary/debug
-packages retain the accurate BSD-3-Clause payload license.
+debug/source splits, PIE/RELRO/BIND_NOW/RELR/CET/build-ID checks, and a clean
+native dependency resolution against the published pool. The package
+temporarily depends on legacy `glibc >= 2.43`; switch that edge to
+`org.gnu.glibc` only after the qualified glibc family is published. It
+provides the legacy `dash` name and the `sh` role while replacing legacy Dash
+packages through revision 1. Pekit's known source-license synthesis limitation
+means the generated source manifest cannot separately express the locked
+tree's GPL-2.0-or-later `src/mksignames.c` build helper; the emitted
+binary/debug packages retain the accurate BSD-3-Clause payload license.
 
-All four signed packages passed both the strict shell verifier and canonical
-`archive.VerifyFormat`. The repository audit passed at index version 173 with
-503 active and 760 archived entries.
+All four signed packages have clean recipe provenance at pkgs commit
+`7d371b3` and passed both the strict shell verifier and canonical
+`archive.VerifyFormat`. The initial revision-1 artifacts, which had an
+unresolvable early qualified-glibc edge and dirty-worktree provenance, were
+superseded in the repository and moved recoverably from the flat pool to
+`_pkgsOut_/archive/superseded-dash-transition/`. The repository audit passed
+at index version 174 with 503 active and 764 archived entries.
 
 Published SHA-256 values:
 
-- `org.git.kernel.dash`: `269480c93dc802810ced1790bd8593aedc814bf73f254f4808126a13442e3a21`
-- `org.git.kernel.dash-debuginfo`: `55c84ce67bdb5614c61043f47eda702e4bfceece6bc2c6798b069323255ed5ae`
-- `org.git.kernel.dash-debugsource`: `a947c2322205e5954a54ded1cc3902f3bc314ed269c613bb442e5a8377143bf9`
-- `org.git.kernel.dash-source`: `fc1131d8d08bf2072da1340ffade9ef0243e634bdb646f1fca6dc1cf20afc717`
+- `org.git.kernel.dash`: `d2f5562dc1852b306b6162c75e650a8ce962ee44ce030757760462e8dc5eff89`
+- `org.git.kernel.dash-debuginfo`: `8655165430c9a1e3267081ed67671449b5764ed5b6f1daae494ea63e23348b77`
+- `org.git.kernel.dash-debugsource`: `c4dc68ae62bd9518e8a6b4f5ba6af8b6b238322f002f537e052e36cc54b8ed72`
+- `org.git.kernel.dash-source`: `c0fb21ffa6bf0573a0faf2a2ae1522a472126778cc3c117254732a95189e7b85`
 
 ## Previous completion: libtracefs 1.8.3-2
 
