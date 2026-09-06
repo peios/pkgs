@@ -1127,7 +1127,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 build-essentials-c = "*"
 # Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
 # it to legacy GCC, while qualified GCC can satisfy the same provide later.
-gcc-c++                    = "*"
+"gcc-c++"                  = "*"
 "org.gnu.bash"             = "*"
 "org.gnu.bison"            = "*"
 "org.gnu.gawk"             = "*"
