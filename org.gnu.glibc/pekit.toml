@@ -1150,6 +1150,9 @@ build-essentials-c = "*"
 # The native static C++ test links this prior-GCC archive against the new libc.a;
 # it deliberately does not pull the previous glibc-static into the build root.
 "libstdc++-static"         = "*"
+# Peios GCC injects -latomic_asneeded into links; its static archive is split
+# from libstdc++-static and is required by the same native static C++ test.
+"libatomic-static"         = "*"
 "org.gnu.bash"             = "*"
 "org.gnu.bison"            = "*"
 "org.gnu.gawk"             = "*"
