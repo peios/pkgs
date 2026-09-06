@@ -8,10 +8,19 @@
 # symbols is useless.
 
 [package]
+name        = "org.gnu.glibc-debugsource"
 description = "GNU C Library - debug sources"
 
+[provides]
+"glibc-debugsource" = "{{version}}-5"
+
+[replaces]
+"glibc-debugsource" = "<= {{version}}-4"
+
 [dependencies]
-glibc-debuginfo = "{{version}}"
+"org.gnu.glibc-debuginfo" = "{{version}}-5"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-debugsource/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug/"

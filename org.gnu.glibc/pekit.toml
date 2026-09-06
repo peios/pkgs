@@ -1,0 +1,1228 @@
+# glibc — the GNU C Library: Peios's core C runtime and dynamic loader.
+#
+# Recipe-supplies path (like figlet): upstream ships no pekit files, so this
+# recipe carries the whole build. glibc is an autotools project that REFUSES to
+# configure in its own source tree, so this is an out-of-source build: CWD at
+# build time is the checked-out source root; we configure + compile inside
+# $PEKIT_OUT and stage the install tree there via DESTDIR. package.pekit.toml
+# then globs the staged tree selectively (the build scratch left in $PEKIT_OUT
+# never matches the usr/** install globs, the same way figlet's package does).
+#
+# Build deps are declared per-provider below; the environment selected with
+# --env decides which set provisions. The clean-room path is
+# `pekit package --all --env debian` (PEI-156): a pristine Debian container
+# installs exactly the apt list. Kernel headers come from the environment
+# (linux-libc-dev there, kernel-headers under the peipkg provider); from
+# libc's point of view they're vanilla Linux, so we don't pass
+# --with-headers and let the compiler supply them.
+
+out_dir = "out"
+
+# Build flags: glibc implements the hardening features itself and must not be
+# handed the distro's CFLAGS form of them (PEI-159).
+#
+# _FORTIFY_SOURCE is the one that actually breaks. glibc IS the implementation
+# of the fortified entry points, so defining the macro while compiling it makes
+# the library fortify itself; Fedora's spec records that libc_nonshared.a
+# "cannot be built with the default hardening flags because the glibc build
+# system is incompatible with -D_FORTIFY_SOURCE", and Arch strips the same flag
+# with the note that it "causes testsuite build failure and is unnecessary
+# during actual builds (support is built-in via --enable-fortify-source)".
+# So it is removed here and requested through configure instead.
+#
+# Stack protector and BIND_NOW are not removed but are ALSO requested through
+# configure, because glibc needs to control where they apply: parts of the
+# library run before the TCB that holds the stack canary exists (early startup,
+# static IFUNC resolvers), and glibc's build system is what knows to compile
+# those with -fno-stack-protector. --enable-stack-protector=strong is that
+# controlled form; the compiler default alone is not.
+[env]
+CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Werror=format-security -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
+CXXFLAGS = "$CFLAGS"
+
+# nss/identity-is-not-configurable: identity comes from the authority and from
+# nowhere a configuration file can name. See patches/series — glibc carried no
+# Peios patches before this one, and the bar for adding to that stays high.
+[source]
+patches = "patches"
+
+[source.url]
+# GNU's release area is the canonical, immutable distribution channel.  Use
+# signed release archives rather than a mutable Git ref so unattended version
+# discovery authenticates the exact source bytes that enter the repository.
+url         = "https://ftp.gnu.org/gnu/libc/glibc-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/libc/"
+extract     = true
+root        = "glibc-{{version}}"
+file_regex  = 'glibc-[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance floor.  Stable 2.x releases advance automatically, while a
+# new major line stops for an ABI, loader-path and bootstrap-policy review.
+versions    = ">= 2.44, < 3"
+
+# glibc 2.44 is signed by release manager Andreas K. Huettel.  The full primary
+# fingerprint is pinned; the imported key includes the signing subkey GNU used
+# for the detached archive signature.  A future release-manager/key rotation is
+# intentionally a trust review, not an unattended key download.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/andreas-huettel.asc"]
+fingerprints = ["35B17DF5752577CA0C541CEB94BFDF4484AD142F"]
+
+# Layout follows the peipkg payload spec (PSD-009 §3.4): Peios is usrmerged and
+# namespaces arch-specific files under /usr/lib/<triplet>. glibc bakes these
+# paths into the loader and its artifacts, so the layout MUST be set at configure
+# time — a packaging-glob remap would relocate the files but leave the baked-in
+# paths pointing at /lib64, yielding a broken libc. Mapping:
+#   libdir / libexecdir / slibdir / rtlddir -> /usr/lib/x86_64-linux-peios
+#   sbindir / rootsbindir                    -> /usr/bin  (usrmerge: no sbin)
+# gconv/ and audit/ modules follow libdir automatically. --disable-werror keeps
+# the build robust across the version range (modern gcc warns on older sources).
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+DEBUG_DEST=/usr/src/debug/org.gnu.glibc
+BUILD="$PEKIT_OUT/build"
+REPRO_ROOT="$PEKIT_OUT/repro-root"
+SMOKE="$PEKIT_OUT/.glibc-smoke"
+
+for tool in makeinfo msgfmt debugedit readelf objcopy strip; do
+  command -v "$tool" >/dev/null || { echo "missing required glibc build tool: $tool" >&2; exit 1; }
+done
+
+# A libc build fans out into thousands of compiler and test processes.  Bound
+# it by both current available memory and a hard four-job ceiling so concurrent
+# package agents cannot turn a successful build into a host-wide OOM event.
+JOBS=$(nproc)
+MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
+[ "$MEM_JOBS" -lt "$JOBS" ] && JOBS=$MEM_JOBS
+[ "$JOBS" -gt 4 ] && JOBS=4
+[ "$JOBS" -lt 1 ] && JOBS=1
+
+# The workspace policy is inherited, with glibc's documented fortify exemption
+# retained above.  Stable prefix maps make both installed DWARF and build IDs
+# independent of the checkout and pekit output paths.
+export CFLAGS="$CFLAGS -ffile-prefix-map=$SRC=$DEBUG_DEST/source -fdebug-prefix-map=$BUILD=$DEBUG_DEST/build"
+export CXXFLAGS="$CXXFLAGS -ffile-prefix-map=$SRC=$DEBUG_DEST/source -fdebug-prefix-map=$BUILD=$DEBUG_DEST/build"
+
+mkdir -p "$BUILD" "$SMOKE"
+cd "$BUILD"
+# Hardening is requested through glibc's own switches rather than flags — see
+# the [env] note above. --enable-cet is the matching in-library half of
+# -fcf-protection (Intel CET/IBT): the flag emits the landing pads, this makes
+# the loader and the library's own asm honour them.
+#
+# --enable-kernel=6.12 raises the minimum supported kernel from glibc's default
+# of 3.2.0 (2012), dropping the runtime fallbacks it otherwise keeps for every
+# syscall added since. In 2.43 that is 51 conditional sites in the Linux
+# sysdeps, with feature gates at 3.19, 4.0, 4.4, 5.1, 5.3, 5.4, 5.8, 5.9, 5.14,
+# 6.0 and 6.6 — all of which a floor at or above 6.6 clears.
+#
+# 6.12 rather than 6.6 because it is the current LTS and leaves headroom as
+# glibc adds gates; the two are equivalent in what they unlock today.
+#
+# What this actually constrains: a glibc built with this floor REFUSES TO START
+# on an older kernel ("FATAL: kernel too old"). Peios binaries run on the Peios
+# kernel (Linux 7.x base) and, during builds, on the build-farm host — rung 1
+# and rung 2 both execute under docker/bwrap on the host kernel. So this is in
+# effect "the oldest build-farm host we support", not just a Peios-runtime
+# floor. Raise it only alongside that expectation.
+#
+# --disable-nscd drops the Name Service Cache Daemon, as Arch does and as
+# Fedora does by shipping no nscd subpackage. It is the stronger of glibc's two
+# switches: --disable-build-nscd merely stops building the daemon, while this
+# also builds a C library that NEVER ATTEMPTS TO CONTACT nscd — so every NSS
+# lookup loses a socket connect to a daemon that was never going to answer.
+#
+# It has no purpose on Peios. nscd exists to amortise expensive identity
+# lookups against NIS/LDAP directories, and Peios identity is KACS SIDs with no
+# /etc/passwd to cache; nscd's remaining value would be its hosts cache, which
+# belongs in a resolver. Set against that, it is a persistent root daemon
+# holding a shared mutable cache with a long history of serving stale entries.
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir="$LIBDIR" \
+  --libexecdir="$LIBDIR" \
+  --disable-werror \
+  --enable-stack-protector=strong \
+  --enable-bind-now \
+  --enable-fortify-source \
+  --enable-cet \
+  --enable-kernel=6.12 \
+  --disable-nscd \
+  CC="gcc -Wl,--build-id=sha1" \
+  libc_cv_slibdir="$LIBDIR" \
+  libc_cv_rtlddir="$LIBDIR"
+# glibc installs ldconfig/sln to rootsbindir (/sbin) and nscd/zic/iconvconfig to
+# sbindir (/usr/sbin). usrmerge wants them all in /usr/bin, and glibc honors these
+# two dirs via configparms — NOT the autoconf --sbindir flag — so set both here.
+echo 'rootsbindir=/usr/bin' > configparms
+echo 'sbindir=/usr/bin' >> configparms
+make -j"$JOBS"
+
+# Run every applicable upstream suite, including NSS, headers, ABI, networking,
+# internationalisation, RPC and legacy lookup coverage. nscd is not built.
+# Only tests that require replacing Peios's fixed passwd/group/hosts providers,
+# or require a real authority provider unavailable in the build container, are
+# marked unsupported below. External network, cross-machine and resource-heavy
+# tests remain at upstream defaults. The staged authority matrix after install
+# adds positive and negative coverage of Peios's actual fixed-provider contract.
+CHECK_SUBDIRS='csu iconv locale localedata iconvdata assert ctype intl catgets math setjmp signal stdlib stdio-common libio dlfcn nptl rt malloc string wcsmbs timezone time dirent posix io termios resource misc socket sysvipc gmon gnulib wctype manual po argp conform debug mathvec support nptl_db inet resolv hesiod sunrpc nis login elf nss'
+# These tests are the narrow cross-suite extension of the NSS exception.  Each
+# asks the public override hook to replace the fixed hosts/passwd database, is
+# the mtrace companion of such a test, or uses support_resolv_test_start which
+# does so before exercising getaddrinfo.
+# Mark them unsupported instead of teaching the production libc a test-only
+# authority bypass.  Direct resolver protocol/API tests that do not select the
+# hosts database remain in the corpus.
+POLICY_UNSUPPORTED='tst-glob-tilde tst-glob-tilde-mem tst-gethostid tst-dlmopen-gethostbyname tst-bug18665-tcp tst-bug18665 tst-getaddrinfo-eai-again-timeout tst-resolv-af-unspec-noerror-nodata tst-resolv-ai_idn-latin1 tst-resolv-ai_idn-nolibidn2 tst-resolv-ai_idn tst-resolv-aliases tst-resolv-basic tst-resolv-byaddr tst-resolv-dns-section tst-resolv-edns tst-resolv-getaddrinfo-fqdn tst-resolv-gethostbyname_r-unaligned tst-resolv-invalid-cname tst-resolv-invalid-ptr tst-resolv-no-search tst-resolv-noaaaa-vc tst-resolv-noaaaa tst-resolv-nondecimal tst-resolv-res_init-failure tst-resolv-res_init-thread tst-resolv-res_init tst-resolv-rotate tst-resolv-search tst-resolv-semi-failure tst-resolv-short-response tst-resolv-threads tst-resolv-trailing'
+# Measured against an otherwise unfiltered nss suite: 37 tests pass and 21
+# correctly self-report UNSUPPORTED. These nine remaining failures are the
+# exact policy boundary: seven explicitly replace passwd/group with files or
+# synthetic test modules, while testgrp/tst-getpw require the container's UID
+# to be present in the real Peios authority provider. The staged matrix below
+# supplies equivalent positive API coverage through a temporary Peios module.
+NSS_POLICY_UNSUPPORTED='bug17079 testgrp tst-getpw tst-nss-malloc-failure-getlogin_r tst-nss-test1 tst-nss-test2 tst-nss-test4 tst-nss-test5 tst-nss-test_errno'
+# tst-qsort4 includes qsort.c directly after replacing its cleanup macros with
+# test no-ops.  A package-wide -fexceptions makes pthreadP.h redefine those
+# macros and leaves the internal test with unresolved libc-private symbols; the
+# production qsort must retain exception cleanup, so disable exceptions for
+# this one upstream harness object rather than weakening the library build.
+# tst-cancel1 is the non-exception half of upstream's cancellation matrix (the
+# tst-cancelx* cases separately cover unwinder-based cleanup).  The distro-wide
+# -fexceptions otherwise changes which pthread_cleanup_push implementation the
+# installed header selects and invalidates that setjmp-cleanup test.
+# Likewise, test_time intentionally suppresses -Wformat, so suppress the
+# dependent format-security error for that harness object only.
+# tst-shstk-legacy-1g is upstream BZ 31877: on AMD family 25 (znver4) hosts the
+# kernel reports SHSTK active but legacy code in an init array does not fault.
+# Mark only that host/probe combination XFAIL so the library corpus remains
+# gated everywhere else; an upstream/kernel fix turns it into XPASS and
+# deliberately stops the build on the affected build-farm generation too.
+SHSTK_XFAIL=
+if awk '
+  /^vendor_id/ { vendor=$3 }
+  /^cpu family/ { family=$4 }
+  END { exit !(vendor == "AuthenticAMD" && family == 25) }
+' /proc/cpuinfo; then
+  SHSTK_XFAIL=test-xfail-tst-shstk-legacy-1g=yes
+fi
+TIMEOUTFACTOR=10 make -j"$JOBS" check subdirs="$CHECK_SUBDIRS" \
+  "tests-unsupported=$POLICY_UNSUPPORTED $NSS_POLICY_UNSUPPORTED" \
+  CFLAGS-tst-qsort4.c=-fno-exceptions \
+  CFLAGS-tst-cancel1.c=-fno-exceptions \
+  'CFLAGS-test_time.c=-Wno-format -Wno-error=format-security' \
+  $SHSTK_XFAIL
+# glibc's top-level check target writes authoritative merged results but does
+# not reliably fail make for every bad outcome.  Treat every uppercase status
+# line as an enum and accept only the three release statuses, so FAIL, XPASS,
+# UNRESOLVED and future failure classes all stop the build.
+check_result_sum()
+{
+  label=$1
+  result_sum=$2
+  unexpected="$SMOKE/unexpected-$label-results"
+  test -f "$result_sum"
+  if awk -F: '
+      /^[A-Z][A-Z0-9_-]*:/ && $1 !~ /^(PASS|UNSUPPORTED|XFAIL)$/ {
+        print
+        bad=1
+      }
+      END { exit !bad }
+    ' "$result_sum" > "$unexpected"; then
+    echo "unexpected $label upstream test results:" >&2
+    cat "$unexpected" >&2
+    exit 1
+  fi
+  rm -f "$unexpected"
+}
+ORDINARY_RESULTS="$BUILD/tests.sum"
+check_result_sum ordinary "$ORDINARY_RESULTS"
+# tst-resolv-qtypes is an upstream xtest because it intentionally sends a few
+# million loopback DNS packets.  It does not replace Peios's fixed hosts
+# provider, so run that one extra test deliberately rather than hiding it in a
+# policy exclusion or enabling every resource-heavy xtest.
+TIMEOUTFACTOR=10 make -j"$JOBS" resolv/xtests \
+  xtests=tst-resolv-qtypes \
+  "tests-unsupported=$POLICY_UNSUPPORTED $NSS_POLICY_UNSUPPORTED"
+# The dedicated subdirectory target intentionally avoids top-level xcheck, so
+# materialize the same authoritative top-level summary format for the strict
+# release parser below, limited to the one selected resolver xtest directory.
+"$SRC/scripts/merge-test-results.sh" -t "$BUILD/" \
+  subdir-xtests.sum resolv > "$BUILD/xtests.sum"
+QTYPES_RESULT="$BUILD/resolv/tst-resolv-qtypes.test-result"
+test -f "$QTYPES_RESULT"
+test "$(sed -n '1p' "$QTYPES_RESULT")" = 'PASS: resolv/tst-resolv-qtypes'
+# Check every underlying result as well as the merged summaries.  This catches
+# FAIL and XPASS alike (including a conditional-XFAIL that starts passing), and
+# rejects any new result class rather than silently masking it.  Passing the
+# policy exclusions to the subdirectory xtest above is essential: xtests has a
+# regular-test prerequisite and otherwise reruns fixed-host tests as FAIL.  Use
+# the dedicated resolv/xtests target rather than overriding top-level subdirs;
+# the latter conflicts with glibc's generated-version freshness guard and makes
+# GNU make endlessly remake its included makefiles.
+UNEXPECTED_RESULTS="$SMOKE/unexpected-results"
+find "$BUILD" -name '*.test-result' -type f \
+  -exec awk 'FNR == 1 && !/^(PASS|UNSUPPORTED|XFAIL):/ { print FILENAME ": " $0 }' {} + \
+  > "$UNEXPECTED_RESULTS"
+if [ -s "$UNEXPECTED_RESULTS" ]; then
+  echo 'unexpected underlying upstream test results:' >&2
+  cat "$UNEXPECTED_RESULTS" >&2
+  exit 1
+fi
+rm -f "$UNEXPECTED_RESULTS"
+EXTRA_RESULTS="$BUILD/xtests.sum"
+check_result_sum extra "$EXTRA_RESULTS"
+RESULT_FILE_COUNT=$(find "$BUILD" -name '*.test-result' -type f | wc -l)
+[ "$RESULT_FILE_COUNT" -gt 1000 ]
+printf 'glibc underlying result files: %s\n' "$RESULT_FILE_COUNT"
+TEST_COUNT=$(awk -F: '/^(PASS|UNSUPPORTED|XFAIL):/ { count++ } END { print count+0 }' \
+  "$ORDINARY_RESULTS" "$EXTRA_RESULTS")
+[ "$TEST_COUNT" -gt 1000 ]
+printf 'glibc upstream results: %s\n' "$TEST_COUNT"
+awk -F: '/^(PASS|UNSUPPORTED|XFAIL):/ { count[$1]++ } \
+  END { for (status in count) print status, count[status] }' \
+  "$ORDINARY_RESULTS" "$EXTRA_RESULTS" \
+  | LC_ALL=C sort
+
+# Rebuild from clean objects at the identical stable object path and compare a
+# normalized manifest of the complete install tree.  This covers every shipped
+# main/bin/devel/static/doc/gconv payload rather than sampling a few binaries;
+# paths, modes, symlink targets and regular-file bytes must all match.
+make install DESTDIR="$REPRO_ROOT"
+make clean
+make -j"$JOBS"
+# The default build omits the manual.  Upstream `make clean` removes generated
+# pkgvers.texi but accidentally leaves stamp-pkgvers behind, so make considers
+# the missing file current and summary.pl fails.  Invalidate that stale stamp,
+# then regenerate the info target so the reproducibility pass covers the
+# documented package as well as the binaries.
+rm -f "$BUILD/manual/stamp-pkgvers"
+make -j"$JOBS" info
+make install DESTDIR="$PEKIT_OUT"
+manifest_index=0
+for root in "$REPRO_ROOT" "$PEKIT_OUT"; do
+  manifest_index=$((manifest_index + 1))
+  manifest="$SMOKE/installed-$manifest_index.manifest"
+  (
+    cd "$root"
+    find etc usr var \( -type f -o -type l \) -print 2>/dev/null \
+      | LC_ALL=C sort \
+      | while IFS= read -r rel; do
+          if [ -L "$rel" ]; then
+            printf 'L %s %s\n' "$rel" "$(readlink "$rel")"
+          else
+            printf 'F %s %s ' "$(stat -c '%a' "$rel")" "$rel"
+            sha256sum "$rel" | awk '{print $1}'
+          fi
+        done
+  ) > "$manifest"
+done
+cmp "$SMOKE/installed-1.manifest" "$SMOKE/installed-2.manifest"
+rm -f "$SMOKE/installed-1.manifest" "$SMOKE/installed-2.manifest"
+rm -rf "$REPRO_ROOT"
+
+# Freeze the installed loader, sonames and public symbol-version surface before
+# splitting debug information.  These checks intentionally fail closed when a
+# future release changes the Peios ABI or installed layout.
+LOADER="$STAGED_LIBDIR/ld-linux-x86-64.so.2"
+LIBC="$STAGED_LIBDIR/libc.so.6"
+LIBM="$STAGED_LIBDIR/libm.so.6"
+test -x "$LOADER"
+test -f "$LIBC"
+test -f "$LIBM"
+readelf -d "$LIBC" | grep -F 'Library soname: [libc.so.6]'
+readelf -d "$LIBM" | grep -F 'Library soname: [libm.so.6]'
+readelf --version-info "$LIBC" | grep -F "GLIBC_$PEKIT_VERSION"
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getconf" GNU_LIBC_VERSION | grep -Fx "glibc $PEKIT_VERSION"
+
+# Build and execute both dynamic and static consumers against the staged
+# headers, CRT objects and linker scripts.  The program covers allocation,
+# threads, dlopen/dlsym, symbol versioning and ordinary libc startup/teardown.
+cat > "$SMOKE/abi.c" <<'EOF'
+#include <dlfcn.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static void *worker(void *p) { return strdup((const char *) p); }
+
+int main(void)
+{
+  pthread_t thread;
+  void *result = NULL;
+#ifndef STATIC_TEST
+  void *math = dlopen("libm.so.6", RTLD_NOW | RTLD_LOCAL);
+  if (math == NULL || dlsym(math, "cos") == NULL)
+    return 1;
+#endif
+  if (pthread_create(&thread, NULL, worker, "org.gnu.glibc") != 0)
+    return 2;
+  if (pthread_join(thread, &result) != 0 || result == NULL)
+    return 3;
+  int ok = strcmp((char *) result, "org.gnu.glibc") == 0;
+  free(result);
+#ifndef STATIC_TEST
+  dlclose(math);
+#endif
+  puts("staged glibc ABI OK");
+  return ok ? 0 : 4;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  "$SMOKE/abi.c" \
+  -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/abi-dynamic" -ldl -pthread
+"$LOADER" --library-path "$STAGED_LIBDIR" "$SMOKE/abi-dynamic" \
+  | grep -Fx 'staged glibc ABI OK'
+cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  -DSTATIC_TEST -static "$SMOKE/abi.c" \
+  -o "$SMOKE/abi-static" -ldl -pthread
+"$SMOKE/abi-static" | grep -Fx 'staged glibc ABI OK'
+
+# Validate the Peios authority contracts with real NSS dispatches.  Temporary
+# peios and peios_net modules return only authority-owned sentinel records.
+# Patched glibc must select them even when the reference rung's nsswitch.conf
+# asks for `files`, and both the exported __nss_configure_lookup hook and
+# getent -s/--service must be unable to replace any fixed database.  Put the
+# temporary modules beside staged libc so this works under both build wrappers'
+# deliberately unprivileged identity, without chroot privileges.
+cat > "$SMOKE/nss-peios.c" <<'EOF'
+#include <arpa/inet.h>
+#include <errno.h>
+#include <grp.h>
+#include <netdb.h>
+#include <nss.h>
+#include <pwd.h>
+#include <gshadow.h>
+#include <shadow.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+
+enum nss_status
+_nss_peios_getpwnam_r(const char *name, struct passwd *pwd,
+                      char *buf, size_t buflen, int *errnop)
+{
+  static const char user[] = "authority";
+  static const char pass[] = "x";
+  static const char gecos[] = "Peios authority principal";
+  static const char home[] = "/nonexistent";
+  static const char shell[] = "/usr/bin/false";
+  size_t need = sizeof user + sizeof pass + sizeof gecos + sizeof home + sizeof shell;
+  if (strcmp(name, user) != 0)
+    return NSS_STATUS_NOTFOUND;
+  if (buflen < need) {
+    *errnop = 34;
+    return NSS_STATUS_TRYAGAIN;
+  }
+  char *p = buf;
+#define COPY(field, value) do { size_t n = sizeof(value); memcpy(p, value, n); pwd->field = p; p += n; } while (0)
+  COPY(pw_name, user);
+  COPY(pw_passwd, pass);
+  COPY(pw_gecos, gecos);
+  COPY(pw_dir, home);
+  COPY(pw_shell, shell);
+  pwd->pw_uid = 4242;
+  pwd->pw_gid = 4242;
+  return NSS_STATUS_SUCCESS;
+}
+
+enum nss_status
+_nss_peios_getpwuid_r(uid_t uid, struct passwd *pwd,
+                      char *buf, size_t buflen, int *errnop)
+{
+  if (uid != 4242)
+    return NSS_STATUS_NOTFOUND;
+  return _nss_peios_getpwnam_r("authority", pwd, buf, buflen, errnop);
+}
+
+enum nss_status
+_nss_peios_getgrnam_r(const char *name, struct group *grp,
+                      char *buf, size_t buflen, int *errnop)
+{
+  static const char group[] = "authority";
+  static const char pass[] = "x";
+  size_t align = _Alignof(char *);
+  size_t pad = (align - ((uintptr_t) buf % align)) % align;
+  size_t need = pad + sizeof(char *) + sizeof group + sizeof pass;
+  if (strcmp(name, group) != 0)
+    return NSS_STATUS_NOTFOUND;
+  if (buflen < need) {
+    *errnop = ERANGE;
+    return NSS_STATUS_TRYAGAIN;
+  }
+  char **members = (char **) (buf + pad);
+  char *p = (char *) (members + 1);
+  members[0] = NULL;
+#define COPY_GROUP(field, value) do { size_t n = sizeof(value); memcpy(p, value, n); grp->field = p; p += n; } while (0)
+  COPY_GROUP(gr_name, group);
+  COPY_GROUP(gr_passwd, pass);
+  grp->gr_gid = 4242;
+  grp->gr_mem = members;
+  return NSS_STATUS_SUCCESS;
+}
+
+enum nss_status
+_nss_peios_getgrgid_r(gid_t gid, struct group *grp,
+                      char *buf, size_t buflen, int *errnop)
+{
+  if (gid != 4242)
+    return NSS_STATUS_NOTFOUND;
+  return _nss_peios_getgrnam_r("authority", grp, buf, buflen, errnop);
+}
+
+enum nss_status
+_nss_peios_initgroups_dyn(const char *user, gid_t group, long int *start,
+                          long int *size, gid_t **groupsp, long int limit,
+                          int *errnop)
+{
+  if (strcmp(user, "authority") != 0)
+    return NSS_STATUS_NOTFOUND;
+  if (group == 4242)
+    return NSS_STATUS_SUCCESS;
+  if (*start >= *size) {
+    long int new_size = *size > 0 ? *size * 2 : 1;
+    if (limit > 0 && new_size > limit)
+      new_size = limit;
+    if (new_size <= *start) {
+      *errnop = ERANGE;
+      return NSS_STATUS_TRYAGAIN;
+    }
+    gid_t *new_groups = realloc(*groupsp, new_size * sizeof(*new_groups));
+    if (new_groups == NULL) {
+      *errnop = ENOMEM;
+      return NSS_STATUS_TRYAGAIN;
+    }
+    *groupsp = new_groups;
+    *size = new_size;
+  }
+  (*groupsp)[(*start)++] = 4242;
+  return NSS_STATUS_SUCCESS;
+}
+
+/* These deliberately forbidden records turn the temporary authority module
+   into a tripwire: fixed-empty shadow/gshadow lookups must not load it.  */
+enum nss_status
+_nss_peios_getspnam_r(const char *name, struct spwd *sp,
+                      char *buf, size_t buflen, int *errnop)
+{
+  static const char user[] = "authority";
+  static const char verifier[] = "forbidden-verifier";
+  size_t need = sizeof user + sizeof verifier;
+  if (strcmp(name, user) != 0)
+    return NSS_STATUS_NOTFOUND;
+  if (buflen < need) {
+    *errnop = ERANGE;
+    return NSS_STATUS_TRYAGAIN;
+  }
+  char *p = buf;
+  memcpy(p, user, sizeof user);
+  sp->sp_namp = p;
+  p += sizeof user;
+  memcpy(p, verifier, sizeof verifier);
+  sp->sp_pwdp = p;
+  sp->sp_lstchg = -1;
+  sp->sp_min = -1;
+  sp->sp_max = -1;
+  sp->sp_warn = -1;
+  sp->sp_inact = -1;
+  sp->sp_expire = -1;
+  sp->sp_flag = (unsigned long int) -1;
+  return NSS_STATUS_SUCCESS;
+}
+
+enum nss_status
+_nss_peios_getsgnam_r(const char *name, struct sgrp *sg,
+                      char *buf, size_t buflen, int *errnop)
+{
+  static const char group[] = "authority";
+  static const char verifier[] = "forbidden-verifier";
+  size_t align = _Alignof(char *);
+  size_t pad = (align - ((uintptr_t) buf % align)) % align;
+  size_t need = pad + 2 * sizeof(char *) + sizeof group + sizeof verifier;
+  if (strcmp(name, group) != 0)
+    return NSS_STATUS_NOTFOUND;
+  if (buflen < need) {
+    *errnop = ERANGE;
+    return NSS_STATUS_TRYAGAIN;
+  }
+  char **administrators = (char **) (buf + pad);
+  char **members = administrators + 1;
+  char *p = (char *) (members + 1);
+  administrators[0] = NULL;
+  members[0] = NULL;
+  memcpy(p, group, sizeof group);
+  sg->sg_namp = p;
+  p += sizeof group;
+  memcpy(p, verifier, sizeof verifier);
+  sg->sg_passwd = p;
+  sg->sg_adm = administrators;
+  sg->sg_mem = members;
+  return NSS_STATUS_SUCCESS;
+}
+
+enum nss_status
+_nss_peios_net_gethostbyname2_r(const char *name, int af,
+                                struct hostent *host, char *buf,
+                                size_t buflen, int *errnop, int *h_errnop)
+{
+  static const char authority_host[] = "authority.invalid";
+  size_t align = _Alignof(char *);
+  size_t pad = (align - ((uintptr_t) buf % align)) % align;
+  size_t need = pad + 3 * sizeof(char *) + sizeof authority_host + 4;
+  if (strcmp(name, authority_host) != 0 || af != AF_INET) {
+    *h_errnop = HOST_NOT_FOUND;
+    return NSS_STATUS_NOTFOUND;
+  }
+  if (buflen < need) {
+    *errnop = ERANGE;
+    *h_errnop = NETDB_INTERNAL;
+    return NSS_STATUS_TRYAGAIN;
+  }
+  char **aliases = (char **) (buf + pad);
+  char **addresses = aliases + 1;
+  char *p = (char *) (addresses + 2);
+  aliases[0] = NULL;
+  host->h_name = p;
+  memcpy(p, authority_host, sizeof authority_host);
+  p += sizeof authority_host;
+  if (inet_pton(AF_INET, "203.0.113.42", p) != 1) {
+    *errnop = EINVAL;
+    *h_errnop = NETDB_INTERNAL;
+    return NSS_STATUS_UNAVAIL;
+  }
+  addresses[0] = p;
+  addresses[1] = NULL;
+  host->h_aliases = aliases;
+  host->h_addrtype = AF_INET;
+  host->h_length = 4;
+  host->h_addr_list = addresses;
+  return NSS_STATUS_SUCCESS;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  -shared -fPIC "$SMOKE/nss-peios.c" -o "$SMOKE/libnss_peios.so.2"
+install -m 0755 "$SMOKE/libnss_peios.so.2" "$STAGED_LIBDIR/libnss_peios.so.2"
+install -m 0755 "$SMOKE/libnss_peios.so.2" "$STAGED_LIBDIR/libnss_peios_net.so.2"
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" passwd authority \
+  | grep -Fx 'authority:x:4242:4242:Peios authority principal:/nonexistent:/usr/bin/false'
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" passwd 4242 \
+  | grep -Fx 'authority:x:4242:4242:Peios authority principal:/nonexistent:/usr/bin/false'
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" group authority \
+  | grep -Fx 'authority:x:4242:'
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" group 4242 \
+  | grep -Fx 'authority:x:4242:'
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" initgroups authority \
+  | grep -Eq '^authority[[:space:]]+4242$'
+status=0
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" shadow authority > "$SMOKE/shadow.out" || status=$?
+if [ "$status" -ne 2 ]; then
+  echo "glibc: fixed-empty shadow lookup returned unexpected status $status" >&2
+  exit 1
+fi
+test ! -s "$SMOKE/shadow.out"
+status=0
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" gshadow authority > "$SMOKE/gshadow.out" || status=$?
+if [ "$status" -ne 2 ]; then
+  echo "glibc: fixed-empty gshadow lookup returned unexpected status $status" >&2
+  exit 1
+fi
+test ! -s "$SMOKE/gshadow.out"
+
+# getent intentionally collapses lookup outcomes into an exit status.  Exercise
+# the reentrant APIs directly with a nonzero incoming errno so an empty policy
+# database cannot accidentally report an ambient provider error.  Both calls
+# must be a normal not-found result: success status and a NULL record.
+cat > "$SMOKE/empty-shadow-api.c" <<'EOF'
+#include <errno.h>
+#include <gshadow.h>
+#include <shadow.h>
+#include <stddef.h>
+
+int main(void)
+{
+  char buffer[1024];
+  struct spwd sp;
+  struct spwd *sp_result = (struct spwd *) 1;
+  errno = EIO;
+  int sp_rc = getspnam_r("authority", &sp, buffer, sizeof buffer, &sp_result);
+  if (sp_rc != 0 || sp_result != NULL)
+    return 10;
+
+  struct sgrp sg;
+  struct sgrp *sg_result = (struct sgrp *) 1;
+  errno = EIO;
+  int sg_rc = getsgnam_r("authority", &sg, buffer, sizeof buffer, &sg_result);
+  if (sg_rc != 0 || sg_result != NULL)
+    return 20;
+
+  return 0;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  "$SMOKE/empty-shadow-api.c" \
+  -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/empty-shadow-api"
+"$LOADER" --library-path "$STAGED_LIBDIR" "$SMOKE/empty-shadow-api"
+
+"$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/getent" hosts authority.invalid \
+  | grep -Eq '^203\.0\.113\.42[[:space:]]+authority\.invalid$'
+
+# publickey is the legacy Secure RPC/DES key database, not a Peios principal
+# credential source.  Install successful NIS/NIS+ tripwire providers only on
+# this probe's loader path, then require all three public APIs to return false
+# without touching their outputs.  Repeat after attempting the exported
+# programmatic override: a frozen-empty database must reject it and still never
+# dispatch to either tripwire.  netgroup is intentionally not part of this
+# policy and is checked as configurable by nss-policy.c below.
+cat > "$SMOKE/nss-publickey-tripwire.c" <<'EOF'
+#include <nss.h>
+#include <string.h>
+#include <sys/types.h>
+
+static enum nss_status
+tripwire_getpublickey(const char *name, char *key, int *errnop)
+{
+  (void) name;
+  (void) errnop;
+  strcpy(key, "forbidden-public-key");
+  return NSS_STATUS_SUCCESS;
+}
+
+static enum nss_status
+tripwire_getsecretkey(const char *name, char *key, const char *password,
+                      int *errnop)
+{
+  (void) name;
+  (void) password;
+  (void) errnop;
+  strcpy(key, "forbidden-secret-key");
+  return NSS_STATUS_SUCCESS;
+}
+
+static enum nss_status
+tripwire_netname2user(char netname[], uid_t *uid, gid_t *gid, int *ngroups,
+                     gid_t *groups)
+{
+  (void) netname;
+  *uid = 4242;
+  *gid = 4242;
+  *ngroups = 0;
+  (void) groups;
+  return NSS_STATUS_SUCCESS;
+}
+
+enum nss_status _nss_nis_getpublickey(const char *name, char *key, int *errnop)
+{ return tripwire_getpublickey(name, key, errnop); }
+enum nss_status _nss_nisplus_getpublickey(const char *name, char *key,
+                                          int *errnop)
+{ return tripwire_getpublickey(name, key, errnop); }
+enum nss_status _nss_nis_getsecretkey(const char *name, char *key,
+                                      const char *password, int *errnop)
+{ return tripwire_getsecretkey(name, key, password, errnop); }
+enum nss_status _nss_nisplus_getsecretkey(const char *name, char *key,
+                                          const char *password, int *errnop)
+{ return tripwire_getsecretkey(name, key, password, errnop); }
+enum nss_status _nss_nis_netname2user(char netname[], uid_t *uid, gid_t *gid,
+                                     int *ngroups, gid_t *groups)
+{ return tripwire_netname2user(netname, uid, gid, ngroups, groups); }
+enum nss_status _nss_nisplus_netname2user(char netname[], uid_t *uid,
+                                         gid_t *gid, int *ngroups,
+                                         gid_t *groups)
+{ return tripwire_netname2user(netname, uid, gid, ngroups, groups); }
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  -shared -fPIC "$SMOKE/nss-publickey-tripwire.c" \
+  -o "$SMOKE/libnss_nis.so.2"
+cp "$SMOKE/libnss_nis.so.2" "$SMOKE/libnss_nisplus.so.2"
+
+cat > "$SMOKE/empty-publickey-api.c" <<'EOF'
+#define _GNU_SOURCE 1
+#include <dlfcn.h>
+#include <nss.h>
+#include <string.h>
+#include <sys/types.h>
+
+typedef int (*getpublickey_function)(const char *, char *);
+typedef int (*getsecretkey_function)(const char *, char *, const char *);
+typedef int (*netname2user_function)(const char *, uid_t *, gid_t *, int *,
+                                    gid_t *);
+
+static getpublickey_function getpublickey_api;
+static getsecretkey_function getsecretkey_api;
+static netname2user_function netname2user_api;
+
+static int
+require_empty(void)
+{
+  char public_key[1024] = "unchanged-public";
+  char secret_key[1024] = "unchanged-secret";
+  uid_t uid = 111;
+  gid_t gid = 222;
+  int ngroups = 0;
+  gid_t groups[1] = { 333 };
+
+  if (getpublickey_api("tripwire", public_key) != 0
+      || strcmp(public_key, "unchanged-public") != 0)
+    return 10;
+  if (getsecretkey_api("tripwire", secret_key, "password") != 0
+      || strcmp(secret_key, "unchanged-secret") != 0)
+    return 11;
+  if (netname2user_api("tripwire", &uid, &gid, &ngroups, groups) != 0
+      || uid != 111 || gid != 222 || ngroups != 0 || groups[0] != 333)
+    return 12;
+  return 0;
+}
+
+int
+main(void)
+{
+  /* These obsolete interfaces are retained as non-default compatibility ABI
+     on x86-64 and intentionally have no installed headers.  Resolve their
+     exact historical symbol version instead of pretending they are a new
+     development interface.  */
+  getpublickey_api = (getpublickey_function)
+    dlvsym(RTLD_DEFAULT, "getpublickey", "GLIBC_2.2.5");
+  getsecretkey_api = (getsecretkey_function)
+    dlvsym(RTLD_DEFAULT, "getsecretkey", "GLIBC_2.2.5");
+  netname2user_api = (netname2user_function)
+    dlvsym(RTLD_DEFAULT, "netname2user", "GLIBC_2.2.5");
+  if (getpublickey_api == NULL || getsecretkey_api == NULL
+      || netname2user_api == NULL)
+    return 2;
+
+  int status = require_empty();
+  if (status != 0)
+    return status;
+  if (__nss_configure_lookup("publickey", "nis nisplus") != -1)
+    return 20;
+  status = require_empty();
+  return status == 0 ? 0 : status + 20;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  "$SMOKE/empty-publickey-api.c" \
+  -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/empty-publickey-api" -ldl
+"$LOADER" --library-path "$SMOKE:$STAGED_LIBDIR" \
+  "$SMOKE/empty-publickey-api"
+
+# Exercise the exported override hook directly.  All fixed databases must
+# reject service selection, while a deliberately non-frozen database remains
+# configurable so this does not accidentally disable NSS extension wholesale.
+cat > "$SMOKE/nss-policy.c" <<'EOF'
+#include <nss.h>
+#include <stddef.h>
+
+int main(void)
+{
+  static const char *const fixed[] = {
+    "group", "group_compat", "gshadow", "hosts", "initgroups",
+    "passwd", "passwd_compat", "publickey", "shadow", "shadow_compat"
+  };
+  for (size_t i = 0; i < sizeof fixed / sizeof fixed[0]; ++i)
+    if (__nss_configure_lookup(fixed[i], "files") != -1)
+      return 10 + i;
+  if (__nss_configure_lookup("netgroup", "files") != 0)
+    return 30;
+  if (__nss_configure_lookup("networks", "files") != 0)
+    return 31;
+  return 0;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  "$SMOKE/nss-policy.c" \
+  -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/nss-policy"
+"$LOADER" --library-path "$STAGED_LIBDIR" "$SMOKE/nss-policy"
+
+# initgroups always prints the requested user and succeeds even when no service
+# contributes a group.  Prove config-file and programmatic `files` overrides
+# retain the positive Peios provider record instead of treating that shell
+# behavior as a negative result.
+for mode in config override; do
+  output="$SMOKE/getent-$mode-initgroups.out"
+  if [ "$mode" = config ]; then
+    "$LOADER" --library-path "$STAGED_LIBDIR" \
+      "$PEKIT_OUT/usr/bin/getent" initgroups authority > "$output"
+  else
+    "$LOADER" --library-path "$STAGED_LIBDIR" \
+      "$PEKIT_OUT/usr/bin/getent" -s files initgroups authority > "$output"
+  fi
+  grep -Eq '^authority[[:space:]]+4242$' "$output"
+done
+
+# Query records that exist in an ordinary Linux files database and require no
+# files-derived answer, first through the reference rung's nsswitch.conf and
+# then through getent -s (the public path to the programmatic override hook).
+# Shadow databases may be unreadable to the unprivileged wrapper, but the
+# direct hook test above independently proves their override is rejected rather
+# than merely denied by file mode.
+FILES_USER=
+FILES_UID=
+FILES_GROUP=
+FILES_GID=
+FILES_HOST=
+[ ! -r /etc/passwd ] || FILES_USER=$(awk -F: 'NF { print $1; exit }' /etc/passwd)
+[ ! -r /etc/passwd ] || FILES_UID=$(awk -F: 'NF { print $3; exit }' /etc/passwd)
+[ ! -r /etc/group ] || FILES_GROUP=$(awk -F: 'NF { print $1; exit }' /etc/group)
+[ ! -r /etc/group ] || FILES_GID=$(awk -F: 'NF { print $3; exit }' /etc/group)
+[ ! -r /etc/hosts ] || FILES_HOST=$(awk '!/^[[:space:]]*(#|$)/ && NF >= 2 { print $2; exit }' /etc/hosts)
+[ -n "$FILES_USER" ] || FILES_USER=root
+[ -n "$FILES_UID" ] || FILES_UID=0
+[ -n "$FILES_GROUP" ] || FILES_GROUP=root
+[ -n "$FILES_GID" ] || FILES_GID=0
+[ -n "$FILES_HOST" ] || FILES_HOST=localhost
+for query in \
+  "passwd-name|passwd|$FILES_USER" \
+  "passwd-id|passwd|$FILES_UID" \
+  "group-name|group|$FILES_GROUP" \
+  "group-id|group|$FILES_GID" \
+  'shadow|shadow|root' \
+  'gshadow|gshadow|root' \
+  "hosts|hosts|$FILES_HOST"; do
+  label=${query%%|*}
+  remainder=${query#*|}
+  database=${remainder%%|*}
+  key=${remainder#*|}
+  for mode in config override; do
+    output="$SMOKE/getent-$mode-$label.out"
+    status=0
+    if [ "$mode" = config ]; then
+      "$LOADER" --library-path "$STAGED_LIBDIR" \
+        "$PEKIT_OUT/usr/bin/getent" "$database" "$key" > "$output" \
+        || status=$?
+    else
+      "$LOADER" --library-path "$STAGED_LIBDIR" \
+        "$PEKIT_OUT/usr/bin/getent" -s files "$database" "$key" \
+        > "$output" || status=$?
+    fi
+    if [ "$status" -ne 2 ]; then
+      echo "glibc: $mode $database lookup returned unexpected status $status for $key" >&2
+      cat "$output" >&2
+      exit 1
+    fi
+    test ! -s "$output"
+  done
+done
+
+# A glibc static link is not a hermetic identity/resolver implementation.  NSS
+# remains modular even for an ET_EXEC binary: the matching shared glibc and NSS
+# providers must exist at runtime.  Prove both sides of that boundary by linking
+# the probe explicitly to this staged libc and resolving name/id/group/host
+# records through the staged Peios providers.  Composed images must retain the
+# same-version runtime and real authd/resolvd providers; glibc-static alone is
+# intentionally insufficient for authority-backed lookups.
+cat > "$SMOKE/static-nss.c" <<'EOF'
+#include <grp.h>
+#include <netdb.h>
+#include <pwd.h>
+
+int main(void)
+{
+  struct addrinfo hints = { .ai_family = AF_INET };
+  struct addrinfo *ai = 0;
+  struct passwd *pw_name = getpwnam("authority");
+  struct passwd *pw_id = getpwuid(4242);
+  struct group *gr_name = getgrnam("authority");
+  struct group *gr_id = getgrgid(4242);
+  int gai = getaddrinfo("authority.invalid", 0, &hints, &ai);
+  int ok = pw_name != 0 && pw_id != 0 && gr_name != 0 && gr_id != 0 && gai == 0;
+  if (ai != 0)
+    freeaddrinfo(ai);
+  return ok ? 0 : 1;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  -static "$SMOKE/static-nss.c" -o "$SMOKE/static-nss"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/static-nss"
+rm -f "$STAGED_LIBDIR/libnss_peios.so.2" "$STAGED_LIBDIR/libnss_peios_net.so.2"
+if LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/static-nss"; then
+  echo 'glibc: static NSS unexpectedly resolved without Peios providers' >&2
+  exit 1
+fi
+
+# Validate every shipped dynamic ELF/module, scrub build paths from DWARF,
+# split debug out (build-id indexed), and strip the binaries (~5x smaller).
+# Per ELF: debugedit rewrites the build-tree comp_dir prefix ($ROOT) to a stable
+# /usr/src/debug/org.gnu.glibc (otherwise the .debug leak the builder's homedir — same
+# class of leak as rpath — and source paths don't resolve on a target) and lists
+# the sources it references; objcopy then splits the clean DWARF into
+# /usr/lib/debug/.build-id/ and strip removes it. Build-id notes come from the
+# toolchain. Static archives and relocatable link inputs get --strip-debug
+# (keeping the symtab so they still link; they have no build-id to index).
+# Then the referenced sources are copied under
+# /usr/src/debug/org.gnu.glibc. (org.gnu.glibc-debuginfo packages
+# /usr/lib/debug; org.gnu.glibc-debugsource packages /usr/src/debug.)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+: > "$PEKIT_OUT/.elfs"
+: > "$PEKIT_OUT/.inodes"
+cd "$PEKIT_OUT"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  inode=$(stat -c '%d:%i' "$f")
+  if grep -Fxq "$inode" "$PEKIT_OUT/.inodes"; then
+    continue
+  fi
+  printf '%s\n' "$inode" >> "$PEKIT_OUT/.inodes"
+  case "$f" in
+    *.a)
+      if readelf -h "$f" >/dev/null 2>&1; then
+        strip --strip-debug "$f"
+      elif ar t "$f" >/dev/null 2>&1; then
+        strip --strip-debug "$f"
+      elif grep -q 'GNU ld script' "$f"; then
+        : # libm.a is a textual linker script, despite its suffix.
+      else
+        echo "glibc: unrecognized static-library payload: $f" >&2
+        exit 1
+      fi
+      if grep -aF "$ROOT" "$f" >/dev/null; then
+        echo "glibc: build path remains in static-library payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+    *.o)
+      strip --strip-debug "$f"
+      if grep -aF "$ROOT" "$f" >/dev/null; then
+        echo "glibc: build path remains in relocatable payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+  esac
+  if ! readelf -h "$f" >/dev/null 2>&1; then
+    continue
+  fi
+
+  # glibc owns its stack-protector exceptions internally, but every installed
+  # executable and DSO must still be PIE/DYN with RELRO, immediate binding, a
+  # non-executable stack, CET IBT+SHSTK, a build ID, and no text relocations. A
+  # few interdependent gconv modules intentionally use $ORIGIN; no other
+  # runtime path is allowed.
+  readelf -h "$f" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$f" | grep -F 'GNU_RELRO' >/dev/null
+  readelf -W -l "$f" | grep -E 'GNU_STACK.*RW ' >/dev/null
+  readelf -d "$f" | grep -F 'BIND_NOW' >/dev/null
+  readelf -n "$f" | grep -F 'x86 feature: IBT, SHSTK' >/dev/null
+  if readelf -d "$f" | grep -q 'TEXTREL'; then
+    echo "glibc: text relocation in $f" >&2
+    exit 1
+  fi
+  runpath=$(readelf -d "$f" | sed -n 's/.*Library r[^:]*: \[\(.*\)\]/\1/p')
+  if [ -n "$runpath" ]; then
+    case "$f:$runpath" in
+      usr/lib/x86_64-linux-peios/gconv/*.so:'$ORIGIN') ;;
+      *) echo "glibc: unexpected runtime path in $f: $runpath" >&2; exit 1;;
+    esac
+  fi
+
+  : > "$PEKIT_OUT/.dl"
+  if readelf -W -S "$f" | grep -q '\.debug_info'; then
+    debugedit -b "$ROOT" -d "$DEBUG_DEST" \
+      -l "$PEKIT_OUT/.dl" -n "$f"
+    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  fi
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -z "$bid" ]; then
+    echo "glibc: missing build ID in $f" >&2
+    exit 1
+  fi
+  printf '%s %s\n' "$bid" "$f" >> "$PEKIT_OUT/.buildids"
+  printf '%s\n' "$f" >> "$PEKIT_OUT/.elfs"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  debug="usr/lib/debug/.build-id/$p2/$rest.debug"
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "$debug"
+  chmod 0644 "$debug"
+  readelf -n "$debug" | grep -F "Build ID: $bid" >/dev/null
+  if grep -aF "$ROOT" "$debug" >/dev/null; then
+    echo "glibc: build path remains in debug payload for $f" >&2
+    exit 1
+  fi
+  strip "$f"
+  if readelf -W -S "$f" | grep -q '\.debug_info'; then
+    echo "glibc: DWARF remains in stripped payload $f" >&2
+    exit 1
+  fi
+  if grep -aF "$ROOT" "$f" >/dev/null; then
+    echo "glibc: build path remains in stripped payload $f" >&2
+    exit 1
+  fi
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */|*/\<built-in\>) continue;; esac
+  case "$rel" in
+    # gperf's generated headers use basename-only #line directives.  The same
+    # charmap header is compiled from iconv and locale, so DWARF quite
+    # legitimately names these three compilation-directory-relative aliases
+    # even though the canonical release-archive inputs live in locale/programs.
+    # Keep the aliases at the paths DWARF references, but accept no generic
+    # missing-source fallback.
+    source/iconv/charmap-kw.gperf|source/locale/charmap-kw.gperf)
+      origin="$SRC/locale/programs/charmap-kw.gperf" ;;
+    source/locale/locfile-kw.gperf)
+      origin="$SRC/locale/programs/locfile-kw.gperf" ;;
+    source/*) origin="$SRC/${rel#source/}" ;;
+    build/*) origin="$BUILD/${rel#build/}" ;;
+    *) echo "glibc: unexpected debug source namespace: $rel" >&2; exit 1;;
+  esac
+  if [ ! -f "$origin" ]; then
+    echo "glibc: debug source listed by debugedit is missing: $rel" >&2
+    exit 1
+  fi
+  mkdir -p "usr/src/debug/org.gnu.glibc/$(dirname "$rel")"
+  cp "$origin" "usr/src/debug/org.gnu.glibc/$rel"
+done
+test -n "$(find usr/lib/debug -type f -name '*.debug' -print -quit)"
+test -n "$(find usr/src/debug/org.gnu.glibc -type f -print -quit)"
+ELF_COUNT=$(wc -l < "$PEKIT_OUT/.elfs")
+BUILD_ID_COUNT=$(cut -d' ' -f1 "$PEKIT_OUT/.buildids" | LC_ALL=C sort -u | wc -l)
+test "$ELF_COUNT" -ge 250
+test "$BUILD_ID_COUNT" -eq "$ELF_COUNT"
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.inodes"
+'''
+
+# Build deps. glibc is autotools (gcc + make) but pulls in a wider host set than
+# the bignums: bison (parser gen), gawk (its scripts need GNU awk specifically),
+# python3 + perl (build scripts), texinfo (makeinfo — checked at build start),
+# gettext (msgfmt — also checked), and the Linux UAPI headers (linux-libc-dev /
+# kernel-headers, which the compiler wrapper supplies). The debug split uses
+# debugedit (no patchelf — glibc scrubs no libtool rpath).
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+"org.gnu.bash"             = "*"
+"org.gnu.bison"            = "*"
+"org.gnu.gawk"             = "*"
+"org.gnu.gettext"          = "*"
+"org.gnu.gzip"             = "*"
+"org.gnu.texinfo"          = "*"
+"org.perl.perl"            = "*"
+"org.python.python3"       = "*"
+"org.sourceware.debugedit" = "*"
+kernel-headers               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+bison = "*"
+gawk = "*"
+python3 = "*"
+perl = "*"
+texinfo = "*"
+gettext = "*"
+debugedit = "*"
+linux-libc-dev = "*"
+gzip = "*"
+
+# Compiled locale data, kept out of the main build (locale compilation is slow
+# and bulky). needs = ["main"] orders this after main and exposes its output dir
+# as $PEKIT_MAIN_OUT, so we reuse main's already-built localedef instead of
+# recompiling glibc — run it from main's build dir, staging into this build's OUT.
+# install-locale-files emits PER-LOCALE DIRECTORIES (localedef --no-archive
+# --no-hard-links: .../locale/de_DE.utf8/, etc.) so each langpack can glob one
+# language; install-locales would instead emit a single monolithic locale-archive.
+[build.locale]
+needs = ["main"]
+command = '''
+set -eu
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+MAIN_LIBDIR="$PEKIT_MAIN_OUT$LIBDIR"
+LOADER="$MAIN_LIBDIR/ld-linux-x86-64.so.2"
+LOCALE="$PEKIT_MAIN_OUT/usr/bin/locale"
+LOCALEDEF="$PEKIT_MAIN_OUT/usr/bin/localedef"
+LOCALEDIR="$PEKIT_OUT$LIBDIR/locale"
+SMOKE="$PEKIT_OUT/.locale-smoke"
+JOBS=$(nproc)
+MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
+[ "$MEM_JOBS" -lt "$JOBS" ] && JOBS=$MEM_JOBS
+[ "$JOBS" -gt 4 ] && JOBS=4
+[ "$JOBS" -lt 1 ] && JOBS=1
+
+make -C "$PEKIT_MAIN_OUT/build" -j"$JOBS" \
+  localedata/install-locale-files DESTDIR="$PEKIT_OUT"
+
+# Validate the complete per-locale install and exercise a newly added 2.44
+# locale so an accidentally stale or partial locale build cannot pass.
+test -d "$LOCALEDIR/C.utf8"
+test -d "$LOCALEDIR/de_DE.utf8"
+test -d "$LOCALEDIR/hrx_BR.utf8"
+test "$(find "$LOCALEDIR" -mindepth 1 -maxdepth 1 -type d | wc -l)" -gt 450
+# `locale -a` enumerates the compiled-in locale directory, not a private
+# LOCPATH.  Load and query the new 2.44 locale directly so this proves the
+# staged per-locale corpus rather than accidentally inspecting the host.
+LOCPATH="$LOCALEDIR" LC_ALL=hrx_BR.UTF-8 \
+  "$LOADER" --library-path "$MAIN_LIBDIR" "$LOCALE" -k decimal_point \
+  | grep -Fx 'decimal_point=","'
+LOCPATH="$LOCALEDIR" LC_ALL=de_DE.UTF-8 \
+  "$LOADER" --library-path "$MAIN_LIBDIR" "$LOCALE" -k decimal_point \
+  | grep -Fx 'decimal_point=","'
+
+# Re-run the complete langpack corpus into an independent root and compare a
+# normalized manifest of every compiled locale file.  Sampling one or two
+# locales would miss nondeterminism or omissions isolated to another language.
+REPRO_LOCALE_ROOT="$SMOKE/repro"
+make -C "$PEKIT_MAIN_OUT/build" -j"$JOBS" \
+  localedata/install-locale-files DESTDIR="$REPRO_LOCALE_ROOT"
+for root in "$LOCALEDIR" "$REPRO_LOCALE_ROOT$LIBDIR/locale"; do
+  manifest="$root.manifest"
+  (
+    cd "$root"
+    find . \( -type f -o -type l \) -print \
+      | LC_ALL=C sort \
+      | while IFS= read -r rel; do
+          if [ -L "$rel" ]; then
+            printf 'L %s %s\n' "$rel" "$(readlink "$rel")"
+          else
+            printf 'F %s %s ' "$(stat -c '%a' "$rel")" "$rel"
+            sha256sum "$rel" | awk '{print $1}'
+          fi
+        done
+  ) > "$manifest"
+done
+cmp "$LOCALEDIR.manifest" "$REPRO_LOCALE_ROOT$LIBDIR/locale.manifest"
+rm -f "$LOCALEDIR.manifest" "$REPRO_LOCALE_ROOT$LIBDIR/locale.manifest"
+rm -rf "$SMOKE"
+'''
+
+# Build deps. Re-runs make in main's already-configured glibc tree to compile the
+# per-locale data with the localedef built there — needs the same gcc + make.
+[build.locale.dependencies.peipkg]
+build-essentials-c = "*"
+
+[build.locale.dependencies.apt]
+build-essential = "*"

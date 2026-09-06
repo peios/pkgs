@@ -7,12 +7,21 @@
 # discarded at build time (archive members have no build-id to index).
 
 [package]
+name        = "org.gnu.glibc-debuginfo"
 description = "GNU C Library - debugging symbols"
+
+[provides]
+"glibc-debuginfo" = "{{version}}-5"
+
+[replaces]
+"glibc-debuginfo" = "<= {{version}}-4"
 
 [dependencies]
 # Symbols correspond to a specific glibc build (matched precisely by build-id at
 # debug time); pin the matching upstream version.
-glibc = "{{version}}"
+"org.gnu.glibc" = "{{version}}-5"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-debuginfo/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug/"

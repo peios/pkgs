@@ -1,0 +1,49 @@
+# glibc-utils — optional profiling, tracing, and debugging tools that ship with
+# glibc but aren't needed for normal operation (mtrace, xtrace, sotruss, sprof,
+# pcprofiledump, pldd), plus the LD_PRELOAD/LD_AUDIT modules they use. Inherits
+# base metadata.
+
+[package]
+name        = "org.gnu.glibc-utils"
+description = "GNU C Library - profiling and tracing utilities"
+
+[provides]
+"glibc-utils" = "{{version}}-5"
+
+[replaces]
+"glibc-utils" = "<= {{version}}-4"
+
+[dependencies]
+# The programs plus LD_PRELOAD/LD_AUDIT modules are loaded into the runtime,
+# so keep the tested family revision exact rather than allowing a partial
+# module/runtime upgrade.
+"org.gnu.glibc" = "{{version}}-5"
+# xtrace and sotruss are Bash scripts, and xtrace invokes sed.  mtrace starts
+# as a shell wrapper, executes Perl for the parser and invokes addr2line when a
+# traced binary is supplied, so these are runtime inputs rather than build-only
+# conveniences.
+"org.gnu.bash"     = "*"
+"org.gnu.binutils" = "*"
+"org.gnu.sed"      = "*"
+"org.perl.perl"    = "*"
+# mtrace begins as /bin/sh before execing Perl; scripts also use base utilities
+# supplied by Peiosutils. Keep the POSIX shell role explicit independently of
+# the Bash implementation required by xtrace/sotruss.
+sh                 = ">= 1"
+peiosutils         = "*"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-utils/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-utils/"
+# Tools (each an exact-file map, so the dest is the full path).
+":usr/bin/mtrace"        = "usr/bin/mtrace"
+":usr/bin/pcprofiledump" = "usr/bin/pcprofiledump"
+":usr/bin/pldd"          = "usr/bin/pldd"
+":usr/bin/sotruss"       = "usr/bin/sotruss"
+":usr/bin/sprof"         = "usr/bin/sprof"
+":usr/bin/xtrace"        = "usr/bin/xtrace"
+# LD_PRELOAD profiling shims.
+":usr/lib/x86_64-linux-peios/libmemusage.so"  = "usr/lib/x86_64-linux-peios/libmemusage.so"
+":usr/lib/x86_64-linux-peios/libpcprofile.so" = "usr/lib/x86_64-linux-peios/libpcprofile.so"
+# LD_AUDIT module used by sotruss.
+":usr/lib/x86_64-linux-peios/audit/**" = "usr/lib/x86_64-linux-peios/audit/"

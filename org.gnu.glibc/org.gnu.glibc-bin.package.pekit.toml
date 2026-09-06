@@ -25,19 +25,38 @@ excludes = [
 ]
 
 [package]
+name        = "org.gnu.glibc-bin"
 description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 locale"
 
+[provides]
+"glibc-bin" = "{{version}}-5"
+
+[replaces]
+"glibc-bin" = "<= {{version}}-4"
+
 [dependencies]
-# The programs are linked against the runtime and the locale data is read by
-# it; both need at least the glibc they were built against (newer glibc stays
-# backward-compatible), so a >= bound rather than glibc-devel's exact pin. The
-# operand omits the peios revision (§2.2.8), matching any revision at or above.
-glibc = ">= {{version}}"
+# The programs and their locale/getconf data are one tested family unit with
+# the runtime. Keep them on the exact revision rather than permitting a
+# partially upgraded libc toolset.
+"org.gnu.glibc" = "{{version}}-5"
+# ldd is an installed Bash script; qualify the implementation rather than
+# relying on a generic shell role because it uses Bash-specific syntax.
+# tzselect invokes awk and depends on GNU awk's behavior.
+"org.gnu.bash" = "*"
+"org.gnu.gawk" = "*"
+# tzselect also invokes the base cat/date/sort/tr utilities. Peiosutils is
+# Peios's coreutils implementation, so declare the actual package rather than
+# an upstream coreutils substitute.
+peiosutils = "*"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-bin/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-bin/"
 # All programs — usrmerge folds the former sbin tools (ldconfig, zic, ...) into
 # /usr/bin.
 ":usr/bin/**" = "usr/bin/"
+# getconf's named standards profiles are runtime data consumed by that program.
+":usr/lib/x86_64-linux-peios/getconf/**" = "usr/lib/x86_64-linux-peios/getconf/"
 # C.UTF-8: the C locale with a UTF-8 charset rather than ASCII. It is NOT built
 # into the library — only C/POSIX are — so without this directory setlocale
 # fails for it and libc's multibyte functions treat every byte as a character
