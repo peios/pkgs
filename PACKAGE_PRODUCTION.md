@@ -67,6 +67,16 @@ directories. The remaining recipes in the current pass are listed below.
 
 ## Follow-ups and known blockers
 
+- Add dependency-closure validation to `peipkg-repo verify` or a companion
+  release gate. At index 174, structural/signature verification passes but an
+  audit using Peipkg's actual constraint/provide/architecture semantics found
+  390 unresolved direct edges across 135 packages (366 of 503 install goals
+  fail transitively). Of those, 285 await the glibc publication, 79 await GCC,
+  21 await deferred first-party packages, and three await the CA-certificate
+  decision. The remaining two are `build-essentials-c -> binutils` after the
+  completed `org.gnu.binutils` migration and an unmodelled
+  `linux-kernel-headers` base assumption. Every unresolved edge had zero active
+  name/provide candidates; none was only a version or architecture mismatch.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
