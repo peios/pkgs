@@ -1,0 +1,21 @@
+[package]
+name        = "org.linux.tracefs-devel"
+description = "libtracefs headers and shared-library development files"
+license     = "LGPL-2.1-only"
+
+[provides]
+"libtracefs-devel"      = "{{version}}-2"
+"pkgconfig(libtracefs)" = "{{version}}"
+
+[replaces]
+"libtracefs-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.linux.tracefs"          = "{{version}}-2"
+"org.linux.traceevent-devel" = ">= 1.9.0-2, < 2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-devel/LGPL-2.1"
+":usr/include/tracefs/tracefs.h" = "usr/include/tracefs/tracefs.h"
+":usr/lib/x86_64-linux-peios/libtracefs.so" = "usr/lib/x86_64-linux-peios/libtracefs.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libtracefs.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libtracefs.pc"

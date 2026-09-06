@@ -1,0 +1,25 @@
+# libtracefs is itself the runtime library. Its bash completion is tiny and
+# harmless without Bash, so keep it beside the ABI instead of manufacturing a
+# mostly-empty primary package or forcing Bash onto library consumers.
+
+[package]
+name        = "org.linux.tracefs"
+description = "Linux tracefs interaction runtime library"
+license     = "LGPL-2.1-only"
+
+[provides]
+libtracefs        = "{{version}}-2"
+"libtracefs.so.1" = "{{version}}"
+
+[replaces]
+libtracefs = "<= {{version}}-1"
+
+[dependencies]
+glibc                       = ">= 2.43"
+"org.linux.traceevent-libs" = ">= 1.9.0-2, < 2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs/LGPL-2.1"
+":usr/lib/x86_64-linux-peios/libtracefs.so.1" = "usr/lib/x86_64-linux-peios/libtracefs.so.1"
+":usr/lib/x86_64-linux-peios/libtracefs.so.1.*" = "usr/lib/x86_64-linux-peios"
+":usr/share/bash-completion/completions/tracefs_sql.bash" = "usr/share/bash-completion/completions/tracefs_sql.bash"

@@ -1,0 +1,15 @@
+[package]
+name        = "org.linux.tracefs-static"
+description = "libtracefs static library"
+license     = "LGPL-2.1-only"
+
+[provides]
+"libtracefs-static" = "{{version}}-2"
+
+[dependencies]
+"org.linux.tracefs-devel" = "{{version}}-2"
+"org.linux.traceevent-static" = ">= 1.9.0-2, < 2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-static/LGPL-2.1"
+":usr/lib/x86_64-linux-peios/libtracefs.a" = "usr/lib/x86_64-linux-peios/libtracefs.a"

@@ -1,0 +1,11 @@
+[package]
+name        = "org.linux.tracefs-debuginfo"
+description = "libtracefs debugging symbols"
+license     = "LGPL-2.1-only"
+
+[dependencies]
+"org.linux.tracefs" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-debuginfo/LGPL-2.1"
+":usr/lib/debug/**"         = "usr/lib/debug"
