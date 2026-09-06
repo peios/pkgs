@@ -103,6 +103,16 @@ MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
 [ "$JOBS" -gt 4 ] && JOBS=4
 [ "$JOBS" -lt 1 ] && JOBS=1
 
+# A native glibc bootstrap cannot require the previous glibc-static package:
+# that would make the libc build depend on the libc family it is replacing.
+# Keep the C++ compiler and all dynamic C++ tests, but skip upstream's one
+# static-C++ test and its configure-time static-link preflight in that rung.
+# Debian has a complete host static toolchain and retains upstream's default.
+NATIVE_CXX_OPTION=
+if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
+  NATIVE_CXX_OPTION=--disable-static-c++-tests
+fi
+
 # The workspace policy is inherited, with glibc's documented fortify exemption
 # retained above.  Stable prefix maps make both installed DWARF and build IDs
 # independent of the checkout and pekit output paths.
@@ -156,9 +166,15 @@ cd "$BUILD"
   --enable-cet \
   --enable-kernel=6.12 \
   --disable-nscd \
+  $NATIVE_CXX_OPTION \
   CC="gcc -Wl,--build-id=sha1" \
   libc_cv_slibdir="$LIBDIR" \
   libc_cv_rtlddir="$LIBDIR"
+# Do not let configure silently discard a present but unusable C++ toolchain;
+# doing so turns C++ tests into unsupported cases and can later make GNU make
+# try to execute a .cc pathname as the compiler command.
+grep -Eq '^CXX = .+' config.make
+grep -Eq '^S\["TEST_CXX"\]=".+"$' config.status
 # glibc installs ldconfig/sln to rootsbindir (/sbin) and nscd/zic/iconvconfig to
 # sbindir (/usr/sbin). usrmerge wants them all in /usr/bin, and glibc honors these
 # two dirs via configparms — NOT the autoconf --sbindir flag — so set both here.
@@ -244,6 +260,13 @@ check_result_sum()
 }
 ORDINARY_RESULTS="$BUILD/tests.sum"
 check_result_sum ordinary "$ORDINARY_RESULTS"
+# Exactly one upstream test needs a fully static C++ bootstrap environment.
+# Prove the native exception stays singular and Debian continues to execute it.
+if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
+  test "$(grep -Fc 'UNSUPPORTED: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
+else
+  test "$(grep -Fc 'PASS: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
+fi
 # tst-resolv-qtypes is an upstream xtest because it intentionally sends a few
 # million loopback DNS packets.  It does not replace Peios's fixed hosts
 # provider, so run that one extra test deliberately rather than hiding it in a
