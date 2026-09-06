@@ -51,8 +51,8 @@ directories. The remaining recipes in the current pass are listed below.
 
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
-| 1 | `ca-certificates` | Next | Audit naming, Mozilla provenance, update cadence, payload and publication. |
-| 2 | `dash` | Pending | |
+| 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
+| 2 | `dash` | Next | |
 | 3 | `debugedit` | Pending | GDB/DWZ coverage remains a separate follow-up. |
 | 4 | `docbook-xsl` | Pending | |
 | 5 | `gcc` | Pending | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
@@ -85,6 +85,30 @@ directories. The remaining recipes in the current pass are listed below.
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package
   names coexist.
+
+### `ca-certificates`: trust-source and cadence decision
+
+The existing recipe deliberately consumes `certdata.txt` from Firefox's moving
+release branch because that is Mozilla's authoritative root-store source and
+receives additions/removals before the next NSS release. That URL has no
+enumerable version, however, so the dated version and lock must be updated by
+hand. It also downloads curl's live bundle during the build, which is useful as
+an independent conversion check but makes the build non-hermetic.
+
+The official Mozilla NSS repository has mechanically enumerable
+`NSS_3_<minor>_RTM` tags (3.128 is current at this checkpoint), allowing Pekit
+to discover and pin releases automatically. The trade-off is a different
+security policy: root-store changes wait for the monthly NSS release cadence,
+and the Git tags are lightweight rather than cryptographically signed. The
+Mozilla release archives provide SHA-256 files on the same origin, not an
+independent signature. Curl's dated CA Extract archive is another enumerable
+cross-check, but making it the primary source would delegate conversion to a
+third party.
+
+Choose whether Peios prioritises the freshest Firefox release-branch trust
+store with a small automated snapshot/versioning extension, or accepts NSS
+release cadence so the existing generic Git-tag tracker can be used. Until
+then, preserve the current trust input and do not publish a semantic change.
 
 ## Latest completion: GNU tar 1.35-2
 
