@@ -8,7 +8,7 @@ side_effects = ["man-db"]
 
 [package]
 name         = "io.github.asciidoc-py.asciidoc"
-version      = "{{version}}-1"
+version      = "{{version}}-2"
 # x86_64, not noarch: a private application's modules live under the triplet
 # directory, and its bytecode is bound to this interpreter.
 architecture = "x86_64"
@@ -20,12 +20,12 @@ homepage     = "https://asciidoc-py.github.io/"
 python3 = ">= 3.14, < 3.15"
 # a2x renders man pages with xsltproc over the DocBook stylesheets; both are
 # needed at run time, not merely to build this package.
-xsltproc      = ">= 1.1.45"
-docbook-xsl   = ">= 1.79.2-2"
+"org.gnome.libxslt-utils"       = ">= 1.1.45"
+"org.docbook.docbook-xsl"       = ">= 1.79.2-4"
 # a2x validates its generated DocBook with `xmllint --valid` before
 # transforming it, so both the tool and the DTD are runtime requirements.
-libxml2-utils = ">= 2.15.3"
-docbook-xml   = ">= 4.5"
+"org.gnome.libxml2-utils"       = ">= 2.15.4"
+"org.oasis-open.docbook-xml"    = ">= 4.5"
 
 [files]
 "@source:LICENSE"                         = "usr/share/licenses/io.github.asciidoc-py.asciidoc/"
