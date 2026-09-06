@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.tar-debuginfo"
+description = "GNU tar debugging symbols"
+
+[dependencies]
+"org.gnu.tar" = "{{version}}-2"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"

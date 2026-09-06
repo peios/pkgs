@@ -1,0 +1,9 @@
+0001-preserve-atime-on-read-only-filesystems.patch
+0002-fix-keep-newer-current-directory-diagnostic.patch
+0003-restore-omitted-upstream-tests.patch
+0004-no-overwrite-dir-never-overwrite.patch
+0005-cve-2025-45582-jail-extraction.patch
+0006-one-top-level-relative-diagnostic.patch
+0007-cve-2026-5704-hidden-file-injection.patch
+0008-cve-2026-18508-one-top-level-hardlink-escape.patch
+0009-cve-2026-18477-incremental-rename.patch

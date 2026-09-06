@@ -1,0 +1,9 @@
+[package]
+name        = "org.gnu.tar-debugsource"
+description = "GNU tar debug sources"
+
+[dependencies]
+"org.gnu.tar-debuginfo" = "{{version}}-2"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

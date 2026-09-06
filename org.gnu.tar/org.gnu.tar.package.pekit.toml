@@ -1,0 +1,18 @@
+[package]
+name        = "org.gnu.tar"
+description = "GNU tar archive creation and extraction tool"
+license     = "GPL-3.0-or-later"
+
+[provides]
+tar = "{{version}}-2"
+
+[replaces]
+tar = "<= {{version}}-1"
+
+[dependencies]
+glibc                 = ">= 2.43"
+"org.gnu.tar-common" = "{{version}}-2"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.tar/COPYING"
+":usr/bin/tar"    = "usr/bin/tar"

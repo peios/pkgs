@@ -1,0 +1,167 @@
+# GNU tar — the canonical general-purpose archive implementation.
+
+out_dir = "out"
+
+# GNU tar 1.35 remains the newest stable release. The upstream fixes below
+# close CVE-2025-45582, CVE-2026-5704, CVE-2026-18508 and CVE-2026-18477.
+# Their small prerequisite fixes are upstream commits too. Carry this series
+# only until a signed stable release contains it: a failed application on the
+# next release is an intentional one-time review gate, not a silent fallback.
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/tar/tar-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/tar/"
+extract     = true
+root        = "tar-{{version}}"
+file_regex  = 'tar-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft maintenance floor. Follow authenticated stable 1.x releases
+# automatically; stop at a new major line for command/build review.
+versions    = ">= 1.35, < 2"
+
+# GNU tar releases are signed by maintainer Sergey Poznyakoff. Pin the full
+# primary-key fingerprint so unattended discovery authenticates every source.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/sergey-poznyakoff.asc"]
+fingerprints = ["325F650C4C2B6AD58807327A3602B07F55D0C732"]
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd)"
+export CONFIG_SHELL=/usr/bin/bash
+export SHELL=/usr/bin/bash
+
+# Security fixes add Gnulib sources and Autotest cases. Rebuild the release
+# harness so both the code and every new regression test are authoritative.
+# The upstream xattr prerequisites use Bash's &> redirection; selecting Bash
+# also makes absent attr tools skip cleanly instead of becoming false failures.
+AUTOPOINT=true autoreconf -fi
+
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --disable-acl \
+  --without-posix-acls \
+  --without-selinux \
+  --with-rmt=/usr/libexec/rmt \
+  CFLAGS="-O2 -g -pipe -std=gnu17 -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64 -fPIE" \
+  LDFLAGS="-Wl,-z,relro,-z,now,--as-needed,-z,pack-relative-relocs -pie"
+
+# Peios has no Info reader. MAKEINFO=true preserves that policy without
+# introducing Texinfo solely to regenerate a payload removed after install.
+make -j"$(nproc)" MAKEINFO=true
+make -j"$(nproc)" check MAKEINFO=true
+make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+# rmt is deliberately not built: Peios does not ship the tape-era remote
+# magtape server. The explicit configure path above means tar can still target
+# a separately managed implementation in the future without owning it here.
+test ! -e "$PEKIT_OUT/usr/libexec/rmt"
+test ! -e "$PEKIT_OUT/usr/share/man/man8/rmt.8"
+
+# Exercise the staged executable across archive creation, inspection,
+# extraction, links, updates, deletion and reproducible POSIX archives.
+BIN="$PEKIT_OUT/usr/bin/tar"
+SMOKE="$PEKIT_OUT/.tar-smoke"
+mkdir -p "$SMOKE/source/sub" "$SMOKE/extract"
+printf '%s\n' 'archive payload' > "$SMOKE/source/file"
+printf '%s\n' 'nested payload' > "$SMOKE/source/sub/nested"
+ln "$SMOKE/source/file" "$SMOKE/source/hard"
+ln -s sub/nested "$SMOKE/source/link"
+
+"$BIN" -cf "$SMOKE/archive.tar" -C "$SMOKE/source" .
+"$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'
+"$BIN" -xf "$SMOKE/archive.tar" -C "$SMOKE/extract"
+cmp "$SMOKE/source/file" "$SMOKE/extract/file"
+cmp "$SMOKE/source/sub/nested" "$SMOKE/extract/sub/nested"
+[ "$(readlink "$SMOKE/extract/link")" = sub/nested ]
+[ "$(stat -c %i "$SMOKE/extract/file")" = "$(stat -c %i "$SMOKE/extract/hard")" ]
+
+printf '%s\n' 'updated payload' > "$SMOKE/source/file"
+"$BIN" -rf "$SMOKE/archive.tar" -C "$SMOKE/source" file
+"$BIN" --delete -f "$SMOKE/archive.tar" ./sub/nested
+if "$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'; then exit 1; fi
+
+for archive in deterministic-a.tar deterministic-b.tar; do
+  LC_ALL=C "$BIN" \
+    --format=posix \
+    --sort=name \
+    --mtime=@0 \
+    --owner=0 \
+    --group=0 \
+    --numeric-owner \
+    --pax-option=delete=atime,delete=ctime \
+    -cf "$SMOKE/$archive" -C "$SMOKE/source" .
+done
+cmp "$SMOKE/deterministic-a.tar" "$SMOKE/deterministic-b.tar"
+
+"$BIN" --version | head -n 1 | grep -F "$PEKIT_VERSION"
+test -f "$PEKIT_OUT/usr/share/man/man1/tar.1"
+find "$PEKIT_OUT/usr/share/locale" -name tar.mo -type f | grep -q .
+
+# Enforce the workspace ELF hardening contract and emit conventional build-ID
+# debuginfo plus the exact source files referenced by the binary's DWARF.
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+patchelf --remove-rpath usr/bin/tar 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 usr/bin/tar 2>/dev/null || true
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.tar \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/tar
+bid=$(readelf -n usr/bin/tar | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/tar "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/tar
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.tar/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.tar/$rel"
+    done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+build-essentials-c      = "*"
+"org.gnu.autoconf"     = ">= 2.72"
+"org.gnu.automake"     = ">= 1.18"
+"org.gnu.bash"         = "*"
+"org.gnu.gettext"      = "*"
+"org.gnu.gzip"         = "*"
+"org.sourceware.bzip2" = "*"
+"org.tukaani.xz"       = "*"
+"com.facebook.zstd"    = "*"
+perl                    = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+autoconf        = ">= 2.72"
+automake        = ">= 1.18"
+bash            = "*"
+bzip2           = "*"
+debugedit       = "*"
+gettext         = "*"
+gzip            = "*"
+patchelf        = "*"
+perl            = "*"
+xz-utils        = "*"
+zstd            = "*"

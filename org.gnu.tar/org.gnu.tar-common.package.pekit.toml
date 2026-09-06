@@ -1,0 +1,12 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.gnu.tar-common"
+architecture = "noarch"
+description  = "GNU tar command manual and translations"
+license      = "GPL-3.0-or-later"
+
+[files]
+"@source:COPYING"      = "usr/share/licenses/org.gnu.tar-common/COPYING"
+":usr/share/man/**"    = "usr/share/man"
+":usr/share/locale/**" = "usr/share/locale"
