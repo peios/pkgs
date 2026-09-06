@@ -105,12 +105,12 @@ MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
 
 # A native glibc bootstrap cannot require the previous glibc-static package:
 # that would make the libc build depend on the libc family it is replacing.
-# Keep the C++ compiler and all dynamic C++ tests, but skip upstream's one
-# static-C++ test and its configure-time static-link preflight in that rung.
-# Debian has a complete host static toolchain and retains upstream's default.
+# Skip only configure's host-libc static C++ preflight in that rung.  The real
+# static C++ test remains enabled: it links the supplied GCC libstdc++.a against
+# the libc.a produced by this build.  Debian retains upstream's full preflight.
 NATIVE_CXX_OPTION=
 if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
-  NATIVE_CXX_OPTION=--disable-static-c++-tests
+  NATIVE_CXX_OPTION=--disable-static-c++-link-check
 fi
 
 # The workspace policy is inherited, with glibc's documented fortify exemption
@@ -260,13 +260,9 @@ check_result_sum()
 }
 ORDINARY_RESULTS="$BUILD/tests.sum"
 check_result_sum ordinary "$ORDINARY_RESULTS"
-# Exactly one upstream test needs a fully static C++ bootstrap environment.
-# Prove the native exception stays singular and Debian continues to execute it.
-if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
-  test "$(grep -Fc 'UNSUPPORTED: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
-else
-  test "$(grep -Fc 'PASS: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
-fi
+# The native preflight exception must not turn into a test exception: both
+# environments execute the actual static C++ cancellation test.
+test "$(grep -Fc 'PASS: nptl/tst-cancel24-static' "$ORDINARY_RESULTS")" -eq 1
 # tst-resolv-qtypes is an upstream xtest because it intentionally sends a few
 # million loopback DNS packets.  It does not replace Peios's fixed hosts
 # provider, so run that one extra test deliberately rather than hiding it in a
@@ -1151,6 +1147,9 @@ build-essentials-c = "*"
 # Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
 # it to legacy GCC, while qualified GCC can satisfy the same provide later.
 "gcc-c++"                  = "*"
+# The native static C++ test links this prior-GCC archive against the new libc.a;
+# it deliberately does not pull the previous glibc-static into the build root.
+"libstdc++-static"         = "*"
 "org.gnu.bash"             = "*"
 "org.gnu.bison"            = "*"
 "org.gnu.gawk"             = "*"
