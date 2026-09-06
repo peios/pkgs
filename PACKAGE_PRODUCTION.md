@@ -39,8 +39,8 @@ A completed upstream package normally has all of the following:
 - Completed: **80 / 113** recipes (70.8%).
 - Current upstream/dependency pass: **80 / 85** recipes (94.1%).
 - Deferred first-party pass: 28 recipes.
-- Repository after libtracefs publication: index version 171, 499 active
-  entries, 752 archived entries, no verification problems.
+- Repository after the XMLTO dependency migration: index version 172, 499
+  active entries, 756 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -208,6 +208,23 @@ SHA-256 values:
 - `org.gnome.libxml2-static`: `f2f3f18aa508ceeb36f5442198c587d7c6d59245aff6775126bb4d95d33793bb`
 - `org.gnome.libxml2-utils`: `9cad162d84c25189b87d866ebaa6ff5d58454ab576608cc6d87ba1699958c660`
 - `org.gnome.libxml2-source`: `e1d7b2c5209e93dab1478ab32ef38c816a8b846e970f2bf4ed7c3d8433a46891`
+
+## Dependency migration: XMLTO 0.0.29-2
+
+XMLTO's Peipkg build and runtime dependencies now use the qualified libxml2,
+libxslt, DocBook XML, and DocBook XSL package names. Its redundant build-time
+Peiosutils edge was removed because the native C build baseline deliberately
+supplies GNU Coreutils; the runtime Peiosutils dependency remains. Debian and
+native package-all, upstream and staged DocBook tests, reproducibility,
+hardening, and debug gates passed. All four signed artifacts passed both
+archive verifiers, and the repository audit passed at index version 172.
+
+Published SHA-256 values:
+
+- `io.pagure.xmlto`: `266b533b0ae26706ae3767fb69440897fa4240af5131a4e89ac902aa382e1a03`
+- `io.pagure.xmlto-debuginfo`: `3a05f5819bd7158e1bbb3e9465f3a9c1b345219f0d94fa19d461d9584e2823a7`
+- `io.pagure.xmlto-debugsource`: `15e51e3a93864f0e1b529aa15a57b068f27a85c7ee48a9fea5c9752bde7a3c47`
+- `io.pagure.xmlto-source`: `de3484c8904f187838eb5481971632bad38e5fde317049d44e89c7013e7e0ef7`
 
 ## Dependency migration: AsciiDoc 10.2.1-2
 
