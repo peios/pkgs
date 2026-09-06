@@ -1,0 +1,159 @@
+# ca-certificates — Mozilla's CA root store as package data.
+#
+# Peios preserves Firefox release-branch trust semantics: certdata.txt is
+# tracked directly rather than waiting for the next NSS tag. Pekit's
+# tracked-path source mode creates a new dated version only when these bytes
+# change, then binds repository, ref, path, commit, Git blob and SHA-256 in the
+# append-only lock. GitHub HTTPS plus that committed TOFU lock is the honest
+# authenticity boundary; Mozilla does not sign this moving ref.
+#
+# This package does not itself install policy in /etc/ssl. trustd composes the
+# machine store from /usr/share/ca-certificates/mozilla.crt plus additions and
+# distrusts under Machine\System\Trust\Certificates. Package replacement is
+# therefore important: a Mozilla removal drops out on upgrade instead of
+# lingering as an additive registry seed.
+
+out_dir = "out"
+
+[source.git]
+url          = "https://github.com/mozilla-firefox/firefox.git"
+ref          = "refs/heads/release"
+tracked_path = "security/nss/lib/ckfw/builtins/certdata.txt"
+# Soft maintenance floor. Historical locks remain exact-rebuildable; automatic
+# selection begins with the first Peios tracked-path snapshot. Newer changed
+# blobs advance unattended unless a fail-closed conversion gate needs review.
+versions     = ">= 2026.09.06"
+
+[build.main]
+command = '''
+set -eu
+export PYTHONDONTWRITEBYTECODE=1
+
+TRACKED=security/nss/lib/ckfw/builtins/certdata.txt
+CERTDATA="$PEKIT_SOURCE_ROOT/$TRACKED"
+TOOLS="$PEKIT_RECIPE_ROOT/packages.pekit/tools"
+CONVERTER="$TOOLS/certdata-to-pem.py"
+DEST="$PEKIT_OUT/usr/share/ca-certificates/mozilla.crt"
+TMP="$PEKIT_OUT/.conversion"
+
+# Sparse-source and provenance gates: the fixed moving ref must materialise
+# exactly the selected file, and its source manifest must bind those bytes.
+test -f "$CERTDATA"
+test "$(find "$PEKIT_SOURCE_ROOT" -type f | wc -l)" -eq 1
+test "$(find "$PEKIT_SOURCE_ROOT" -type l | wc -l)" -eq 0
+python3 - "$PEKIT_SOURCE_ROOT" "$TRACKED" "$CERTDATA" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+
+root, tracked, certdata = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
+manifest = json.loads((root.parent / "source.pekit.json").read_text())
+digest = hashlib.sha256(certdata.read_bytes()).hexdigest()
+assert manifest["kind"] == "git"
+assert manifest["rendered"] == (
+    "https://github.com/mozilla-firefox/firefox.git@refs/heads/release:" + tracked
+)
+assert manifest["root"] == tracked
+assert manifest["checksum"] == digest
+commit, blob = manifest["immutable"].split(":", 1)
+assert re.fullmatch(r"[0-9a-f]{40}", commit)
+assert re.fullmatch(r"[0-9a-f]{40}", blob)
+assert manifest["provenance_ref"] == (
+    f"git:https://github.com/mozilla-firefox/firefox.git@{commit}:"
+    f"{tracked}#sha256:{digest}"
+)
+PY
+
+# Generated fixtures exercise both selection semantics and malformed/duplicate
+# fail-closed paths before real trust data is touched.
+python3 "$TOOLS/test_certdata_to_pem.py" -v
+
+mkdir -p "$(dirname "$DEST")" "$TMP"
+SOURCE="Firefox release branch certdata.txt snapshot $PEKIT_VERSION"
+python3 "$CONVERTER" "$CERTDATA" -o "$TMP/first.pem" \
+  --stats "$TMP/first.json" --floor 100 --source "$SOURCE"
+python3 "$CONVERTER" "$CERTDATA" -o "$TMP/second.pem" \
+  --stats "$TMP/second.json" --floor 100 --source "$SOURCE"
+
+# Validate exact PEM/header/fingerprint/count relationships and load the whole
+# result through Python's OpenSSL-backed certificate store.
+python3 - "$TMP/first.pem" "$TMP/first.json" "$TMP/second.pem" \
+  "$TMP/second.json" "$PEKIT_VERSION" <<'PY'
+import base64
+import hashlib
+import json
+from pathlib import Path
+import re
+import ssl
+import sys
+
+bundle, stats_path = Path(sys.argv[1]), Path(sys.argv[2])
+second_bundle, second_stats = Path(sys.argv[3]), Path(sys.argv[4])
+version = sys.argv[5]
+assert bundle.read_bytes() == second_bundle.read_bytes()
+assert stats_path.read_bytes() == second_stats.read_bytes()
+text = bundle.read_text(encoding="utf-8", errors="strict")
+stats = json.loads(stats_path.read_text())
+assert stats["certificates"] == stats["trust_objects"]
+assert stats["certificates"] == (
+    stats["trusted"] + stats["distrusted"] + stats["other_purpose"] + stats["untrusted"]
+)
+assert stats["trusted"] >= 100
+assert f"# Source: Firefox release branch certdata.txt snapshot {version}\n" in text
+
+records = re.findall(
+    r"^# ([^\r\n]+)\n# SHA-256 ([0-9a-f]{64})\n"
+    r"-----BEGIN CERTIFICATE-----\n([A-Za-z0-9+/=\n]+)"
+    r"-----END CERTIFICATE-----$",
+    text,
+    re.MULTILINE,
+)
+assert len(records) == stats["trusted"]
+fingerprints = []
+for label, claimed, body in records:
+    assert "\n" not in label and "\r" not in label
+    actual = hashlib.sha256(base64.b64decode(re.sub(r"\s", "", body), validate=True)).hexdigest()
+    assert claimed == actual
+    fingerprints.append(actual)
+assert len(fingerprints) == len(set(fingerprints))
+
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+context.load_verify_locations(cafile=str(bundle))
+store = context.cert_store_stats()
+assert store["x509"] == stats["trusted"]
+assert store["x509_ca"] == stats["trusted"]
+assert len(context.get_ca_certs(binary_form=True)) == stats["trusted"]
+PY
+
+python3 - "$TMP/first.pem" "$DEST" <<'PY'
+from pathlib import Path
+import sys
+
+source, destination = Path(sys.argv[1]), Path(sys.argv[2])
+destination.write_bytes(source.read_bytes())
+destination.chmod(0o644)
+PY
+rm -rf "$TMP"
+test "$(stat -c '%a' "$DEST")" = 644
+
+# Nothing besides the one compatibility payload may escape staging.
+actual=$(find "$PEKIT_OUT" -type f -printf '%P\n' | LC_ALL=C sort)
+test "$actual" = usr/share/ca-certificates/mozilla.crt
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.findutils"     = "*"
+"org.python.python3"    = "*"
+peiosutils               = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+dash      = "*"
+findutils = "*"
+python3   = "*"
+
+[clean]
+command = "rm -rf out"

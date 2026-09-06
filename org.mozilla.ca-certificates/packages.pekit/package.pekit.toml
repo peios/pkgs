@@ -1,0 +1,12 @@
+# Shared metadata for Mozilla's trust-data package family. A tracked blob gets
+# a YYYY.MM.DD snapshot version, with a deterministic suffix for another
+# changed blob discovered on the same day.
+
+format = "peipkg"
+
+[package]
+version      = "{{version}}-1"
+architecture = "noarch"
+license      = "MPL-2.0"
+license_class = "free"
+homepage     = "https://www.mozilla.org/"

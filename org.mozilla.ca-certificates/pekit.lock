@@ -1,0 +1,16 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "2026.09.06"
+  ref = "refs/heads/release"
+  commit = "e9961dcf47b3984082b4d854cb3743b7dfe79b53"
+  repository = "https://github.com/mozilla-firefox/firefox.git"
+  path = "security/nss/lib/ckfw/builtins/certdata.txt"
+  blob = "f2f8edc685ad3e5c38b79ab1d96c8dde79793fd6"
+  blob_sha256 = "81b7f2576333a2e360e673f912d7b0b7a765d836c731003e348a46cac5d37198"
+  locked_at = "2026-09-06T20:41:04Z"

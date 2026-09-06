@@ -5,7 +5,16 @@
 # renders it. A machine without trustd has this file and no /etc/ssl.
 
 [package]
+name        = "org.mozilla.ca-certificates"
 description = "Mozilla CA root certificates - input to the Peios trust store"
+
+# Preserve legacy dependency resolution while replacing the unqualified
+# package at the same upstream/revision identity during migration.
+[provides]
+ca-certificates = "{{version}}-1"
+
+[replaces]
+ca-certificates = "<= {{version}}-1"
 
 [files]
 ":usr/share/ca-certificates/mozilla.crt" = "usr/share/ca-certificates/mozilla.crt"
