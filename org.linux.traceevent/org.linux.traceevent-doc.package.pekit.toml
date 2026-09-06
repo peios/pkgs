@@ -1,0 +1,15 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.linux.traceevent-doc"
+description  = "libtraceevent API documentation"
+architecture = "noarch"
+license      = "LGPL-2.1-only"
+
+[provides]
+"libtraceevent-doc" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-doc/LGPL-2.1"
+":usr/share/doc/org.linux.traceevent/**" = "usr/share/doc/org.linux.traceevent"
+":usr/share/man/man3/**" = "usr/share/man/man3"

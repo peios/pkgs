@@ -1,0 +1,12 @@
+[package]
+name        = "org.linux.traceevent-debuginfo"
+description = "libtraceevent library and plugin debugging symbols"
+
+[dependencies]
+"org.linux.traceevent"      = "{{version}}-2"
+"org.linux.traceevent-libs" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-debuginfo/LGPL-2.1"
+"@source:LICENSES/GPL-2.0"  = "usr/share/licenses/org.linux.traceevent-debuginfo/GPL-2.0"
+":usr/lib/debug/**"         = "usr/lib/debug"

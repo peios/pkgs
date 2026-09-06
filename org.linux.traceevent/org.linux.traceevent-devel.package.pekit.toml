@@ -1,0 +1,19 @@
+[package]
+name        = "org.linux.traceevent-devel"
+description = "libtraceevent headers and shared-library development files"
+license     = "LGPL-2.1-only"
+
+[provides]
+"libtraceevent-devel" = "{{version}}-2"
+
+[replaces]
+"libtraceevent-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.linux.traceevent-libs" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-devel/LGPL-2.1"
+":usr/include/traceevent/**" = "usr/include/traceevent"
+":usr/lib/x86_64-linux-peios/libtraceevent.so" = "usr/lib/x86_64-linux-peios/libtraceevent.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libtraceevent.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libtraceevent.pc"

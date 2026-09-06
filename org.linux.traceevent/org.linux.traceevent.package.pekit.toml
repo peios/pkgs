@@ -1,0 +1,21 @@
+# Runtime event-format plugins. Keep this as the primary package so replacing
+# the retired combined `libtraceevent` package preserves its complete payload.
+
+[package]
+name        = "org.linux.traceevent"
+description = "Linux trace-event parsing plugins"
+
+[provides]
+libtraceevent = "{{version}}-2"
+
+[replaces]
+libtraceevent = "<= {{version}}-1"
+
+[dependencies]
+glibc                        = ">= 2.43"
+"org.linux.traceevent-libs" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent/LGPL-2.1"
+"@source:LICENSES/GPL-2.0"  = "usr/share/licenses/org.linux.traceevent/GPL-2.0"
+":usr/lib/x86_64-linux-peios/traceevent/plugins/**" = "usr/lib/x86_64-linux-peios/traceevent/plugins"

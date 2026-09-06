@@ -6,6 +6,6 @@ schema = 1
 
 [[source]]
   version = "1.9.0"
-  url = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/snapshot/libtraceevent-1.9.0.tar.gz"
-  sha256 = "e6d82cb2392d04866203387fa092692e4282ccc36c8235dc129afd1ceba12684"
-  locked_at = "2026-08-11T13:20:33Z"
+  ref = "libtraceevent-1.9.0"
+  commit = "13701b5532e0c3295bf5670361692b0d0044228d"
+  locked_at = "2026-09-05T23:36:58Z"

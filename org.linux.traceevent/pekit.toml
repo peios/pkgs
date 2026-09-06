@@ -1,0 +1,361 @@
+# libtraceevent — the kernel trace-event parser and its event-format plugins.
+# The stable shared library is independently installable; the primary package
+# carries the plugins and preserves the complete payload of the retired
+# combined `libtraceevent` package.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git"
+ref       = "libtraceevent-{{version}}"
+tag_regex = '^libtraceevent-(?P<version>1\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow later stable 1.x releases automatically; the
+# explicit SONAME, header, plugin and test gates below stop a release whose
+# packaging contract needs deliberate review. A 2.x release is an ABI review.
+versions  = ">= 1.9, < 2"
+
+# Upstream's release tags are annotated and signed, but Pekit cannot yet
+# authenticate Git tag signatures (PEI-665). HTTPS authenticates transport and
+# the Git lock pins the accepted commit immutably; first acceptance of a new
+# tag remains an explicit TOFU exception until that support lands.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+PLUGIN_DIR="$LIBDIR/traceevent/plugins"
+
+mkdir -p "$BUILD"
+
+# Upstream replaces environment CFLAGS unless EXTRA_CFLAGS is present. Export
+# it so every recursive Makefile, including plugins and tests, receives the
+# workspace distro flags. The explicit link options retain the CET property
+# note even though plugins deliberately link without startup objects.
+export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+make -C "$SRC" O="$BUILD" -j"$(nproc)" \
+  prefix=/usr libdir=/usr/lib/x86_64-linux-peios \
+  libdir_relative=lib/x86_64-linux-peios \
+  pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig
+
+# Upstream's nominal `test` target only builds its CUnit runner. Execute that
+# runner explicitly wherever CUnit is available. Peios does not yet package
+# this test-only framework, so the native environment instead receives the
+# staged shared/static API and plugin-loader coverage below; Debian reference
+# builds install libcunit1-dev and run the complete upstream suite here.
+if pkgconf --exists cunit; then
+  make -C "$SRC" O="$BUILD" test
+  "$BUILD/utest/trace-utest"
+else
+  echo 'CUnit unavailable; running maintained staged-library tests only' >&2
+fi
+
+make -C "$SRC" O="$BUILD" -j1 \
+  DESTDIR="$PEKIT_OUT" prefix=/usr \
+  libdir=/usr/lib/x86_64-linux-peios \
+  libdir_relative=lib/x86_64-linux-peios \
+  pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig install
+
+# Build and install all upstream API documentation as both man3 and HTML. The
+# AsciiDoc Python distribution silently drops source examples from HTML when
+# its optional GNU source-highlight helper is unavailable. Build documentation
+# from a private copy and render those source blocks as ordinary, complete code
+# listings instead, avoiding that test-only formatter dependency on Peios.
+DOCSRC="$PEKIT_OUT/doc-src"
+mkdir -p "$DOCSRC" "$BUILD/Documentation"
+cp -a "$SRC/Documentation" "$SRC/scripts" "$DOCSRC/"
+find "$DOCSRC/Documentation" -type f -name '*.txt' -exec \
+  sed -i 's/^\[source,c\]$/[listing]/' '{}' +
+
+# Upstream invokes xmlto only as a thin wrapper around this xsltproc
+# transformation. The packaged XMLTO runtime pulls Peiosutils, whose applet
+# links intentionally overlap the GNU Coreutils bootstrap implementation in
+# build-essentials. Keep the upstream stylesheet layer but perform this single
+# transformation directly using xsltproc, which AsciiDoc already requires.
+cat > "$DOCSRC/Documentation/peios-manpage.xsl" <<'EOF'
+<?xml version="1.0"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                version="1.0">
+  <xsl:import href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl"/>
+  <xsl:import href="manpage-normal.xsl"/>
+</xsl:stylesheet>
+EOF
+XMLTO_COMPAT="$PEKIT_OUT/xmlto-manpage"
+cat > "$XMLTO_COMPAT" <<'EOF'
+#!/bin/sh
+set -eu
+test "$1" = -o
+output=$2
+shift 2
+test "$1" = -m
+shift 2
+test "$1" = man
+input=$2
+cd "$output"
+exec xsltproc --nonet "$PEIOS_MANPAGE_XSL" "$input"
+EOF
+chmod 0755 "$XMLTO_COMPAT"
+export PEIOS_MANPAGE_XSL="$DOCSRC/Documentation/peios-manpage.xsl"
+make -C "$DOCSRC/Documentation" -j1 \
+  obj="$BUILD" EVENT_PARSE_VERSION="$PEKIT_VERSION" \
+  XMLTO="$XMLTO_COMPAT" all
+make -C "$DOCSRC/Documentation" -j1 \
+  obj="$BUILD" EVENT_PARSE_VERSION="$PEKIT_VERSION" \
+  XMLTO="$XMLTO_COMPAT" DESTDIR="$PEKIT_OUT" prefix=/usr install
+
+# Give the documentation a package-qualified path while retaining upstream's
+# public manpage names.
+install -d "$PREFIX/share/doc"
+mv "$PREFIX/share/doc/libtraceevent-doc" \
+  "$PREFIX/share/doc/org.linux.traceevent"
+
+# Freeze the public ABI/header/plugin surface. Documentation follows additions
+# automatically, but every code-bearing addition/removal requires an explicit
+# package and licence decision.
+find "$PREFIX/include/traceevent" -mindepth 1 -maxdepth 1 -type f \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-headers"
+printf '%s\n' event-parse.h event-utils.h kbuffer.h trace-seq.h \
+  | LC_ALL=C sort > "$PEKIT_OUT/.expected-headers"
+diff -u "$PEKIT_OUT/.expected-headers" "$PEKIT_OUT/.actual-headers"
+
+find "$LIBDIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-libs"
+printf '%s\n' libtraceevent.a libtraceevent.so libtraceevent.so.1 \
+  "libtraceevent.so.$PEKIT_VERSION" | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-libs"
+diff -u "$PEKIT_OUT/.expected-libs" "$PEKIT_OUT/.actual-libs"
+
+find "$PLUGIN_DIR" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-plugins"
+printf '%s\n' \
+  plugin_cfg80211.so plugin_function.so plugin_futex.so plugin_hrtimer.so \
+  plugin_jbd2.so plugin_kmem.so plugin_kvm.so plugin_mac80211.so \
+  plugin_net.so plugin_sched_switch.so plugin_scsi.so plugin_tlb.so \
+  plugin_xen.so | LC_ALL=C sort > "$PEKIT_OUT/.expected-plugins"
+diff -u "$PEKIT_OUT/.expected-plugins" "$PEKIT_OUT/.actual-plugins"
+
+test "$(find "$LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" \
+  = libtraceevent.pc
+test "$(readlink "$LIBDIR/libtraceevent.so")" = \
+  "libtraceevent.so.1"
+test "$(readlink "$LIBDIR/libtraceevent.so.1")" = \
+  "libtraceevent.so.$PEKIT_VERSION"
+
+# Every maintained documentation source must have an HTML form. AsciiDoc uses
+# each document's NAME list (often several API calls) to name the installed
+# manpages, so compare the generated and installed man3 sets rather than
+# incorrectly assuming one basename per source file.
+for txt in "$SRC"/Documentation/libtraceevent*.txt; do
+  page=$(basename "$txt" .txt)
+  test -s "$PREFIX/share/doc/org.linux.traceevent/$page.html"
+done
+find "$BUILD/Documentation" -maxdepth 1 -type f -name '*.3' -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.expected-man3"
+find "$PREFIX/share/man/man3" -maxdepth 1 \( -type f -o -type l \) \
+  -name '*.3' -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-man3"
+test -s "$PEKIT_OUT/.expected-man3"
+diff -u "$PEKIT_OUT/.expected-man3" "$PEKIT_OUT/.actual-man3"
+
+# Rebuild every code-bearing artifact from a clean output tree and compare it
+# byte-for-byte with the installed first build. Reusing the same O= path makes
+# the check sensitive to genuine nondeterminism rather than debug comp_dir
+# differences between two otherwise equivalent build directories.
+make -C "$SRC" O="$BUILD" clean
+make -C "$SRC" O="$BUILD" -j"$(nproc)" \
+  prefix=/usr libdir=/usr/lib/x86_64-linux-peios \
+  libdir_relative=lib/x86_64-linux-peios \
+  pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig
+cmp "$LIBDIR/libtraceevent.a" "$BUILD/lib/libtraceevent.a"
+cmp "$LIBDIR/libtraceevent.so.$PEKIT_VERSION" \
+  "$BUILD/lib/libtraceevent.so.$PEKIT_VERSION"
+for plugin in "$PLUGIN_DIR"/*.so; do
+  cmp "$plugin" "$BUILD/plugins/$(basename "$plugin")"
+done
+
+LIBSO="$LIBDIR/libtraceevent.so.$PEKIT_VERSION"
+readelf -d "$LIBSO" | grep -F 'Library soname: [libtraceevent.so.1]'
+readelf --dyn-syms -W "$LIBSO" | grep -E ' tep_alloc(@|$)'
+
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
+pkgconf --validate libtraceevent
+test "$(pkgconf --modversion libtraceevent)" = "$PEKIT_VERSION"
+pkgconf --libs libtraceevent | grep -Eq '(^|[[:space:]])-ltraceevent([[:space:]]|$)'
+pkgconf --cflags libtraceevent | grep -F '/usr/include/traceevent'
+grep -F 'libdir=${prefix}/lib/x86_64-linux-peios' \
+  "$LIBDIR/pkgconfig/libtraceevent.pc"
+
+# Parse a real tracepoint format through both public link surfaces and load all
+# 13 staged plugins. Static consumers use --export-dynamic because plugins are
+# designed to resolve the libtraceevent API from their host process.
+SMOKE="$PEKIT_OUT/.traceevent-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <event-parse.h>
+#include <trace-seq.h>
+#include <stdlib.h>
+#include <string.h>
+
+static const char format[] =
+  "name: peios_test\n"
+  "ID: 42\n"
+  "format:\n"
+  "\tfield:unsigned short common_type;\toffset:0;\tsize:2;\tsigned:0;\n"
+  "\tfield:unsigned char common_flags;\toffset:2;\tsize:1;\tsigned:0;\n"
+  "\tfield:unsigned char common_preempt_count;\toffset:3;\tsize:1;\tsigned:0;\n"
+  "\tfield:int common_pid;\toffset:4;\tsize:4;\tsigned:1;\n"
+  "\n"
+  "\tfield:int value;\toffset:8;\tsize:4;\tsigned:1;\n"
+  "\n"
+  "print fmt: \"value=%d\", REC->value\n";
+
+int main(int argc, char **argv)
+{
+  struct tep_plugin_list *plugins;
+  struct tep_event *event = NULL;
+  struct tep_handle *tep;
+  struct trace_seq seq;
+  const char *p;
+  int count = 0;
+
+  if (argc != 2)
+    return 1;
+  tep = tep_alloc();
+  if (tep == NULL)
+    return 2;
+  if (tep_parse_format(tep, &event, format, strlen(format), "peios") !=
+      TEP_ERRNO__SUCCESS)
+    return 3;
+  if (event == NULL || event->id != 42 || tep_get_events_count(tep) != 1)
+    return 4;
+  if (tep_find_event_by_name(tep, "peios", "peios_test") != event)
+    return 5;
+
+  tep_set_flag(tep, TEP_DISABLE_SYS_PLUGINS);
+  if (setenv("HOME", "/nonexistent", 1) ||
+      unsetenv("TRACEEVENT_PLUGIN_DIR"))
+    return 6;
+  if (tep_add_plugin_path(tep, argv[1], TEP_PLUGIN_FIRST))
+    return 7;
+  plugins = tep_load_plugins(tep);
+  if (plugins == NULL)
+    return 8;
+  trace_seq_init(&seq);
+  tep_print_plugins(&seq, "", "\n", plugins);
+  trace_seq_terminate(&seq);
+  for (p = seq.buffer; p != NULL && (p = strstr(p, ".so\n")) != NULL; p += 4)
+    count++;
+  if (count != 13)
+    return 9;
+  trace_seq_destroy(&seq);
+  tep_unload_plugins(plugins, tep);
+  tep_free(tep);
+  return 0;
+}
+EOF
+cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  $(pkgconf --cflags --libs libtraceevent) -Wl,--export-dynamic \
+  -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared" "$PLUGIN_DIR"
+cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  -I"$PREFIX/include/traceevent" "$LIBDIR/libtraceevent.a" -ldl \
+  -Wl,--export-dynamic -o "$SMOKE/static"
+"$SMOKE/static" "$PLUGIN_DIR"
+
+# Produce build-ID-indexed debug packages for the library and every plugin;
+# static code remains available without duplicating debug sections.
+strip --strip-debug "$LIBDIR/libtraceevent.a"
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+for elf in "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
+  usr/lib/x86_64-linux-peios/traceevent/plugins/*.so; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.linux.traceevent \
+    -l "$PEKIT_OUT/.debug-list" -n "$elf"
+  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
+  build_id=$(readelf -n "$elf" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$first"
+  objcopy --only-keep-debug "$elf" \
+    "usr/lib/debug/.build-id/$first/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
+  strip "$elf"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r source; do
+      test -n "$source" || continue
+      case "$source" in */) continue;; esac
+      test -f "$ROOT/$source" || continue
+      mkdir -p "usr/src/debug/org.linux.traceevent/$(dirname "$source")"
+      cp "$ROOT/$source" "usr/src/debug/org.linux.traceevent/$source"
+    done
+test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 14
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 14
+test -n "$(find usr/src/debug/org.linux.traceevent -type f -print -quit)"
+for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the final ABI, hardening and dependency contract on all 14 shipped
+# ELF objects. Plugins deliberately leave tep_* symbols for the host process.
+for elf in "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
+  usr/lib/x86_64-linux-peios/traceevent/plugins/*.so; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -d "$elf" | grep 'Shared library:' | \
+      grep -Fv 'Shared library: [libc.so.6]'; then exit 1; fi
+  if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
+done
+readelf -d "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
+  | grep -F 'RELR'
+test "$(readelf -d "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
+  | grep -c 'Shared library:')" -eq 1
+readelf -d "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
+  | grep -F 'Shared library: [libc.so.6]'
+for plugin in usr/lib/x86_64-linux-peios/traceevent/plugins/*.so; do
+  readelf --dyn-syms -W "$plugin" | grep -E ' tep_plugin_loader$'
+done
+
+rm -rf "$BUILD" "$DOCSRC" "$SMOKE" "$XMLTO_COMPAT"
+rm -f "$PEKIT_OUT/.actual-headers" "$PEKIT_OUT/.expected-headers" \
+  "$PEKIT_OUT/.actual-libs" "$PEKIT_OUT/.expected-libs" \
+  "$PEKIT_OUT/.actual-plugins" "$PEKIT_OUT/.expected-plugins" \
+  "$PEKIT_OUT/.actual-man3" "$PEKIT_OUT/.expected-man3" \
+  "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c"               = "*"
+debugedit                          = "*"
+findutils                          = "*"
+"org.gnu.grep"                     = "*"
+"io.github.asciidoc-py.asciidoc" = "*"
+make                               = "*"
+patchelf                           = "*"
+pkgconf                            = "*"
+sed                                = "*"
+
+[build.main.dependencies.apt]
+asciidoc        = "*"
+build-essential = "*"
+debugedit       = "*"
+docbook-xsl     = "*"
+libcunit1-dev   = "*"
+patchelf        = "*"
+pkgconf         = "*"
+xsltproc        = "*"

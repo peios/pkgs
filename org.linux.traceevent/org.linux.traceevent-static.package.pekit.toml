@@ -1,0 +1,14 @@
+[package]
+name        = "org.linux.traceevent-static"
+description = "libtraceevent static library"
+license     = "LGPL-2.1-only"
+
+[provides]
+"libtraceevent-static" = "{{version}}-2"
+
+[dependencies]
+"org.linux.traceevent-devel" = "{{version}}-2"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-static/LGPL-2.1"
+":usr/lib/x86_64-linux-peios/libtraceevent.a" = "usr/lib/x86_64-linux-peios/libtraceevent.a"

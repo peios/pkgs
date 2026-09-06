@@ -1,0 +1,21 @@
+# Stable shared-library ABI, independently installable by C consumers that do
+# not need the event-format plugin collection.
+
+[package]
+name        = "org.linux.traceevent-libs"
+description = "Linux trace-event parsing runtime library"
+license     = "LGPL-2.1-only"
+
+[provides]
+"libtraceevent.so.1" = "{{version}}"
+
+[replaces]
+libtraceevent = "<= {{version}}-1"
+
+[dependencies]
+glibc = ">= 2.43"
+
+[files]
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-libs/LGPL-2.1"
+":usr/lib/x86_64-linux-peios/libtraceevent.so.1" = "usr/lib/x86_64-linux-peios/libtraceevent.so.1"
+":usr/lib/x86_64-linux-peios/libtraceevent.so.1.*" = "usr/lib/x86_64-linux-peios"

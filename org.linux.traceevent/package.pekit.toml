@@ -1,0 +1,11 @@
+# Base metadata shared by the libtraceevent package family. The generated
+# source package carries the complete locked Git tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-2"
+architecture  = "x86_64"
+license       = "LGPL-2.1-only AND GPL-2.0-only"
+license_class = "free"
+homepage      = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git"
