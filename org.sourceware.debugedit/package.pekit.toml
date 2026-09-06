@@ -1,0 +1,12 @@
+# Metadata shared by the Debugedit package family and its corresponding-source
+# package. The family contains GPLv2+, GPLv3+, and LGPLv2+ implementation
+# units; upstream documents that they are mutually compatible as GPLv3+.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-or-later AND GPL-3.0-or-later AND LGPL-2.0-or-later"
+license_class = "free"
+homepage      = "https://sourceware.org/debugedit/"

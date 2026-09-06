@@ -1,0 +1,13 @@
+side_effects = ["man-db"]
+
+[package]
+name         = "org.sourceware.debugedit-common"
+architecture = "noarch"
+description  = "Debugedit documentation and command manuals"
+
+[files]
+"@source:COPYING"     = "usr/share/licenses/org.sourceware.debugedit-common/COPYING"
+"@source:COPYING3"    = "usr/share/licenses/org.sourceware.debugedit-common/COPYING3"
+"@source:COPYING.LIB" = "usr/share/licenses/org.sourceware.debugedit-common/COPYING.LIB"
+"@source:README"      = "usr/share/doc/org.sourceware.debugedit/README"
+":usr/share/man/**"   = "usr/share/man"

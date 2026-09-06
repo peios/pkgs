@@ -1,0 +1,24 @@
+[package]
+name        = "org.sourceware.debugedit"
+description = "DWARF source-path, build-ID, and debug-link tools"
+
+[provides]
+debugedit = "{{version}}-1"
+
+[replaces]
+debugedit = "< {{version}}-1"
+
+[dependencies]
+glibc                                = ">= 2.43"
+"org.sourceware.elfutils-libelf"   = ">= 0.196"
+"org.sourceware.elfutils-libs"     = ">= 0.196"
+"com.xxhash.xxhash-libs"           = ">= 0.8.3"
+"org.sourceware.debugedit-common"  = "{{version}}-1"
+
+[files]
+"@source:COPYING"                    = "usr/share/licenses/org.sourceware.debugedit/COPYING"
+"@source:COPYING3"                   = "usr/share/licenses/org.sourceware.debugedit/COPYING3"
+"@source:COPYING.LIB"                = "usr/share/licenses/org.sourceware.debugedit/COPYING.LIB"
+":usr/bin/debugedit"                 = "usr/bin/debugedit"
+":usr/bin/debugedit-classify-ar"     = "usr/bin/debugedit-classify-ar"
+":usr/bin/sepdebugcrcfix"            = "usr/bin/sepdebugcrcfix"

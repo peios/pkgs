@@ -9,3 +9,10 @@ schema = 1
   url = "https://sourceware.org/pub/debugedit/5.2/debugedit-5.2.tar.xz"
   sha256 = "705296803cc4403f38764e891b4ed38f8d8d4f8a9164bd4f86c9d4bedcac68dd"
   locked_at = "2026-08-10T19:47:48Z"
+
+[[source]]
+  version = "5.3"
+  url = "https://sourceware.org/pub/debugedit/5.3/debugedit-5.3.tar.xz"
+  sha256 = "3b8c6396fe235e0270c9b9c0d244cfd0e86c284fc27e820acc58360e7cfa08c2"
+  signature_key = "28ff4b30a88d5523a7e2cba20376a15c6ffc11cd"
+  locked_at = "2026-09-06T01:59:14Z"

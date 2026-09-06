@@ -1,0 +1,9 @@
+[package]
+name        = "org.sourceware.debugedit-debugsource"
+description = "Debugedit debug sources"
+
+[dependencies]
+"org.sourceware.debugedit-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"
