@@ -35,16 +35,16 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.gnu.tar` at pkgs commit `45a3cab`.
-- Completed: **74 / 113** recipes (65.5%).
-- Current upstream/dependency pass: **74 / 85** recipes (87.1%).
+- Last completed recipe: `org.sourceware.debugedit` at pkgs commit `128b87d`.
+- Completed: **75 / 113** recipes (66.4%).
+- Current upstream/dependency pass: **75 / 85** recipes (88.2%).
 - Deferred first-party pass: 28 recipes.
-- Repository after GNU tar publication: index version 155, 456 active entries,
-  689 archived entries, no verification problems.
+- Repository after Debugedit publication: index version 164, 467 active entries,
+  714 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 74 completed recipes are the currently tracked reverse-DNS recipe
+The 75 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
@@ -53,15 +53,14 @@ directories. The remaining recipes in the current pass are listed below.
 | ---: | --- | --- | --- |
 | 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
 | 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
-| 3 | `debugedit` | Next | GDB/DWZ coverage remains a separate follow-up. |
-| 4 | `docbook-xsl` | Pending | |
-| 5 | `gcc` | Pending | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
-| 6 | `glibc` | Pending | Large native bootstrap and ABI-critical validation. |
-| 7 | `libtraceevent` | Pending | Rename/package-family production work was previously tracked separately. |
-| 8 | `libtracefs` | Pending | Depends on the libtraceevent migration. |
-| 9 | `libxml2` | Pending | |
-| 10 | `libxslt` | Pending | |
-| 11 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 3 | `docbook-xsl` | In progress | Isolated production worker active. |
+| 4 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
+| 5 | `glibc` | Pending | Large native bootstrap and ABI-critical validation. |
+| 6 | `libtraceevent` | In progress | Isolated production worker active. |
+| 7 | `libtracefs` | Pending | Depends on the libtraceevent migration. |
+| 8 | `libxml2` | In progress | Isolated production worker active. |
+| 9 | `libxslt` | Pending | |
+| 10 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -80,7 +79,8 @@ directories. The remaining recipes in the current pass are listed below.
   then, generated source packages necessarily share family metadata.
 - Fix `verify.sh` file/directory prefix ordering drift where the shell checker
   disagrees with canonical `archive.VerifyFormat`.
-- Package GDB and DWZ to close Debugedit's complete upstream-test coverage.
+- Package native GDB and DWZ to enable Debugedit's optional find-debuginfo
+  payload and the remaining 14 upstream integration tests on Peios.
 - Extend Pekit's selected-version model or Git-tag mapping so upstream
   four-component releases retain their spelling and ordering. Dash is now at
   `v0.5.13.5`, while Pekit accepts at most `MAJOR.MINOR.PATCH`; mapping the
@@ -118,7 +118,29 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: GNU tar 1.35-2
+## Latest completion: Debugedit 5.3-1
+
+Debugedit tracks authenticated Sourceware 5.x releases from a soft 5.3 floor
+and pins Mark Wielaard's complete release-signing fingerprint. The Debian
+reference rung ran the entire 58-case upstream suite: 54 passed and four
+GDB/DWZ compatibility cases made their expected skips. The native Peios rung
+passed all 44 tests applicable to the three shipped tools. Both rungs also
+passed clean-rebuild comparison, staged path-rewrite/archive-classifier/CRC
+tests, and the package hardening checks.
+
+The final main, common, debuginfo, debugsource, and corresponding-source
+packages passed both archive verifiers. The signed repository was audited at
+index version 164 with 467 active and 714 archived entries and no problems.
+
+Published SHA-256 values:
+
+- `org.sourceware.debugedit`: `5ed419861d84ef74a86c85068a8bd4b10a2db04b83a6b31603712e7de77df764`
+- `org.sourceware.debugedit-common`: `8b7f4d3db5aab314dc1b7518ab3f64b695a7f485f7f6ef8966b1c5a84c9ca3ad`
+- `org.sourceware.debugedit-debuginfo`: `3416dfd4c91f99cce50a5d5b1d98defa030c0f4f0ad91b236435cc4de1e43d0a`
+- `org.sourceware.debugedit-debugsource`: `17ae576e99ef450b7a7990d29d62bba1357b66b23eeef221a951459572260cd9`
+- `org.sourceware.debugedit-source`: `f524d2c6e71d9ca5c984ee0899869563a8491ff88ee194aab94eacbb688e3297`
+
+## Previous completion: GNU tar 1.35-2
 
 GNU tar tracks authenticated stable 1.x releases with a soft 1.35 floor and
 the complete Sergey Poznyakoff release-key fingerprint. Because 1.35 remains
