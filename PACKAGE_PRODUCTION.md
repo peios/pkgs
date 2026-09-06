@@ -35,16 +35,16 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.linux.tracefs` at pkgs commit `c4845b4`.
-- Completed: **80 / 113** recipes (70.8%).
-- Current upstream/dependency pass: **80 / 85** recipes (94.1%).
+- Last completed recipe: `org.git.kernel.dash` at pkgs commit `f9a71b1`.
+- Completed: **81 / 113** recipes (71.7%).
+- Current upstream/dependency pass: **81 / 85** recipes (95.3%).
 - Deferred first-party pass: 28 recipes.
-- Repository after the XMLTO dependency migration: index version 172, 499
-  active entries, 756 archived entries, no verification problems.
+- Repository after Dash publication: index version 173, 503 active entries,
+  760 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 80 completed recipes are the currently tracked reverse-DNS recipe
+The 81 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
@@ -52,10 +52,9 @@ directories. The remaining recipes in the current pass are listed below.
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
 | 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
-| 2 | `dash` | Productionized; awaiting integration/publication | `org.git.kernel.dash` tracks four-part kernel.org tags after the Pekit version-model fix. Its generated source-package manifest is necessarily BSD-only under Pekit's current synthesis even though the locked tree also contains the GPL-2.0-or-later `src/mksignames.c` build helper; binary/debug package licenses remain accurate to their shipped BSD payloads. |
-| 3 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
-| 4 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
-| 5 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 2 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
+| 3 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
+| 4 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -111,7 +110,39 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: libtracefs 1.8.3-2
+## Latest completion: Dash 0.5.13.5-1
+
+Dash now tracks the official kernel.org Git tags from a soft 0.5.13.5 floor,
+with a review ceiling below 0.6, and locks commit
+`037bbdfd330017c368caf6242f977974123239b5`. The release tag is lightweight,
+so HTTPS plus the immutable commit lock is recorded as the current TOFU
+boundary rather than claiming unavailable Git-tag signature verification.
+Pekit's version model and public documentation were extended first so all
+four numeric components remain significant and `0.5.13.10` orders after
+`0.5.13.9`.
+
+Debian and native builds passed same-path byte-reproducibility, the shipped
+`make check` recursion, a staged shell-semantics suite, exact payload and
+debug/source splits, PIE/RELRO/BIND_NOW/RELR/CET/build-ID checks, and the
+qualified `org.gnu.glibc` linkage contract. The package provides the legacy
+`dash` name and the `sh` role while replacing legacy Dash packages through
+the current release. Pekit's known source-license synthesis limitation means
+the generated source manifest cannot separately express the locked tree's
+GPL-2.0-or-later `src/mksignames.c` build helper; the emitted binary/debug
+packages retain the accurate BSD-3-Clause payload license.
+
+All four signed packages passed both the strict shell verifier and canonical
+`archive.VerifyFormat`. The repository audit passed at index version 173 with
+503 active and 760 archived entries.
+
+Published SHA-256 values:
+
+- `org.git.kernel.dash`: `269480c93dc802810ced1790bd8593aedc814bf73f254f4808126a13442e3a21`
+- `org.git.kernel.dash-debuginfo`: `55c84ce67bdb5614c61043f47eda702e4bfceece6bc2c6798b069323255ed5ae`
+- `org.git.kernel.dash-debugsource`: `a947c2322205e5954a54ded1cc3902f3bc314ed269c613bb442e5a8377143bf9`
+- `org.git.kernel.dash-source`: `fc1131d8d08bf2072da1340ffade9ef0243e634bdb646f1fca6dc1cf20afc717`
+
+## Previous completion: libtracefs 1.8.3-2
 
 Libtracefs tracks kernel.org's signed stable 1.x tags from a soft 1.8.3 floor
 and locks commit `6fad6a14ba0d4c4b437d9e4eed7098d4bb07b4fc`. The 1.8.3 annotated tag was
