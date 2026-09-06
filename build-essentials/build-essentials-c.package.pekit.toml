@@ -10,13 +10,16 @@ name        = "build-essentials-c"
 description = "Build environment for C - compiler, binutils, libc and kernel headers, debug-split tools"
 
 [dependencies]
-build-essentials = "*"
-gcc              = "*"
-"org.gnu.binutils" = "*"
-glibc-devel      = "*"
+build-essentials       = "*"
+gcc                    = "*"
+# Keep the public capability here: the legacy GCC packages also request
+# `binutils`, so spelling the reverse-DNS implementation would install both
+# implementations during the package-name migration.
+binutils               = "*"
+glibc-devel            = "*"
 "linux-kernel-headers" = "*"
-debugedit        = "*"
-patchelf         = "*"
+debugedit               = "*"
+patchelf                = "*"
 
 [files]
 "@recipe:docs/build-essentials-c.txt" = "usr/share/doc/build-essentials-c/README"
