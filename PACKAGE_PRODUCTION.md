@@ -35,16 +35,16 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.docbook.docbook-xsl` at pkgs commit `558d8b2`.
-- Completed: **76 / 113** recipes (67.3%).
-- Current upstream/dependency pass: **76 / 85** recipes (89.4%).
+- Last completed recipe: `org.linux.traceevent` at pkgs commit `c7f0c74`.
+- Completed: **79 / 113** recipes (69.9%).
+- Current upstream/dependency pass: **79 / 85** recipes (92.9%).
 - Deferred first-party pass: 28 recipes.
-- Repository after DocBook XSL publication: index version 166, 468 active
-  entries, 719 archived entries, no verification problems.
+- Repository after libtraceevent publication: index version 170, 492 active
+  entries, 745 archived entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 76 completed recipes are the currently tracked reverse-DNS recipe
+The 79 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
@@ -55,11 +55,8 @@ directories. The remaining recipes in the current pass are listed below.
 | 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
 | 3 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
 | 4 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
-| 5 | `libtraceevent` | In progress | Isolated production worker active. |
-| 6 | `libtracefs` | Pending | Depends on the libtraceevent migration. |
-| 7 | `libxml2` | Ready to integrate | Production commit complete; native rerun follows publication. |
-| 8 | `libxslt` | In progress | Isolated production worker active. |
-| 9 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 5 | `libtracefs` | In progress | Debian validation passed; native validation active against published libtraceevent. |
+| 6 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -92,6 +89,12 @@ directories. The remaining recipes in the current pass are listed below.
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package
   names coexist.
+- The native build-root wrapper currently resolves every top-level artifact in
+  `_pkgsOut_`, including superseded migrations. Legacy libxml2/libxslt pool
+  artifacts were moved, recoverably, under
+  `_pkgsOut_/archive/reverse-dns-migrated/` after their qualified replacements
+  were published. Long term, compose roots should consume the signed active
+  repository index rather than a flat historical pool glob.
 
 ### `ca-certificates`: trust-source and cadence decision
 
@@ -117,7 +120,86 @@ store with a small automated snapshot/versioning extension, or accepts NSS
 release cadence so the existing generic Git-tag tracker can be used. Until
 then, preserve the current trust input and do not publish a semantic change.
 
-## Latest completion: DocBook XSL 1.79.2-4
+## Latest completion: libtraceevent 1.9.0-2
+
+Libtraceevent tracks kernel.org's stable signed 1.x Git tags from a soft 1.9
+floor and locks 1.9.0 commit
+`13701b5532e0c3295bf5670361692b0d0044228d`. Pekit cannot yet verify Git-tag
+signatures, so the recipe accurately records the lock as a TOFU boundary
+rather than claiming authenticated source verification. Debian passed all 12
+upstream CUnit tests (46 assertions); native passed the maintained staged
+shared/static consumers and all 13 plugin-loader tests. Both rungs passed the
+documentation, ABI, split-debug, hardening, and byte-reproducibility gates.
+
+All eight signed packages passed canonical `archive.VerifyFormat`; the unsigned
+pre-publication artifacts also passed the strict shell verifier. The repository
+audit passed at index version 170 with 492 active and 745 archived entries.
+
+Published SHA-256 values:
+
+- `org.linux.traceevent`: `0b750eff3f0a00b992c223a4cd9bcd0050a23f09dbcdf715b23432cfcb4f786a`
+- `org.linux.traceevent-debuginfo`: `fb3886da849268e929dcb0c577179b1625f2da899f795f62c1ca3e1d899c10ed`
+- `org.linux.traceevent-debugsource`: `2aedd79c41b0a85fc0fd59133d5d840f562d873e4b0d98c406aa94d3ba905fa0`
+- `org.linux.traceevent-devel`: `b3b108ec27bb42abd919311ecdc7cd0ff4250676ac7152cdc555b43bd91a90e6`
+- `org.linux.traceevent-doc`: `d6be9cf8f2f08eee88eb64c6b466acd20c91a6257aae6e98317e761b181bcd29`
+- `org.linux.traceevent-libs`: `dafb8668b0e42b305b22f114a01be99cfd9c8a6d13fa5eb3a0a15eb1ec01d9a8`
+- `org.linux.traceevent-static`: `be7da4d079340de2a86698b6414002b519979fb82ccf7017ac3ddcdc551a882a`
+- `org.linux.traceevent-source`: `1f7b68982f0ae63396aad70ad4c154093a8c1d4bdad2102305ffa2e6d1aa5f3b`
+
+## Previous completion: libxslt 1.1.45-1
+
+Libxslt tracks GNOME's stable 1.1 releases from a soft 1.1.45 floor with a
+review ceiling below 1.2. GNOME supplies an archive checksum but no detached
+signature, so HTTPS plus Pekit's immutable SHA-256 lock is the documented
+authentication boundary. Debian and native passed the full upstream suite,
+staged XSLT/EXSLT and shared/static consumers, exact payload and debug splits,
+hardening, and clean-rebuild byte comparisons.
+
+All eight signed packages passed canonical format verification. Published
+SHA-256 values:
+
+- `org.gnome.libxslt`: `1586c8c3176bbc6f0c90a32ec51605eec6f20ed77eafe557498b70be8edae716`
+- `org.gnome.libxslt-debuginfo`: `90ecafbfec0db23c16731ad75d9f80d3d93dee31a64adb1a6f468c86192689f2`
+- `org.gnome.libxslt-debugsource`: `f275c2a15e130d86ff19f9d41d1f35e41563755b9b88431af5b49ca778f6a638`
+- `org.gnome.libxslt-devel`: `e0525231bbe13f4b3344648ca228daad33c7fc023d02da8e49b4ffa045a4ded9`
+- `org.gnome.libxslt-doc`: `bf89b1906ccb0c064b9069b1d99aefb0ab991ce19ee9e53a72baefa6ef020b24`
+- `org.gnome.libxslt-static`: `71eb3b42e2ed9533f0e3d7f7dc2f3903fd78a57e056636a4904af91056cf10d3`
+- `org.gnome.libxslt-utils`: `4495b2128244621d04920b4f1818dadfc55f53bb17f397bfb5c51faa082d6e87`
+- `org.gnome.libxslt-source`: `988385f234242064cb0b09f30fc358cc95a909d4d3d1db7efc15be50f78e29cc`
+
+## Previous completion: libxml2 2.15.4-1
+
+Libxml2 tracks GNOME's 2.15 release line from a soft 2.15.3 floor and freezes
+the SONAME-16 ABI. Debian passed the full upstream suite and 2,229 fuzz inputs;
+both Debian and native passed staged XML/catalog/shared/static consumers,
+complete package splits, hardening, and clean-rebuild reproducibility.
+
+All eight signed packages passed canonical format verification. Published
+SHA-256 values:
+
+- `org.gnome.libxml2`: `2f2d01be10730190b3e7d8f0d38dd8e01bb476c9921262c3553bdb563648183f`
+- `org.gnome.libxml2-debuginfo`: `c80e526a2683529629a6040fb419c56ee7c93cd3d6cb607d5200c151c6fdbadb`
+- `org.gnome.libxml2-debugsource`: `a8768c7eb3e0b2f4734a54fa5fad9ac8794e4dc6df3ba929f04f8488aa2b3fc3`
+- `org.gnome.libxml2-devel`: `dbc06a0eadddd15f38c26d13fc50f09391b59f1cd002a22b311d91e8391b8797`
+- `org.gnome.libxml2-doc`: `d546083d4eb259eae3f9b98c42fb1384add74d6bcbf510cce5b2e0b757e1deea`
+- `org.gnome.libxml2-static`: `f2f3f18aa508ceeb36f5442198c587d7c6d59245aff6775126bb4d95d33793bb`
+- `org.gnome.libxml2-utils`: `9cad162d84c25189b87d866ebaa6ff5d58454ab576608cc6d87ba1699958c660`
+- `org.gnome.libxml2-source`: `e1d7b2c5209e93dab1478ab32ef38c816a8b846e970f2bf4ed7c3d8433a46891`
+
+## Dependency migration: AsciiDoc 10.2.1-2
+
+AsciiDoc's Peipkg build and runtime dependencies now use the qualified
+libxml2, libxslt, DocBook XML, and DocBook XSL package names. Debian and native
+revalidation passed, and both signed artifacts passed canonical verification.
+The shell verifier retains its already-tracked directory/file prefix-order
+false positive on the runtime archive; the source archive passes it.
+
+Published SHA-256 values:
+
+- `io.github.asciidoc-py.asciidoc`: `1709dfa30b635b281922f191e5057fb856d719a7bbb14d2f8bc0e5361ad35ed3`
+- `io.github.asciidoc-py.asciidoc-source`: `51361b0890c45137449298d1f3eef661f2723437e0d67502ff82909f5ed8ac39`
+
+## Previous completion: DocBook XSL 1.79.2-4
 
 DocBook XSL tracks the authoritative non-namespaced DocBook 4 stylesheet
 archive from a soft 1.79.2 floor. Upstream publishes no detached signature or
