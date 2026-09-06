@@ -1,7 +1,8 @@
 build-essentials — the ambient userland floor for building packages.
 
 Pulls the shell and tools every build may assume without declaring them:
-dash (sh), coreutils, sed, grep, gawk, findutils, diffutils, make.
+dash (sh), Peios's peiosutils core userland, sed, grep, gawk, findutils,
+diffutils, make.
 
 Deliberately contains no compiler: toolchains live in the per-language
 stacks (build-essentials-c, build-essentials-c++, ...).
