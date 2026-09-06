@@ -1,0 +1,28 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.git.kernel.dash"
+description = "DASH - a small POSIX-compliant system shell"
+license     = "BSD-3-Clause"
+
+# Preserve the retired package name during the reverse-DNS migration. Dash is
+# Peios's selected POSIX `sh` provider; /bin resolves through usr-merge, so the
+# role needs to materialise only /usr/bin/sh.
+[provides]
+dash = "{{version}}-1"
+sh   = "1"
+
+[replaces]
+dash = "<= {{version}}-1"
+
+[claims.provides.sh.usrbin]
+target = "/usr/bin/dash"
+path   = "/usr/bin/sh"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"             = "usr/share/licenses/org.git.kernel.dash/COPYING"
+":usr/bin/dash"                = "usr/bin/dash"
+":usr/share/man/man1/dash.1" = "usr/share/man/man1/dash.1"

@@ -1,0 +1,12 @@
+# Metadata shared by the Dash package family and its corresponding-source
+# package. The installed shell is BSD-3-Clause; the broader family expression
+# also covers the GPL-2.0-or-later mksignames build helper in the locked tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-3-Clause AND GPL-2.0-or-later"
+license_class = "free"
+homepage      = "https://git.kernel.org/pub/scm/utils/dash/dash.git"

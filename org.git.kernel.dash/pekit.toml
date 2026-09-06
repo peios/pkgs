@@ -1,0 +1,205 @@
+# DASH — Peios's small POSIX system shell and the provider of the `sh` role.
+# Build directly from the authoritative kernel.org Git tags so Pekit can
+# discover every upstream maintenance release, including four-part versions.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://git.kernel.org/pub/scm/utils/dash/dash.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>0\.5\.[0-9]+(?:\.[0-9]+)*)$'
+# Soft maintenance floor. Follow later 0.5.x releases automatically; 0.6 is a
+# deliberate parser, shell-semantics, and compatibility review boundary.
+versions  = ">= 0.5.13.5, < 0.6"
+
+# v0.5.13.5 is a lightweight tag, so there is no upstream tag signature for
+# Pekit to verify. HTTPS authenticates kernel.org transport and pekit.lock pins
+# the accepted commit; first acceptance of a future lightweight tag remains an
+# explicit TOFU boundary. Signed annotated tags still await Pekit Git-signature
+# verification support.
+
+[build.main]
+command = '''
+set -eu
+LOCKED_SRC="$PEKIT_SOURCE_ROOT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+BUILD_SRC="$PEKIT_OUT/src-copy"
+OBJ="$PEKIT_OUT/obj"
+SMOKE="$PEKIT_OUT/.dash-smoke"
+BIN="$PEKIT_OUT/usr/bin/dash"
+
+mkdir -p "$BUILD_SRC" "$OBJ" "$SMOKE"
+cp -a "$LOCKED_SRC/." "$BUILD_SRC/"
+
+# Git tags intentionally contain only maintained source inputs. Bootstrap a
+# private copy so generated Autotools files never alter the locked source tree
+# or leak into the corresponding-source package.
+cd "$BUILD_SRC"
+./autogen.sh
+
+cd "$OBJ"
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+"$BUILD_SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --mandir=/usr/share/man \
+  --without-libedit \
+  --disable-static \
+  --disable-silent-rules
+
+# Rebuild in the identical object directory and compare the executable before
+# installation. This detects nondeterministic generated C or link output while
+# avoiding false differences from distinct DWARF compilation directories.
+make -j"$(nproc)"
+cp src/dash "$SMOKE/dash.first"
+make clean
+make -j"$(nproc)"
+cmp "$SMOKE/dash.first" src/dash
+
+# Current upstream carries no TESTS, check_PROGRAMS, or custom check-local
+# rule. Still run Automake's shipped check recursion so a future release that
+# adds upstream tests is exercised automatically; the staged semantic suite
+# below supplies the current behavioral coverage.
+make check
+make install DESTDIR="$PEKIT_OUT"
+
+test -x "$BIN"
+test -f "$PEKIT_OUT/usr/share/man/man1/dash.1"
+test "$(find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f -printf '%f\n')" = dash
+test "$(find "$PEKIT_OUT/usr/share/man" -type f -printf '%P\n')" = man1/dash.1
+grep -F "AC_INIT([dash],[$PEKIT_VERSION])" "$LOCKED_SRC/configure.ac"
+
+# Upstream has no regression target. Exercise the staged shell across parsing,
+# functions, expansion, arithmetic, command substitution, loops, case, getopts,
+# redirections, pipelines, subshells, traps, and error status propagation.
+cat > "$SMOKE/semantics.sh" <<'EOF'
+set -eu
+
+join()
+{
+  prefix=$1
+  shift
+  printf '%s:%s:%s\n' "$prefix" "$#" "$*"
+}
+
+value=peios-shell
+printf '%s|%s|%s|%s\n' \
+  "${value#peios-}" "${value%shell}" "${unset-word}" "$((6 * 7))"
+join args alpha beta
+
+result=$(for item in one two three; do
+  case "$item" in
+    t*) printf '%s' "$item" ;;
+  esac
+done)
+printf 'case:%s\n' "$result"
+
+set -- -a selected tail
+getopts 'a:' option
+printf 'opts:%s:%s:%s\n' "$option" "$OPTARG" "$OPTIND"
+shift $((OPTIND - 1))
+printf 'tail:%s\n' "$*"
+
+cat <<'INNER' > heredoc.txt
+heredoc payload
+INNER
+IFS= read -r line < heredoc.txt
+printf 'redir:%s\n' "$line"
+
+pipeline=$(printf '%s\n' left right | while IFS= read -r line; do
+  printf '<%s>' "$line"
+done)
+printf 'pipe:%s\n' "$pipeline"
+
+( cd /; printf 'subshell:%s\n' "$PWD" )
+trap 'printf "%s\n" exit-trap' 0
+EOF
+
+cat > "$SMOKE/expected" <<'EOF'
+shell|peios-|word|42
+args:2:alpha beta
+case:twothree
+opts:a:selected:3
+tail:tail
+redir:heredoc payload
+pipe:<left><right>
+subshell:/
+exit-trap
+EOF
+
+(cd "$SMOKE" && "$BIN" semantics.sh) > "$SMOKE/actual"
+cmp "$SMOKE/expected" "$SMOKE/actual"
+"$BIN" -n "$SMOKE/semantics.sh"
+"$BIN" -c 'exit 23' >/dev/null 2>&1 && exit 1 || status=$?
+test "$status" -eq 23
+"$BIN" -c 'set -e; false; printf unreachable' > "$SMOKE/errexit" 2>&1 \
+  && exit 1 || status=$?
+test "$status" -eq 1
+test ! -s "$SMOKE/errexit"
+
+# Enforce the inherited Peios hardening and dynamic-linkage contract before
+# splitting symbols. Dash must remain a PIE with only glibc as a runtime ELF
+# dependency and must not acquire a search path or executable stack.
+patchelf --remove-rpath "$BIN" 2>/dev/null || true
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+readelf -n "$BIN" | grep -F 'Build ID:'
+if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+test "$(patchelf --print-needed "$BIN")" = libc.so.6
+
+# Split the installed ELF by build ID, normalize DWARF paths to the qualified
+# package namespace, and retain every source file referenced by the binary.
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.srclist"
+debugedit -b "$ROOT" -d /usr/src/debug/org.git.kernel.dash \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/dash
+bid=$(readelf -n usr/bin/dash \
+  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/dash \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "usr/src/debug/org.git.kernel.dash/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.git.kernel.dash/$rel"
+    done
+strip usr/bin/dash
+
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find usr/src/debug/org.git.kernel.dash -type f | wc -l)" -gt 20
+test -x usr/bin/dash
+usr/bin/dash -c 'printf "%s\n" staged-shell' | grep -Fx staged-shell
+if readelf -S usr/bin/dash | grep -F .gnu_debuglink; then exit 1; fi
+if readelf -S usr/bin/dash | grep -F .debug_info; then exit 1; fi
+
+rm -rf "$SMOKE" "$BUILD_SRC" "$OBJ"
+rm -f "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c         = "*"
+"org.gnu.autoconf"        = ">= 2.72"
+"org.gnu.automake"        = ">= 1.18"
+"org.nixos.patchelf"      = "*"
+"org.sourceware.debugedit" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+autoconf        = "*"
+automake        = "*"
+debugedit       = "*"
+patchelf        = "*"

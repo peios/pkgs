@@ -1,0 +1,11 @@
+[package]
+name        = "org.git.kernel.dash-debugsource"
+description = "DASH debug sources"
+license     = "BSD-3-Clause"
+
+[dependencies]
+"org.git.kernel.dash-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                        = "usr/share/licenses/org.git.kernel.dash-debugsource/COPYING"
+":usr/src/debug/org.git.kernel.dash/**" = "usr/src/debug/org.git.kernel.dash"

@@ -52,7 +52,7 @@ directories. The remaining recipes in the current pass are listed below.
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
 | 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
-| 2 | `dash` | Tooling deferred | Upstream's current four-part version needs ordered Pekit representation; see below. |
+| 2 | `dash` | Productionized; awaiting integration/publication | `org.git.kernel.dash` tracks four-part kernel.org tags after the Pekit version-model fix. Its generated source-package manifest is necessarily BSD-only under Pekit's current synthesis even though the locked tree also contains the GPL-2.0-or-later `src/mksignames.c` build helper; binary/debug package licenses remain accurate to their shipped BSD payloads. |
 | 3 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
 | 4 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
 | 5 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
@@ -76,14 +76,6 @@ directories. The remaining recipes in the current pass are listed below.
   disagrees with canonical `archive.VerifyFormat`.
 - Package native GDB and DWZ to enable Debugedit's optional find-debuginfo
   payload and the remaining 14 upstream integration tests on Peios.
-- Extend Pekit's selected-version model or Git-tag mapping so upstream
-  four-component releases retain their spelling and ordering. Dash is now at
-  `v0.5.13.5`, while Pekit accepts at most `MAJOR.MINOR.PATCH`; mapping the
-  fourth component to build metadata would make it order-insignificant and
-  mapping it to a prerelease would be semantically wrong and eventually sort
-  `10` before `9`. The audited Dash production draft is preserved in the
-  isolated `codex/org-git-kernel-dash-production` worktree and should use the
-  official kernel.org Git tags once this representation is resolved.
 - Resolve the long-term coexistence boundary between `peiosutils` and the
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package

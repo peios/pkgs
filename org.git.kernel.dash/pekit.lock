@@ -5,7 +5,7 @@
 schema = 1
 
 [[source]]
-  version = "0.5.12"
-  url = "http://gondor.apana.org.au/~herbert/dash/files/dash-0.5.12.tar.gz"
-  sha256 = "6a474ac46e8b0b32916c4c60df694c82058d3297d8b385b74508030ca4a8f28a"
-  locked_at = "2026-08-10T12:28:53Z"
+  version = "0.5.13.5"
+  ref = "v0.5.13.5"
+  commit = "037bbdfd330017c368caf6242f977974123239b5"
+  locked_at = "2026-09-06T14:20:22Z"
