@@ -8,17 +8,18 @@ name        = "build-essentials"
 description = "Build environment baseline - shell and userland every build may assume"
 
 [dependencies]
-# peiosutils is Peios's core userland. Name it directly: selecting the generic
-# `coreutils` capability can choose GNU Coreutils alongside peiosutils, and the
-# two implementations intentionally own many of the same command paths.
-dash       = "*"
-peiosutils = "*"
-sed        = "*"
-grep       = "*"
-gawk       = "*"
-findutils  = "*"
-diffutils  = "*"
-make       = "*"
+# The build baseline intentionally selects the bootstrap Coreutils
+# implementation. Peiosutils is the installed-system userland, but deliberately
+# omits POSIX ownership/mode tools such as chmod that upstream build systems
+# require while constructing packages.
+dash      = "*"
+coreutils = "*"
+sed       = "*"
+grep      = "*"
+gawk      = "*"
+findutils = "*"
+diffutils = "*"
+make      = "*"
 
 [files]
 "@recipe:docs/build-essentials.txt" = "usr/share/doc/build-essentials/README"
