@@ -8,13 +8,14 @@
 name        = "org.mozilla.ca-certificates"
 description = "Mozilla CA root certificates - input to the Peios trust store"
 
-# Preserve legacy dependency resolution while replacing the unqualified
-# package at the same upstream/revision identity during migration.
+# Preserve legacy dependency resolution. The old package used undotted
+# YYYYMMDD versions, whose numeric major sorts above dotted YYYY.MM.DD, so the
+# coexistence ceiling names its last flat-pool release explicitly.
 [provides]
 ca-certificates = "{{version}}-1"
 
 [replaces]
-ca-certificates = "<= {{version}}-1"
+ca-certificates = "<= 20260830-1"
 
 [files]
 ":usr/share/ca-certificates/mozilla.crt" = "usr/share/ca-certificates/mozilla.crt"
