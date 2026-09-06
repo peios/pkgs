@@ -35,26 +35,26 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.git.kernel.dash` at pkgs commit `7d371b3`.
-- Completed: **81 / 113** recipes (71.7%).
-- Current upstream/dependency pass: **81 / 85** recipes (95.3%).
+- Last completed recipe: `org.mozilla.ca-certificates` at pkgs commit
+  `c09a75c`.
+- Completed: **82 / 113** recipes (72.6%).
+- Current upstream/dependency pass: **82 / 85** recipes (96.5%).
 - Deferred first-party pass: 28 recipes.
-- Repository after Dash publication: index version 174, 503 active entries,
-  764 archived entries, no verification problems.
+- Repository after CA-certificates publication: index version 175, 505 active
+  entries, 766 archive-index entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 81 completed recipes are the currently tracked reverse-DNS recipe
+The 82 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
 
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
-| 1 | `ca-certificates` | Decision deferred | See the trust-source decision below. |
-| 2 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
-| 3 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
-| 4 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 1 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
+| 2 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
+| 3 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -73,8 +73,12 @@ directories. The remaining recipes in the current pass are listed below.
   390 unresolved direct edges across 135 packages (366 of 503 install goals
   fail transitively). Of those, 285 await the glibc publication, 79 await GCC,
   21 await deferred first-party packages, and three await the CA-certificate
-  decision. The remaining two are `build-essentials-c -> binutils` after the
-  completed `org.gnu.binutils` migration and an unmodelled
+  decision. At index 175, the new package's legacy provide satisfies the two
+  unconstrained CA edges; deferred first-party `peios-experimental` still
+  constrains the undotted legacy version as `>= 20260830` and must migrate to
+  the qualified package. The remaining two are
+  `build-essentials-c -> binutils` after the completed
+  `org.gnu.binutils` migration and an unmodelled
   `linux-kernel-headers` base assumption. Every unresolved edge had zero active
   name/provide candidates; none was only a version or architecture mismatch.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
@@ -96,31 +100,47 @@ directories. The remaining recipes in the current pass are listed below.
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
 
-### `ca-certificates`: trust-source and cadence decision
+## Latest completion: Mozilla CA certificates 2026.09.06-1
 
-The existing recipe deliberately consumes `certdata.txt` from Firefox's moving
-release branch because that is Mozilla's authoritative root-store source and
-receives additions/removals before the next NSS release. That URL has no
-enumerable version, however, so the dated version and lock must be updated by
-hand. It also downloads curl's live bundle during the build, which is useful as
-an independent conversion check but makes the build non-hermetic.
+`org.mozilla.ca-certificates` preserves Peios's Firefox release-branch trust
+policy without build-time network access. Pekit's generic tracked-path Git
+source follows the fixed `refs/heads/release` ref, versions only changes to
+`security/nss/lib/ckfw/builtins/certdata.txt`, and locks the immutable commit
+`e9961dcf47b3984082b4d854cb3743b7dfe79b53`, Git blob
+`f2f8edc685ad3e5c38b79ab1d96c8dde79793fd6`, and blob SHA-256
+`81b7f2576333a2e360e673f912d7b0b7a765d836c731003e348a46cac5d37198`.
+The moving branch has no cryptographic release signature, so HTTPS plus the
+committed immutable commit/blob lock is accurately retained as the TOFU
+boundary. Locked materialisation and corresponding-source generation passed
+offline with lazy fetching disabled; the source tar is deterministic and
+contains only the tracked file.
 
-The official Mozilla NSS repository has mechanically enumerable
-`NSS_3_<minor>_RTM` tags (3.128 is current at this checkpoint), allowing Pekit
-to discover and pin releases automatically. The trade-off is a different
-security policy: root-store changes wait for the monthly NSS release cadence,
-and the Git tags are lightweight rather than cryptographically signed. The
-Mozilla release archives provide SHA-256 files on the same origin, not an
-independent signature. Curl's dated CA Extract archive is another enumerable
-cross-check, but making it the primary source would delegate conversion to a
-third party.
+The strict converter passed 11 malformed, duplicate, distrust, Unicode,
+orphan, and determinism fixtures. The locked input contains 172 certificates
+and 172 matching trust objects: 121 roots are delegated for TLS ServerAuth and
+51 are excluded. OpenSSL loaded all 121 emitted certificates with unique
+fingerprints, and the old and new bundle fingerprint sets are exactly
+identical. Debian and native Peios builds passed exact payload/ownership,
+source provenance, deterministic double conversion, and clean rebuild
+comparison. The signed runtime and source packages carry clean recipe
+provenance at `c09a75c`, passed both `verify.sh` and canonical
+`archive.VerifyFormat`, and the repository passed verification at index 175.
 
-Choose whether Peios prioritises the freshest Firefox release-branch trust
-store with a small automated snapshot/versioning extension, or accepts NSS
-release cadence so the existing generic Git-tag tracker can be used. Until
-then, preserve the current trust input and do not publish a semantic change.
+One trust-format caveat remains explicit: one currently trusted Mozilla root
+carries a distrust-after cutoff that a flat PEM bundle cannot encode. This
+package therefore preserves the existing certificate set, but a future
+structured trust input or trustd policy gate is needed to enforce temporal
+cutoffs. The package provides the legacy `ca-certificates` name and replaces
+the final undotted flat-pool release through `20260830-1`. That legacy artifact
+is not active or historical in the signed repository; it remains only in the
+flat compose pool, so no archival claim is made.
 
-## Latest completion: Dash 0.5.13.5-2
+Published SHA-256 values:
+
+- `org.mozilla.ca-certificates`: `ab5750e998af45c3e8e9842cd205aa5a5063e6f0e6aa112938b8be7ead68b7fa`
+- `org.mozilla.ca-certificates-source`: `c85120b7e4e4f59333332e86cb65b6a032c79752cee4b7a54cdab09c8d71a496`
+
+## Previous completion: Dash 0.5.13.5-2
 
 Dash now tracks the official kernel.org Git tags from a soft 0.5.13.5 floor,
 with a review ceiling below 0.6, and locks commit
