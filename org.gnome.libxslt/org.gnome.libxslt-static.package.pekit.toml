@@ -1,0 +1,14 @@
+[package]
+name        = "org.gnome.libxslt-static"
+description = "libxslt and libexslt static libraries"
+
+[provides]
+"libxslt-static" = "{{version}}-1"
+
+[dependencies]
+"org.gnome.libxslt-devel" = "{{version}}-1"
+
+[files]
+"@source:Copyright"                      = "usr/share/licenses/org.gnome.libxslt-static/"
+":usr/lib/x86_64-linux-peios/libxslt.a"  = "usr/lib/x86_64-linux-peios/libxslt.a"
+":usr/lib/x86_64-linux-peios/libexslt.a" = "usr/lib/x86_64-linux-peios/libexslt.a"

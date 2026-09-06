@@ -1,0 +1,21 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.libxslt-utils"
+description = "xsltproc command-line XSLT processor"
+
+[provides]
+xsltproc = "{{version}}-1"
+
+[replaces]
+xsltproc = "<= {{version}}-1"
+
+[dependencies]
+glibc               = ">= 2.43"
+"org.gnome.libxml2" = ">= 2.15.3-1"
+"org.gnome.libxslt" = "{{version}}-1"
+
+[files]
+"@source:Copyright"      = "usr/share/licenses/org.gnome.libxslt-utils/"
+":usr/bin/xsltproc"      = "usr/bin/xsltproc"
+":usr/share/man/man1/**" = "usr/share/man/man1"

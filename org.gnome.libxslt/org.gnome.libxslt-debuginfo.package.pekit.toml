@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnome.libxslt-debuginfo"
+description = "libxslt, libexslt and xsltproc debugging symbols"
+
+[dependencies]
+"org.gnome.libxslt"       = "{{version}}-1"
+"org.gnome.libxslt-utils" = "{{version}}-1"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxslt-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,16 @@
+[package]
+name         = "org.gnome.libxslt-doc"
+architecture = "noarch"
+description  = "libxslt API reference and tutorials"
+license      = "MIT AND GFDL-1.1-no-invariants-or-later"
+
+[provides]
+"libxslt-doc" = "{{version}}-1"
+
+[files]
+"@source:Copyright"                    = "usr/share/licenses/org.gnome.libxslt-doc/"
+"@source:NEWS"                         = "usr/share/doc/org.gnome.libxslt/NEWS"
+"@source:README.md"                    = "usr/share/doc/org.gnome.libxslt/README.md"
+":usr/share/doc/libxslt/**"           = "usr/share/doc/org.gnome.libxslt"
+":usr/share/gtk-doc/html/libxslt/**"  = "usr/share/doc/org.gnome.libxslt/api"
+":usr/share/gtk-doc/html/libexslt/**" = "usr/share/doc/org.gnome.libxslt/exslt-api"

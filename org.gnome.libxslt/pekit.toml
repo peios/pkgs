@@ -1,0 +1,310 @@
+# libxslt — GNOME's XSLT 1.0 processor, libxslt/libexslt C libraries and
+# xsltproc command-line client. Keep Python, crypto and loadable plugins out of
+# the base family: upstream defaults crypto/plugins off, Python bindings are a
+# separately versioned language surface, and Peios currently has no consumers
+# for any of them. Debugger and profiler APIs remain enabled.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://download.gnome.org/sources/libxslt/{{major}}.{{minor}}/libxslt-{{version}}.tar.xz"
+listing_url = "https://download.gnome.org/sources/libxslt/1.1/"
+file_regex  = 'libxslt-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+extract     = true
+root        = "libxslt-{{version}}"
+# Soft maintenance floor within the SONAME-1 release line. New 1.1.x stable
+# releases advance automatically; 1.2 is an intentional feature/ABI review
+# point. The build gates below catch contract drift within 1.1.
+versions    = ">= 1.1.45, < 1.2"
+
+# GNOME publishes the canonical archive and a SHA-256 sidecar, but no detached
+# maintainer signature Pekit can verify. HTTPS plus Pekit's immutable SHA-256
+# lock is the explicit authentication boundary for newly discovered releases;
+# each accepted lock entry must be checked against GNOME's published sidecar.
+
+[build.main]
+command = '''
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --enable-static \
+  --with-debug \
+  --with-debugger \
+  --with-profiler \
+  --without-python \
+  --without-crypto \
+  --without-plugins \
+  --disable-silent-rules
+
+# Freeze the intended public feature surface so an upstream default change
+# cannot silently reduce the runtime API.
+grep -Fx '#define WITH_XSLT_DEBUG' libxslt/xsltconfig.h
+grep -Fx '#define WITH_DEBUGGER /**/' config.h
+grep -Fx '#define WITH_PROFILER /**/' config.h
+
+make -j"$(nproc)"
+
+# Upstream's complete suite covers the XSLT recommendation corpus, EXSLT,
+# extension functions/elements, includes/imports, keys, encodings, XInclude,
+# multiple outputs, XSLTMark, bundled DocBook transforms, fuzz targets and the
+# threaded API.
+make check
+
+# A clean second compilation in the same normalized build root must reproduce
+# both shared libraries, both deterministic static archives and xsltproc byte
+# for byte.
+REPRO="$PEKIT_OUT/.repro"
+mkdir -p "$REPRO"
+cp libxslt/.libs/libxslt.so.1.1.* "$REPRO/libxslt.so"
+cp libexslt/.libs/libexslt.so.0.8.* "$REPRO/libexslt.so"
+cp libxslt/.libs/libxslt.a "$REPRO/libxslt.a"
+cp libexslt/.libs/libexslt.a "$REPRO/libexslt.a"
+cp xsltproc/.libs/xsltproc "$REPRO/xsltproc"
+make clean
+make -j"$(nproc)"
+cmp "$REPRO/libxslt.so" libxslt/.libs/libxslt.so.1.1.*
+cmp "$REPRO/libexslt.so" libexslt/.libs/libexslt.so.0.8.*
+cmp "$REPRO/libxslt.a" libxslt/.libs/libxslt.a
+cmp "$REPRO/libexslt.a" libexslt/.libs/libexslt.a
+cmp "$REPRO/xsltproc" xsltproc/.libs/xsltproc
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PREFIX" -name '*.la' -delete
+# Obsolete pre-pkg-config shell metadata duplicates the maintained .pc files
+# and xslt-config interface and is omitted by established distributions.
+rm -f "$LIBDIR/xsltConf.sh"
+
+# Assert the installed command, development and ABI surface. Real-object
+# suffixes may advance within 1.1, but a SONAME/age change requires review.
+find "$PREFIX/bin" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-bin"
+printf '%s\n' xslt-config xsltproc | LC_ALL=C sort \
+  > "$PEKIT_OUT/.expected-bin"
+diff -u "$PEKIT_OUT/.expected-bin" "$PEKIT_OUT/.actual-bin"
+
+LIBXSLT_SO=$(find "$LIBDIR" -maxdepth 1 -type f \
+  -name 'libxslt.so.1.1.*' | LC_ALL=C sort)
+LIBEXSLT_SO=$(find "$LIBDIR" -maxdepth 1 -type f \
+  -name 'libexslt.so.0.8.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$LIBXSLT_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$LIBEXSLT_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libxslt.so.1"
+test -L "$LIBDIR/libxslt.so"
+test -L "$LIBDIR/libexslt.so.0"
+test -L "$LIBDIR/libexslt.so"
+test -s "$LIBDIR/libxslt.a"
+test -s "$LIBDIR/libexslt.a"
+test -f "$PREFIX/include/libxslt/xslt.h"
+test -f "$PREFIX/include/libexslt/exslt.h"
+test -f "$LIBDIR/pkgconfig/libxslt.pc"
+test -f "$LIBDIR/pkgconfig/libexslt.pc"
+test -f "$LIBDIR/cmake/libxslt/libxslt-config.cmake"
+readelf -d "$LIBXSLT_SO" | grep -F 'Library soname: [libxslt.so.1]'
+readelf -d "$LIBEXSLT_SO" | grep -F 'Library soname: [libexslt.so.0]'
+readelf --dyn-syms -W "$LIBXSLT_SO" \
+  | grep -E ' xsltApplyStylesheet(@|$)'
+readelf --dyn-syms -W "$LIBEXSLT_SO" \
+  | grep -E ' exsltRegisterAll(@|$)'
+
+export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
+pkg-config --validate libxslt libexslt
+test "$(pkg-config --modversion libxslt)" = "$PEKIT_VERSION"
+EXSLT_VERSION=$(sed -n \
+  's/^#define LIBEXSLT_DOTTED_VERSION "\([^"]*\)"/\1/p' \
+  "$PREFIX/include/libexslt/exsltconfig.h")
+test -n "$EXSLT_VERSION"
+test "$(pkg-config --modversion libexslt)" = "$EXSLT_VERSION"
+test "$("$PREFIX/bin/xslt-config" --version)" = "$PEKIT_VERSION"
+
+# These are staged Peios binaries running on the reference build host. This
+# test-only loader path is not embedded in any output ELF.
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Exercise the installed client with a parameterized include, a temporary
+# result tree converted through EXSLT's node-set extension, sorting and text
+# serialization.
+SMOKE="$PEKIT_OUT/.libxslt-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/input.xml" <<'EOF'
+<items><item>beta</item><item>alpha</item></items>
+EOF
+cat > "$SMOKE/included.xsl" <<'EOF'
+<xsl:stylesheet version="1.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template name="emit">
+    <xsl:for-each select="/items/item">
+      <xsl:sort select="."/>
+      <xsl:value-of select="."/>
+      <xsl:if test="position() != last()"><xsl:text>|</xsl:text></xsl:if>
+    </xsl:for-each>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+cat > "$SMOKE/style.xsl" <<'EOF'
+<xsl:stylesheet version="1.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:exsl="http://exslt.org/common"
+  extension-element-prefixes="exsl">
+  <xsl:include href="included.xsl"/>
+  <xsl:output method="text"/>
+  <xsl:param name="prefix" select="'unset'"/>
+  <xsl:template match="/">
+    <xsl:variable name="tree"><value><xsl:value-of select="$prefix"/></value></xsl:variable>
+    <xsl:value-of select="exsl:node-set($tree)/value"/>
+    <xsl:text>:</xsl:text>
+    <xsl:call-template name="emit"/>
+    <xsl:text>&#10;</xsl:text>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+"$PREFIX/bin/xsltproc" --nonet --stringparam prefix Peios \
+  "$SMOKE/style.xsl" "$SMOKE/input.xml" > "$SMOKE/output"
+printf '%s\n' 'Peios:alpha|beta' > "$SMOKE/expected"
+cmp "$SMOKE/expected" "$SMOKE/output"
+
+# --nonet must reject an attempted remote document load rather than silently
+# consulting the network from a package build or installed toolchain.
+cat > "$SMOKE/network.xsl" <<'EOF'
+<xsl:stylesheet version="1.0"
+  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="text"/>
+  <xsl:template match="/"><xsl:value-of select="document('https://example.invalid/input.xml')"/></xsl:template>
+</xsl:stylesheet>
+EOF
+"$PREFIX/bin/xsltproc" --nonet "$SMOKE/network.xsl" "$SMOKE/input.xml" \
+  > "$SMOKE/network.out" 2> "$SMOKE/network.err" || true
+test ! -s "$SMOKE/network.out"
+grep -E 'Attempt to load network entity|failed to load' "$SMOKE/network.err"
+
+# Exercise installed shared and static libxslt/libexslt public interfaces.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <libxml/parser.h>
+#include <libxslt/transform.h>
+#include <libxslt/xsltutils.h>
+#include <libexslt/exslt.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(void)
+{
+  static const char xml[] = "<root><value>42</value></root>";
+  static const char xsl[] =
+    "<xsl:stylesheet version='1.0' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'>"
+    "<xsl:output method='text'/><xsl:template match='/'>value="
+    "<xsl:value-of select='/root/value'/></xsl:template></xsl:stylesheet>";
+  xmlDocPtr doc = xmlReadMemory(xml, (int) strlen(xml), "input.xml", 0, XML_PARSE_NONET);
+  xmlDocPtr style_doc = xmlReadMemory(xsl, (int) strlen(xsl), "style.xsl", 0, XML_PARSE_NONET);
+  if (doc == 0 || style_doc == 0) return 1;
+  xsltStylesheetPtr style = xsltParseStylesheetDoc(style_doc);
+  if (style == 0) return 2;
+  exsltRegisterAll();
+  xmlDocPtr result = xsltApplyStylesheet(style, doc, 0);
+  if (result == 0) return 3;
+  xmlChar *out = 0;
+  int len = 0;
+  if (xsltSaveResultToString(&out, &len, result, style) < 0) return 4;
+  int failed = len != 8 || memcmp(out, "value=42", 8) != 0;
+  xmlFree(out);
+  xmlFreeDoc(result);
+  xsltFreeStylesheet(style);
+  xmlFreeDoc(doc);
+  xsltCleanupGlobals();
+  xmlCleanupParser();
+  return failed;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$PREFIX/include" \
+  $(pkg-config --cflags libxml-2.0) -L"$LIBDIR" \
+  $(pkg-config --libs libexslt) \
+  -o "$SMOKE/shared-consumer"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared-consumer"
+cc "$SMOKE/consumer.c" -I"$PREFIX/include" \
+  $(pkg-config --cflags libxml-2.0) \
+  "$LIBDIR/libexslt.a" "$LIBDIR/libxslt.a" \
+  $(pkg-config --libs libxml-2.0) -lm -ldl -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer"
+
+# Create conventional build-ID-indexed symbols and copy exactly the source
+# files named by rewritten DWARF into the debugsource payload.
+strip --strip-debug "$LIBDIR/libxslt.a" "$LIBDIR/libexslt.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$LIBXSLT_SO" "$LIBEXSLT_SO" "$PREFIX/bin/xsltproc"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.libxslt \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.gnome.libxslt/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxslt/$rel"
+done
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$PREFIX/src/debug/org.gnome.libxslt" -type f -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+
+# Enforce the workspace hardening contract after final stripping and prohibit
+# embedded build-tree loader paths. Explicit CET link stamping keeps IBT/SHSTK
+# observable even when a reference-rung CRT object lacks the property note.
+for elf in "$LIBXSLT_SO" "$LIBEXSLT_SO" "$PREFIX/bin/xsltproc"; do
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+readelf -d "$LIBXSLT_SO" | grep -F 'Shared library: [libxml2.so.16]'
+readelf -d "$LIBEXSLT_SO" | grep -F 'Shared library: [libxslt.so.1]'
+readelf -d "$PREFIX/bin/xsltproc" | grep -F 'Shared library: [libxslt.so.1]'
+readelf -d "$PREFIX/bin/xsltproc" | grep -F 'Shared library: [libexslt.so.0]'
+
+rm -rf "$REPRO" "$SMOKE"
+rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
+  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"build-essentials-c"        = "*"
+pkgconf                      = "*"
+"org.gnome.libxml2-devel"  = ">= 2.15.3-1"
+"org.gnome.libxml2-static" = ">= 2.15.3-1"
+"glibc-gconv-extra"        = "*"
+"org.perl.perl"            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config      = "*"
+libxml2-dev     = ">= 2.15.1"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"

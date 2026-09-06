@@ -1,0 +1,27 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.libxslt-devel"
+description = "libxslt and libexslt headers and development metadata"
+
+[provides]
+"libxslt-devel" = "{{version}}-1"
+
+[replaces]
+"libxslt-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnome.libxslt"       = "{{version}}-1"
+"org.gnome.libxml2-devel" = ">= 2.15.3-1"
+
+[files]
+"@source:Copyright"                                  = "usr/share/licenses/org.gnome.libxslt-devel/"
+":usr/bin/xslt-config"                               = "usr/bin/xslt-config"
+":usr/include/libxslt/**"                           = "usr/include/libxslt"
+":usr/include/libexslt/**"                          = "usr/include/libexslt"
+":usr/lib/x86_64-linux-peios/libxslt.so"            = "usr/lib/x86_64-linux-peios/libxslt.so"
+":usr/lib/x86_64-linux-peios/libexslt.so"           = "usr/lib/x86_64-linux-peios/libexslt.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libxslt.pc"  = "usr/lib/x86_64-linux-peios/pkgconfig/libxslt.pc"
+":usr/lib/x86_64-linux-peios/pkgconfig/libexslt.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libexslt.pc"
+":usr/lib/x86_64-linux-peios/cmake/libxslt/**"      = "usr/lib/x86_64-linux-peios/cmake/libxslt"
+":usr/share/man/man3/**"                            = "usr/share/man/man3"

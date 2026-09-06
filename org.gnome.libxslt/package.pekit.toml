@@ -1,0 +1,12 @@
+# Shared defaults for the libxslt package family. The installed libraries,
+# command-line tool, headers and API documentation are under the permissive
+# upstream license; the tutorial's GFDL terms are declared on the doc member.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT"
+license_class = "free"
+homepage      = "https://gnome.pages.gitlab.gnome.org/libxslt/"

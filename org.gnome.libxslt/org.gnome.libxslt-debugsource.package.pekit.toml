@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnome.libxslt-debugsource"
+description = "libxslt debug sources"
+
+[dependencies]
+"org.gnome.libxslt-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxslt-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

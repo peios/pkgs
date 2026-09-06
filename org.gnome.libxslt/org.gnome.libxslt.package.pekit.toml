@@ -1,0 +1,21 @@
+# libxslt and libexslt form one ABI family and are released and consumed in
+# lockstep. The SONAME gates in the build keep this split on the 1/0 ABI line.
+
+[package]
+name        = "org.gnome.libxslt"
+description = "GNOME XSLT and EXSLT runtime libraries"
+
+[provides]
+libxslt = "{{version}}-1"
+
+[replaces]
+libxslt = "<= {{version}}-1"
+
+[dependencies]
+glibc               = ">= 2.43"
+"org.gnome.libxml2" = ">= 2.15.3-1"
+
+[files]
+"@source:Copyright" = "usr/share/licenses/org.gnome.libxslt/"
+":usr/lib/x86_64-linux-peios/libxslt.so.1*"  = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libexslt.so.0*" = "usr/lib/x86_64-linux-peios"
