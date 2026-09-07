@@ -57,6 +57,14 @@ include = ["./*"]
 CFLAGS = "-O2 -g -pipe -fexceptions -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=3 -fstack-clash-protection -fcf-protection -grecord-gcc-switches"
 CXXFLAGS = "$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"
 LDFLAGS = "-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,--build-id=sha1"
+# Rust does not consume LDFLAGS. Keep its distribution link policy alongside
+# the C/C++ policy instead of copying it into every first-party recipe. Rust's
+# release profile otherwise omits DWARF entirely, which makes conventional
+# debuginfo/debugsource packages impossible.
+RUSTFLAGS = "-C link-arg=-Wl,-z,relro -C link-arg=-Wl,-z,now -C link-arg=-Wl,--as-needed -C link-arg=-Wl,-z,pack-relative-relocs -C link-arg=-Wl,--build-id=sha1"
+CARGO_PROFILE_RELEASE_DEBUG = "2"
+CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO = "off"
+CARGO_PROFILE_RELEASE_INCREMENTAL = "false"
 
 # Symbol-version derivation policy (PSD automatic dependency derivation).
 #

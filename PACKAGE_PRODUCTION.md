@@ -6,12 +6,12 @@
 
 ## Objective
 
-Work through the 113 recipes in this repository, in alphabetical order,
-bringing each to production standard, validating it on the Debian reference
-rung and the native Peios rung, and publishing signed packages to the local
-`peios` peipkg repository. First-party Peios recipes are deferred for a later
-pass. If a package needs a product or architecture decision, record the
-question here, skip it, and continue with the next independent package.
+Work through the 113 recipes in this repository, bringing each to production
+standard, validating it on the Debian reference rung and the native Peios
+rung, and publishing signed packages to the local `peios` peipkg repository.
+The upstream/dependency pass is complete; the first-party pass is now active,
+starting with Atrium. If a package needs a product or architecture decision,
+record the question here and continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -63,7 +63,8 @@ A completed upstream package normally has all of the following:
 - Last completed recipe: `org.gnu.gcc` at pkgs merge commit `4849061`.
 - Completed: **85 / 113** recipes (75.2%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Deferred first-party pass: 28 recipes.
+- Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
+  on the host rung but blocked from release by the source/toolchain items below.
 - Repository after GCC and the glibc metadata correction: index version 181,
   756 active entries, 1,463 archive-index entries, no verification problems.
 - Signing fingerprint:
@@ -74,12 +75,13 @@ directories. The upstream pass is complete.
 
 ## Remaining current-pass recipes
 
-None. First-party work remains deliberately deferred until its requirements
-are discussed separately.
+`dev.peios.atrium` is the current first-party recipe. Its proposed package
+family and host build gates pass; its immutable/native release gates remain
+blocked as recorded below.
 
 ## Deferred first-party recipes
 
-`atrium`, `authd`, `build-essentials`, `coldplug`, `disk-boot`, `eventd`,
+`authd`, `build-essentials`, `coldplug`, `disk-boot`, `eventd`,
 `feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`, `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
@@ -122,6 +124,62 @@ are discussed separately.
   `_pkgsOut_/archive/reverse-dns-migrated/` after their qualified replacements
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
+- During Atrium's native compose check, the same flat-pool defect was found to
+  affect the wider reverse-DNS migration. 805 legacy artifacts whose names are
+  now provided by active qualified packages were moved recoverably to
+  `_pkgsOut_/archive/reverse-dns-migrated/` (22 GCC artifacts and 783 other
+  legacy-provider artifacts). No signed repository entry was deleted or
+  rewritten. The wrapper now exposes an external delegated local source tree
+  to both reference roots without exposing undeclared sibling checkouts.
+
+## First-party current: Atrium 0.0.24-2
+
+Atrium is packaged as a product family rather than a monolith or three
+artificially independent executables:
+
+- `dev.peios.atrium`: the default-product package, depending on the complete
+  production app set;
+- `dev.peios.atrium-core`: `atriumd`, `atrium-server`, `atrium-session`, and
+  the inert service registry seed, upgraded atomically because none has an
+  independent supported lifecycle;
+- five independently installable noarch application packages: About,
+  Packages, Registry, Services, and Terminal;
+- conventional `dev.peios.atrium-debuginfo` and
+  `dev.peios.atrium-debugsource` packages; and
+- a generated `dev.peios.atrium-source` package once a reproducible Git source
+  exists.
+
+Events, Networking, and Principals are explicit placeholder applications and
+are excluded from the production payload. There is intentionally no `-devel`
+package: the browser SDK is embedded in the runtime and Atrium installs no
+public headers, link libraries, or standalone build interface. The old
+monolithic `atriumd` package is migrated through the default product's
+`provides`/`replaces` metadata. The Terminal package carries the matching
+xterm.js/addon-fit MIT notice as well as Atrium's own licence.
+
+The complete host-toolchain package gate passes: all five Rust tests, including
+the peinit descriptor/pidfd test, and an installed-payload smoke spanning the
+daemon/server/session boundary, authentication relay, cookie lifecycle,
+catalogue and asset serving, traversal rejection, and logout. All three
+binaries pass PIE, full RELRO, BIND_NOW, NX-stack, RELR, build-ID, no-rpath,
+split-debug, debug-source, and checkout-path-leak checks. All nine binary/meta
+artifacts pass `verify.sh`, and `peipkg-compose` accepts their canonical format,
+resolves their complete current dependency closure, and materialises exactly
+the five production apps and three Atrium executables.
+
+Release publication is deliberately blocked rather than weakened:
+
+- the active Peios Rust/Cargo package is 1.83.0, while Atrium uses edition 2024
+  and therefore requires at least 1.85; the recipe now declares that floor;
+- Atrium has no configured canonical Git remote or release tags, so the
+  catalogue can currently provide only a local developer source and cannot
+  emit a reproducible corresponding-source package;
+- Atrium's lock graph contains path dependencies on sibling `peios-rs` and
+  `authd` checkouts, which an immutable Atrium source snapshot would not
+  contain; those inputs need a deliberate release-bundle, vendoring, or
+  separately versioned Git-source design; and
+- Git-tag signature enforcement is deferred by product decision, but immutable
+  clean source identity is not.
 
 ## Latest completion: GCC 16.2.0-2
 

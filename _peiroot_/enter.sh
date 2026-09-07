@@ -87,6 +87,23 @@ for tier in usr/etc system/retc lcl/etc; do
   cp -a "$work/root/$tier/." "$work/root/etc/"
 done
 
+# The recipe may delegate to a local checkout outside the package workspace.
+# Expose that checkout at the exact path Pekit exported, but nothing around it:
+# undeclared sibling-tree dependencies must remain unavailable so the native
+# rung catches non-hermetic source graphs instead of accidentally blessing
+# whatever happens to be checked out beside the source.
+set -- --bind "$PEKIT_WORKSPACE_ROOT" "$PEKIT_WORKSPACE_ROOT"
+case "$PEKIT_SOURCE_ROOT/" in
+  "$PEKIT_WORKSPACE_ROOT/"*) ;;
+  *)
+    [ -d "$PEKIT_SOURCE_ROOT" ] || {
+      echo "peiroot: source root is not a directory: $PEKIT_SOURCE_ROOT" >&2
+      exit 1
+    }
+    set -- "$@" --bind "$PEKIT_SOURCE_ROOT" "$PEKIT_SOURCE_ROOT"
+    ;;
+esac
+
 status=0
 bwrap \
   --die-with-parent \
@@ -96,7 +113,7 @@ bwrap \
   --dev /dev \
   --proc /proc \
   --tmpfs /tmp \
-  --bind "$PEKIT_WORKSPACE_ROOT" "$PEKIT_WORKSPACE_ROOT" \
+  "$@" \
   --chdir "$PWD" \
   --clearenv \
   --setenv PATH /usr/bin \

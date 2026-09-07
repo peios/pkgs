@@ -15,8 +15,25 @@ set -eu
 script=${1:?missing wrapped command}
 : "${PEKIT_WORKSPACE_ROOT:?debian.env requires a pekit workspace}"
 deps=$(printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | awk 'NF {print $1}' | tr '\n' ' ')
+
+# Delegated recipes may take their local development source from outside this
+# package workspace. Mount only that checkout, at the path Pekit exported.
+# Deliberately do not mount its parent: undeclared sibling checkouts must stay
+# invisible so the reference rung detects non-hermetic source dependencies.
+set -- -v "$PEKIT_WORKSPACE_ROOT:$PEKIT_WORKSPACE_ROOT"
+case "$PEKIT_SOURCE_ROOT/" in
+  "$PEKIT_WORKSPACE_ROOT/"*) ;;
+  *)
+    [ -d "$PEKIT_SOURCE_ROOT" ] || {
+      echo "debroot: source root is not a directory: $PEKIT_SOURCE_ROOT" >&2
+      exit 1
+    }
+    set -- "$@" -v "$PEKIT_SOURCE_ROOT:$PEKIT_SOURCE_ROOT"
+    ;;
+esac
+
 exec docker run --rm \
-  -v "$PEKIT_WORKSPACE_ROOT:$PEKIT_WORKSPACE_ROOT" \
+  "$@" \
   -v pekit-debroot-apt-archives:/var/cache/apt/archives \
   -v pekit-debroot-apt-lists:/var/lib/apt/lists \
   -w "$PWD" \
