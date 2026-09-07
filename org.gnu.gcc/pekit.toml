@@ -252,7 +252,16 @@ sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
 
 mkdir -p "$PEKIT_OUT/build"
 cd "$PEKIT_OUT/build"
-"$SRC/configure" \
+# GCC records the configure invocation verbatim in configargs.h, which is
+# linked into cc1/cc1plus and retained in their split debug information. Use
+# the stable path from Pekit's build directory instead of SRC's absolute path
+# so canonical packages never disclose or depend on a maintainer worktree.
+CONFIGURE=../../../source/configure
+[ -x "$CONFIGURE" ] || {
+  echo "gcc: expected source configure script at $CONFIGURE" >&2
+  exit 1
+}
+"$CONFIGURE" \
   --build="$TRIPLET" --host="$TRIPLET" --target="$TRIPLET" \
   --prefix=/usr --libdir="$LIBDIR" --libexecdir="$LIBDIR" --with-slibdir="$LIBDIR" \
   --disable-multilib --enable-languages=c,c++ \
