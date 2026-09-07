@@ -35,26 +35,26 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.mozilla.ca-certificates` at pkgs commit
-  `c09a75c`.
-- Completed: **82 / 113** recipes (72.6%).
-- Current upstream/dependency pass: **82 / 85** recipes (96.5%).
+- Last completed recipe: `org.gnu.glibc` at clean package commit `8448bd6`
+  (integrated by pkgs merge `d71a920`).
+- Completed: **83 / 113** recipes (73.5%).
+- Current upstream/dependency pass: **83 / 85** recipes (97.6%).
 - Deferred first-party pass: 28 recipes.
-- Repository after CA-certificates publication: index version 175, 505 active
-  entries, 766 archive-index entries, no verification problems.
+- Repository after glibc and the Dash qualified-dependency follow-up: index
+  version 178, 726 active entries, 1,212 archive-index entries, no verification
+  problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 82 completed recipes are the currently tracked reverse-DNS recipe
+The 83 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
 
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
-| 1 | `gcc` | In progress | Large native bootstrap; preserve its deliberate Peios-specific toolchain policy. |
-| 2 | `glibc` | In progress | Large native bootstrap and ABI-critical validation. |
-| 3 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 1 | `gcc` | In progress | Debian reference passed; native A/B reproducibility, publication, and integration remain. |
+| 2 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
 
 ## Deferred first-party recipes
 
@@ -68,19 +68,16 @@ directories. The remaining recipes in the current pass are listed below.
 ## Follow-ups and known blockers
 
 - Add dependency-closure validation to `peipkg-repo verify` or a companion
-  release gate. At index 175, structural/signature verification passes but an
-  audit using Peipkg's actual constraint/provide/architecture semantics found
-  388 unresolved direct edges across 134 packages (366 of 505 install goals
-  fail transitively). Of those, 285 await the glibc publication, 79 await GCC,
-  and 21 await deferred first-party packages. The new CA package's legacy
-  provide satisfies both unconstrained consumers; deferred first-party
-  `peios-experimental` still constrains the undotted legacy version as
-  `>= 20260830` and must migrate to the qualified package. The remaining two are
-  `build-essentials-c -> binutils` after the completed
-  `org.gnu.binutils` migration and an unmodelled
-  `linux-kernel-headers` base assumption. The constrained CA edge is the only
-  unresolved edge with an active name/provide candidate; the other 387 have no
-  candidate at all.
+  release gate. At index 175, before the glibc and GCC publications, an audit
+  using Peipkg's actual constraint/provide/architecture semantics found 388
+  unresolved direct edges across 134 packages (366 of 505 install goals failed
+  transitively): 285 awaited glibc, 79 await GCC, and 21 await deferred
+  first-party packages, plus one constrained CA migration edge, one Binutils
+  migration edge, and an unmodelled `linux-kernel-headers` base assumption.
+  Qualified glibc is now published and Dash's temporary legacy edge is migrated;
+  rerun the full audit after GCC to establish the new baseline. Deferred
+  first-party `peios-experimental` still constrains the undotted CA version as
+  `>= 20260830` and must migrate to the qualified package.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
@@ -100,7 +97,40 @@ directories. The remaining recipes in the current pass are listed below.
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
 
-## Latest completion: Mozilla CA certificates 2026.09.06-1
+## Latest completion: glibc 2.44-6
+
+`org.gnu.glibc` replaces the unqualified recipe with a complete reverse-DNS
+family: runtime, loader/program, development, static, documentation, locale
+source, corresponding source, debug, converter, utility, and generated locale
+splits. It tracks authenticated GNU release archives from a soft 2.44 floor
+with a major-version review ceiling below 3, pins Andreas K. Huettel's full
+release-signing fingerprint, and retains the Peios fixed-identity NSS policy.
+The staged ABI gate exposes and compiles every current Peios KACS, KMES, and
+registry syscall alias against the matching kernel UAPI.
+
+The native suite produced 7,135 PASS, 251 UNSUPPORTED, and 17 expected XFAIL
+results with zero unexpected outcomes; the Debian reference produced 7,185
+PASS, 210 UNSUPPORTED, and 17 XFAIL with zero unexpected outcomes. Both rungs
+passed clean rebuild reproducibility, dynamic and static staged ABI consumers,
+NSS/public-key/static policy checks, complete locale generation, hardening,
+split-debug, and source-package gates. The corresponding PKM ABI generators
+and public kernel-ABI documentation were updated separately so all 22 aliases
+remain exact and mechanically checked.
+
+All 221 revision-6 signed archives carry clean recipe provenance at
+`8448bd62a5804fb769bf35e91cf8444dce60b2b5`, passed canonical
+`archive.VerifyFormat`, matched the repository index and flat pool byte for
+byte, and produced normalized package-set fingerprint
+`534754c8d0e027f55ac9eb17584b47ebc5e74b5efd7697df0c2aaba931af26de`.
+Repository verification passed at index 177. An initial revision-5 publication
+carried an accurate but release-ineligible `+dirty` recipe reference because
+untracked evidence and a pool symlink were visible to Git. Peipkg's retention
+contract correctly refused replacement; revision 6 supersedes it in the active
+index while revision 5 remains immutable archive history. The workspace now
+ignores both repository and pool worktree symlinks, and release evidence lives
+outside the recipe worktree.
+
+## Previous completion: Mozilla CA certificates 2026.09.06-1
 
 `org.mozilla.ca-certificates` preserves Peios's Firefox release-branch trust
 policy without build-time network access. Pekit's generic tracked-path Git
@@ -140,7 +170,7 @@ Published SHA-256 values:
 - `org.mozilla.ca-certificates`: `ab5750e998af45c3e8e9842cd205aa5a5063e6f0e6aa112938b8be7ead68b7fa`
 - `org.mozilla.ca-certificates-source`: `c85120b7e4e4f59333332e86cb65b6a032c79752cee4b7a54cdab09c8d71a496`
 
-## Previous completion: Dash 0.5.13.5-2
+## Previous completion: Dash 0.5.13.5-3
 
 Dash now tracks the official kernel.org Git tags from a soft 0.5.13.5 floor,
 with a review ceiling below 0.6, and locks commit
@@ -151,32 +181,34 @@ Pekit's version model and public documentation were extended first so all
 four numeric components remain significant and `0.5.13.10` orders after
 `0.5.13.9`.
 
-Debian and native builds passed same-path byte-reproducibility, the shipped
+After qualified glibc was published, revision 3 replaced the temporary legacy
+dependency with `org.gnu.glibc >= 2.44`; both Debian and native builds proved
+that transition and the repository advanced to index 178. Debian and native
+builds passed same-path byte-reproducibility, the shipped
 `make check` recursion, a staged shell-semantics suite, exact payload and
 debug/source splits, PIE/RELRO/BIND_NOW/RELR/CET/build-ID checks, and a clean
-native dependency resolution against the published pool. The package
-temporarily depends on legacy `glibc >= 2.43`; switch that edge to
-`org.gnu.glibc` only after the qualified glibc family is published. It
-provides the legacy `dash` name and the `sh` role while replacing legacy Dash
-packages through revision 1. Pekit's known source-license synthesis limitation
+native dependency resolution against the published pool. It provides the
+legacy `dash` name and the `sh` role while replacing legacy Dash packages
+through revision 2. Pekit's known source-license synthesis limitation
 means the generated source manifest cannot separately express the locked
 tree's GPL-2.0-or-later `src/mksignames.c` build helper; the emitted
 binary/debug packages retain the accurate BSD-3-Clause payload license.
 
-All four signed packages have clean recipe provenance at pkgs commit
-`7d371b3` and passed both the strict shell verifier and canonical
+All four revision-3 signed packages have clean recipe provenance at pkgs commit
+`cb3d955` and passed both the strict shell verifier and canonical
 `archive.VerifyFormat`. The initial revision-1 artifacts, which had an
 unresolvable early qualified-glibc edge and dirty-worktree provenance, were
 superseded in the repository and moved recoverably from the flat pool to
 `_pkgsOut_/archive/superseded-dash-transition/`. The repository audit passed
-at index version 174 with 503 active and 764 archived entries.
+at index version 174 with 503 active and 764 archived entries; revision 3
+passed again at index 178 with 726 active and 1,212 archived entries.
 
-Published SHA-256 values:
+Current revision-3 SHA-256 values:
 
-- `org.git.kernel.dash`: `d2f5562dc1852b306b6162c75e650a8ce962ee44ce030757760462e8dc5eff89`
-- `org.git.kernel.dash-debuginfo`: `8655165430c9a1e3267081ed67671449b5764ed5b6f1daae494ea63e23348b77`
-- `org.git.kernel.dash-debugsource`: `c4dc68ae62bd9518e8a6b4f5ba6af8b6b238322f002f537e052e36cc54b8ed72`
-- `org.git.kernel.dash-source`: `c0fb21ffa6bf0573a0faf2a2ae1522a472126778cc3c117254732a95189e7b85`
+- `org.git.kernel.dash`: `df35be14581eb149a58b899a6e45d739039298c87cd473eea05c6dee3a8dad0e`
+- `org.git.kernel.dash-debuginfo`: `776a42f132817f7fdaaef55fd3d14f98f316064ef679af86400ac56f2caaccf1`
+- `org.git.kernel.dash-debugsource`: `10d10785a115f9691cd49bf0d9fafd34a0e0cc92ba9fb54f32412b29a61ca733`
+- `org.git.kernel.dash-source`: `bd6902e026865570b3ba125fc4ac6107abf4f566341a9de8e42171e43366c2d3`
 
 ## Previous completion: libtracefs 1.8.3-2
 
