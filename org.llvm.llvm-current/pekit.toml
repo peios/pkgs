@@ -33,6 +33,7 @@ key_files    = ["keys/douglas-yung.asc"]
 fingerprints = ["FFB3368980F3E6BB5737145A316C56D064CACBA5"]
 
 [build.main]
+clear_out = false
 command = '''
 set -eu
 SRC="$(pwd)"
@@ -63,9 +64,9 @@ export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE
 export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
 export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk"
 
-# Keep a valid CMake tree across interrupted or failed checks. CMake refreshes
-# it from the declared configuration below, while a clean Pekit output still
-# starts from an empty directory.
+# Keep a valid CMake tree across interrupted or failed checks. Pekit preserves
+# this target stage and CMake refreshes it from the declared configuration
+# below; a new source version still receives its own empty output scope.
 cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_FLAGS="$CFLAGS" \
