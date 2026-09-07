@@ -63,7 +63,9 @@ export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE
 export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
 export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk"
 
-rm -rf "$BUILD"
+# Keep a valid CMake tree across interrupted or failed checks. CMake refreshes
+# it from the declared configuration below, while a clean Pekit output still
+# starts from an empty directory.
 cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_FLAGS="$CFLAGS" \
@@ -288,6 +290,7 @@ python3                 = "*"
 "zstd-devel"            = "*"
 debugedit                = "*"
 patchelf                 = "*"
+tar                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -298,3 +301,4 @@ zlib1g-dev       = "*"
 libzstd-dev      = "*"
 debugedit        = "*"
 patchelf         = "*"
+tar              = "*"
