@@ -13,6 +13,31 @@ rung and the native Peios rung, and publishing signed packages to the local
 pass. If a package needs a product or architecture decision, record the
 question here, skip it, and continue with the next independent package.
 
+## First-party namespace and acceptance
+
+Peios-owned recipe directories and package names use the
+`dev.peios.<product>` namespace. Existing unqualified package names receive
+intentional `provides`/`replaces` migration metadata where needed. This is a
+package identity rule: application catalogue IDs, service names, executable
+names, registry paths, and protocol identities are separate interfaces and are
+not renamed implicitly.
+
+First-party production review uses Peios's own contracts rather than looking
+for a nominal Fedora or Debian equivalent. In addition to the common package
+closure above, each package must have:
+
+- a documented product role and ownership boundary that agrees with `learn/`;
+- an immutable, clean source identity and an explicit release/version policy;
+- hermetic declared build inputs rather than undeclared sibling-tree fallbacks;
+- complete runtime closure, service and registry integration, and intentional
+  configuration, state, and upgrade ownership;
+- least-privilege process identities and security metadata consistent with the
+  relevant Peios specifications;
+- meaningful unit, integration, installed-payload, hardening, and
+  reproducibility gates; and
+- appropriate runtime, development, debug, source, documentation, and
+  component splits without fragmenting one inseparable product arbitrarily.
+
 ## Production closure
 
 A completed upstream package normally has all of the following:
