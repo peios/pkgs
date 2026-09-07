@@ -53,8 +53,8 @@ directories. The remaining recipes in the current pass are listed below.
 
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
-| 1 | `gcc` | In progress | Debian reference passed; native A/B reproducibility, publication, and integration remain. |
-| 2 | `mpc` | In progress elsewhere | Do not touch the existing uncommitted `mpc` to `org.gnu.mpc` migration. |
+| 1 | `gcc` | Blocked on MPC | Debian reference passed; native composition now reaches the qualified `org.gnu.mpc-devel` edge. Native A/B reproducibility, publication, and integration remain after MPC is available. |
+| 2 | `mpc` | Needs security decision | The abandoned uncommitted migration was reproduced in an isolated worktree without modifying it. Upstream signed the April 2026 MPC 1.4.1 release with its officially published key after that key expired in July 2024; Pekit correctly rejects a new post-expiry signature. Do not disable the source-signature gate without an explicit policy decision. |
 
 ## Deferred first-party recipes
 
@@ -67,6 +67,22 @@ directories. The remaining recipes in the current pass are listed below.
 
 ## Follow-ups and known blockers
 
+- Resolve MPC upstream authentication. The official MPC download page still
+  identifies primary fingerprint
+  `AD17A21EF8AED8F1CC02DBD9F7D5C9BF765C61E3`, whose self-signature expired on
+  2024-07-04; the same key made the otherwise cryptographically valid MPC
+  1.4.1 signature on 2026-04-16. The locked tarball hash remains
+  `91204cd32f164bd3b7c992d4a6a8ce6519511aadab30f78b6982d0bf8d73e931`,
+  but unattended future tracking cannot be called authenticated while Pekit
+  rejects post-expiry signatures. GCC's native build correctly stops at the
+  missing `org.gnu.mpc-devel` package until this is resolved.
+- `fsbase` security-descriptor overrides made the unprivileged package root
+  expose a missing CLI surface rather than a package defect. Peipkg commit
+  `76b65f4` adds deterministic `--record-xattrs` JSONL output using the
+  composer's existing `RecordXattr` path; learn commit `2c8e18b` documents it,
+  and the GCC branch's package-root wrapper records the attributes into its
+  disposable temporary work area. The complete Peipkg test suite and a
+  current-fsbase bwrap root smoke test pass.
 - Add dependency-closure validation to `peipkg-repo verify` or a companion
   release gate. At index 175, before the glibc and GCC publications, an audit
   using Peipkg's actual constraint/provide/architecture semantics found 388
