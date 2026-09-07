@@ -40,6 +40,7 @@ SRC="$(pwd)"
 BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 TRIPLET=x86_64-linux-peios
+LLVM_TRIPLE=x86_64-unknown-linux-peios
 LIBDIR="$PREFIX/lib/$TRIPLET"
 LLVM_MAJOR=${PEKIT_VERSION%%.*}
 LLVM_MAJOR_MINOR=$(printf '%s' "$PEKIT_VERSION" | cut -d. -f1,2)
@@ -78,7 +79,7 @@ cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_INSTALL_RPATH= \
   -DCMAKE_SKIP_INSTALL_RPATH=ON \
   -DLLVM_LIBDIR_SUFFIX=/$TRIPLET \
-  -DLLVM_HOST_TRIPLE=$TRIPLET \
+  -DLLVM_HOST_TRIPLE="$LLVM_TRIPLE" \
   -DLLVM_ENABLE_PROJECTS='clang;lld' \
   -DLLVM_TARGETS_TO_BUILD='X86;BPF' \
   -DLLVM_BUILD_LLVM_DYLIB=ON \
@@ -170,7 +171,7 @@ __attribute__((noreturn)) void _start(void) {
   __builtin_unreachable();
 }
 EOF
-"$BIN/clang" --target=x86_64-linux-peios -ffreestanding -fno-pic \
+"$BIN/clang" --target="$LLVM_TRIPLE" -ffreestanding -fno-pic \
   -fno-stack-protector -c "$SMOKE/freestanding.c" -o "$SMOKE/freestanding.o"
 "$BIN/ld.lld" -static -e _start "$SMOKE/freestanding.o" -o "$SMOKE/freestanding"
 "$SMOKE/freestanding"
@@ -287,6 +288,7 @@ rm -f "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.source-list" \
 "org.cmake.cmake"      = "*"
 "org.ninja-build.ninja" = "*"
 python3                 = "*"
+perl                    = "*"
 "zlib-devel"            = "*"
 "zstd-devel"            = "*"
 debugedit                = "*"
@@ -298,6 +300,7 @@ build-essential = "*"
 cmake            = "*"
 ninja-build      = "*"
 python3          = "*"
+perl             = "*"
 zlib1g-dev       = "*"
 libzstd-dev      = "*"
 debugedit        = "*"
