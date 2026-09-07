@@ -4,7 +4,7 @@ description = "DASH debugging symbols"
 license     = "BSD-3-Clause"
 
 [dependencies]
-"org.git.kernel.dash" = "{{version}}-2"
+"org.git.kernel.dash" = "{{version}}-3"
 
 [files]
 "@source:COPYING"  = "usr/share/licenses/org.git.kernel.dash-debuginfo/COPYING"
