@@ -1,0 +1,26 @@
+# libitm — GCC's GNU Transactional Memory runtime (libitm.so.1), linked into code
+# compiled with -fgnu-tm (transactional memory constructs). The dev .so symlink is
+# libitm-devel; the static archive is libitm-static; the libitm.spec driver
+# fragment ships in gcc (with the other specs).
+#
+# A glob source ("so.1*") maps to a DIRECTORY.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libitm"
+description = "GCC transactional memory runtime library (libitm.so.1)"
+
+[provides]
+libitm = "{{version}}-2"
+
+[replaces]
+libitm = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libitm/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libitm/COPYING.RUNTIME"
+# SONAME symlink (libitm.so.1) + real object (libitm.so.1.N.N).
+":usr/lib/x86_64-linux-peios/libitm.so.1*" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,20 @@
+# libquadmath-static — the static archive for statically linking libquadmath.
+# --strip-debug'd at build time (archive members carry no build-id to index).
+
+[package]
+name        = "org.gnu.gcc-libquadmath-static"
+description = "GCC __float128 math runtime static library"
+license     = "LGPL-2.0-or-later AND LGPL-2.1-or-later"
+
+[provides]
+"libquadmath-static" = "{{version}}-2"
+
+[replaces]
+"libquadmath-static" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.gcc-libquadmath-devel" = "{{version}}-2"
+
+[files]
+"@source:libquadmath/COPYING.LIB" = "usr/share/licenses/org.gnu.gcc-libquadmath-static/COPYING.LIB"
+":usr/lib/x86_64-linux-peios/libquadmath.a" = "usr/lib/x86_64-linux-peios/libquadmath.a"

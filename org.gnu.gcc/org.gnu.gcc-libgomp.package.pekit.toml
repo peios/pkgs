@@ -1,0 +1,25 @@
+# libgomp — GCC's OpenMP runtime (libgomp.so.1), linked into code compiled with
+# -fopenmp (lots of scientific/media software). The dev .so symlink, static
+# archive, and libgomp.spec driver fragment are deferred to milestone 2.
+#
+# A glob source ("so.1*") maps to a DIRECTORY.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libgomp"
+description = "GCC OpenMP runtime library (libgomp.so.1)"
+
+[provides]
+libgomp = "{{version}}-2"
+
+[replaces]
+libgomp = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libgomp/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libgomp/COPYING.RUNTIME"
+# SONAME symlink (libgomp.so.1) + real object (libgomp.so.1.N.N).
+":usr/lib/x86_64-linux-peios/libgomp.so.1*" = "usr/lib/x86_64-linux-peios"

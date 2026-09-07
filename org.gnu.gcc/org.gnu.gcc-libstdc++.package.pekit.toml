@@ -1,0 +1,40 @@
+# libstdc++ — the GNU Standard C++ Library (libstdc++.so.6): std::string, the
+# containers, <iostream>, <algorithm>, plus the C++ ABI runtime (libsupc++ folded
+# in). The C++ counterpart to glibc. Headers live in libstdc++-devel; the static
+# archives in libstdc++-static.
+#
+# A glob source ("so.6*") maps to a DIRECTORY; an exact source to a FULL path.
+
+[package]
+name        = "org.gnu.gcc-libstdc++"
+description = "GNU Standard C++ Library (libstdc++.so.6)"
+license     = "(GPL-3.0-or-later WITH GCC-exception-3.1) AND GPL-3.0-or-later"
+
+[provides]
+"libstdc++" = "{{version}}-2"
+
+[replaces]
+"libstdc++" = "<= {{version}}-1"
+
+[dependencies]
+# libstdc++ links libgcc_s (the unwinder) + glibc. libgcc is built from this same
+# GCC source, so pin its exact upstream version and recipe revision. The glibc
+# floor remains intentionally open to compatible updates.
+"org.gnu.gcc-libgcc" = "{{version}}-2"
+"org.gnu.glibc"      = ">= 2.43"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libstdc++/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libstdc++/COPYING.RUNTIME"
+# SONAME symlink (libstdc++.so.6) + the real object (libstdc++.so.6.0.NN). The
+# unversioned dev .so symlink is libstdc++-devel's.
+":usr/lib/x86_64-linux-peios/libstdc++.so.6*" = "usr/lib/x86_64-linux-peios"
+
+# gdb pretty-printer for std:: types, relocated by the recipe into the
+# auto-load tree (gdb never looks beside the library). It was not caught by the
+# so.6* glob above either, so it was being dropped outright. Same treatment isl
+# gives its own printer.
+":usr/share/gdb/auto-load/**" = "usr/share/gdb/auto-load"
+# Python modules imported by the auto-load hook. Keeping both in the runtime
+# means installing GDB support never silently requires the compiler package.
+":usr/share/gcc-{{major}}/python/**" = "usr/share/gcc-{{major}}/python"

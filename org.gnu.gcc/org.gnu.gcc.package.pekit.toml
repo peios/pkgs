@@ -1,0 +1,102 @@
+# gcc — the GNU C compiler: the `gcc` driver, the startup objects (crt*.o), the
+# compiler-internal libraries (libgcc.a/libgcc_eh.a/libgcov.a), the fixed system
+# headers, the LTO/plugin machinery (collect2, lto-wrapper, plugin), the gcov
+# coverage tools, and the driver spec fragments. The C compiler CORE (cc1) is in
+# cpp; the C++ compiler (g++/cc1plus) is gcc-c++.
+#
+# A ":path/**" glob maps to a DIRECTORY; an exact-file source to a FULL path.
+
+excludes = [
+  # C++ drivers -> gcc-c++; standalone preprocessor -> cpp.
+  ":usr/bin/g++", ":usr/bin/c++",
+  ":usr/bin/x86_64-linux-peios-g++", ":usr/bin/x86_64-linux-peios-c++",
+  ":usr/bin/cpp",
+  # cc1 -> cpp; cc1plus -> gcc-c++.
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/cc1",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/cc1plus",
+  # Public runtime headers belong to their -devel packages, while retaining
+  # GCC's internal install locations so the driver finds them automatically.
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/omp.h",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/openacc.h",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/acc_prof.h",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/quadmath.h",
+  ":usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/{{major}}/include/quadmath_weak.h",
+  # The libstdc++ runtime owns both its GDB auto-load hook and the Python
+  # modules imported by that hook.
+  ":usr/share/gcc-{{major}}/python/**",
+]
+
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.gcc"
+description = "GNU C compiler"
+license     = "GPL-3.0-or-later AND (GPL-3.0-or-later WITH GCC-exception-3.1) AND GFDL-1.3-no-invariants-or-later"
+
+# gcc holds the `cc` role: the well-known name make's default CC and
+# countless plain Makefiles invoke. Upstream gcc never installs it —
+# distros add it — and like `sh` it's a contended name a future clang
+# could claim, so it's a role, not a shipped file.
+[provides]
+gcc = "{{version}}-2"
+cc = "1"
+
+[replaces]
+gcc = "<= {{version}}-1"
+
+[claims.provides.cc.usrbin]
+target = "/usr/bin/gcc"
+path   = "/usr/bin/cc"
+
+[dependencies]
+# cc1 lives in cpp; as/ld come from org.gnu.binutils; the startup objects + libgcc are
+# the compiler's own runtime; compiling C needs the libc + kernel headers.
+"org.gnu.gcc-cpp" = "{{version}}-2"
+"org.gnu.gcc-libgcc" = "{{version}}-2"
+"org.gnu.binutils" = ">= 2.46"
+"org.gnu.glibc-devel" = ">= 2.43"
+# The Linux UAPI, by its virtual name rather than the package's. The package
+# that ships it is versioned on pkm's SemVer (the PKM/KACS ABI), which says
+# nothing about which Linux syscalls exist; `linux-kernel-headers` is the
+# Linux scale, published as a versioned provide for exactly this.
+"linux-kernel-headers" = ">= 6.16"
+# GCC 16 injects -latomic_asneeded into every link by default
+# (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
+# script is part of the compiler's own contract, like libgcc.
+"org.gnu.gcc-libatomic-devel" = "{{version}}-2"
+
+[files]
+# License texts (distro convention: /usr/share/licenses/<name>/).
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gcc/"
+"@source:gcc/doc/include/fdl.texi" = "usr/share/licenses/org.gnu.gcc/GFDL-1.3.texi"
+# Driver + coverage/archive wrappers. Exclude the C++ drivers (gcc-c++) and the
+# standalone preprocessor (cpp).
+":usr/bin/**" = "usr/bin"
+# gcc's internal tree (crt*.o, libgcc*.a, include/, include-fixed/, collect2,
+# lto-wrapper, plugin, install-tools, g++-mapper-server). cc1 -> cpp,
+# cc1plus -> gcc-c++.
+":usr/lib/x86_64-linux-peios/gcc/**" = "usr/lib/x86_64-linux-peios/gcc"
+# Driver spec fragments (libgomp.spec etc.) the gcc driver reads at link time.
+":usr/lib/x86_64-linux-peios/*.spec" = "usr/lib/x86_64-linux-peios"
+# The libgcc_s dev link + its as-needed link script (compiler link support; no
+# separate libgcc-devel — libgcc.a is internal, above).
+":usr/lib/x86_64-linux-peios/libgcc_s.so"          = "usr/lib/x86_64-linux-peios/libgcc_s.so"
+":usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so" = "usr/lib/x86_64-linux-peios/libgcc_s_asneeded.so"
+# Docs + driver data.
+":usr/share/gcc-{{major}}/**" = "usr/share/gcc-{{major}}"
+# Compiler/preprocessor diagnostics translated by upstream GCC.
+":usr/share/locale/**" = "usr/share/locale"
+# Man pages. GCC ships these PRE-GENERATED, so unlike the autotools packages
+# they do not need help2man — they were simply matched by no glob and dropped.
+# cpp.1 goes with cpp, g++.1 with gcc-c++; the man7 pages (fsf-funding, gfdl,
+# gpl) are the driver's licence/doc references and belong with the driver.
+":usr/share/man/man1/gcc.1"       = "usr/share/man/man1/gcc.1"
+":usr/share/man/man1/gcov.1"      = "usr/share/man/man1/gcov.1"
+":usr/share/man/man1/gcov-dump.1" = "usr/share/man/man1/gcov-dump.1"
+":usr/share/man/man1/gcov-tool.1" = "usr/share/man/man1/gcov-tool.1"
+":usr/share/man/man1/lto-dump.1"  = "usr/share/man/man1/lto-dump.1"
+":usr/share/man/man7/**"          = "usr/share/man/man7"

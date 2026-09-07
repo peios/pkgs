@@ -1,0 +1,31 @@
+# libstdc++-devel — the headers and link-time .so symlink needed to compile and
+# link C++ against libstdc++. The static archives are libstdc++-static.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libstdc++-devel"
+description = "GNU Standard C++ Library development files"
+
+[provides]
+"libstdc++-devel" = "{{version}}-2"
+
+[replaces]
+"libstdc++-devel" = "<= {{version}}-1"
+
+[dependencies]
+# The dev .so symlink resolves into libstdc++'s versioned lib, and the headers
+# must match its ABI; pin the same upstream version.
+"org.gnu.gcc-libstdc++" = "{{version}}-2"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libstdc++-devel/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libstdc++-devel/COPYING.RUNTIME"
+# The C++ standard library headers (<vector>, <string>, ... + the target-specific
+# bits/c++config.h under the build triplet subdir).
+":usr/include/c++/**"                      = "usr/include/c++"
+# Developer .so symlink (libstdc++.so -> libstdc++.so.6).
+":usr/lib/x86_64-linux-peios/libstdc++.so" = "usr/lib/x86_64-linux-peios/libstdc++.so"
+
+# C++20 named-module metadata: tells build systems where libstdc++.modules
+# lives so `import std;` can be compiled. Build-time data, so -devel.
+":usr/lib/x86_64-linux-peios/libstdc++.modules.json" = "usr/lib/x86_64-linux-peios/libstdc++.modules.json"

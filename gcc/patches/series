@@ -1,9 +1,0 @@
-# Peios gcc patch series — applied in order by pekit during source
-# materialisation (`patches = "patches"` in pekit.toml).
-#
-# config.sub is NOT patched here: it ships in several vintages across the
-# toolchain, so gcc/_cross/config-sub-peios.sh handles it instead, detecting
-# the layout and asserting each edit landed.
-elf-target-not-windows-pe.patch  # *-*-pe* (Windows PE) captures "peios" -> LTO was silently disabled
-multiarch-dirname.patch          # /usr/lib/x86_64-linux-peios, not -gnu
-target-peios.patch               # __peios__ via a real config.gcc target

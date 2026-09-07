@@ -1,0 +1,28 @@
+# libstdc++-static — static archives for statically linking the C++ standard
+# library (discouraged but supported). libsupc++.a is the C++ ABI runtime;
+# libstdc++exp.a the experimental/contracts bits; libstdc++fs.a the pre-C++17
+# <filesystem> shim. Split out (like glibc-static) since static C++ linking is
+# the exception, not the rule.
+
+[package]
+license     = "GPL-3.0-or-later WITH GCC-exception-3.1"
+name        = "org.gnu.gcc-libstdc++-static"
+description = "GNU Standard C++ Library static libraries"
+
+[provides]
+"libstdc++-static" = "{{version}}-2"
+
+[replaces]
+"libstdc++-static" = "<= {{version}}-1"
+
+[dependencies]
+# Static linking also needs the headers + dev symlink.
+"org.gnu.gcc-libstdc++-devel" = "{{version}}-2"
+
+[files]
+"@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libstdc++-static/COPYING3"
+"@source:COPYING.RUNTIME" = "usr/share/licenses/org.gnu.gcc-libstdc++-static/COPYING.RUNTIME"
+":usr/lib/x86_64-linux-peios/libstdc++.a"    = "usr/lib/x86_64-linux-peios/libstdc++.a"
+":usr/lib/x86_64-linux-peios/libstdc++exp.a" = "usr/lib/x86_64-linux-peios/libstdc++exp.a"
+":usr/lib/x86_64-linux-peios/libstdc++fs.a"  = "usr/lib/x86_64-linux-peios/libstdc++fs.a"
+":usr/lib/x86_64-linux-peios/libsupc++.a"    = "usr/lib/x86_64-linux-peios/libsupc++.a"

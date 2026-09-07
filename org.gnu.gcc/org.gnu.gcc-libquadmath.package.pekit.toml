@@ -1,0 +1,24 @@
+# libquadmath — GCC's __float128 quad-precision math runtime (libquadmath.so.0),
+# used by scientific/Fortran code (and available to C). The dev .so symlink and
+# static archive are deferred to milestone 2.
+#
+# A glob source ("so.0*") maps to a DIRECTORY.
+
+[package]
+name        = "org.gnu.gcc-libquadmath"
+description = "GCC __float128 quad-precision math library (libquadmath.so.0)"
+license     = "LGPL-2.0-or-later AND LGPL-2.1-or-later"
+
+[provides]
+libquadmath = "{{version}}-2"
+
+[replaces]
+libquadmath = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:libquadmath/COPYING.LIB" = "usr/share/licenses/org.gnu.gcc-libquadmath/COPYING.LIB"
+# SONAME symlink (libquadmath.so.0) + real object (libquadmath.so.0.N.N).
+":usr/lib/x86_64-linux-peios/libquadmath.so.0*" = "usr/lib/x86_64-linux-peios"
