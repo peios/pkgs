@@ -6,8 +6,17 @@
 # doc package. Globbing libc.info* takes the manual but leaves `dir` alone.
 
 [package]
+name          = "org.gnu.glibc-doc"
 description  = "GNU C Library - reference manual"
 architecture = "noarch"
 
+[provides]
+"glibc-doc" = "{{version}}-5"
+
+[replaces]
+"glibc-doc" = "<= {{version}}-4"
+
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-doc/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-doc/"
 ":usr/share/info/libc.info*" = "usr/share/info/"

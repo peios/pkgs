@@ -16,7 +16,7 @@ gcc                    = "*"
 # `binutils`, so spelling the reverse-DNS implementation would install both
 # implementations during the package-name migration.
 binutils               = "*"
-glibc-devel            = "*"
+"org.gnu.glibc-devel" = "*"
 "linux-kernel-headers" = "*"
 debugedit               = "*"
 patchelf                = "*"

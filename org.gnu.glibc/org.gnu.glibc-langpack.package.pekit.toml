@@ -15,16 +15,23 @@ path = "locale:usr/lib/x86_64-linux-peios/locale/*"
 regex = '^([a-z]+)_'
 
 [package]
-name = "glibc-langpack-{{multipack}}"
+name = "org.gnu.glibc-langpack-{{multipack}}"
 description = "GNU C Library - {{multipack}} locale data"
+
+[provides]
+"glibc-langpack-{{multipack}}" = "{{version}}-5"
+
+[replaces]
+"glibc-langpack-{{multipack}}" = "<= {{version}}-4"
 
 [dependencies]
 # Compiled locale data is loaded by glibc at runtime and its binary format is
-# tied to the glibc that produced it, so pin the matching upstream glibc (the
-# operand omits the revision, so any revision of that upstream satisfies it).
-glibc = "{{version}}"
+# tied to the glibc that produced it, so pin the matching family revision.
+"org.gnu.glibc" = "{{version}}-5"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-langpack-{{multipack}}/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-langpack-{{multipack}}/"
 # Every locale for this language (de_DE, de_DE.utf8, de_AT, ...) and its LC_*
 # files, taken from the locale build.
 "locale:usr/lib/x86_64-linux-peios/locale/{{multipack}}_*/**" = "usr/lib/x86_64-linux-peios/locale/"

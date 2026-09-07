@@ -16,11 +16,85 @@ index f4106226ec..c0399b38e8 100644
        use_initgroups_entry = false;
      }
  
+diff --git a/nss/nss.h b/nss/nss.h
+index 17401d2ea8..9afd5007dd 100644
+--- a/nss/nss.h
++++ b/nss/nss.h
+@@ -56,7 +56,12 @@ enum nss_status
+    This function should only be used by system programs which have to
+    work around non-existing services (e.e., while booting).
+    Attention: Using this function repeatedly will slowly eat up the
+-   whole memory since previous selection data cannot be freed.  */
++   whole memory since previous selection data cannot be freed.
++
++   On Peios this function returns -1 for authority-owned identity and host
++   databases and for the deliberately empty publickey database, whose service
++   selection cannot be overridden.  Other databases remain deliberately
++   configurable.  */
+ extern int __nss_configure_lookup (const char *__dbname,
+                                    const char *__string) __THROW;
+ 
+diff --git a/nss/XXX-lookup.c b/nss/XXX-lookup.c
+index 55c4ad0f9a..129704d0b4 100644
+--- a/nss/XXX-lookup.c
++++ b/nss/XXX-lookup.c
+@@ -51,6 +51,17 @@ DB_LOOKUP_FCT (nss_action_list *ni, const char *fct_name, const char *fct2_name,
+ 
+   *ni = actions;
+ 
++  /* Peios: shadow, gshadow and publickey deliberately have empty fixed
++     service lists.  Password verifiers remain inside their authority source,
++     and legacy Secure RPC keys are unsupported.  Report that intentional
++     empty result distinctly so record lookups can return normal not-found
++     semantics.  Keep the assertion for every other database so setup
++     failures such as seccomp interference remain loud.  */
++  if (*ni == NULL && (DATABASE_NAME_ID == nss_database_shadow
++                      || DATABASE_NAME_ID == nss_database_gshadow
++                      || DATABASE_NAME_ID == nss_database_publickey))
++    return NSS_DB_LOOKUP_EMPTY;
++
+   /* We want to know about it if we've somehow got a NULL action list;
+    in the past, we had bad state if seccomp interfered with setup. */
+   assert(*ni != NULL);
+diff --git a/nss/getXXbyYY_r.c b/nss/getXXbyYY_r.c
+index 67e3debe03..3a35114ae6 100644
+--- a/nss/getXXbyYY_r.c
++++ b/nss/getXXbyYY_r.c
+@@ -255,6 +255,12 @@ INTERNAL (REENTRANT_NAME) (ADD_PARAMS, LOOKUP_TYPE *resbuf, char *buffer,
+   no_more = DB_LOOKUP_FCT (&nip, REENTRANT_NAME_STRING,
+ 			   REENTRANT2_NAME_STRING, &fct);
+ 
++  /* Peios: an intentionally empty fixed database is a successful lookup
++     operation with no matching record, not a provider failure.  In
++     particular, do not return whatever errno the caller brought in.  */
++  if (no_more == NSS_DB_LOOKUP_EMPTY)
++    status = NSS_STATUS_NOTFOUND;
++
+   while (no_more == 0)
+     {
+ #ifdef NEED_H_ERRNO
+diff --git a/nss/nsswitch.h b/nss/nsswitch.h
+index 2c7af74067..6df52d111a 100644
+--- a/nss/nsswitch.h
++++ b/nss/nsswitch.h
+@@ -90,6 +90,11 @@ extern bool __nss_database_custom[NSS_DBSIDX_max] attribute_hidden;
+ #define nss_interface_function(name) static_link_warning (name)
+ 
+ 
++/* Internal db_lookup_function result for a database that policy deliberately
++   defines as empty.  Callers that return NSS status must map this to the
++   ordinary NOTFOUND outcome.  */
++#define NSS_DB_LOOKUP_EMPTY 2
++
+ /* Interface functions for NSS.  */
+ 
+ /* Put first function with name FCT_NAME for SERVICE in FCTP.  The
+
 diff --git a/nss/nss_database.c b/nss/nss_database.c
 index 6997b5bb04..abc125fc17 100644
 --- a/nss/nss_database.c
 +++ b/nss/nss_database.c
-@@ -85,26 +85,83 @@ enum nss_database_default
+@@ -84,26 +84,90 @@ enum nss_database_default
   nss_database_default_nis,    /* "nis".  */
   nss_database_default_nis_nisplus,    /* "nis nisplus".  */
   nss_database_default_none,      /* Empty list.  */
@@ -56,6 +130,12 @@ index 6997b5bb04..abc125fc17 100644
 +   shadow and gshadow are empty rather than routed: a Peios verifier lives in
 +   its source's store and cannot be read out, so there is no entry to return.
 +
++   publickey is also fixed empty.  Its NSS interface is the obsolete Secure
++   RPC/DES key database; Peios does not use it for principal credentials and
++   must not acquire ambient NIS/NIS+ key authority through nsswitch.conf or the
++   exported programmatic selector.  netgroup remains a separate, deliberately
++   configurable naming database and is not frozen by this policy.
++
 +   hosts is fixed for the same reason, to a different module.  Name resolution
 +   comes from resolvd, the stub resolver, which routes each name to one
 +   interface's servers by policy (a VPN's names never leak to the LAN), answers
@@ -82,16 +162,17 @@ index 6997b5bb04..abc125fc17 100644
 -   [nss_database_passwd_compat] = nss_database_default_nis,
 +   [nss_database_passwd] = nss_database_default_peios,
 +   [nss_database_passwd_compat] = nss_database_default_none,
-    [nss_database_publickey] = nss_database_default_nis_nisplus,
+-   [nss_database_publickey] = nss_database_default_nis_nisplus,
++   [nss_database_publickey] = nss_database_default_none,
 -   [nss_database_shadow] = nss_database_default_compat,
 -   [nss_database_shadow_compat] = nss_database_default_nis,
 +   [nss_database_shadow] = nss_database_default_none,
 +   [nss_database_shadow_compat] = nss_database_default_none,
    };
  
-+/* Peios: true for a database whose service list is fixed above.  */
++/* Peios: true for a database whose service list is fixed by policy above.  */
 +static bool
-+nss_database_is_identity (enum nss_database db)
++nss_database_is_peios_fixed (enum nss_database db)
 +{
 +  switch (db)
 +    {
@@ -101,6 +182,7 @@ index 6997b5bb04..abc125fc17 100644
 +    case nss_database_initgroups:
 +    case nss_database_passwd:
 +    case nss_database_passwd_compat:
++    case nss_database_publickey:
 +    case nss_database_shadow:
 +    case nss_database_shadow_compat:
 +    case nss_database_hosts:
@@ -113,7 +195,7 @@ index 6997b5bb04..abc125fc17 100644
  static bool
  nss_database_select_default (enum nss_database db, nss_action_list *result)
  {
-@@ -143,6 +200,14 @@ nss_database_select_default (enum nss_database db, nss_action_list *result)
+@@ -142,6 +206,14 @@ nss_database_select_default (enum nss_database db, nss_action_list *result)
        line = "nis nisplus";
        break;
  
@@ -128,16 +210,33 @@ index 6997b5bb04..abc125fc17 100644
      case nss_database_default_none:
        /* Very special case: Leave *result as NULL.  */
        return true;
-@@ -349,6 +414,14 @@ nss_database_reload (struct nss_database_data *staging,
+@@ -239,6 +311,16 @@ __nss_configure_lookup (const char *dbname, const char *service_line)
+     /* Not our database (e.g., sudoers).  */
+     return -1;
+ 
++  /* Peios: this exported hook is another configuration surface.  In
++     particular, getent -s/--service calls it, so accepting an override here
++     would bypass the policy above even though nsswitch.conf is ignored.
++     Reject programmatic overrides for every fixed identity and host database
++     and for the empty publickey database.  Leave the hook available for
++     deliberately configurable databases such as aliases, netgroup, networks,
++     protocols, rpc and services.  */
++  if (nss_database_is_peios_fixed (db))
++    return -1;
++
+   /* Force any load/cache/read whatever to happen, so we can override
+      it.  */
+   if (!__nss_database_get (db, &result))
+@@ -351,6 +433,14 @@ nss_database_reload (struct nss_database_data *staging,
  	staging->services[nss_database_gshadow] =
  	  staging->services[nss_database_group];
  
-+      /* Peios: identity is not configurable.  Discard anything nsswitch.conf
-+         said about the identity databases -- including what the inheritance
-+         above just copied into shadow and gshadow -- so that the defaults
-+         below are the only path a lookup can take.  */
++      /* Peios: identity, hosts and publickey are not configurable.  Discard
++         anything nsswitch.conf said about the fixed databases -- including
++         what the inheritance above just copied into shadow and gshadow -- so
++         that the defaults below are the only path a lookup can take.  */
 +      for (int i = 0; i < NSS_DATABASE_COUNT; ++i)
-+        if (nss_database_is_identity (i))
++        if (nss_database_is_peios_fixed (i))
 +          staging->services[i] = NULL;
 +
        /* For anything still unspecified, load the default configs.  */
