@@ -19,7 +19,7 @@ description = "GNU C Library - debugging symbols"
 [dependencies]
 # Symbols correspond to a specific glibc build (matched precisely by build-id at
 # debug time); pin the matching upstream version.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-debuginfo/"

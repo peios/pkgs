@@ -17,7 +17,7 @@ description = "GNU C Library - profiling and tracing utilities"
 # The programs plus LD_PRELOAD/LD_AUDIT modules are loaded into the runtime,
 # so keep the tested family revision exact rather than allowing a partial
 # module/runtime upgrade.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 # xtrace and sotruss are Bash scripts, and xtrace invokes sed.  mtrace starts
 # as a shell wrapper, executes Perl for the parser and invokes addr2line when a
 # traced binary is supplied, so these are runtime inputs rather than build-only

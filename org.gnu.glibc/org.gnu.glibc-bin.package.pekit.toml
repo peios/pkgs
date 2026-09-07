@@ -38,7 +38,7 @@ description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 l
 # The programs and their locale/getconf data are one tested family unit with
 # the runtime. Keep them on the exact revision rather than permitting a
 # partially upgraded libc toolset.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 # ldd is an installed Bash script; qualify the implementation rather than
 # relying on a generic shell role because it uses Bash-specific syntax.
 # tzselect invokes awk and depends on GNU awk's behavior.

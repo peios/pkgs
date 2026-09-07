@@ -23,7 +23,7 @@ description = "GNU C Library - development headers and libraries"
 # versioned libs + loader, and the headers must match the runtime's ABI. Pin to
 # the same family revision so the linker surface and installed runtime cannot
 # drift during an upgrade.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-devel/"

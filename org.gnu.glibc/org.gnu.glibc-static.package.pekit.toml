@@ -36,7 +36,7 @@ description = "GNU C Library - static libraries"
 "glibc-static" = "<= {{version}}-4"
 
 [dependencies]
-"org.gnu.glibc-devel" = "{{version}}-5"
+"org.gnu.glibc-devel" = "{{version}}-7"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-static/"

@@ -42,7 +42,7 @@ description = "GNU C Library - additional charset conversion modules"
 [dependencies]
 # Loadable modules of the runtime's iconv machinery: keep the module registry,
 # converter DSOs and loader on the exact family revision tested together.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-gconv-extra/"
