@@ -1,0 +1,174 @@
+# GNU MPC — correctly rounded arbitrary-precision complex arithmetic.
+# GCC uses it for compile-time constant folding, so both the upstream
+# correctness suite and installed-interface tests are release gates.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/mpc/mpc-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/mpc/"
+root        = "mpc-{{version}}"
+extract     = true
+file_regex  = 'mpc-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance floor and major-version compatibility ceiling. Follow all
+# newer authenticated 1.x releases automatically; stop for recipe review only
+# if upstream changes the major version or breaks the build contract.
+versions    = ">= 1.4, < 2"
+
+# MPC's official download page links this release key and the detached
+# signature beside every archive. Pin the full primary fingerprint rather than
+# accepting any key present in the file. Upstream still signs releases with
+# this key after its declared expiry, so permit key expiry only; Pekit continues
+# to enforce the fingerprint, signature, revocation, and timestamp checks.
+[source.url.signature]
+url           = "{{source_url}}.sig"
+of            = "artifact"
+key_files     = ["keys/andreas-enge.asc"]
+fingerprints  = ["AD17A21EF8AED8F1CC02DBD9F7D5C9BF765C61E3"]
+ignore_expiry = true
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+cd "$PEKIT_OUT"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios
+
+# Put --as-needed before libraries and suppress an rpath into the system
+# library directory. Fedora and Arch apply the same generated-libtool policy.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
+    -e 's|CC="\(g..\)"|CC="\1 -Wl,--as-needed"|' \
+    -i libtool
+
+make -j"$(nproc)"
+
+# Correct rounding is the product, and GCC folds constants through this
+# library. Force tests to load the just-built library rather than any MPC
+# already present in the composed build root.
+LD_LIBRARY_PATH="$PEKIT_OUT/src/.libs" make -j"$(nproc)" check
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/info"
+
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$PEKIT_OUT/usr/include"
+PCDIR="$LIBDIR/pkgconfig"
+MPC_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libmpc.so.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$MPC_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libmpc.so"
+test -L "$LIBDIR/libmpc.so.3"
+test -f "$LIBDIR/libmpc.a"
+test -f "$PCDIR/mpc.pc"
+readelf -d "$MPC_SO" | grep -Eq 'SONAME.*[[]libmpc[.]so[.]3[]]'
+grep -F 'Version: ' "$PCDIR/mpc.pc" | grep -F "$PEKIT_VERSION"
+grep -F 'Requires.private: mpfr >= 4.1.0, gmp >= 5.0.0' "$PCDIR/mpc.pc"
+
+# Exercise the installed header and both linkage modes. (3+4i)^2 is exactly
+# -7+24i, so this checks the public MPC/MPFR/GMP interface without tolerances.
+SMOKE="$PEKIT_OUT/.mpc-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/smoke.c" <<'EOF'
+#include <mpc.h>
+
+int main(void)
+{
+  mpc_t input;
+  mpc_t result;
+  mpc_init2(input, 128);
+  mpc_init2(result, 128);
+  mpc_set_ui_ui(input, 3, 4, MPC_RNDNN);
+  mpc_mul(result, input, input, MPC_RNDNN);
+  int ok = mpc_cmp_si_si(result, -7, 24) == 0;
+  mpc_clear(result);
+  mpc_clear(input);
+  return ok ? 0 : 1;
+}
+EOF
+MPC_CFLAGS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --cflags mpc)
+MPC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --libs mpc)
+MPC_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
+  pkgconf --static --libs mpc)
+cc $MPC_CFLAGS "$SMOKE/smoke.c" $MPC_LIBS -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
+cc $MPC_CFLAGS "$SMOKE/smoke.c" -Wl,-Bstatic $MPC_STATIC_LIBS \
+  -Wl,-Bdynamic -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+# Split build-ID-indexed debug data and stage the exact sources referenced by
+# the rewritten DWARF paths. Static archives retain code but drop debug data.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f"; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f"
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.mpc \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.gnu.mpc/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.mpc/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -rf "$SMOKE"
+
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find usr/src/debug/org.gnu.mpc -type f -print -quit)"
+
+# Assert the properties of the stripped shared object that will ship.
+readelf -W -l "$MPC_SO" | grep -F 'GNU_RELRO'
+readelf -d "$MPC_SO" | grep -F 'BIND_NOW'
+readelf -W -l "$MPC_SO" | grep -E 'GNU_STACK.*RW '
+# Debian's GCC 14 CRT objects do not retain an aggregate CET property note in
+# the linked DSO even though every MPC object carries IBT and SHSTK. Peios'
+# compiler does retain it, so make the shipped native result the hard gate.
+if cc --version | head -1 | grep -Fq 'Peios'; then
+  readelf -n "$MPC_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+if readelf -d "$MPC_SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+readelf -d "$MPC_SO" | grep -F 'Shared library: [libmpfr.so.6]'
+readelf -d "$MPC_SO" | grep -F 'Shared library: [libgmp.so.10]'
+readelf -d "$MPC_SO" | grep -F 'Shared library: [libc.so.6]'
+if readelf -d "$MPC_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c   = "*"
+"org.gnu.gmp-devel"  = "*"
+"org.gnu.gmp-static" = "*"
+"org.gnu.mpfr-devel" = "*"
+"org.gnu.mpfr-static" = "*"
+pkgconf              = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev      = "*"
+libmpfr-dev     = "*"
+debugedit       = "*"
+patchelf        = "*"
+pkgconf         = "*"

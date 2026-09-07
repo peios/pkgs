@@ -1,0 +1,17 @@
+[package]
+name        = "org.gnu.mpc-static"
+description = "GNU MPC static library"
+
+[provides]
+"mpc-static" = "{{version}}-2"
+
+[replaces]
+"mpc-static" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.mpc-devel"   = "{{version}}-2"
+"org.gnu.mpfr-static" = ">= 4.2.2"
+"org.gnu.gmp-static"  = ">= 6.3.0"
+
+[files]
+":usr/lib/x86_64-linux-peios/libmpc.a" = "usr/lib/x86_64-linux-peios/libmpc.a"

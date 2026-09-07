@@ -1,0 +1,15 @@
+[package]
+name        = "org.gnu.mpc-debugsource"
+description = "GNU MPC debug sources"
+
+[provides]
+"mpc-debugsource" = "{{version}}-2"
+
+[replaces]
+"mpc-debugsource" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.mpc-debuginfo" = "{{version}}-2"
+
+[files]
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,21 @@
+# Runtime library only. Headers, linker name, pkg-config metadata and the
+# static archive are split into sibling packages.
+
+[package]
+name        = "org.gnu.mpc"
+description = "GNU correctly rounded multiple-precision complex arithmetic library"
+
+[provides]
+mpc = "{{version}}-2"
+
+[replaces]
+mpc = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+"org.gnu.gmp"   = ">= 6.3.0"
+"org.gnu.mpfr"  = ">= 4.2.2"
+
+[files]
+"@source:COPYING.LESSER"                    = "usr/share/licenses/org.gnu.mpc/"
+":usr/lib/x86_64-linux-peios/libmpc.so.3*" = "usr/lib/x86_64-linux-peios"

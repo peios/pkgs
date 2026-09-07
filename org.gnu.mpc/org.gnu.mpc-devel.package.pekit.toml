@@ -1,0 +1,19 @@
+[package]
+name        = "org.gnu.mpc-devel"
+description = "GNU MPC development files"
+
+[provides]
+"mpc-devel" = "{{version}}-2"
+
+[replaces]
+"mpc-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.gnu.mpc"        = "{{version}}-2"
+"org.gnu.gmp-devel"  = ">= 6.3.0"
+"org.gnu.mpfr-devel" = ">= 4.2.2"
+
+[files]
+":usr/include/mpc.h"                           = "usr/include/mpc.h"
+":usr/lib/x86_64-linux-peios/libmpc.so"        = "usr/lib/x86_64-linux-peios/libmpc.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/mpc.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/mpc.pc"

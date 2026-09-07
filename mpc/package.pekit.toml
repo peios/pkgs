@@ -1,9 +1,0 @@
-# Base metadata shared by the mpc sub-packages.
-
-format = "peipkg"
-
-[package]
-version      = "{{version}}-1"
-architecture = "x86_64"
-license      = "LGPL-3.0-or-later"
-homepage     = "https://www.multiprecision.org/mpc/"
