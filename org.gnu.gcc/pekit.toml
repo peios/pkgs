@@ -282,6 +282,10 @@ CONFIGURE=../../../source/configure
   CFLAGS_FOR_TARGET="$CFLAGS $TARGET_SYSINC" \
   CXXFLAGS_FOR_TARGET="$CXXFLAGS $TARGET_SYSINC" \
   LDFLAGS_FOR_TARGET="$LDFLAGS $CET_LDFLAGS"
+# STAGE1_CFLAGS/STAGE1_CXXFLAGS cover the stage-1 compiler and the helper
+# subconfigures created during stage1-bubble. GCC otherwise replaces the
+# configured distro flags with plain `-g`; on native Peios that makes the
+# strict CET linker correctly reject those unmarked objects before bootstrap.
 # BOOT_CFLAGS and BOOT_LDFLAGS carry the hardening into stages 2/3 — see the
 # [env] note above. Pass them on the make line because that is where GCC reads
 # them, as Fedora's gcc.spec does. In particular, configure's LDFLAGS only
@@ -292,6 +296,8 @@ CONFIGURE=../../../source/configure
 # CPPFLAGS_FOR_TARGET; repeat that make variable explicitly so every
 # target-library configure probe receives the sysinclude.
 make -j"$JOBS" \
+  STAGE1_CFLAGS="$CFLAGS $TARGET_SYSINC" \
+  STAGE1_CXXFLAGS="$CXXFLAGS $TARGET_SYSINC" \
   BOOT_CFLAGS="$CFLAGS $TARGET_SYSINC" \
   BOOT_LDFLAGS="$LDFLAGS $CET_LDFLAGS" \
   CPPFLAGS_FOR_TARGET="$TARGET_SYSINC"
