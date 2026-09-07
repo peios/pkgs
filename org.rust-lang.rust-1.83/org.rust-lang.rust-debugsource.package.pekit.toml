@@ -8,4 +8,3 @@ description = "Rust compiler-suite sources referenced by debugging information"
 
 [files]
 ":usr/src/debug/org.rust-lang.rust/**" = "usr/src/debug/org.rust-lang.rust"
-

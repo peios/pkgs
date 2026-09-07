@@ -28,4 +28,3 @@ gcc                       = ">= 16"
 ":usr/share/doc/rustc/**" = "usr/share/doc/org.rust-lang.rustc"
 ":usr/share/man/man1/rustc.1" = "usr/share/man/man1/rustc.1"
 ":usr/share/man/man1/rustdoc.1" = "usr/share/man/man1/rustdoc.1"
-

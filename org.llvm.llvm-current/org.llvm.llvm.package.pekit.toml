@@ -32,4 +32,3 @@ llvm = "<= {{version}}-1"
 ":usr/bin/verify-uselistorder" = "usr/bin/verify-uselistorder"
 ":usr/bin/amdgpu-arch" = "usr/bin/amdgpu-arch"
 ":usr/bin/nvptx-arch"  = "usr/bin/nvptx-arch"
-

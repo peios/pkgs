@@ -19,4 +19,3 @@ lld = "<= {{version}}-1"
 ":usr/bin/ld.lld"  = "usr/bin/ld.lld"
 ":usr/bin/ld64.lld" = "usr/bin/ld64.lld"
 ":usr/bin/wasm-ld" = "usr/bin/wasm-ld"
-

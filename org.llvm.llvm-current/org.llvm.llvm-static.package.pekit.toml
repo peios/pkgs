@@ -12,4 +12,3 @@ license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-static/LICENSE.TXT"
 "@source:llvm/lib/Support/BLAKE3/LICENSE" = "usr/share/licenses/org.llvm.llvm-static/BLAKE3-LICENSE"
 ":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"
-

@@ -25,4 +25,3 @@ rust-license = "{{version}}-2"
 "@source:vendor/curl-sys-0.4.74+curl-8.9.0/curl/COPYING" = "usr/share/licenses/org.rust-lang.rust-common/native/curl-COPYING"
 "@recipe:licenses/SQLITE" = "usr/share/licenses/org.rust-lang.rust-common/native/sqlite-blessing"
 ":usr/share/licenses/org.rust-lang.rust-common/generated/**" = "usr/share/licenses/org.rust-lang.rust-common/generated"
-

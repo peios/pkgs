@@ -13,4 +13,3 @@ description = "Clang development headers and CMake metadata"
 ":usr/lib/x86_64-linux-peios/libclang-cpp.so" = "usr/lib/x86_64-linux-peios/libclang-cpp.so"
 ":usr/lib/x86_64-linux-peios/libclang.so"     = "usr/lib/x86_64-linux-peios/libclang.so"
 ":usr/lib/x86_64-linux-peios/cmake/clang/**"  = "usr/lib/x86_64-linux-peios/cmake/clang"
-

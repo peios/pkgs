@@ -13,4 +13,3 @@ libgcc                       = ">= 16"
 [files]
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-std-*" = "usr/lib/x86_64-linux-peios/rustlib"
 ":usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu/**" = "usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu"
-

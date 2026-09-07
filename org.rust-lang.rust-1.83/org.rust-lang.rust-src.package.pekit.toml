@@ -12,4 +12,3 @@ rust-src = "{{version}}-2"
 [files]
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src"
 ":usr/lib/x86_64-linux-peios/rustlib/src/**" = "usr/lib/x86_64-linux-peios/rustlib/src"
-

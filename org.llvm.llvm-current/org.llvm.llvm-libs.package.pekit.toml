@@ -17,4 +17,3 @@ libzstd     = ">= 1.5.7"
 ":usr/lib/x86_64-linux-peios/libLLVM.so.*"     = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/libLTO.so.*"      = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/libRemarks.so.*"  = "usr/lib/x86_64-linux-peios"
-

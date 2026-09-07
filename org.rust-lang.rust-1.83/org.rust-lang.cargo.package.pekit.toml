@@ -23,4 +23,3 @@ zlib                    = ">= 2.3.3"
 ":usr/share/man/man1/cargo*.1" = "usr/share/man/man1"
 ":usr/share/bash-completion/completions/cargo" = "usr/share/bash-completion/completions/cargo"
 ":usr/share/zsh/site-functions/_cargo" = "usr/share/zsh/site-functions/_cargo"
-

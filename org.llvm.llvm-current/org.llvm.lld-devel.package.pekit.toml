@@ -9,4 +9,3 @@ description = "LLD development headers and CMake metadata"
 "@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld-devel/LICENSE.TXT"
 ":usr/include/lld/**" = "usr/include/lld"
 ":usr/lib/x86_64-linux-peios/cmake/lld/**" = "usr/lib/x86_64-linux-peios/cmake/lld"
-

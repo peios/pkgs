@@ -23,4 +23,3 @@ clang = "<= {{version}}-1"
 ":usr/bin/c-index-test" = "usr/bin/c-index-test"
 ":usr/bin/diagtool"     = "usr/bin/diagtool"
 ":usr/lib/x86_64-linux-peios/clang/**"      = "usr/lib/x86_64-linux-peios/clang"
-

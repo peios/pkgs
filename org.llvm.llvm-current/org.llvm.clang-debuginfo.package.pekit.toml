@@ -8,4 +8,3 @@ description = "Clang compiler and tool debugging symbols"
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-debuginfo/LICENSE.TXT"
 ":.debuginfo/clang/usr/lib/debug/**" = "usr/lib/debug"
-

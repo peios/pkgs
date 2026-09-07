@@ -8,4 +8,3 @@ description = "Rust compiler-suite detached debugging symbols"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"
-

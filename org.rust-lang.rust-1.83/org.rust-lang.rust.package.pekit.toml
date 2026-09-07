@@ -20,4 +20,3 @@ rust = "<= {{version}}-2"
 
 [files]
 "@source:README.md" = "usr/share/doc/org.rust-lang.rust/README.md"
-

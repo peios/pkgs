@@ -16,4 +16,3 @@ libgcc                  = ">= 16"
 ":usr/bin/cargo-fmt" = "usr/bin/cargo-fmt"
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview"
 ":usr/share/doc/rustfmt/**" = "usr/share/doc/org.rust-lang.rustfmt"
-

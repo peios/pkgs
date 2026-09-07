@@ -1,5 +1,7 @@
-# pekit build artifacts: per-recipe staging trees + the published-package pool
-out/
+# Pekit build artifacts: per-recipe staging trees and release-worktree links
+# to a shared staging tree. As with the repository link below, omit the trailing
+# slash so a cache-sharing symlink cannot dirty exact package provenance.
+out
 _pkgsOut_
 # Also match a release worktree's symlink to the shared repository. A trailing
 # slash ignores only real directories; leaving it off keeps that operational

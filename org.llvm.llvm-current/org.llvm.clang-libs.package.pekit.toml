@@ -12,4 +12,3 @@ libgcc                 = ">= 16"
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-libs/LICENSE.TXT"
 ":usr/lib/x86_64-linux-peios/libclang-cpp.so.*" = "usr/lib/x86_64-linux-peios"
 ":usr/lib/x86_64-linux-peios/libclang.so.*"     = "usr/lib/x86_64-linux-peios"
-

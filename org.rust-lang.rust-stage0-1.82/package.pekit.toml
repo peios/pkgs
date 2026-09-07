@@ -34,4 +34,3 @@ zlib   = ">= 2.3.3"
 "@recipe:licenses/LIBSSH2" = "usr/share/licenses/org.rust-lang.rust-stage0/native/libssh2-COPYING"
 "@recipe:licenses/SQLITE"  = "usr/share/licenses/org.rust-lang.rust-stage0/native/sqlite-blessing"
 ":usr/lib/x86_64-linux-peios/rust-stage0/**" = "usr/lib/x86_64-linux-peios/rust-stage0"
-
