@@ -6,9 +6,9 @@ format = "peipkg"
 
 [package]
 name         = "org.gnu.glibc"
-# -5 is the reverse-DNS family migration and the first authenticated 2.44
-# release build; every legacy <= -4 split is retained as a migration provide.
-version      = "{{version}}-5"
+# -6 supersedes the retained -5 publication whose recipe_ref exposed a dirty
+# release worktree; every legacy <= -4 split remains a migration provide.
+version      = "{{version}}-6"
 architecture = "x86_64"
 # Complete conservative source-family expression.  The principal library is
 # LGPL-2.1-or-later and the bundled programs are GPL-2.0-or-later; the remaining
