@@ -27,7 +27,7 @@ description = "GNU C Library - {{multipack}} locale data"
 [dependencies]
 # Compiled locale data is loaded by glibc at runtime and its binary format is
 # tied to the glibc that produced it, so pin the matching family revision.
-"org.gnu.glibc" = "{{version}}-5"
+"org.gnu.glibc" = "{{version}}-7"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-langpack-{{multipack}}/"
