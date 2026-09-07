@@ -491,13 +491,39 @@ int main(void)
   return ok ? 0 : 4;
 }
 EOF
+# The staged tree intentionally contains only glibc's files; kernel UAPI
+# headers are a separate package.  On the native rung, use that declared
+# build-root dependency as an include fallback while keeping the staged glibc
+# headers first.  Debian's kernel headers do not define Peios syscalls, so its
+# reference rung uses a compile-only asm/unistd.h synthesized from the single
+# assertion table above.  The native rung therefore validates the real package
+# pairing, while both rungs validate glibc's generated SYS_* surface and links.
+ABI_KERNEL_CPPFLAGS=
+if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
+  test -f /usr/include/asm/unistd.h
+  ABI_KERNEL_CPPFLAGS='-idirafter /usr/include'
+else
+  ABI_MOCK_UAPI="$SMOKE/mock-uapi"
+  mkdir -p "$ABI_MOCK_UAPI/asm"
+  {
+    printf '%s\n' '#ifndef _ASM_UNISTD_H' '#define _ASM_UNISTD_H'
+    sed -n \
+      's/^CHECK_SYSCALL(\([a-z0-9_]*\), \([0-9][0-9]*\));$/#define __NR_\1 \2/p' \
+      "$SMOKE/abi.c"
+    printf '%s\n' '#endif'
+  } > "$ABI_MOCK_UAPI/asm/unistd.h"
+  [ "$(grep -c '^#define __NR_' "$ABI_MOCK_UAPI/asm/unistd.h")" -eq 22 ]
+  ABI_KERNEL_CPPFLAGS="-I$ABI_MOCK_UAPI"
+fi
 cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  $ABI_KERNEL_CPPFLAGS \
   "$SMOKE/abi.c" \
   -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
   -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/abi-dynamic" -ldl -pthread
 "$LOADER" --library-path "$STAGED_LIBDIR" "$SMOKE/abi-dynamic" \
   | grep -Fx 'staged glibc ABI OK'
 cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  $ABI_KERNEL_CPPFLAGS \
   -DSTATIC_TEST -static "$SMOKE/abi.c" \
   -o "$SMOKE/abi-static" -ldl -pthread
 "$SMOKE/abi-static" | grep -Fx 'staged glibc ABI OK'
