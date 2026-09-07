@@ -35,26 +35,23 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.gnu.glibc` at clean package commit `8448bd6`
-  (integrated by pkgs merge `d71a920`).
-- Completed: **83 / 113** recipes (73.5%).
-- Current upstream/dependency pass: **83 / 85** recipes (97.6%).
+- Last completed recipe: `org.gnu.mpc` at pkgs commit `54b7a10`.
+- Completed: **84 / 113** recipes (74.3%).
+- Current upstream/dependency pass: **84 / 85** recipes (98.8%).
 - Deferred first-party pass: 28 recipes.
-- Repository after glibc and the Dash qualified-dependency follow-up: index
-  version 178, 726 active entries, 1,212 archive-index entries, no verification
-  problems.
+- Repository after MPC: index version 179, 732 active entries, 1,218
+  archive-index entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 83 completed recipes are the currently tracked reverse-DNS recipe
+The 84 completed recipes are the currently tracked reverse-DNS recipe
 directories. The remaining recipes in the current pass are listed below.
 
 ## Remaining current-pass recipes
 
 | Order | Recipe | State | Notes |
 | ---: | --- | --- | --- |
-| 1 | `gcc` | Blocked on MPC | Debian reference passed; native composition now reaches the qualified `org.gnu.mpc-devel` edge. Native A/B reproducibility, publication, and integration remain after MPC is available. |
-| 2 | `mpc` | Needs security decision | The abandoned uncommitted migration was reproduced in an isolated worktree without modifying it. Upstream signed the April 2026 MPC 1.4.1 release with its officially published key after that key expired in July 2024; Pekit correctly rejects a new post-expiry signature. Do not disable the source-signature gate without an explicit policy decision. |
+| 1 | `gcc` | In progress | Debian reference passed; native bootstrap and tests are running now that qualified MPC is published. Native A/B reproducibility, publication, and integration remain. |
 
 ## Deferred first-party recipes
 
@@ -67,15 +64,6 @@ directories. The remaining recipes in the current pass are listed below.
 
 ## Follow-ups and known blockers
 
-- Resolve MPC upstream authentication. The official MPC download page still
-  identifies primary fingerprint
-  `AD17A21EF8AED8F1CC02DBD9F7D5C9BF765C61E3`, whose self-signature expired on
-  2024-07-04; the same key made the otherwise cryptographically valid MPC
-  1.4.1 signature on 2026-04-16. The locked tarball hash remains
-  `91204cd32f164bd3b7c992d4a6a8ce6519511aadab30f78b6982d0bf8d73e931`,
-  but unattended future tracking cannot be called authenticated while Pekit
-  rejects post-expiry signatures. GCC's native build correctly stops at the
-  missing `org.gnu.mpc-devel` package until this is resolved.
 - `fsbase` security-descriptor overrides made the unprivileged package root
   expose a missing CLI surface rather than a package defect. Peipkg commit
   `76b65f4` adds deterministic `--record-xattrs` JSONL output using the
@@ -113,7 +101,24 @@ directories. The remaining recipes in the current pass are listed below.
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
 
-## Latest completion: glibc 2.44-6
+## Latest completion: MPC 1.4.1-2
+
+`org.gnu.mpc` replaces the unqualified recipe with runtime, development,
+static, debug-info, debug-source, and source packages. It tracks authenticated
+MPC 1.x releases from a soft 1.4 floor and pins Andreas Enge's full primary
+fingerprint. MPC 1.4.1 was signed after that key's declared expiry, so the
+recipe explicitly permits key expiry while Pekit continues to enforce the
+fingerprint, cryptographic signature, revocation, critical-notation, and
+timestamp checks.
+
+Both clean Debian builds and both clean Peios-native builds passed all 75
+upstream tests, installed shared/static API consumers, package splits,
+hardening, SONAME, and payload reproducibility checks. The native shared object
+retains IBT and SHSTK. All six artifacts are signed, pass `verify.sh`, and were
+published at repository index 179; full repository verification reports 732
+active entries, 1,218 archived entries, and no problems.
+
+## Previous completion: glibc 2.44-6
 
 `org.gnu.glibc` replaces the unqualified recipe with a complete reverse-DNS
 family: runtime, loader/program, development, static, documentation, locale
