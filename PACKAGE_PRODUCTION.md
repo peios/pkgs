@@ -65,8 +65,9 @@ A completed upstream package normally has all of the following:
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
 - Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
   on the host rung but blocked from release by the source/toolchain items below.
-- Repository after GCC and the glibc metadata correction: index version 181,
-  756 active entries, 1,463 archive-index entries, no verification problems.
+- Repository after the build-essentials canonical-Binutils correction: index
+  version 182. A full verification pass remains due after the Rust/LLVM
+  publication batch.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -118,6 +119,20 @@ blocked as recorded below.
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package
   names coexist.
+- `build-essentials-c` 1.0.0-5 now depends on canonical
+  `org.gnu.binutils`. The former virtual-name edge selected legacy `binutils`
+  alongside GCC's canonical dependency and made pristine build-root composition
+  fail on their overlapping `/usr/bin` payloads.
+- GCC 16's packaged `libstdc++.so.6` emits "no version information available"
+  for C++ consumers in the native root. Current programs still link and run,
+  but the missing GLIBCXX/CXXABI symbol-version surface needs a focused ABI
+  audit before the toolchain is considered fully production-complete.
+- Rust now has disjoint package-source lanes: the retained exact 1.83.0 recipe
+  (with exact 1.82.0 stage0 and LLVM 18 dependencies) is the kernel toolchain,
+  while the rolling recipe follows stable releases from a soft 1.98.1 floor.
+  LLVM 22 likewise has a separate rolling recipe so publishing a current
+  userspace compiler cannot move Kbuild. The current LLVM/Rust publication and
+  final frozen-kernel rebuild are still in progress.
 - The native build-root wrapper currently resolves every top-level artifact in
   `_pkgsOut_`, including superseded migrations. Legacy libxml2, libxslt,
   libtraceevent, and libtracefs pool artifacts were moved, recoverably, under
@@ -131,6 +146,13 @@ blocked as recorded below.
   legacy-provider artifacts). No signed repository entry was deleted or
   rewritten. The wrapper now exposes an external delegated local source tree
   to both reference roots without exposing undeclared sibling checkouts.
+- Package-campaign cleanup removed every per-recipe `out/` cache and 19 stale
+  registered `pkgs` worktrees after confirming that each carried no unique
+  tracked patch. The one retained Rust worktree contains an old 17 GiB package
+  pool with 2,057 filenames absent from the signed repository and therefore
+  needs an explicit discard decision rather than being treated as an ordinary
+  build cache. An unregistered LLVM worktree remnant is also pending privileged
+  removal because its build namespace left files owned by another uid.
 
 ## First-party current: Atrium 0.0.24-2
 

@@ -1,0 +1,11 @@
+[package]
+name        = "org.llvm.lld-debuginfo"
+description = "LLD debugging symbols"
+
+[dependencies]
+"org.llvm.lld" = "{{version}}-2"
+
+[files]
+"@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld-debuginfo/LICENSE.TXT"
+":.debuginfo/lld/usr/lib/debug/**" = "usr/lib/debug"
+

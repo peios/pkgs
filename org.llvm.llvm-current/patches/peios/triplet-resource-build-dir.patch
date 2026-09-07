@@ -1,0 +1,38 @@
+From: Peios Package Maintainers <packages@peios.dev>
+Subject: [PATCH] clang: anchor build-tree resources at LLVM_BINARY_DIR
+
+Peios uses /x86_64-linux-peios as LLVM_LIBDIR_SUFFIX.  The resource-header
+build rule currently prefixes lib${LLVM_LIBDIR_SUFFIX} with the parent of
+LLVM_LIBRARY_OUTPUT_INTDIR.  When the suffix contains a slash, that parent is
+already the unsuffixed lib directory and the result gains a second lib path
+component:
+
+  build/lib/lib/x86_64-linux-peios/clang/<major>/include
+
+Clang itself correctly derives:
+
+  build/lib/x86_64-linux-peios/clang/<major>/include
+
+Anchor the resource path directly at LLVM_BINARY_DIR, as the runtime resource
+rule already does.  This is equivalent for the ordinary empty suffix and also
+supports multi-component library suffixes.
+
+---
+ clang/lib/Headers/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/clang/lib/Headers/CMakeLists.txt b/clang/lib/Headers/CMakeLists.txt
+index 0d88a8da1ea5..d39fa7426f0c 100644
+--- a/clang/lib/Headers/CMakeLists.txt
++++ b/clang/lib/Headers/CMakeLists.txt
+@@ -402,7 +402,7 @@ set(zos_wrapper_files
+ )
+ 
+ include(GetClangResourceDir)
+-get_clang_resource_dir(output_dir PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/.. SUBDIR include)
++get_clang_resource_dir(output_dir PREFIX ${LLVM_BINARY_DIR} SUBDIR include)
+ set(out_files)
+ set(generated_files)
+ 
+-- 
+2.51.0

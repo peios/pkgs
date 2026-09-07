@@ -1,0 +1,26 @@
+# clang — the C/C++ compiler (the kernel's CC under LLVM=1), the
+# libclang-cpp dylib, libclang (bindgen's entry point, unversioned
+# link included — clang-sys dlopens "libclang.so"), and the resource
+# headers (stdarg.h & co) the driver hands every compile.
+
+[package]
+name        = "org.llvm.clang"
+description = "Clang C, C++ and Objective-C compiler"
+
+[provides]
+clang = "{{version}}-2"
+
+[replaces]
+clang = "<= {{version}}-1"
+
+[dependencies]
+"org.llvm.llvm"       = "{{version}}-2"
+"org.llvm.clang-libs" = "{{version}}-2"
+
+[files]
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang/LICENSE.TXT"
+":usr/bin/clang*"   = "usr/bin"
+":usr/bin/c-index-test" = "usr/bin/c-index-test"
+":usr/bin/diagtool"     = "usr/bin/diagtool"
+":usr/lib/x86_64-linux-peios/clang/**"      = "usr/lib/x86_64-linux-peios/clang"
+

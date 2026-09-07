@@ -1,0 +1,23 @@
+[package]
+name         = "org.rust-lang.rust"
+architecture = "noarch"
+description  = "Rust programming-language toolchain suite"
+
+[provides]
+# Include the package revision so this canonical suite outranks the retained
+# monolithic rust 1.83.0-1 artifact in mixed local pools.
+rust = "{{version}}-2"
+
+[replaces]
+rust = "<= {{version}}-2"
+
+[dependencies]
+"org.rust-lang.rustc"       = "= {{version}}-2"
+"org.rust-lang.cargo"       = "= {{version}}-2"
+"org.rust-lang.rustfmt"     = "= {{version}}-2"
+"org.rust-lang.rust-src"    = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
+
+[files]
+"@source:README.md" = "usr/share/doc/org.rust-lang.rust/README.md"
+

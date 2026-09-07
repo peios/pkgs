@@ -1,0 +1,20 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "18.1.8"
+  url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/llvm-project-18.1.8.src.tar.xz"
+  sha256 = "0b58557a6d32ceee97c8d533a59b9212d87e0fc4d2833924eb6c611247db2f2a"
+  signature_key = "474e22316abf4785a88c6e8ea2c794a986419d8a"
+  locked_at = "2026-09-05T19:26:28Z"
+
+[[source]]
+  version = "22.1.8"
+  url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/llvm-project-22.1.8.src.tar.xz"
+  sha256 = "922f1817a0df7b1489272d18134ee0087a8b068828f87ac63b9861b1a9965888"
+  signature_key = "ffb3368980f3e6bb5737145a316c56d064cacba5"
+  locked_at = "2026-09-07T18:57:10Z"

@@ -1,0 +1,67 @@
+From: Peios Package Maintainers <packages@peios.dev>
+Subject: [PATCH] llvm: recognize Peios as a target environment
+
+Peios uses the canonical GNU-style target tuple
+x86_64-unknown-linux-peios. LLVM 22 validates the environment suffix as a
+version and rejects unknown non-numeric values, so give Peios an explicit
+environment identity rather than relying on the pre-22 permissive parser.
+
+---
+ llvm/include/llvm/TargetParser/Triple.h       | 3 ++-
+ llvm/lib/TargetParser/Triple.cpp              | 2 ++
+ llvm/unittests/TargetParser/TripleTest.cpp    | 6 ++++++
+ 3 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/llvm/include/llvm/TargetParser/Triple.h b/llvm/include/llvm/TargetParser/Triple.h
+index 9c269c12f7ab..b90549fc496f 100644
+--- a/llvm/include/llvm/TargetParser/Triple.h
++++ b/llvm/include/llvm/TargetParser/Triple.h
+@@ -321,7 +321,8 @@ public:
+ 
+     PAuthTest,
+     MTIA,
+-    LastEnvironmentType = MTIA
++    Peios,
++    LastEnvironmentType = Peios
+   };
+   enum ObjectFormatType {
+     UnknownObjectFormat,
+diff --git a/llvm/lib/TargetParser/Triple.cpp b/llvm/lib/TargetParser/Triple.cpp
+index 0cf4ea8a15d6..900f55b395b1 100644
+--- a/llvm/lib/TargetParser/Triple.cpp
++++ b/llvm/lib/TargetParser/Triple.cpp
+@@ -412,6 +412,7 @@ StringRef Triple::getEnvironmentTypeName(EnvironmentType Kind) {
+     return "pauthtest";
+   case MTIA:
+     return "mtia";
++  case Peios: return "peios";
+   case LLVM:
+     return "llvm";
+   case Mlibc:
+@@ -824,6 +825,7 @@ static Triple::EnvironmentType parseEnvironment(StringRef EnvironmentName) {
+       .StartsWith("llvm", Triple::LLVM)
+       .StartsWith("mlibc", Triple::Mlibc)
+       .StartsWith("mtia", Triple::MTIA)
++      .StartsWith("peios", Triple::Peios)
+       .Default(Triple::UnknownEnvironment);
+ }
+ 
+diff --git a/llvm/unittests/TargetParser/TripleTest.cpp b/llvm/unittests/TargetParser/TripleTest.cpp
+index f28f3e888037..665989112944 100644
+--- a/llvm/unittests/TargetParser/TripleTest.cpp
++++ b/llvm/unittests/TargetParser/TripleTest.cpp
+@@ -831,6 +831,12 @@ TEST(TripleTest, ParsedIDs) {
+   EXPECT_EQ(Triple::UnknownOS, T.getOS());
+   EXPECT_EQ(Triple::MTIA, T.getEnvironment());
+ 
++  T = Triple("x86_64-unknown-linux-peios");
++  EXPECT_EQ(Triple::x86_64, T.getArch());
++  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
++  EXPECT_EQ(Triple::Linux, T.getOS());
++  EXPECT_EQ(Triple::Peios, T.getEnvironment());
++
+   T = Triple("riscv64-unknown-linux");
+   EXPECT_EQ(Triple::riscv64, T.getArch());
+   EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+-- 
+2.51.0

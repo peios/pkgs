@@ -1,0 +1,30 @@
+# llvm-devel — the LLVM headers for compiling against libLLVM (rustc's
+# system-LLVM build is the consumer: its llvm-wrapper C++ shim includes
+# these and links through llvm-config, which ships in the llvm package
+# alongside the unversioned .so links).
+
+[package]
+name        = "org.llvm.llvm-devel"
+description = "LLVM - headers for building against libLLVM"
+license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
+
+[provides]
+"llvm-devel" = "{{version}}-2"
+
+[replaces]
+"llvm-devel" = "<= {{version}}-1"
+
+[dependencies]
+"org.llvm.llvm-libs" = "{{version}}-2"
+
+[files]
+"@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-devel/LICENSE.TXT"
+"@source:llvm/lib/Support/BLAKE3/LICENSE" = "usr/share/licenses/org.llvm.llvm-devel/BLAKE3-LICENSE"
+":usr/include/llvm/**"   = "usr/include/llvm"
+":usr/include/llvm-c/**" = "usr/include/llvm-c"
+":usr/bin/llvm-config"   = "usr/bin/llvm-config"
+":usr/lib/x86_64-linux-peios/libLLVM.so"    = "usr/lib/x86_64-linux-peios/libLLVM.so"
+":usr/lib/x86_64-linux-peios/libLTO.so"     = "usr/lib/x86_64-linux-peios/libLTO.so"
+":usr/lib/x86_64-linux-peios/libRemarks.so" = "usr/lib/x86_64-linux-peios/libRemarks.so"
+":usr/lib/x86_64-linux-peios/cmake/llvm/**" = "usr/lib/x86_64-linux-peios/cmake/llvm"
+

@@ -1,6 +1,6 @@
-# rust-stage0 — signed upstream Rust binaries that seed the rustc bootstrap
-# (PEI-158 item 8; anchor decision approved 2026-08-11: signature + immutable
-# Pekit lock via the PEI-150 machinery).
+# rust-stage0 — the pinned upstream Rust binaries that seed the rustc
+# bootstrap (PEI-158 item 8; anchor decision approved 2026-08-11: pin +
+# TOFU-lock upstream stage0 via the PEI-150 machinery).
 #
 # rustc is self-hosting: every rustc is compiled by a prior rustc, so the
 # chain bottoms out in somebody's binary. This recipe makes that seed an
@@ -9,14 +9,12 @@
 # key and installed under a private prefix nothing else looks at. It is not a
 # Peios runtime toolchain. The final Rust recipe is its sole intended consumer.
 #
-# Version is the seed compiler's own version, not the rustc it will build. Each
-# stable release is published here as the seed for the following release; the
-# final recipe selects the newest version below its own major.minor line and
-# verifies that choice against rustc's authoritative src/stage0 metadata.
-# The binaries are upstream linux-gnu builds; composed roots run them as-is
-# (usrmerge provides /lib64/ld-linux-x86-64.so.2, verified). mrustc remains the
-# later-adoptable source-trust upgrade (recorded on PEI-158) — swapping it in
-# replaces only this seed, nothing downstream.
+# Version tracks what rust's src/stage0 declares (rust 1.83.0 -> stage0
+# 1.82.0), NOT the rust version — bump the pair in lockstep. The binaries
+# are upstream linux-gnu builds; composed roots run them as-is (usrmerge
+# provides /lib64/ld-linux-x86-64.so.2, verified). mrustc remains the
+# later-adoptable source-trust upgrade (recorded on PEI-158) — swapping it
+# in replaces only this seed, nothing downstream.
 
 out_dir = "out"
 
@@ -29,13 +27,9 @@ enabled = false
 url      = "https://static.rust-lang.org/dist/rust-{{version}}-x86_64-unknown-linux-gnu.tar.xz"
 extract  = true
 root     = "rust-{{version}}-x86_64-unknown-linux-gnu"
-# Discover only the current stable combined toolchain from Rust's channel
-# manifest. Historical seed releases remain available through pekit.lock.
-listing_url = "https://static.rust-lang.org/dist/channel-rust-stable.toml"
-file_regex  = '(?m)^\[pkg\.rust\]\nversion = "[0-9]+\.[0-9]+\.[0-9]+'
-# Soft production floor: 1.97.1 builds Rust 1.98.1, and every newly published
-# stable toolchain becomes the already-available seed for the next release.
-versions = ">= 1.97.1"
+# Exact bootstrap pin. Rust 1.83.0's src/stage0 requires 1.82.0; a different
+# seed must accompany a reviewed final-compiler transition.
+versions = "= 1.82.0"
 
 [source.url.signature]
 key_files    = ["keys/rust-release.asc"]
@@ -47,7 +41,6 @@ command = """
 set -eu
 SRC="$(pwd -P)"
 PREFIX=/usr/lib/x86_64-linux-peios/rust-stage0
-export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 sh "$SRC/install.sh" \
   --destdir="$PEKIT_OUT" --prefix="$PREFIX" \
   --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu \
@@ -72,7 +65,7 @@ rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
 
 # Assert the bootstrap contract at the installed prefix. This catches a lock
 # or recipe edit that would otherwise let x.py begin a many-hour build with a
-# seed different from the version named by its immutable source lock.
+# seed different from the one required by Rust 1.83.
 test "$("$PEKIT_OUT$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test "$("$PEKIT_OUT$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rustc"
@@ -82,8 +75,6 @@ test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gn
 
 [build.main.dependencies.peipkg]
 build-essentials = "*"
-"org.gnu.gcc-libgcc" = ">= 16"
-"io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

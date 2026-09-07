@@ -1,0 +1,20 @@
+[package]
+name        = "org.llvm.llvm-libs"
+description = "LLVM shared runtime libraries"
+license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
+
+[dependencies]
+glibc       = ">= 2.43"
+"libstdc++" = ">= 16"
+libgcc      = ">= 16"
+zlib        = ">= 2.3.3"
+libzstd     = ">= 1.5.7"
+
+[files]
+"@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-libs/LICENSE.TXT"
+"@source:llvm/lib/Support/BLAKE3/LICENSE" = "usr/share/licenses/org.llvm.llvm-libs/BLAKE3-LICENSE"
+":usr/lib/x86_64-linux-peios/libLLVM-*.so"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libLLVM.so.*"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libLTO.so.*"      = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libRemarks.so.*"  = "usr/lib/x86_64-linux-peios"
+

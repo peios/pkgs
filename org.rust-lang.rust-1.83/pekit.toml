@@ -1,6 +1,9 @@
-# Rust — the rolling source-built compiler suite used by Peios userspace.
-# The kernel's frozen 1.83.0 compiler has a separate retained recipe and exact
-# package dependency, so routine stable updates here cannot move Kbuild.
+# Rust — the pinned compiler suite used by Peios kernel and userspace builds.
+#
+# This line intentionally does not follow current upstream automatically. The
+# kernel Kbuild contract in pkm/build/toolchain.lock pins Rust 1.83.0, and the
+# Rust bootstrap itself pins its predecessor compiler. Moving either line is a
+# coordinated toolchain transition, not a routine package refresh.
 #
 # x.py is pointed at org.rust-lang.rust-stage0's private prefix and performs the
 # ordinary stage0 -> stage1 -> stage2 self-hosting climb. The source release
@@ -10,17 +13,18 @@
 
 out_dir = "out"
 
+# This frozen kernel-toolchain lane and the rolling userspace lane package the
+# same upstream source family under disjoint version policies.
+[source_package]
+name = "org.rust-lang.rust-source"
+
 [source.url]
 url      = "https://static.rust-lang.org/dist/rustc-{{version}}-src.tar.xz"
 extract  = true
 root     = "rustc-{{version}}-src"
-# The dist directory itself is enormous and no longer a reliable bounded
-# listing endpoint. This signed-release channel document advertises exactly
-# the current stable source artifact, excluding beta and nightly versions.
-listing_url = "https://static.rust-lang.org/dist/channel-rust-stable.toml"
-file_regex  = '(?m)^\[pkg\.rust\]\nversion = "[0-9]+\.[0-9]+\.[0-9]+'
-# Soft production floor: follow stable Rust automatically from 1.98.1 onward.
-versions = ">= 1.98.1"
+# Exact Kbuild compatibility pin. Moving even to another 1.83 patch release is
+# a reviewed kernel toolchain transition, not unattended package maintenance.
+versions = "= 1.83.0"
 
 [source.url.signature]
 key_files    = ["keys/rust-release.asc"]
@@ -36,7 +40,6 @@ TRIPLET_DIR=/usr/lib/x86_64-linux-peios
 STAGE0="$TRIPLET_DIR/rust-stage0"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
-export LD_LIBRARY_PATH="$TRIPLET_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 test -x "$STAGE0/bin/rustc" || {
   echo "rust: build root is missing org.rust-lang.rust-stage0" >&2
@@ -54,6 +57,7 @@ required_stage0=$(sed -n 's/^compiler_version=//p' "$SRC/src/stage0")
 test -n "$required_stage0"
 test "$("$STAGE0/bin/rustc" --version | cut -d' ' -f2)" = "$required_stage0"
 test "$("$STAGE0/bin/cargo" --version | cut -d' ' -f2)" = "$required_stage0"
+test "$required_stage0" = 1.82.0
 
 # Rust does not consume the workspace C/C++ linker flags for Rust crates. Feed
 # each linker token through rustc and enable LLVM's CET instrumentation so the
@@ -69,7 +73,7 @@ export RUSTFLAGS_NOT_BOOTSTRAP
 
 mkdir -p "$PEKIT_OUT/build"
 cat > "$PEKIT_OUT/config.toml" <<EOF
-change-id = 158169
+change-id = 131075
 
 [build]
 build = "$TRIPLET"
@@ -253,38 +257,15 @@ while read -r crate tagged_version _; do
 done
 test -n "$(find "$LICENSE_ROOT/crates" -type f -print -quit)"
 
-# Cargo's selected native sys crates carry nested upstream notices which do not
-# sit at the crate root. Resolve them from Cargo's actual dependency graph,
-# rather than embedding the crate versions from one Rust release in the recipe.
-NATIVE_LICENSES="$LICENSE_ROOT/native"
-mkdir -p "$NATIVE_LICENSES"
-native_crate_dir() {
-  crate=$1
-  tagged=$(awk -v crate="$crate" '$1 == crate { print $2 }' \
-    "$LICENSE_ROOT/vendor-manifests/cargo.txt")
-  test -n "$tagged"
-  test "$(printf '%s\n' "$tagged" | wc -l)" -eq 1
-  dir="$SRC/vendor/$crate-${tagged#v}"
-  test -d "$dir"
-  printf '%s\n' "$dir"
-}
-
-CURL_SYS=$(native_crate_dir curl-sys)
-LIBGIT2_SYS=$(native_crate_dir libgit2-sys)
-LIBSSH2_SYS=$(native_crate_dir libssh2-sys)
-cp "$CURL_SYS/curl/COPYING" "$NATIVE_LICENSES/curl-COPYING"
-cp "$LIBGIT2_SYS/libgit2/COPYING" "$NATIVE_LICENSES/libgit2-COPYING"
-cp "$LIBGIT2_SYS/libgit2/AUTHORS" "$NATIVE_LICENSES/libgit2-AUTHORS"
-cp "$LIBSSH2_SYS/libssh2/COPYING" "$NATIVE_LICENSES/libssh2-COPYING"
-
-# Keep a machine-readable inventory beside the canonical notices. OpenSSL,
+# Cargo's Rust crates and four native libraries are linked statically.  Keep a
+# machine-readable native inventory beside their canonical notices; OpenSSL,
 # zlib and LLVM are deliberately dynamic Peios dependencies and are therefore
 # not claimed as bundled payload licenses.
-cat > "$LICENSE_ROOT/native-bundles.txt" <<EOF
-blessing sqlite bundled-by-cargo
-BSD-3-Clause libssh2 ${LIBSSH2_SYS##*/}
-curl curl ${CURL_SYS##*/}
-LicenseRef-Callaway-GPLv2-with-exceptions libgit2 ${LIBGIT2_SYS##*/}
+cat > "$LICENSE_ROOT/native-bundles.txt" <<'EOF'
+blessing sqlite 3.46.0
+BSD-3-Clause libssh2 1.10.1_DEV
+curl curl 8.9.0
+LicenseRef-Callaway-GPLv2-with-exceptions libgit2 1.8.1
 EOF
 
 # Split every shipped loadable ELF by build ID after normalizing its DWARF
@@ -364,9 +345,8 @@ while IFS= read -r elf; do
   fi
 done < "$PEKIT_OUT/.debug-elfs"
 
-LLVM_MAJOR_MINOR=$(llvm-config --version | cut -d. -f1,2)
 readelf -dW usr/lib/x86_64-linux-peios/librustc_driver-*.so |
-  grep -F "Shared library: [libLLVM.so.$LLVM_MAJOR_MINOR]"
+  grep -F 'Shared library: [libLLVM.so.18.1]'
 for needed in libssl.so.3 libcrypto.so.3 libz.so.1; do
   readelf -dW usr/bin/cargo | grep -F "Shared library: [$needed]"
 done
@@ -377,13 +357,10 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 
 [build.main.dependencies.peipkg]
 "build-essentials-c++"       = "*"
-# Stable Rust is bootstrapped by the newest stable release on the preceding
-# minor line. The upper bound is rendered from the compiler being built, so a
-# point release cannot accidentally select the same-minor compiler as stage0.
-"org.rust-lang.rust-stage0" = ">= 1.97.1, < {{major}}.{{minor}}"
+"org.rust-lang.rust-stage0" = "= 1.82.0-2"
 python3                      = "*"
-llvm                         = ">= 22.1.6, < 23"
-"llvm-devel"                = ">= 22.1.6, < 23"
+llvm                         = ">= 18.1.8, < 19"
+"llvm-devel"                = ">= 18.1.8, < 19"
 "zlib-devel"                = "*"
 "zstd-devel"                = "*"
 pkgconf                      = "*"

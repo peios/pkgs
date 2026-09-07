@@ -1,0 +1,26 @@
+From: Peios Package Maintainers <packages@peios.dev>
+Subject: [PATCH] clang: accept Peios triplet resource directory in driver test
+
+Peios installs target-specific libraries and Clang resources beneath the
+x86_64-linux-peios multiarch directory.  Keep the upstream lib/lib64 cases
+while teaching the DriverKit test about that intentional layout.
+
+---
+ clang/test/Driver/driverkit-path.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/clang/test/Driver/driverkit-path.c b/clang/test/Driver/driverkit-path.c
+index a6ef5f22f7d8..1d184be0b2c1 100644
+--- a/clang/test/Driver/driverkit-path.c
++++ b/clang/test/Driver/driverkit-path.c
+@@ -34,7 +34,7 @@ int main() { return 0; }
+ //
+ // INC: "-isysroot" "[[SDKROOT]]"
+ // INC: "-internal-isystem" "[[SDKROOT]]/System/DriverKit/usr/local/include"
+-// INC: "-internal-isystem" "{{.+}}/lib{{(64)?}}/clang/{{[^/ ]+}}/include"
++// INC: "-internal-isystem" "{{.+}}/lib{{(64|/x86_64-linux-peios)?}}/clang/{{[^/ ]+}}/include"
+ // INC: "-internal-externc-isystem" "[[SDKROOT]]/System/DriverKit/usr/include"
+ // INC: "-internal-iframework" "[[SDKROOT]]/System/DriverKit/System/Library/Frameworks"
+ // INC: "-internal-iframework" "[[SDKROOT]]/System/DriverKit/System/Library/SubFrameworks"
+-- 
+2.51.0

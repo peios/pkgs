@@ -1,0 +1,11 @@
+[package]
+name        = "org.rust-lang.rust-debuginfo"
+description = "Rust compiler-suite detached debugging symbols"
+
+[dependencies]
+"org.rust-lang.rust"        = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
+
+[files]
+":usr/lib/debug/**" = "usr/lib/debug"
+

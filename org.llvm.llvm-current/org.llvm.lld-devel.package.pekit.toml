@@ -1,0 +1,12 @@
+[package]
+name        = "org.llvm.lld-devel"
+description = "LLD development headers and CMake metadata"
+
+[dependencies]
+"org.llvm.llvm-devel" = "{{version}}-2"
+
+[files]
+"@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld-devel/LICENSE.TXT"
+":usr/include/lld/**" = "usr/include/lld"
+":usr/lib/x86_64-linux-peios/cmake/lld/**" = "usr/lib/x86_64-linux-peios/cmake/lld"
+

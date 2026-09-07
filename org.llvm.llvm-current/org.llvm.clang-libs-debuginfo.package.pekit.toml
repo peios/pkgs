@@ -1,0 +1,11 @@
+[package]
+name        = "org.llvm.clang-libs-debuginfo"
+description = "Clang shared-library debugging symbols"
+
+[dependencies]
+"org.llvm.clang-libs" = "{{version}}-2"
+
+[files]
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-libs-debuginfo/LICENSE.TXT"
+":.debuginfo/clang-libs/usr/lib/debug/**" = "usr/lib/debug"
+

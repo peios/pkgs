@@ -12,10 +12,10 @@ description = "Build environment for C - compiler, binutils, libc and kernel hea
 [dependencies]
 build-essentials       = "*"
 gcc                    = "*"
-# Keep the public capability here: the legacy GCC packages also request
-# `binutils`, so spelling the reverse-DNS implementation would install both
-# implementations during the package-name migration.
-binutils               = "*"
+# Select the canonical implementation. Requesting the legacy package name here
+# can coexist with GCC's canonical dependency and compose two packages that
+# both own /usr/bin/{as,ld,...}.
+"org.gnu.binutils"    = ">= 2.46"
 "org.gnu.glibc-devel" = "*"
 "linux-kernel-headers" = "*"
 debugedit               = "*"

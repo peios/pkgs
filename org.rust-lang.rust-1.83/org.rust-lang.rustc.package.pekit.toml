@@ -14,7 +14,7 @@ rustdoc = "{{version}}-2"
 glibc                     = ">= 2.43"
 libgcc                    = ">= 16"
 "libstdc++"               = ">= 16"
-llvm                      = ">= 22.1.6, < 23"
+llvm                      = ">= 18.1.8, < 19"
 # Functional rather than DT_NEEDED: rustc drives the system linker through cc.
 gcc                       = ">= 16"
 
@@ -28,3 +28,4 @@ gcc                       = ">= 16"
 ":usr/share/doc/rustc/**" = "usr/share/doc/org.rust-lang.rustc"
 ":usr/share/man/man1/rustc.1" = "usr/share/man/man1/rustc.1"
 ":usr/share/man/man1/rustdoc.1" = "usr/share/man/man1/rustdoc.1"
+

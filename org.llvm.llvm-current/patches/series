@@ -1,0 +1,5 @@
+# Peios LLVM patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+peios/target-environment.patch          # LLVM 22 validates environment suffixes; make x86_64-unknown-linux-peios a first-class target
+peios/triplet-resource-build-dir.patch  # Keep Clang's build-tree resources aligned with a slash-containing LLVM_LIBDIR_SUFFIX
+peios/triplet-resource-dir-test.patch  # Peios keeps Clang resources in the target-triplet libdir; accept that deliberate layout in the upstream test

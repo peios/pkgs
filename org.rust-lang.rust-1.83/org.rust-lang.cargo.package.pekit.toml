@@ -1,0 +1,26 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.rust-lang.cargo"
+description = "Cargo package manager and build tool for Rust"
+
+[provides]
+cargo = "{{version}}-2"
+
+[dependencies]
+"org.rust-lang.rustc"       = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-2"
+glibc                   = ">= 2.43"
+libgcc                  = ">= 16"
+zlib                    = ">= 2.3.3"
+"org.openssl.libssl"    = ">= 3.5"
+"org.openssl.libcrypto" = ">= 3.5"
+
+[files]
+":usr/bin/cargo" = "usr/bin/cargo"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-cargo" = "usr/lib/x86_64-linux-peios/rustlib/manifest-cargo"
+":usr/share/doc/cargo/**" = "usr/share/doc/org.rust-lang.cargo"
+":usr/share/man/man1/cargo*.1" = "usr/share/man/man1"
+":usr/share/bash-completion/completions/cargo" = "usr/share/bash-completion/completions/cargo"
+":usr/share/zsh/site-functions/_cargo" = "usr/share/zsh/site-functions/_cargo"
+

@@ -1,0 +1,37 @@
+format = "peipkg"
+
+[package]
+name         = "org.rust-lang.rust-stage0"
+version      = "{{version}}-2"
+architecture = "x86_64"
+description  = "Upstream Rust release binaries - the pinned bootstrap seed for building rustc (build-time only, never a runtime dependency)"
+# The upstream seed contains Rust/Cargo's statically linked crate set, Cargo's
+# vendored native libraries, and its private bundled LLVM.  It therefore has a
+# wider installed-payload license set than Rust's own dual license.
+license       = "(Apache-2.0 OR MIT) AND (Apache-2.0 AND (Apache-2.0 WITH LLVM-exception) AND Artistic-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND MPL-2.0 AND Unicode-3.0 AND Unicode-DFS-2016) AND LicenseRef-Callaway-GPLv2-with-exceptions AND curl AND blessing"
+license_class = "free"
+homepage      = "https://www.rust-lang.org/"
+
+[provides]
+rust-stage0 = "{{version}}-2"
+
+[replaces]
+rust-stage0 = "<= {{version}}-2"
+
+[dependencies]
+glibc  = ">= 2.43"
+libgcc = ">= 16"
+zlib   = ">= 2.3.3"
+
+[files]
+"@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-stage0/"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-stage0/"
+"@source:LICENSE-MIT"    = "usr/share/licenses/org.rust-lang.rust-stage0/"
+"@source:cargo/share/doc/cargo/LICENSE-APACHE"      = "usr/share/licenses/org.rust-lang.rust-stage0/cargo/LICENSE-APACHE"
+"@source:cargo/share/doc/cargo/LICENSE-MIT"         = "usr/share/licenses/org.rust-lang.rust-stage0/cargo/LICENSE-MIT"
+"@source:cargo/share/doc/cargo/LICENSE-THIRD-PARTY" = "usr/share/licenses/org.rust-lang.rust-stage0/cargo/LICENSE-THIRD-PARTY"
+"@recipe:licenses/CURL"    = "usr/share/licenses/org.rust-lang.rust-stage0/native/curl-COPYING"
+"@recipe:licenses/LIBSSH2" = "usr/share/licenses/org.rust-lang.rust-stage0/native/libssh2-COPYING"
+"@recipe:licenses/SQLITE"  = "usr/share/licenses/org.rust-lang.rust-stage0/native/sqlite-blessing"
+":usr/lib/x86_64-linux-peios/rust-stage0/**" = "usr/lib/x86_64-linux-peios/rust-stage0"
+
