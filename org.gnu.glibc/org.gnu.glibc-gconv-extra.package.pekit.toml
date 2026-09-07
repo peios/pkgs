@@ -30,12 +30,21 @@ excludes = [
 ]
 
 [package]
+name        = "org.gnu.glibc-gconv-extra"
 description = "GNU C Library - additional charset conversion modules"
 
+[provides]
+"glibc-gconv-extra" = "{{version}}-5"
+
+[replaces]
+"glibc-gconv-extra" = "<= {{version}}-4"
+
 [dependencies]
-# Loadable modules of the runtime's iconv machinery: they are opened by the
-# glibc they were built against and are useless without it.
-glibc = ">= {{version}}"
+# Loadable modules of the runtime's iconv machinery: keep the module registry,
+# converter DSOs and loader on the exact family revision tested together.
+"org.gnu.glibc" = "{{version}}-5"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-gconv-extra/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-gconv-extra/"
 ":usr/lib/x86_64-linux-peios/gconv/**" = "usr/lib/x86_64-linux-peios/gconv/"

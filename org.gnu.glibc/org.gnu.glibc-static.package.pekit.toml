@@ -1,0 +1,44 @@
+# glibc-static — static archive libraries (*.a) for static linking. Inherits
+# base metadata; depends on glibc-devel for the headers, crt objects, and
+# libc_nonshared.a that static linking also needs.
+#
+# "Static" does not make glibc NSS hermetic.  getpwnam/getgrnam/getaddrinfo in
+# a fully static executable still dlopen the same-version shared NSS providers
+# (and the linker warns about that contract).  The exact devel -> org.gnu.glibc
+# dependency chain below therefore remains required at runtime.  The provider
+# modules are deliberately composed-image prerequisites, not dependencies here:
+# adding authd/resolvd daemon edges to libc would be circular and would prevent
+# alternative authorities/resolvers.  The recipe gates failure without a
+# provider and success through staged providers; the release image gate must do
+# the same with its real nss-peios and nss-peios-net packages and services.
+
+# libc_nonshared.a and the merged-lib compat archives (-lrt/-lpthread/... )
+# are needed for dynamic linking, so they live in glibc-devel; exclude them
+# here to avoid double-claiming.
+excludes = [
+  ":usr/lib/x86_64-linux-peios/libc_nonshared.a",
+  ":usr/lib/x86_64-linux-peios/libanl.a",
+  ":usr/lib/x86_64-linux-peios/libdl.a",
+  ":usr/lib/x86_64-linux-peios/libg.a",
+  ":usr/lib/x86_64-linux-peios/libpthread.a",
+  ":usr/lib/x86_64-linux-peios/librt.a",
+  ":usr/lib/x86_64-linux-peios/libutil.a",
+]
+
+[package]
+name        = "org.gnu.glibc-static"
+description = "GNU C Library - static libraries"
+
+[provides]
+"glibc-static" = "{{version}}-5"
+
+[replaces]
+"glibc-static" = "<= {{version}}-4"
+
+[dependencies]
+"org.gnu.glibc-devel" = "{{version}}-5"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-static/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-static/"
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios/"

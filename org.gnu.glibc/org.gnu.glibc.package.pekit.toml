@@ -10,7 +10,6 @@
 #   glibc-devel         headers, dev .so symlinks, crt*.o, libc_nonshared.a
 #   glibc-static        static *.a archives
 #   glibc-utils         profiling/tracing tools + their preload/audit modules
-#   glibc-nscd          the name service cache daemon
 #   glibc-locale-source locale source definitions + charmaps (noarch)
 #   glibc-langpack-*    compiled per-language locale data
 #
@@ -18,7 +17,14 @@
 # "*.so.*") maps to a DIRECTORY; an exact-file source maps to a FULL path.
 
 [package]
+name        = "org.gnu.glibc"
 description = "GNU C Library - shared libraries and dynamic loader"
+
+[provides]
+glibc = "{{version}}-5"
+
+[replaces]
+glibc = "<= {{version}}-4"
 
 # The dynamic linker's ABI-fixed path. glibc installs the real loader under the
 # triplet (/usr/lib/x86_64-linux-peios/ld-linux-x86-64.so.2), and the x86-64
@@ -29,8 +35,8 @@ description = "GNU C Library - shared libraries and dynamic loader"
 
 [files]
 # License texts (distro convention: /usr/share/licenses/<name>/).
-"@source:COPYING*" = "usr/share/licenses/glibc/"
-"@source:LICENSES" = "usr/share/licenses/glibc/"
+"@source:COPYING*" = "usr/share/licenses/org.gnu.glibc/"
+"@source:LICENSES" = "usr/share/licenses/org.gnu.glibc/"
 # Versioned shared libraries (*.so.N) + the dynamic loader. The unversioned dev
 # symlinks (*.so) are glibc-devel's; the static *.a are glibc-static's.
 ":usr/lib/x86_64-linux-peios/*.so.*"   = "usr/lib/x86_64-linux-peios/"

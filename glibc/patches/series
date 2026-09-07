@@ -1,8 +1,0 @@
-# Peios glibc patch series — applied in order by pekit during source
-# materialisation ([source].patches in pekit.toml).
-#
-# glibc carried no Peios patches until this one, and the bar for adding to that
-# should stay high: every patch here is a rebase on every glibc release, on the
-# most security-critical library on the system. This one clears it because the
-# property it establishes cannot be established anywhere else.
-nss/identity-is-not-configurable.patch   # identity comes from the authority, and from nowhere a config file can name

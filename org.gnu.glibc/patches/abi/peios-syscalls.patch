@@ -1,0 +1,107 @@
+From: Peios Packaging <packages@peios.dev>
+Subject: [PATCH] linux: expose the stable Peios syscall ABI on x86-64
+
+Peios reserves x86-64 syscall ranges 1000-1027 for KACS, 1090-1092 for
+KMES and 1100-1102 for the registry.  Keep glibc's checked-in syscall table
+in lockstep with the tracked PKM UAPI and syscall_64.tbl contract.  This makes
+the corresponding SYS_* constants available from <sys/syscall.h> and lets
+glibc's syscall-table consistency test validate the Peios kernel headers.
+
+The list is deliberately checked in rather than generated from ambient build
+headers, so Debian and native builds ship the identical public ABI.
+---
+ sysdeps/unix/sysv/linux/syscall-names.list          | 22 ++++++++++++++++++++++
+ .../unix/sysv/linux/x86_64/64/arch-syscall.h       | 22 ++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/syscall-names.list b/sysdeps/unix/sysv/linux/syscall-names.list
+index 3e3f6f2792..eaecb34812 100644
+--- a/sysdeps/unix/sysv/linux/syscall-names.list
++++ b/sysdeps/unix/sysv/linux/syscall-names.list
+@@ -228,10 +228,29 @@ ioprio_set
+ ipc
++kacs_access_check
++kacs_access_check_list
++kacs_create_logon_session
++kacs_create_token
++kacs_destroy_empty_logon_session
++kacs_get_mount_policy
++kacs_get_sd
++kacs_open
++kacs_open_process_token
++kacs_open_self_token
++kacs_open_thread_token
++kacs_revert
++kacs_set_caap
++kacs_set_mount_policy
++kacs_set_psb
++kacs_set_sd
+ kcmp
+ kern_features
+ kexec_file_load
+ kexec_load
+ keyctl
+ kill
++kmes_attach
++kmes_emit
++kmes_emit_batch
+ landlock_add_rule
+ landlock_create_ruleset
+ landlock_restrict_self
+@@ -486,6 +505,9 @@ recvfrom
+ recvmmsg
+ recvmmsg_time64
+ recvmsg
++reg_begin_transaction
++reg_create_key
++reg_open_key
+ remap_file_pages
+ removexattr
+ removexattrat
+diff --git a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+index 55e672d2e5..7e82778754 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+@@ -139,11 +139,30 @@
+ #define __NR_iopl 172
+ #define __NR_ioprio_get 252
+ #define __NR_ioprio_set 251
++#define __NR_kacs_access_check 1023
++#define __NR_kacs_access_check_list 1024
++#define __NR_kacs_create_logon_session 1004
++#define __NR_kacs_create_token 1003
++#define __NR_kacs_destroy_empty_logon_session 1006
++#define __NR_kacs_get_mount_policy 1026
++#define __NR_kacs_get_sd 1021
++#define __NR_kacs_open 1020
++#define __NR_kacs_open_process_token 1001
++#define __NR_kacs_open_self_token 1000
++#define __NR_kacs_open_thread_token 1002
++#define __NR_kacs_revert 1012
++#define __NR_kacs_set_caap 1025
++#define __NR_kacs_set_mount_policy 1027
++#define __NR_kacs_set_psb 1005
++#define __NR_kacs_set_sd 1022
+ #define __NR_kcmp 312
+ #define __NR_kexec_file_load 320
+ #define __NR_kexec_load 246
+ #define __NR_keyctl 250
+ #define __NR_kill 62
++#define __NR_kmes_attach 1091
++#define __NR_kmes_emit 1090
++#define __NR_kmes_emit_batch 1092
+ #define __NR_landlock_add_rule 445
+ #define __NR_landlock_create_ruleset 444
+ #define __NR_landlock_restrict_self 446
+@@ -254,6 +273,9 @@
+ #define __NR_recvfrom 45
+ #define __NR_recvmmsg 299
+ #define __NR_recvmsg 47
++#define __NR_reg_begin_transaction 1102
++#define __NR_reg_create_key 1101
++#define __NR_reg_open_key 1100
+ #define __NR_remap_file_pages 216
+ #define __NR_removexattr 197
+ #define __NR_removexattrat 466
+-- 
+2.51.0

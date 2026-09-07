@@ -1,0 +1,12 @@
+# Peios glibc patch series — applied in order by pekit during source
+# materialisation ([source].patches in pekit.toml).
+#
+# The bar for production changes here stays high: every patch is a rebase on
+# every glibc release, on the most security-critical library on the system.
+# The ABI and NSS patches deliberately affect shipped behavior; the final three
+# patches are test-harness-only and do not alter shipped objects.
+abi/peios-syscalls.patch                 # expose the stable Peios kernel syscall ABI through sys/syscall.h
+nss/identity-is-not-configurable.patch   # freeze authority identity/hosts and keep legacy Secure RPC publickey empty
+tests/fortify-format-security.patch      # keep intentional -Wno-format tests compatible with workspace -Werror=format-security
+tests/unsupported-special-tests.patch    # let policy exclusions cover derived tests-special companions
+tests/minimal-native-root.patch          # retain tests in accountless single-ID build roots

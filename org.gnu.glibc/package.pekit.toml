@@ -1,0 +1,19 @@
+# Metadata shared by the complete org.gnu.glibc corresponding-source package
+# and each binary split.  This intentionally remains family-wide: the source
+# archive contains the library, programs, build system, manual and tests.
+
+format = "peipkg"
+
+[package]
+name         = "org.gnu.glibc"
+# -6 supersedes the retained -5 publication whose recipe_ref exposed a dirty
+# release worktree; every legacy <= -4 split remains a migration provide.
+version      = "{{version}}-6"
+architecture = "x86_64"
+# Complete conservative source-family expression.  The principal library is
+# LGPL-2.1-or-later and the bundled programs are GPL-2.0-or-later; the remaining
+# terms cover imported code, manuals, generated build infrastructure and tests
+# retained in the generated source package.
+license      = "LGPL-2.1-or-later AND SunPro AND (LGPL-2.1-or-later WITH GCC-exception-2.0) AND BSD-3-Clause AND GPL-2.0-or-later AND (LGPL-2.1-or-later WITH GNU-compiler-exception) AND GPL-2.0-only AND ISC AND LicenseRef-Public-Domain AND HPND AND CMU-Mach AND LGPL-2.0-or-later AND Unicode-3.0 AND GFDL-1.1-or-later AND GPL-1.0-or-later AND FSFUL AND MIT AND Inner-Net-2.0 AND X11 AND (GPL-2.0-or-later WITH GCC-exception-2.0) AND GFDL-1.3-only AND GFDL-1.1-only AND GPL-3.0-or-later AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND (GPL-3.0-or-later WITH Texinfo-exception)"
+license_class = "free"
+homepage     = "https://www.gnu.org/software/libc/"
