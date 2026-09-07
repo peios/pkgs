@@ -35,23 +35,22 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.gnu.mpc` at pkgs commit `54b7a10`.
-- Completed: **84 / 113** recipes (74.3%).
-- Current upstream/dependency pass: **84 / 85** recipes (98.8%).
+- Last completed recipe: `org.gnu.gcc` at pkgs merge commit `4849061`.
+- Completed: **85 / 113** recipes (75.2%).
+- Current upstream/dependency pass: **85 / 85** recipes (100%).
 - Deferred first-party pass: 28 recipes.
-- Repository after MPC: index version 179, 732 active entries, 1,218
-  archive-index entries, no verification problems.
+- Repository after GCC and the glibc metadata correction: index version 181,
+  756 active entries, 1,463 archive-index entries, no verification problems.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 84 completed recipes are the currently tracked reverse-DNS recipe
-directories. The remaining recipes in the current pass are listed below.
+The 85 completed recipes are the currently tracked reverse-DNS recipe
+directories. The upstream pass is complete.
 
 ## Remaining current-pass recipes
 
-| Order | Recipe | State | Notes |
-| ---: | --- | --- | --- |
-| 1 | `gcc` | In progress | Debian reference passed; native bootstrap and tests are running now that qualified MPC is published. Native A/B reproducibility, publication, and integration remain. |
+None. First-party work remains deliberately deferred until its requirements
+are discussed separately.
 
 ## Deferred first-party recipes
 
@@ -72,22 +71,20 @@ directories. The remaining recipes in the current pass are listed below.
   disposable temporary work area. The complete Peipkg test suite and a
   current-fsbase bwrap root smoke test pass.
 - Add dependency-closure validation to `peipkg-repo verify` or a companion
-  release gate. At index 175, before the glibc and GCC publications, an audit
-  using Peipkg's actual constraint/provide/architecture semantics found 388
-  unresolved direct edges across 134 packages (366 of 505 install goals failed
-  transitively): 285 awaited glibc, 79 await GCC, and 21 await deferred
-  first-party packages, plus one constrained CA migration edge, one Binutils
-  migration edge, and an unmodelled `linux-kernel-headers` base assumption.
-  Qualified glibc is now published and Dash's temporary legacy edge is migrated;
-  rerun the full audit after GCC to establish the new baseline. Deferred
+  release gate. The post-GCC audit at index 181 used Peipkg's actual resolver
+  against every active x86_64 non-debugsource package: 500 of 542 install goals
+  resolve and 42 remain deferred. The unresolved paths terminate at
+  `libpeios.so.0` (26), the composed-image `linux-kernel-headers` assumption
+  (9), the legacy Binutils edge inside first-party `build-essentials-c` (3),
+  first-party `peipkg` (2), and the unregistered first-party `initramfs` root
+  used by disk/live boot (2). The audit caught and this pass corrected glibc
+  revision 6's stale exact sibling constraints in revision 7. Deferred
   first-party `peios-experimental` still constrains the undotted CA version as
   `>= 20260830` and must migrate to the qualified package.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
   then, generated source packages necessarily share family metadata.
-- Fix `verify.sh` file/directory prefix ordering drift where the shell checker
-  disagrees with canonical `archive.VerifyFormat`.
 - Package native GDB and DWZ to enable Debugedit's optional find-debuginfo
   payload and the remaining 14 upstream integration tests on Peios.
 - Resolve the long-term coexistence boundary between `peiosutils` and the
@@ -101,7 +98,32 @@ directories. The remaining recipes in the current pass are listed below.
   were published. Long term, compose roots should consume the signed active
   repository index rather than a flat historical pool glob.
 
-## Latest completion: MPC 1.4.1-2
+## Latest completion: GCC 16.2.0-2
+
+`org.gnu.gcc` replaces the unqualified recipe with a 24-package compiler,
+C++, preprocessor, runtime-library, development, static, documentation,
+debug-info, debug-source, and corresponding-source family. It follows
+authenticated GCC 16 point releases from a soft 16 floor, stops before GCC 17
+for ABI/bootstrap and patch review, locks both currently published 16.x
+releases, and pins the two official release signers' full primary
+fingerprints.
+
+The Debian reference rung passed before native closure. Two clean native Peios
+builds then completed the full three-stage bootstrap and GCC's stage-2 versus
+stage-3 object comparison, configured upstream test suites, staged C/C++ and
+runtime-library consumers, package split checks, and PIE, RELRO, BIND_NOW,
+RELR, build-ID, IBT, and SHSTK gates. All 24 payloads and normalized manifests
+matched between the native builds. The signed packages pass both the shell and
+canonical format verifiers and were published at index 180.
+
+GCC's file/directory prefix shape exposed a false failure in `verify.sh`:
+Python's tar reader removes directory trailing slashes before the script's
+ordering comparison. Peipkg commit `41eb83f` now reconstructs the wire name;
+the regression test and complete Peipkg suite pass. Final repository
+verification after the glibc correction reports index 181, 756 active entries,
+1,463 archived entries, and no problems.
+
+## Previous completion: MPC 1.4.1-2
 
 `org.gnu.mpc` replaces the unqualified recipe with runtime, development,
 static, debug-info, debug-source, and source packages. It tracks authenticated
@@ -118,7 +140,7 @@ retains IBT and SHSTK. All six artifacts are signed, pass `verify.sh`, and were
 published at repository index 179; full repository verification reports 732
 active entries, 1,218 archived entries, and no problems.
 
-## Previous completion: glibc 2.44-6
+## Previous completion: glibc 2.44-7
 
 `org.gnu.glibc` replaces the unqualified recipe with a complete reverse-DNS
 family: runtime, loader/program, development, static, documentation, locale
@@ -138,18 +160,15 @@ split-debug, and source-package gates. The corresponding PKM ABI generators
 and public kernel-ABI documentation were updated separately so all 22 aliases
 remain exact and mechanically checked.
 
-All 221 revision-6 signed archives carry clean recipe provenance at
-`8448bd62a5804fb769bf35e91cf8444dce60b2b5`, passed canonical
-`archive.VerifyFormat`, matched the repository index and flat pool byte for
-byte, and produced normalized package-set fingerprint
-`534754c8d0e027f55ac9eb17584b47ebc5e74b5efd7697df0c2aaba931af26de`.
-Repository verification passed at index 177. An initial revision-5 publication
-carried an accurate but release-ineligible `+dirty` recipe reference because
-untracked evidence and a pool symlink were visible to Git. Peipkg's retention
-contract correctly refused replacement; revision 6 supersedes it in the active
-index while revision 5 remains immutable archive history. The workspace now
-ignores both repository and pool worktree symlinks, and release evidence lives
-outside the recipe worktree.
+All 221 revision-7 signed archives reuse the independently validated native
+payload and carry exact revision-7 sibling dependencies. They pass both the
+shell and canonical format verifiers, and repository verification passes at
+index 181. Revision 7 supersedes revision 6, whose sibling constraints still
+named revision 5; the post-GCC resolver audit found that stale edge before the
+campaign was closed. The earlier revision-5 publication remains immutable
+archive history because it carried accurate but release-ineligible `+dirty`
+recipe provenance. The workspace ignores repository and pool worktree
+symlinks, and release evidence lives outside the recipe worktree.
 
 ## Previous completion: Mozilla CA certificates 2026.09.06-1
 
