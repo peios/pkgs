@@ -41,7 +41,14 @@ trap 'rm -rf "$work"' EXIT INT TERM
 # half of that two-key exemption. A build root is precisely the case
 # it exists for, and it grants nothing to a package that has not
 # declared itself special.
+#
+# --record-xattrs: package build roots are disposable bwrap inputs, not images
+# that will boot, and the unprivileged maintainer process cannot set security.*
+# attributes on the host filesystem. Preserve compose's complete descriptor
+# output in the temporary work area rather than weakening package validation;
+# it is discarded together with the root after the build target exits.
 peipkg-compose build "$work/root.toml" --out "$work/root" \
+  --record-xattrs "$work/xattrs.jsonl" \
   --dangerously-bypass-path-restrictions
 
 # Root-level runtime views. A booted Peios gets /bin, /sbin and /lib from
