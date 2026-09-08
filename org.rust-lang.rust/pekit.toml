@@ -315,7 +315,6 @@ while IFS= read -r elf; do
   rest=$(printf %s "$bid" | cut -c3-)
   dbg="usr/lib/debug/.build-id/$p2/$rest.debug"
   if ! grep -Fxq "$bid" "$PEKIT_OUT/.debug-buildids"; then
-    printf '%s\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
     : > "$PEKIT_OUT/.debug-one"
     debugedit -b "$ROOT" -d "$DEBUGROOT" \
       -l "$PEKIT_OUT/.debug-one" -n "$elf"
@@ -323,9 +322,20 @@ while IFS= read -r elf; do
     mkdir -p "$(dirname "$dbg")"
     objcopy --only-keep-debug "$elf" "$dbg"
     chmod 0644 "$dbg"
+    if readelf -SW "$dbg" 2>/dev/null | grep -Eq '\.debug_info|\.symtab'; then
+      printf '%s\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
+    else
+      # Rust installs external-LLVM helpers such as rust-objcopy already
+      # stripped. Keep checking their runtime ELF below, but do not publish an
+      # empty detached-symbol file or attach a debuglink to one.
+      rm -f "$dbg"
+      dbg=
+    fi
   fi
   strip --strip-unneeded "$elf"
-  objcopy --add-gnu-debuglink="$dbg" "$elf"
+  if test -n "$dbg"; then
+    objcopy --add-gnu-debuglink="$dbg" "$elf"
+  fi
 done
 
 LC_ALL=C sort -u "$PEKIT_OUT/.debug-sources" |
