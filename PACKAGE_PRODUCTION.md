@@ -10,9 +10,9 @@ Work through the 113 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium and authd are complete; `build-essentials` is next. If a package needs
-a product or architecture decision, record the question here and continue with
-the next independent package.
+Atrium, authd, and build-essentials are complete; `coldplug` is next. If a
+package needs a product or architecture decision, record the question here and
+continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,18 +61,18 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `dev.peios.authd`, with its source lock at pkgs
-  commit `d1fd1f7` and its public source release at authd commit `3386525`.
-- Completed: **87 / 113** recipes (77.0%).
+- Last completed recipe: `dev.peios.build-essentials`, anchored directly in
+  the catalogue at pkgs commit `0f577be`.
+- Completed: **88 / 113** recipes (77.9%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Current first-party pass: **2 / 28 published**; `build-essentials` is next.
-- Repository after publishing and independently verifying authd 0.0.14:
-  index version 188, with 779 active and 1,516 archived entries.
+- Current first-party pass: **3 / 28 published**; `coldplug` is next.
+- Repository after publishing and independently verifying build-essentials
+  1.0.0-6: index version 189, with 783 active and 1,520 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 85 upstream recipes and two completed first-party recipes account for the
-87 completed recipes. The upstream pass is complete.
+The 85 upstream recipes and three completed first-party recipes account for
+the 88 completed recipes. The upstream pass is complete.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -122,12 +122,12 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-`build-essentials` is the next first-party recipe.
+`coldplug` is the next first-party recipe.
 
 ## Deferred first-party recipes
 
-`coldplug`, `disk-boot`, `eventd`, `feat-dynamic-boot`,
-`fsbase`, `kernel`, `libpeios`, `live-boot`, `loregd`,
+`disk-boot`, `eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`,
+`live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
@@ -168,10 +168,10 @@ still needs privileged deletion with
   POSIX/GNU-compatible tools needed by native package builds.
 - Keep migration dependencies compose-safe while qualified and legacy package
   names coexist.
-- `build-essentials-c` 1.0.0-5 now depends on canonical
-  `org.gnu.binutils`. The former virtual-name edge selected legacy `binutils`
-  alongside GCC's canonical dependency and made pristine build-root composition
-  fail on their overlapping `/usr/bin` payloads.
+- `dev.peios.build-essentials-c` 1.0.0-6 now depends on canonical toolchain
+  packages throughout. The former virtual-name Binutils edge could select
+  legacy `binutils` alongside GCC's canonical dependency and make pristine
+  build-root composition fail on overlapping `/usr/bin` payloads.
 - GCC 16's packaged `libstdc++.so.6` emits "no version information available"
   for C++ consumers in the native root. Current programs still link and run,
   but the missing GLIBCXX/CXXABI symbol-version surface needs a focused ABI
@@ -206,7 +206,49 @@ still needs privileged deletion with
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party completion: authd 0.0.14-1
+## Latest first-party completion: build-essentials 1.0.0-6
+
+The distribution-owned build policy is now a four-package stack:
+
+- `dev.peios.build-essentials`: the compiler-free shell and essential
+  userland baseline;
+- `dev.peios.build-essentials-c`: GCC C, Binutils, glibc and Linux UAPI
+  development surfaces, Debugedit, and Patchelf;
+- `dev.peios.build-essentials-c++`: the C floor plus the matching GCC C++ and
+  libstdc++ development surfaces; and
+- `dev.peios.build-essentials-rust`: the C floor plus the complete rolling
+  Rust toolchain. The kernel continues to use its separate exact Rust 1.83
+  lane.
+
+All concrete implementation edges now name canonical packages and carry
+reviewed minimums; only the Linux UAPI deliberately remains a versioned role.
+The GCC-family edges remain bounded below major 17, and the rolling Rust edge
+below major 2. Exact sibling constraints keep one policy-family revision
+together. The three old unqualified names are versioned migration roles with
+`replaces` metadata; clean resolution of each legacy goal selects its
+`dev.peios` provider. The recipe remains primary-architecture policy despite
+its documentation-only payload because the closure deliberately selects that
+architecture's compiler. Each package now includes its operator README and MIT
+licence text. Debug, development, and corresponding-source companions would be
+empty and are intentionally omitted.
+
+Both Debian-profile and native-profile packaging passed. Clean composition of
+the baseline produced all promised tools and documentation. C, C++, and Rust
+closures resolve completely with the existing signed kernel-header artifact;
+pristine native Peios roots then compiled and linked C, compiled and ran a
+C++23 program, and compiled and ran a Rust 2024 program with Rust 1.98.1. The
+only public-repository closure gap is the already-known unpublished
+`linux-kernel-headers` provider, not a missing build-essentials dependency.
+
+The sourceless recipe is anchored at catalogue commit `0f577be`; publication
+used the explicit sourceless-provenance allowance, while `recipe_ref` records
+that commit. Its conservative `+dirty` suffix observes unrelated boot work in
+the whole catalogue, and the build-essentials paths match the commit exactly.
+All four signed artifacts passed `verify.sh` and canonical
+`archive.VerifyFormat`. Full repository verification at index 189 reports 783
+active and 1,520 archived packages with no problems.
+
+## Previous first-party completion: authd 0.0.14-1
 
 Authd is packaged as five independently deployable trust and client boundaries,
 with a sixth policy payload kept out of the production daemon package:
@@ -249,7 +291,7 @@ the recorded commit byte-for-byte, and the dirt belongs to unrelated boot work.
 Clean-root resolution correctly reaches the outstanding first-party
 `libpeios.so.0` provider gap recorded above.
 
-## Previous first-party completion: Atrium 0.0.25-2
+## Earlier first-party completion: Atrium 0.0.25-2
 
 Atrium is packaged as a product family rather than a monolith or three
 artificially independent executables:
