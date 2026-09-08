@@ -1,0 +1,9 @@
+dev.peios.build-essentials-c — the Peios C build floor.
+
+It provides the legacy build-essentials-c role and stacks the baseline
+userland with the reviewed GCC C compiler, GNU Binutils, the glibc development
+surface, Linux UAPI headers, Debugedit, and Patchelf.
+
+The Linux headers dependency names the versioned linux-kernel-headers role,
+whose version describes the UAPI rather than the independent PKM package
+release.

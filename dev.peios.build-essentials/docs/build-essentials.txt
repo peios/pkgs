@@ -1,0 +1,14 @@
+dev.peios.build-essentials — the ambient Peios userland build floor.
+
+It provides the legacy build-essentials role and pulls in the shell and tools
+that every Pekit build may assume without declaring them individually: dash
+(including the sh role), GNU Coreutils, Diffutils, Findutils, Gawk, Grep, Make,
+and Sed.
+
+The GNU Coreutils bootstrap implementation is intentional. Peiosutils is the
+installed-system userland, but deliberately does not implement all POSIX
+ownership and mode operations used by upstream build systems.
+
+This package contains no compiler. Select dev.peios.build-essentials-c,
+dev.peios.build-essentials-c++, or dev.peios.build-essentials-rust for a
+language toolchain.

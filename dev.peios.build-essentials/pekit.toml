@@ -1,0 +1,10 @@
+# Peios build-essentials — stacked, distribution-owned build-environment
+# policy packages (PEI-155).
+#
+# These are sourceless policy metas: their authoritative source is this exact
+# catalogue commit. They carry only operator-facing documentation and licence
+# text; their functional payload is the dependency closure. The baseline
+# deliberately excludes compilers. Language toolchains stack on it so recipes
+# can request only the contract they actually need.
+
+out_dir = "out"

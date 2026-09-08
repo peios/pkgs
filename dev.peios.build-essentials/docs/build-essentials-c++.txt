@@ -1,0 +1,4 @@
+dev.peios.build-essentials-c++ — the Peios C++ build floor.
+
+It provides the legacy build-essentials-c++ role and stacks the C floor with
+the matching GCC C++ frontend and libstdc++ development surface.

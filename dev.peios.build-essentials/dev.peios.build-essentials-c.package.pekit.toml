@@ -1,0 +1,27 @@
+# C floor: the compiler, assembler/linker, libc and Linux UAPI development
+# surface, plus the debug-split tools every native package step may use.
+
+[package]
+name        = "dev.peios.build-essentials-c"
+description = "Peios C build environment"
+
+[provides]
+build-essentials-c = "1.0.0-6"
+
+[replaces]
+build-essentials-c = "<= 1.0.0-5"
+
+[dependencies]
+"dev.peios.build-essentials" = "1.0.0-6"
+"org.gnu.gcc"                 = ">= 16, < 17"
+"org.gnu.binutils"            = ">= 2.46"
+"org.gnu.glibc-devel"         = ">= 2.43"
+# This virtual is intentionally on the Linux UAPI version scale, independent
+# of the Peios kernel package's own PKM release version.
+"linux-kernel-headers"        = ">= 6.16"
+"org.sourceware.debugedit"    = ">= 5.3"
+"org.nixos.patchelf"          = ">= 0.19.1"
+
+[files]
+"@recipe:docs/build-essentials-c.txt" = "usr/share/doc/dev.peios.build-essentials-c/README"
+"@recipe:docs/LICENSE" = "usr/share/licenses/dev.peios.build-essentials-c/LICENSE"

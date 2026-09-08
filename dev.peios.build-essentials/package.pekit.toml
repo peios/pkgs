@@ -1,0 +1,12 @@
+# Shared defaults for every member of the build-essentials policy family.
+
+format = "peipkg"
+
+[package]
+version      = "1.0.0-6"
+# The packages contain architecture-neutral documentation, but their dependency
+# contract selects the primary-architecture toolchain. Keeping the metas on the
+# primary architecture makes that choice explicit.
+architecture = "x86_64"
+license      = "MIT"
+homepage     = "https://github.com/peios/pkgs"

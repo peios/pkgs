@@ -1,0 +1,21 @@
+# C++ floor: the C contract plus the C++ frontend and standard-library
+# development surface from the same reviewed GCC major.
+
+[package]
+name        = "dev.peios.build-essentials-c++"
+description = "Peios C++ build environment"
+
+[provides]
+"build-essentials-c++" = "1.0.0-6"
+
+[replaces]
+"build-essentials-c++" = "<= 1.0.0-5"
+
+[dependencies]
+"dev.peios.build-essentials-c"      = "1.0.0-6"
+"org.gnu.gcc-c++"                   = ">= 16, < 17"
+"org.gnu.gcc-libstdc++-devel"       = ">= 16, < 17"
+
+[files]
+"@recipe:docs/build-essentials-c++.txt" = "usr/share/doc/dev.peios.build-essentials-c++/README"
+"@recipe:docs/LICENSE" = "usr/share/licenses/dev.peios.build-essentials-c++/LICENSE"

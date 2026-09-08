@@ -1,0 +1,15 @@
+# Rust floor: Cargo/rustc/rustfmt/source support plus the platform C floor used
+# by rustc's linker and by native Cargo build scripts. The frozen kernel Rust
+# lane remains deliberately separate and must continue to pin Rust 1.83.
+
+[package]
+name        = "dev.peios.build-essentials-rust"
+description = "Peios Rust build environment"
+
+[dependencies]
+"dev.peios.build-essentials-c" = "1.0.0-6"
+"org.rust-lang.rust"            = ">= 1.98.1, < 2"
+
+[files]
+"@recipe:docs/build-essentials-rust.txt" = "usr/share/doc/dev.peios.build-essentials-rust/README"
+"@recipe:docs/LICENSE" = "usr/share/licenses/dev.peios.build-essentials-rust/LICENSE"

@@ -1,0 +1,8 @@
+dev.peios.build-essentials-rust — the rolling Peios Rust build floor.
+
+It stacks the C floor, used by rustc's platform linker and native Cargo build
+scripts, with the complete rolling Rust toolchain meta-package: rustc, Cargo,
+rustfmt, rust-src, and the target standard library.
+
+This package is not the kernel toolchain. Kernel builds must continue to name
+the separately packaged and exactly pinned Rust 1.83 lane.
