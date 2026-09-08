@@ -9,9 +9,10 @@
 Work through the 113 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
-The upstream/dependency pass is complete; the first-party pass is now active,
-starting with Atrium. If a package needs a product or architecture decision,
-record the question here and continue with the next independent package.
+The upstream/dependency pass is complete; the first-party pass is now active.
+Atrium is complete and `authd` is next. If a package needs a product or
+architecture decision, record the question here and continue with the next
+independent package.
 
 ## First-party namespace and acceptance
 
@@ -60,20 +61,19 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `org.gnu.gcc` at pkgs merge commit `4849061`.
-- Completed: **85 / 113** recipes (75.2%).
+- Last completed recipe: `dev.peios.atrium`, with its source lock at pkgs
+  commit `6447430` and its public source release at Atrium commit `864c9d1`.
+- Completed: **86 / 113** recipes (76.1%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
-  on both the host and native Peios rungs and is blocked from release only by
-  the absence of a canonical Atrium Git remote.
+- Current first-party pass: **1 / 28 published**; `authd` is next.
 - Repository after publishing and independently verifying LLVM 22.1.8 and
-  rolling Rust 1.98.1: index version 186, with 756 active and 1,493 archived
-  entries.
+  rolling Rust 1.98.1 plus Atrium 0.0.25: index version 187, with 766 active
+  and 1,503 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 85 completed recipes are the currently tracked reverse-DNS recipe
-directories. The upstream pass is complete.
+The 85 upstream recipes and first completed first-party recipe account for the
+86 completed recipes. The upstream pass is complete.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -123,14 +123,12 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-`dev.peios.atrium` is the current first-party recipe. Its proposed package
-family and both build rungs pass; publication waits for the canonical source
-remote recorded below.
+`authd` is the next first-party recipe.
 
 ## Deferred first-party recipes
 
-`authd`, `build-essentials`, `coldplug`, `disk-boot`, `eventd`,
-`feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`, `live-boot`, `loregd`,
+`build-essentials`, `coldplug`, `disk-boot`, `eventd`, `feat-dynamic-boot`,
+`fsbase`, `kernel`, `libpeios`, `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
@@ -204,7 +202,7 @@ remote recorded below.
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## First-party current: Atrium 0.0.24-2
+## Latest first-party completion: Atrium 0.0.25-2
 
 Atrium is packaged as a product family rather than a monolith or three
 artificially independent executables:
@@ -218,8 +216,7 @@ artificially independent executables:
   Packages, Registry, Services, and Terminal;
 - conventional `dev.peios.atrium-debuginfo` and
   `dev.peios.atrium-debugsource` packages; and
-- a generated `dev.peios.atrium-source` package once a reproducible Git source
-  exists.
+- generated `dev.peios.atrium-source` corresponding source.
 
 Events, Networking, and Principals are explicit placeholder applications and
 are excluded from the production payload. There is intentionally no `-devel`
@@ -242,14 +239,12 @@ signed binary/meta artifacts pass both `verify.sh` and canonical
 `archive.VerifyFormat`; `peipkg-compose` accepts their canonical format,
 resolves their complete current dependency closure, and materialises exactly
 the five production apps and three Atrium executables. The hermetic source
-change is Atrium commit `80f206e`, locally tagged `v0.0.24` without a tag
-signature by decision.
-
-Release publication is deliberately blocked rather than weakened: Atrium has
-no configured canonical Git remote, so its local release tag cannot yet be
-locked by the catalogue or emitted as a reproducible corresponding-source
-package. Git-tag signature enforcement remains deferred by product decision,
-but the clean immutable source identity still needs a remotely fetchable home.
+transition began at Atrium commit `80f206e`; the completed debug-source release
+is public at `https://github.com/peios/atrium`, commit `864c9d1`, unsigned tag
+`v0.0.25` by decision. The catalogue locks that exact commit at `6447430`. All
+ten signed artifacts, including `dev.peios.atrium-source`, passed both archive
+verifiers and were published at repository index 187; full repository
+verification reports no problems.
 
 ## Latest completion: GCC 16.2.0-2
 
