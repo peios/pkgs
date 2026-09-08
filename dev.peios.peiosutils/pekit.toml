@@ -1,0 +1,16 @@
+# peiosutils owns its build and package definitions in the upstream source
+# tree. This catalogue entry supplies immutable release discovery plus the
+# local development checkout used before a release tag is published.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url = "https://github.com/peios/peiosutils.git"
+ref = "v{{version}}"
+# Soft production floor: earlier 0.1.x packages were development snapshots
+# built through an undeclared sibling-tree bridge and against the old ABI.
+versions = ">=0.8.0"
+
+[source.local]
+path = "../../peiosutils"
