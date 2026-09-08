@@ -1,0 +1,141 @@
+From: Peios Packaging <packages@peios.dev>
+Subject: [PATCH] llvm: make Python test utilities independent of ctypes
+
+CPython's ctypes module is optional and may be absent from a small system
+interpreter.  These helpers only need fixed-width scalar conversion, which the
+standard struct module provides without a C extension.  Keep the native-endian
+wire format used by TrainingLogger and make BTF ENUM64 sign extension explicit.
+
+---
+ llvm/lib/Analysis/models/interactive_host.py |  9 +++------
+ llvm/lib/Analysis/models/log_reader.py       | 31 ++++++++++++++--------------
+ llvm/test/CodeGen/BPF/BTF/print_btf.py       |  4 ++--
+ 3 files changed, 20 insertions(+), 25 deletions(-)
+
+diff --git a/llvm/lib/Analysis/models/interactive_host.py b/llvm/lib/Analysis/models/interactive_host.py
+index cdf3ed0..773b574 100644
+--- a/llvm/lib/Analysis/models/interactive_host.py
++++ b/llvm/lib/Analysis/models/interactive_host.py
+@@ -11,7 +11,6 @@ test/Transforms/Inline/ML/interactive-mode.ll
+ test/CodeGen/MLRegAlloc/interactive-mode.ll
+ """
+ 
+-import ctypes
+ import log_reader
+ import io
+ import math
+@@ -23,10 +22,8 @@ def send(f: io.BufferedWriter, value: Union[int, float], spec: log_reader.TensorS
+     """Send the `value` - currently just a scalar - formatted as per `spec`."""
+ 
+     # just int64 for now
+-    assert spec.element_type == ctypes.c_int64
+-    to_send = ctypes.c_int64(int(value))
+-    assert f.write(bytes(to_send)) == ctypes.sizeof(spec.element_type) * math.prod(
+-        spec.shape
+-    )
++    assert spec.element_type.format == "=q"
++    to_send = spec.element_type.pack(int(value))
++    assert f.write(to_send) == spec.element_type.size * math.prod(spec.shape)
+     f.flush()
+ 
+ 
+diff --git a/llvm/lib/Analysis/models/log_reader.py b/llvm/lib/Analysis/models/log_reader.py
+index 0979bb2..0188b99 100644
+--- a/llvm/lib/Analysis/models/log_reader.py
++++ b/llvm/lib/Analysis/models/log_reader.py
+@@ -5,22 +5,24 @@ See lib/Analysis/TrainingLogger.cpp for a description of the format.
+-import ctypes
+ import dataclasses
+ import io
+ import json
+ import math
++import struct
+ import sys
+ from typing import List, Optional
+ 
++# TrainingLogger writes native-endian, fixed-width C scalar values.  "=" keeps
++# the native byte order without native alignment or platform-dependent sizes.
+ _element_types = {
+-    "float": ctypes.c_float,
+-    "double": ctypes.c_double,
+-    "int8_t": ctypes.c_int8,
+-    "uint8_t": ctypes.c_uint8,
+-    "int16_t": ctypes.c_int16,
+-    "uint16_t": ctypes.c_uint16,
+-    "int32_t": ctypes.c_int32,
+-    "uint32_t": ctypes.c_uint32,
+-    "int64_t": ctypes.c_int64,
+-    "uint64_t": ctypes.c_uint64,
++    "float": struct.Struct("=f"),
++    "double": struct.Struct("=d"),
++    "int8_t": struct.Struct("=b"),
++    "uint8_t": struct.Struct("=B"),
++    "int16_t": struct.Struct("=h"),
++    "uint16_t": struct.Struct("=H"),
++    "int32_t": struct.Struct("=i"),
++    "uint32_t": struct.Struct("=I"),
++    "int64_t": struct.Struct("=q"),
++    "uint64_t": struct.Struct("=Q"),
+ }
+ 
+ 
+@@ -29,7 +31,7 @@ class TensorSpec:
+     name: str
+     port: int
+     shape: List[int]
+-    element_type: type
++    element_type: struct.Struct
+ 
+     @staticmethod
+     def from_dict(d: dict):
+@@ -51,7 +51,6 @@ class TensorValue:
+     def __init__(self, spec: TensorSpec, buffer: bytes):
+         self._spec = spec
+         self._buffer = buffer
+-        self._view = ctypes.cast(self._buffer, ctypes.POINTER(self._spec.element_type))
+         self._len = math.prod(self._spec.shape)
+ 
+     def spec(self) -> TensorSpec:
+@@ -63,10 +62,11 @@ class TensorValue:
+         if index < 0 or index >= self._len:
+             raise IndexError(f"Index {index} out of range [0..{self._len})")
+-        return self._view[index]
++        offset = index * self._spec.element_type.size
++        return self._spec.element_type.unpack_from(self._buffer, offset)[0]
+ 
+ 
+ def read_tensor(fs: io.BufferedReader, ts: TensorSpec) -> TensorValue:
+-    size = math.prod(ts.shape) * ctypes.sizeof(ts.element_type)
++    size = math.prod(ts.shape) * ts.element_type.size
+     data = fs.read(size)
+     return TensorValue(ts, data)
+ 
+diff --git a/llvm/test/CodeGen/BPF/BTF/print_btf.py b/llvm/test/CodeGen/BPF/BTF/print_btf.py
+index 9304469..b7af22a 100755
+--- a/llvm/test/CodeGen/BPF/BTF/print_btf.py
++++ b/llvm/test/CodeGen/BPF/BTF/print_btf.py
+@@ -18,8 +18,7 @@
+ # Kernel documentation contains detailed format description:
+ #   https://www.kernel.org/doc/html/latest/bpf/btf.html
+ 
+ import struct
+-import ctypes
+ import sys
+ 
+ 
+@@ -222,9 +221,11 @@ def print_btf(filename):
+             )
+             for _ in range(0, vlen):
+                 name_off, lo, hi = unpack("III")
+                 val = hi << 32 | lo
+-                if kflag == 1:
+-                    val = ctypes.c_long(val).value
++                # BTF ENUM64 is a fixed-width 64-bit value, independent of the
++                # host C ABI's definition of long.
++                if kflag == 1 and val & (1 << 63):
++                    val -= 1 << 64
+                 print(f"\t'{string(name_off)}' val={val}LL")
+ 
+         elif kind == BTF_KIND_FWD:
+-- 
+2.51.0

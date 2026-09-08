@@ -1,0 +1,40 @@
+From: Peios Package Maintainers <packages@peios.dev>
+Subject: [PATCH] clang: cover multiarch ROCm resource lookup
+
+LLVM's ordinary test fixture supplies both lib and lib64 because
+CLANG_INSTALL_LIBDIR_BASENAME follows LLVM_LIBDIR_SUFFIX.  Peios uses the
+multi-component suffix /x86_64-linux-peios, so the same production lookup
+correctly asks the fixture for lib/x86_64-linux-peios/amdgcn/bitcode.
+
+Alias the Peios multiarch basename to the fixture's existing lib tree and
+teach the path assertion about that basename.  This keeps the
+resource-directory test exercising the actual configured lookup and does not
+skip or weaken its device-library assertions.
+
+---
+ .../Inputs/rocm_resource_dir/lib/x86_64-linux-peios | 1 +
+ clang/test/Driver/hip-device-libs.hip                | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+ create mode 120000 clang/test/Driver/Inputs/rocm_resource_dir/lib/x86_64-linux-peios
+
+diff --git a/clang/test/Driver/Inputs/rocm_resource_dir/lib/x86_64-linux-peios b/clang/test/Driver/Inputs/rocm_resource_dir/lib/x86_64-linux-peios
+new file mode 120000
+--- /dev/null
++++ b/clang/test/Driver/Inputs/rocm_resource_dir/lib/x86_64-linux-peios
+@@ -0,0 +1 @@
++.
+\ No newline at end of file
+diff --git a/clang/test/Driver/hip-device-libs.hip b/clang/test/Driver/hip-device-libs.hip
+--- a/clang/test/Driver/hip-device-libs.hip
++++ b/clang/test/Driver/hip-device-libs.hip
+@@ -208,7 +208,7 @@
+ // ALL-NOT: error:
+ // ALL: {{"[^"]*clang[^"]*"}}
+ 
+-// RESDIR-SAME: "-mlink-builtin-bitcode" "[[DEVICELIB_DIR:[^"]+(/|\\\\)rocm_resource_dir(/|\\\\)lib(64)?(/|\\\\)amdgcn(/|\\\\).*]]ocml.bc"
++// RESDIR-SAME: "-mlink-builtin-bitcode" "[[DEVICELIB_DIR:[^"]+(/|\\\\)rocm_resource_dir(/|\\\\)lib(64|(/|\\\\)x86_64-linux-peios)?(/|\\\\)amdgcn(/|\\\\).*]]ocml.bc"
+ // ROCMDIR-SAME: "-mlink-builtin-bitcode" "[[DEVICELIB_DIR:[^"]+(/|\\\\)rocm(/|\\\\)amdgcn(/|\\\\).*]]ocml.bc"
+ 
+ // ALL-SAME: "-mlink-builtin-bitcode" "[[DEVICELIB_DIR]]ockl.bc"
+-- 
+2.51.0

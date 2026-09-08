@@ -3,4 +3,6 @@
 peios/target-environment.patch          # LLVM 22 validates environment suffixes; make x86_64-unknown-linux-peios a first-class target
 peios/triplet-resource-build-dir.patch  # Keep Clang's build-tree resources aligned with a slash-containing LLVM_LIBDIR_SUFFIX
 peios/triplet-resource-dir-test.patch  # Peios keeps Clang resources in the target-triplet libdir; accept that deliberate layout in the upstream test
+peios/multiarch-rocm-resource-fixture.patch  # Exercise ROCm resource discovery with Peios' multiarch Clang library basename
 peios/hmaptool-no-ctypes.patch          # hmaptool only needs an exception for negative input; do not require CPython's optional ctypes module
+peios/python-tools-no-ctypes.patch      # Keep fixed-width Python test utilities usable without CPython's optional ctypes extension
