@@ -1,12 +1,12 @@
 # Base metadata shared by the fsbase packages. Each <name>.package.pekit.toml
-# (fsbase, fsbase-irf, fsbase-stratafs-mount-hooks) inherits these fields and
-# adds its own description and files.
+# (`dev.peios.fsbase`, `dev.peios.fsbase-irf`, and
+# `dev.peios.fsbase-stratafs-mount-hooks`) inherits these fields and adds its
+# own identity, description, migration metadata, and files.
 #
-# The two skeletons are pure — their payloads are the empty directories the
-# recipe's build mints, carved into two subsets. The hooks package is the
-# exception that made this recipe stop being source-free: it ships a script
-# from src/, and it lives here because what it mounts has to agree with what
-# fsbase-irf mints.
+# The functional payload of the two skeletons is the empty directories the
+# recipe's build mints, carved into two subsets; each also carries the shared
+# licence text. The hooks package ships scripts from src/ and lives here
+# because what it mounts has to agree with what fsbase-irf mints.
 #
 # x86_64, not noarch: both carry the tuple-named directories
 # usr/lib/x86_64-linux-peios and usr/include/x86_64-linux-peios, and the
@@ -35,6 +35,19 @@ format = "peipkg"
 # whole filesystem's access policy, which cannot express "readable system tree,
 # private home directories". Needs a consumer that applies sd_overrides:
 # peipkg 0.x with PEI-557 (install) and PEI-558 (compose).
-version      = "1.0.0-8"
+# -9: both stratafs-base hooks report through hook-log.sh, so their
+# lines carry the shared tag column instead of a bare `echo`. The mount
+# message also moved to AFTER the mount and into the past tense: it claimed
+# "mounting" before the mount had happened, which under the new format would
+# have been an [  OK  ] printed for work not yet done. Needs
+# prelude-hook-abi >= 3. PEI-783.
+#
+# 1.0.0-10 is the production-qualified baseline. The three package identities
+# move under dev.peios while retaining bounded migration capabilities; every
+# binary package ships its MIT licence. The build and hook test suite fixes the
+# directory contract, exact StrataFS mount graph, test-root isolation, and the
+# rule that a failed mount must never emit an OK line.
+version      = "1.0.0-10"
 architecture = "x86_64"
 license      = "MIT"
+homepage     = "https://github.com/peios/pkgs"

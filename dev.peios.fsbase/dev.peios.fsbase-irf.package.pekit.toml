@@ -40,6 +40,7 @@
 # subtree, so ancestors (/var, /usr/lib, /lcl/libexec) arrive automatically.
 
 [package]
+name        = "dev.peios.fsbase-irf"
 description = "Base filesystem for the initramfs root - the reduced Peios skeleton"
 
 # This package writes outside every permitted destination — mountpoint roots
@@ -52,6 +53,11 @@ description = "Base filesystem for the initramfs root - the reduced Peios skelet
 # exemption it does not need.
 special_system_package = true
 
+[provides]
+fsbase-irf = "1.0.0-10"
+
+[replaces]
+fsbase-irf = "<= 1.0.0-9"
 
 [files]
 # x86-64 ABI interpreter view, needed here for the same reason as in the main
@@ -99,3 +105,4 @@ special_system_package = true
 ":irf/usr/src" = "usr/src"
 ":irf/usr/etc" = "usr/etc"
 ":irf/usr/conf" = "usr/conf"
+"docs/LICENSE" = "usr/share/licenses/dev.peios.fsbase-irf/LICENSE"

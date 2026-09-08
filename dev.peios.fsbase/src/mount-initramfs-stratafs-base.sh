@@ -24,16 +24,42 @@
 # here even though it can be in every hook that follows.
 set -eu
 
+# Tests place a synthetic initramfs below an absolute prefix. Prelude clears
+# the hook environment, so production always uses the empty default and sees
+# the real root. This lets the shipped hook exercise its absolute pre-view
+# paths without touching the host's mount namespace.
+test_root=${PEIOS_FSBASE_TEST_ROOT:-}
+case "$test_root" in
+    ""|/*) ;;
+    *) printf '%s\n' "stratafs-base: PEIOS_FSBASE_TEST_ROOT must be absolute" >&2; exit 2 ;;
+esac
+root_path() { printf '%s%s\n' "$test_root" "$1"; }
+
+# The shared console line format (prelude-hook-abi >= 3). Absolute path, like
+# everything else in this hook: it runs BEFORE the views it creates.
+# shellcheck source=/dev/null
+. "$(root_path /usr/libexec/prelude/hook-log.sh)"
+hook_log_init stratafs-base
+
 # The mountpoints are topology, not package storage — no package owns /bin —
 # so they are created here rather than shipped. They land in the initramfs's
 # own ramfs and vanish with it.
-/usr/bin/mkdir -p /bin /sbin /lib /libexec /share /include /etc /conf
+"$(root_path /usr/bin/mkdir)" -p \
+    "$(root_path /bin)" \
+    "$(root_path /sbin)" \
+    "$(root_path /lib)" \
+    "$(root_path /libexec)" \
+    "$(root_path /share)" \
+    "$(root_path /include)" \
+    "$(root_path /etc)" \
+    "$(root_path /conf)"
 
 mount_view() {
     target=$1
     stack=$2
-    echo "stratafs-base: mounting $target"
-    /usr/bin/mount -t stratafs none "$target" -o "strata=$stack"
+    "$(root_path /usr/bin/mount)" -t stratafs none "$(root_path "$target")" \
+        -o "strata=$stack"
+    log_ok "mounted $target"
 }
 
 # Operator storage is the create stratum and highest-precedence provider for

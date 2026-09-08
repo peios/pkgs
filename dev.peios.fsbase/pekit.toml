@@ -2,11 +2,12 @@
 # directory the layout defines but no package owns, minted empty so the
 # system has somewhere to write from its very first boot.
 #
-# TWO packages come out of this one recipe, the same way live-boot and
-# live-boot-irf do:
+# THREE packages come out of this one recipe:
 #
-#   fsbase      the full skeleton, for the main system root
-#   fsbase-irf  the reduced skeleton, for the initramfs root
+#   dev.peios.fsbase          full skeleton for the main system root
+#   dev.peios.fsbase-irf      reduced skeleton for the initramfs root
+#   dev.peios.fsbase-stratafs-mount-hooks
+#                             both base-view boot hooks
 #
 # The build stages one tree per package, but drives the shared half of both
 # from a single list — so the directories they have in common cannot drift
@@ -50,11 +51,11 @@
 # interpreter path there, so fsbase supplies an explicit link to the loader's
 # package-storage directory before any dynamically linked program can run.
 #
-# A pure-skeleton package: no source, no compilation. The "build" just mints
-# the empty directories into the stage; each <name>.package.pekit.toml maps
-# the ones it wants as directory sources, which pack as empty-directory
-# payload entries. Directories minted here but mapped by neither package are
-# simply not packed.
+# There is no external source or compilation. The "build" just mints the empty
+# directories into the stage; each <name>.package.pekit.toml maps the ones it
+# wants as directory sources, which pack as empty-directory payload entries,
+# and adds the in-recipe licence. Directories minted here but mapped by neither
+# package are simply not packed.
 #
 # None of these destinations is on peipkg's allowlist, and that is the point:
 # laying down the structure the layout rules protect is precisely what those
@@ -96,5 +97,21 @@ for d in $irf_only; do mkdir -p "$PEKIT_OUT/irf/$d"; done
 # Buildless, but the mkdir loop still needs a shell and mkdir in the
 # composed root.
 [build.dependencies.peipkg]
-dash = "*"
+"org.git.kernel.dash" = ">= 0.5.13.5"
 "org.gnu.coreutils" = "*"  # build deps are compose GOALS: name-only, no provides resolution
+
+[build.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+
+[test]
+needs = ["main"]
+command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" tests/test-fsbase.sh'
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5"
+"org.gnu.coreutils"    = ">= 9.11"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"

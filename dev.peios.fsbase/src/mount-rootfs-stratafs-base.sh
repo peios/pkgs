@@ -22,26 +22,41 @@
 # stratum path canonical.
 set -eu
 
+# The same isolated-test seam as the initramfs-view hook. Prelude clears the
+# hook environment, so production sees the real initramfs at the empty prefix.
+test_root=${PEIOS_FSBASE_TEST_ROOT:-}
+case "$test_root" in
+    ""|/*) ;;
+    *) printf '%s\n' "stratafs-base: PEIOS_FSBASE_TEST_ROOT must be absolute" >&2; exit 2 ;;
+esac
+root_path() { printf '%s%s\n' "$test_root" "$1"; }
+
+# The shared console line format (prelude-hook-abi >= 3), so this hook's
+# lines align with prelude's and peinit's instead of inventing a fifth style.
+# shellcheck source=/dev/null
+. "$(root_path /usr/libexec/prelude/hook-log.sh)"
+hook_log_init stratafs-base
+
 # Mountpoints are topology, not package storage — no package owns /bin — so
 # they are created rather than shipped. On a live system these land in the
 # overlay's upper; on an installed one they are recreated idempotently each
 # boot. Their descriptors inherit from the real root.
-/usr/bin/mkdir -p \
-    /mnt/rootfs/bin \
-    /mnt/rootfs/sbin \
-    /mnt/rootfs/lib \
-    /mnt/rootfs/libexec \
-    /mnt/rootfs/share \
-    /mnt/rootfs/include \
-    /mnt/rootfs/etc \
-    /mnt/rootfs/conf
+"$(root_path /usr/bin/mkdir)" -p \
+    "$(root_path /mnt/rootfs/bin)" \
+    "$(root_path /mnt/rootfs/sbin)" \
+    "$(root_path /mnt/rootfs/lib)" \
+    "$(root_path /mnt/rootfs/libexec)" \
+    "$(root_path /mnt/rootfs/share)" \
+    "$(root_path /mnt/rootfs/include)" \
+    "$(root_path /mnt/rootfs/etc)" \
+    "$(root_path /mnt/rootfs/conf)"
 
 mount_view() {
     target=$1
     stack=$2
-    echo "stratafs-base: mounting $target in the root"
-    /usr/bin/chroot /mnt/rootfs /usr/bin/mount \
+    "$(root_path /usr/bin/chroot)" "$(root_path /mnt/rootfs)" /usr/bin/mount \
         -t stratafs none "$target" -o "strata=$stack"
+    log_ok "mounted $target in the root"
 }
 
 # Operator storage is the create stratum and highest-precedence provider for

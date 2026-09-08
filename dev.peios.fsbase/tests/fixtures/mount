@@ -1,0 +1,5 @@
+#!/usr/bin/sh
+set -eu
+
+printf '%s\n' "$*" >> "$PEIOS_FSBASE_TEST_LOG/mount.args"
+[ "${PEIOS_FSBASE_FAIL_TARGET:-}" != "$4" ]

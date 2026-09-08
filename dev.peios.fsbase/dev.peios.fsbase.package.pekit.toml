@@ -11,6 +11,7 @@
 # still land — they simply arrive as parents of the leaves below.
 
 [package]
+name        = "dev.peios.fsbase"
 description = "Base filesystem - the Peios filesystem skeleton"
 
 # This package writes outside every permitted destination — mountpoint roots
@@ -23,6 +24,11 @@ description = "Base filesystem - the Peios filesystem skeleton"
 # exemption it does not need.
 special_system_package = true
 
+[provides]
+fsbase = "1.0.0-10"
+
+[replaces]
+fsbase = "<= 1.0.0-9"
 
 [files]
 # x86-64 ABI interpreter view. This is deliberately package-owned rather than
@@ -92,6 +98,7 @@ special_system_package = true
 ":main/opt" = "opt"
 ":main/mnt" = "mnt"
 ":main/media" = "media"
+"docs/LICENSE" = "usr/share/licenses/dev.peios.fsbase/LICENSE"
 
 
 # The first per-subtree security descriptors on Peios (PEI-559).
