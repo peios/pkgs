@@ -64,7 +64,8 @@ A completed upstream package normally has all of the following:
 - Completed: **85 / 113** recipes (75.2%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
 - Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
-  on the host rung but blocked from release by the source/toolchain items below.
+  on both the host and native Peios rungs and is blocked from release only by
+  the absence of a canonical Atrium Git remote.
 - Repository after publishing and independently verifying LLVM 22.1.8 and
   rolling Rust 1.98.1: index version 186, with 756 active and 1,493 archived
   entries.
@@ -123,8 +124,8 @@ still needs privileged deletion with
 ## Remaining current-pass recipes
 
 `dev.peios.atrium` is the current first-party recipe. Its proposed package
-family and host build gates pass; its immutable/native release gates remain
-blocked as recorded below.
+family and both build rungs pass; publication waits for the canonical source
+remote recorded below.
 
 ## Deferred first-party recipes
 
@@ -177,8 +178,8 @@ blocked as recorded below.
   (with exact 1.82.0 stage0 and LLVM 18 dependencies) is the kernel toolchain,
   while the rolling recipe follows stable releases from a soft 1.98.1 floor.
   LLVM 22 likewise has a separate rolling recipe so publishing a current
-  userspace compiler cannot move Kbuild. The current LLVM/Rust publication and
-  final frozen-kernel rebuild are still in progress.
+  userspace compiler cannot move Kbuild. Current LLVM 22 and Rust 1.98.1 are
+  published; the final frozen-kernel rebuild remains outstanding.
 - The native build-root wrapper currently resolves every top-level artifact in
   `_pkgsOut_`, including superseded migrations. Legacy libxml2, libxslt,
   libtraceevent, and libtracefs pool artifacts were moved, recoverably, under
@@ -194,11 +195,14 @@ blocked as recorded below.
   to both reference roots without exposing undeclared sibling checkouts.
 - Package-campaign cleanup removed every per-recipe `out/` cache and 19 stale
   registered `pkgs` worktrees after confirming that each carried no unique
-  tracked patch. The one retained Rust worktree contains an old 17 GiB package
-  pool with 2,057 filenames absent from the signed repository and therefore
-  needs an explicit discard decision rather than being treated as an ordinary
-  build cache. An unregistered LLVM worktree remnant is also pending privileged
-  removal because its build namespace left files owned by another uid.
+  tracked patch. After the LLVM/Rust transition, another approximately 237 GiB
+  of reproducible LLVM 22 and Rust/stage0 working output was pruned from the
+  main catalogue and temporary toolchain worktree. The one retained Rust
+  worktree contains an old 17 GiB package pool with 2,057 filenames absent from
+  the signed repository and therefore needs an explicit discard decision
+  rather than being treated as an ordinary build cache. The remaining 8.4 GiB
+  in the unregistered LLVM worktree needs interactive privileged deletion
+  because its build namespace left files owned by another uid.
 
 ## First-party current: Atrium 0.0.24-2
 
@@ -225,29 +229,27 @@ monolithic `atriumd` package is migrated through the default product's
 `provides`/`replaces` metadata. The Terminal package carries the matching
 xterm.js/addon-fit MIT notice as well as Atrium's own licence.
 
-The complete host-toolchain package gate passes: all five Rust tests, including
-the peinit descriptor/pidfd test, and an installed-payload smoke spanning the
-daemon/server/session boundary, authentication relay, cookie lifecycle,
-catalogue and asset serving, traversal rejection, and logout. All three
-binaries pass PIE, full RELRO, BIND_NOW, NX-stack, RELR, build-ID, no-rpath,
-split-debug, debug-source, and checkout-path-leak checks. All nine binary/meta
-artifacts pass `verify.sh`, and `peipkg-compose` accepts their canonical format,
+The complete host-toolchain and native Peios package gates pass: all five Rust
+tests, including the peinit descriptor/pidfd test, and an installed-payload
+smoke spanning the daemon/server/session boundary, authentication relay,
+cookie lifecycle, catalogue and asset serving, traversal rejection, and
+logout. Atrium now pins `peios-rs` and `libauthd` to publicly fetchable exact
+Git commits, vendors the complete `Cargo.lock` closure in the networked source
+stage, and compiles/tests it offline under rolling Rust 1.98.1 and LLVM 22.
+All three binaries pass PIE, full RELRO, BIND_NOW, NX-stack, RELR, build-ID,
+no-rpath, split-debug, debug-source, and checkout-path-leak checks. All nine
+signed binary/meta artifacts pass both `verify.sh` and canonical
+`archive.VerifyFormat`; `peipkg-compose` accepts their canonical format,
 resolves their complete current dependency closure, and materialises exactly
-the five production apps and three Atrium executables.
+the five production apps and three Atrium executables. The hermetic source
+change is Atrium commit `80f206e`, locally tagged `v0.0.24` without a tag
+signature by decision.
 
-Release publication is deliberately blocked rather than weakened:
-
-- the active Peios Rust/Cargo package is 1.83.0, while Atrium uses edition 2024
-  and therefore requires at least 1.85; the recipe now declares that floor;
-- Atrium has no configured canonical Git remote or release tags, so the
-  catalogue can currently provide only a local developer source and cannot
-  emit a reproducible corresponding-source package;
-- Atrium's lock graph contains path dependencies on sibling `peios-rs` and
-  `authd` checkouts, which an immutable Atrium source snapshot would not
-  contain; those inputs need a deliberate release-bundle, vendoring, or
-  separately versioned Git-source design; and
-- Git-tag signature enforcement is deferred by product decision, but immutable
-  clean source identity is not.
+Release publication is deliberately blocked rather than weakened: Atrium has
+no configured canonical Git remote, so its local release tag cannot yet be
+locked by the catalogue or emitted as a reproducible corresponding-source
+package. Git-tag signature enforcement remains deferred by product decision,
+but the clean immutable source identity still needs a remotely fetchable home.
 
 ## Latest completion: GCC 16.2.0-2
 
