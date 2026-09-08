@@ -1,13 +1,18 @@
 # Atrium — Peios's browser-delivered interactive session.
 #
 # Delegate recipe: Atrium owns its build and package split in its source tree.
-# This catalogue recipe supplies the local development checkout. An immutable
-# Git source will replace the local-only release boundary once Atrium has a
-# canonical remote and release tags; tag-signature enforcement is separately
-# deferred by decision.
+# Production releases are immutable public Git tags; the sibling checkout is
+# retained only as an explicit local-development override. Tag-signature
+# enforcement is separately deferred by decision.
 
 out_dir = "out"
 delegate = true
+
+[source.git]
+url       = "https://github.com/peios/atrium.git"
+ref       = "v{{version}}"
+versions  = ">= 0.0.24"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 
 [source.local]
 path = "../../atrium"
