@@ -1,0 +1,19 @@
+# libpeios — Peios's userspace C ABI library. The source repository owns the
+# build and package split; this workspace member adds release discovery,
+# distribution policy, and publication targets.
+#
+# The locked Cargo Git inputs are materialised only by build.vendor, so use the
+# workspace's peipkg-net profile for Peios builds; compilation still runs in
+# the ordinary offline package root.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/libpeios.git"
+ref       = "v{{version}}"
+versions  = ">= 0.5.0"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+
+[source.local]
+path = "../../libpeios"
