@@ -65,14 +65,76 @@ A completed upstream package normally has all of the following:
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
 - Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
   on the host rung but blocked from release by the source/toolchain items below.
-- Repository after the build-essentials canonical-Binutils correction: index
-  version 182. A full verification pass remains due after the Rust/LLVM
-  publication batch.
+- Repository after publishing the two Rust bootstrap lanes: index version 184.
+  A full verification pass remains due after the LLVM/current-Rust publication
+  batch.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
 The 85 completed recipes are the currently tracked reverse-DNS recipe
 directories. The upstream pass is complete.
+
+## Shutdown checkpoint: LLVM/Rust toolchain transition (2026-09-08)
+
+No package build or publisher is running. The retained isolated tmux pane
+`peios-llvm-publish` is dead with status 1 and exists only as diagnostic
+scrollback; it can be discarded after the failure details below are no longer
+needed.
+
+All package-recipe changes are committed through `550896a` (`Correct LLVM host
+triple and test closure`); the shutdown checkpoint commit is the only later
+repository change. The unrelated first-party edits remain safely stored as stash
+commit `4627d0d5a31581edc3ad3c2721603630024f06dd`, currently `stash@{0}`, with
+message `temporary: preserve first-party edits during clean LLVM publication`.
+Restore that stash only after the clean LLVM publication no longer needs an
+immutable package-recipe provenance state.
+
+Completed and published:
+
+- `org.rust-lang.rust-stage0-1.82` 1.82.0 and the frozen
+  `org.rust-lang.rust-1.83` 1.83.0 kernel lane;
+- rolling `org.rust-lang.rust-stage0` 1.97.1 and 1.98.1 at repository indexes
+  183 and 184 respectively. The final rolling `org.rust-lang.rust` 1.98.1
+  publication has not started because it awaits LLVM 22.
+
+LLVM 22.1.8 compiled successfully in the detached build. The LLD suite passed
+2,069 tests with 1,111 unsupported and no failures. The Clang run discovered
+49,758 tests: 44,521 passed, 5,200 unsupported, 10 skipped, 24 expected
+failures, and three unexpected failures. Two are exact missing build-root
+closure defects: `Clang :: Driver/env.c` and
+`Clang :: Modules/crash-vfs-umbrella-frameworks.m` both invoke `bash`, which
+must be added to the Peipkg and APT build dependencies. The remaining
+`Clang :: Driver/hip-device-libs.hip` failure occurs in its resource-directory
+case: Clang emits `cannot find ROCm device library` despite the test fixture.
+Diagnose the fixture lookup against the Peios `LLVM_LIBDIR_SUFFIX` and host
+triple before patching; do not suppress the test without proving it is only an
+upstream layout assumption.
+
+Resume order:
+
+1. add the declared Bash test dependency and correct the HIP resource fixture
+   behavior in `org.llvm.llvm-current`;
+2. commit the recipe change so published provenance is clean;
+3. rerun `pekit publish --all --version 22.1.8 --env=peipkg --keyring=dev` in
+   an isolated detached tmux server because Codex Desktop terminated foreground
+   builds at a repeatable lifetime boundary; the preserved CMake/Ninja output
+   should avoid another full compile unless dependency-root timestamps force
+   regeneration;
+4. verify every LLVM artifact with both archive verifiers and run
+   `peipkg-repo verify`;
+5. publish rolling Rust 1.98.1 from
+   `/home/jack/projects/peios/pkgs-toolchain-production.worktree`, also in a
+   detached tmux server, then perform the same artifact/repository checks;
+6. rebuild and test PKM with its exact Rust 1.83.0 and LLVM 18.1.8 pins; and
+7. commit only the validated PKM `pekit.toml` change, preserving unrelated
+   `audits/` and `evman/` content.
+
+Worktree cleanup remains deliberately deferred. The temporary toolchain
+worktree is needed until rolling Rust is published. The old Rust worktree has
+a 17 GiB artifact pool containing 2,057 filenames absent from the signed repo
+and requires an informed discard decision. The unregistered LLVM worktree
+remnant still needs privileged deletion with
+`sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
 
 ## Remaining current-pass recipes
 
