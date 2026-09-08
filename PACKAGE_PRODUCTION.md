@@ -6,13 +6,13 @@
 
 ## Objective
 
-Work through the 113 recipes in this repository, bringing each to production
+Work through the 114 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, build-essentials, and coldplug are complete; `disk-boot` is
-next. If a package needs a product or architecture decision, record the
-question here and continue with the next independent package.
+Atrium, authd, build-essentials, coldplug, and libpeios are complete;
+`disk-boot` is next. If a package needs a product or architecture decision,
+record the question here and continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,18 +61,19 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `dev.peios.coldplug`, anchored directly in the
-  catalogue at pkgs commit `727d94f`.
-- Completed: **89 / 113** recipes (78.8%).
-- Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Current first-party pass: **4 / 28 published**; `disk-boot` is next.
-- Repository after publishing and independently verifying coldplug 1.0.0-3:
-  index version 190, with 784 active and 1,521 archived entries.
+- Last completed recipe: `dev.peios.libpeios`, anchored directly in the
+  catalogue at pkgs commit `4734895`.
+- Completed: **91 / 114** recipes (79.8%).
+- Current upstream/dependency pass: **86 / 86** recipes (100%).
+- Current first-party pass: **5 / 28 published**; `disk-boot` is next.
+- Repository after publishing and independently verifying libpeios 0.5.0-1:
+  index version 192, with 794 active and 1,531 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 85 upstream recipes and four completed first-party recipes account for
-the 89 completed recipes. The upstream pass is complete.
+The 86 upstream recipes and five completed first-party recipes account for
+the 91 completed recipes. The upstream total grew by one when exact cbindgen
+0.29.2 became a packaged prerequisite for the libpeios ABI gate.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -126,7 +127,7 @@ still needs privileged deletion with
 
 ## Deferred first-party recipes
 
-`eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`,
+`eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`,
 `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
@@ -153,16 +154,10 @@ still needs privileged deletion with
   revision 6's stale exact sibling constraints in revision 7. Deferred
   first-party `peios-experimental` still constrains the undotted CA version as
   `>= 20260830` and must migrate to the qualified package.
-- Authd's independently signed package-format checks and full repository audit
-  pass, but a clean compose root cannot yet resolve its `libpeios.so.0` runtime
-  edge because no active repository package provides it. Close this when the
-  first-party `libpeios` recipe is qualified and published; it is a repository
-  closure dependency rather than an authd payload defect.
-- Coldplug's legacy `coldplug-irf` goal resolves to its qualified provider, but
-  a clean public-repository composition presently stops at the already-known
-  `peiosutils` dependency on unpublished `libpeios.so.0`. This is a repository
-  closure gap, not a coldplug payload defect; close it with the first-party
-  `libpeios` publication.
+- Authd's and coldplug's previously open `libpeios.so.0` closure edges are now
+  closed by `dev.peios.libpeios` 0.5.0-1. A clean compose lock containing both
+  top-level products resolves the qualified runtime in the anchor and named
+  initramfs roots.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
@@ -211,7 +206,57 @@ still needs privileged deletion with
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party completion: coldplug 1.0.0-3
+## Latest first-party completion: libpeios 0.5.0-1
+
+libpeios is now the first published, qualified Peios C ABI baseline. The
+source is public at `https://github.com/peios/libpeios`, commit `4e71047`, with
+the intentionally unsigned immutable tag `v0.5.0`; the catalogue locks that
+exact commit at `4734895`. Earlier 0.3.4 development packages carried no
+compatibility promise and are not treated as an ABI baseline. Starting here,
+compatible additions retain `libpeios.so.0`, while incompatible changes
+require an explicit SONAME decision.
+
+The family is split into `dev.peios.libpeios`, `-devel`, `-static`,
+`-debuginfo`, `-debugsource`, and generated `-source` packages. The development
+package pulls the exact runtime plus `kernel-headers`, because its public
+headers deliberately expose the matching `<pkm/*.h>` UAPI. Qualified packages
+provide and replace the old unqualified 0.3.4 names through revision 8. Forty
+loose, unpublished 0.3.4 development artifacts were moved recoverably to
+`_pkgsOut_/archive/superseded-libpeios-development/`; signed repository history
+was untouched.
+
+The production pass also aligned libpeios with the current public PKM UAPI at
+commit `b5519e6`: LogonSession LUIDs and interactive-environment scopes are no
+longer conflated, obsolete ambiguous compatibility exports were excluded from
+the first baseline, and socket constants now come from the locked UAPI rather
+than local numeric mirrors. Public SDK documentation was updated at learn
+commit `3046f55`.
+
+Both the Debian reference rung and native Peios rung passed all 256 Rust tests,
+dynamic and static installed-consumer smokes, SONAME/full-RELRO/BIND_NOW/NX
+stack/no-rpath checks, split-debug and debug-source validation, and checkout-
+path reproducibility gates. The native rung uses packaged
+`org.mozilla.cbindgen` 0.29.2 to regenerate the committed ABI snapshot exactly;
+205 function signatures, 26 public struct layouts, two data symbols, and all
+207 DSO exports agree. Every one of the six signed packages passed both
+`verify.sh` and canonical `archive.VerifyFormat`; the published flat-pool copies
+are byte-identical to those verified outputs. Full repository verification at
+index 192 reports 794 active and 1,531 archived packages with no problems.
+Authd and coldplug now resolve through the published `libpeios.so.0` provider.
+The conservative package `recipe_ref` is `4734895+dirty` because Pekit observes
+unrelated boot recipe work still present in the catalogue; the libpeios paths
+match the recorded commit exactly.
+
+Published SHA-256 values:
+
+- `dev.peios.libpeios`: `55300ffc022b0cbb09cb0fd5ebce7a934f46275c5f90b6f91f51fa3b10504d03`
+- `dev.peios.libpeios-devel`: `0f730c6bdb48af86170c9b76b1f014875a739dab9a3cf59358b51596dc47b3b9`
+- `dev.peios.libpeios-static`: `27fed75b4dc34568d8222c1f9f1ca886c2f86d62d42a30fca02d5c3112b1eb5b`
+- `dev.peios.libpeios-debuginfo`: `fcf4f3caabbfacc2b4d74b145feff402b1e393325eba414ae5063608046af403`
+- `dev.peios.libpeios-debugsource`: `11b49b0d49f37505e5c8e4946ac830ac1b051a5dd1a1c7f48c4e9e2425ddeedf`
+- `dev.peios.libpeios-source`: `0f65f38215e79992aac12862c557fa199394a13f4392f9074da832c038cde34c`
+
+## Previous first-party completion: coldplug 1.0.0-3
 
 Coldplug is intentionally one initramfs-only package,
 `dev.peios.coldplug-irf`: eudev owns real-root enumeration and hotplug, so a
