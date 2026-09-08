@@ -10,9 +10,9 @@ Work through the 113 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium is complete and `authd` is next. If a package needs a product or
-architecture decision, record the question here and continue with the next
-independent package.
+Atrium and authd are complete; `build-essentials` is next. If a package needs
+a product or architecture decision, record the question here and continue with
+the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,19 +61,18 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `dev.peios.atrium`, with its source lock at pkgs
-  commit `6447430` and its public source release at Atrium commit `864c9d1`.
-- Completed: **86 / 113** recipes (76.1%).
+- Last completed recipe: `dev.peios.authd`, with its source lock at pkgs
+  commit `d1fd1f7` and its public source release at authd commit `3386525`.
+- Completed: **87 / 113** recipes (77.0%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Current first-party pass: **1 / 28 published**; `authd` is next.
-- Repository after publishing and independently verifying LLVM 22.1.8 and
-  rolling Rust 1.98.1 plus Atrium 0.0.25: index version 187, with 766 active
-  and 1,503 archived entries.
+- Current first-party pass: **2 / 28 published**; `build-essentials` is next.
+- Repository after publishing and independently verifying authd 0.0.14:
+  index version 188, with 779 active and 1,516 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 85 upstream recipes and first completed first-party recipe account for the
-86 completed recipes. The upstream pass is complete.
+The 85 upstream recipes and two completed first-party recipes account for the
+87 completed recipes. The upstream pass is complete.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -123,11 +122,11 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-`authd` is the next first-party recipe.
+`build-essentials` is the next first-party recipe.
 
 ## Deferred first-party recipes
 
-`build-essentials`, `coldplug`, `disk-boot`, `eventd`, `feat-dynamic-boot`,
+`coldplug`, `disk-boot`, `eventd`, `feat-dynamic-boot`,
 `fsbase`, `kernel`, `libpeios`, `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
@@ -154,6 +153,11 @@ still needs privileged deletion with
   revision 6's stale exact sibling constraints in revision 7. Deferred
   first-party `peios-experimental` still constrains the undotted CA version as
   `>= 20260830` and must migrate to the qualified package.
+- Authd's independently signed package-format checks and full repository audit
+  pass, but a clean compose root cannot yet resolve its `libpeios.so.0` runtime
+  edge because no active repository package provides it. Close this when the
+  first-party `libpeios` recipe is qualified and published; it is a repository
+  closure dependency rather than an authd payload defect.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
@@ -202,7 +206,50 @@ still needs privileged deletion with
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party completion: Atrium 0.0.25-2
+## Latest first-party completion: authd 0.0.14-1
+
+Authd is packaged as five independently deployable trust and client boundaries,
+with a sixth policy payload kept out of the production daemon package:
+
+- `dev.peios.authd`: the authentication authority;
+- `dev.peios.authd-lpsd`: the local principal source daemon;
+- `dev.peios.authd-lps`: its administrative client;
+- `dev.peios.authd-login`: the login client;
+- `dev.peios.authd-nss`: the NSS client module; and
+- `dev.peios.authd-live-account`: the explicitly selected, noarch live-image
+  administrator bootstrap policy.
+
+The live account split prevents a credential-free administrator bootstrap from
+silently entering production installations with `lpsd`. Runtime packages carry
+intentional legacy `provides`/`replaces` metadata. Each ELF component has its
+own debug-info package, while the family has one shared debug-source package and
+one generated corresponding-source package. There is intentionally no `-devel`
+package because authd installs no public headers or link interface.
+
+The source release pins both `peios-rs` and `libauthd` inputs to publicly
+fetchable exact Git commits, vendors its complete locked Cargo closure in the
+networked source stage, and compiles and tests offline with rolling Rust 1.98.1
+and LLVM 22. All workspace tests and installed-payload gates pass, including
+the authority and principal-source behaviour, refused-login path, NSS SONAME
+and exported symbol, registry JSON, and shell syntax. Every ELF passes PIE,
+full RELRO, BIND_NOW, NX-stack, RELR, build-ID, no-rpath, split-debug,
+debug-source, and checkout-path-leak checks. The generic Debian rung cannot
+supply the Peios `libpeios-devel` build contract; substituting its exact public
+source then reaches Debian's obsolete Rust 1.85 compiler, below this release's
+declared Rust 1.98.1 floor, so native Peios is the authoritative supported rung.
+
+The completed source is public at `https://github.com/peios/authd`, commit
+`3386525`, with intentionally unsigned immutable tag `v0.0.14`. The catalogue
+locks that exact commit at `d1fd1f7`. All thirteen signed artifacts passed both
+`verify.sh` and canonical `archive.VerifyFormat`. Full repository verification
+at index 188 reports 779 active and 1,516 archived packages with no problems.
+Their conservative `recipe_ref` carries `+dirty` because Pekit observes the
+whole catalogue worktree; the authd recipe and release-integration paths match
+the recorded commit byte-for-byte, and the dirt belongs to unrelated boot work.
+Clean-root resolution correctly reaches the outstanding first-party
+`libpeios.so.0` provider gap recorded above.
+
+## Previous first-party completion: Atrium 0.0.25-2
 
 Atrium is packaged as a product family rather than a monolith or three
 artificially independent executables:
