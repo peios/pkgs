@@ -1,0 +1,19 @@
+# authd — Peios's authentication authority and its independently deployable
+# local-source, client, and NSS components.
+#
+# Delegate recipe: the source repository owns its hermetic build, package
+# split, tests, hardening gates, and source/debug artifacts. Public unsigned
+# release tags are immutable; tag-signature enforcement remains deferred by
+# project decision.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/authd.git"
+ref       = "v{{version}}"
+versions  = ">= 0.0.14"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+
+[source.local]
+path = "../../authd"

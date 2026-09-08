@@ -96,6 +96,10 @@ lpsd      = ">= 0.0.13"
 lps       = ">= 0.0.13"
 login     = ">= 0.0.13"
 nss-peios = ">= 0.0.13"
+# The passwordless live-image administrator is deliberately no longer carried
+# by lpsd itself. This image explicitly opts into both its payload and registry
+# seed; installed/production images do not acquire it transitively.
+"dev.peios.authd-live-account" = ">= 0.0.14"
 
 # Durable events, service logs and metrics.
 eventd = ">= 0.1.0"
