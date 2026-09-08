@@ -27,7 +27,7 @@ trap 'rm -rf "$work"' EXIT INT TERM
 {
   printf 'schema = 1\narch = "x86_64"\nsource_date = "2026-01-01T00:00:00Z"\n'
   printf 'local_packages = ["%s/*.peipkg"]\n' "$pool"
-  printf '[[package]]\nname = "fsbase"\nversion = "*"\n'
+  printf '[[package]]\nname = "dev.peios.fsbase"\nversion = "*"\n'
   printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | while read -r name constraint; do
     [ -n "$name" ] || continue
     printf '[[package]]\nname = "%s"\nversion = "%s"\n' "$name" "${constraint:-*}"
@@ -35,9 +35,9 @@ trap 'rm -rf "$work"' EXIT INT TERM
 } > "$work/root.toml"
 
 # --dangerously-bypass-path-restrictions: this root always includes
-# fsbase, whose whole job is to mint the mountpoint tree (/dev, /proc,
+# dev.peios.fsbase, whose whole job is to mint the mountpoint tree (/dev, /proc,
 # /run, /sys, /tmp) that the payload layout rules otherwise protect.
-# fsbase declares special_system_package; this flag is the composer's
+# dev.peios.fsbase declares special_system_package; this flag is the composer's
 # half of that two-key exemption. A build root is precisely the case
 # it exists for, and it grants nothing to a package that has not
 # declared itself special.
@@ -69,7 +69,7 @@ peipkg-compose build "$work/root.toml" --out "$work/root" \
 # kernel's firmware loader searches /lib/firmware. Sandbox and running system
 # agree again, so a package built here sees the paths it will see on a booted
 # system. /lib64 is skipped —
-# fsbase 1.0.0-3 owns it as real package payload.
+# dev.peios.fsbase owns it as real package payload.
 for view in bin sbin lib; do
   [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
 done
