@@ -1,0 +1,7 @@
+#!/usr/bin/sh
+count=0
+if [ -r "$PEIOS_DISK_BOOT_TEST_LOG/sleep.count" ]; then
+    count=$(cat "$PEIOS_DISK_BOOT_TEST_LOG/sleep.count")
+fi
+count=$((count + 1))
+printf '%s\n' "$count" > "$PEIOS_DISK_BOOT_TEST_LOG/sleep.count"

@@ -1,0 +1,38 @@
+# disk-boot — installed-system boot support (kernel cmdline template + the
+# root-mount hook used during early boot on an installed system).
+#
+# The sibling of live-boot, and deliberately its mirror image: live-boot finds
+# an ISO9660 medium carrying a squashfs and stacks a tmpfs overlay on it,
+# because the medium is read-only; disk-boot mounts a writable partition
+# directly, because it is not. An installed root also needs no seed-sd — it
+# carries a real security descriptor stamped by `mke2fs -E root_sddl=` at
+# install time, so it mounts policy=deny-missing rather than a synthesising
+# class.
+#
+# Boot flavour is package state, not a runtime guess. The installer removes
+# live-boot-irf before installing this family, and the two hook packages
+# conflict in the initramfs root. A disk hook that is present therefore owns
+# root mounting; a missing root= is an image error rather than a reason to
+# decline and hope another hook exists.
+#
+# BUILDLESS package: nothing is compiled or fetched. The payload is the files
+# shipped in this recipe's own src/ dir, mapped literally by the package
+# manifests. There is no [build] and no [source] — out_dir is kept only because
+# packaging writes the .peipkg under it.
+
+out_dir = "out"
+
+[test]
+command = "tests/test-mount-root-disk.sh"
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5"
+# The harness mocks the Peios-specific lsblk/mount/sleep surface and needs only
+# ordinary file utilities. Keep it independent of the runtime peiosutils
+# binary: that dependency is exercised by image closure, while these tests are
+# deliberately about the hook's own decisions and arguments.
+"org.gnu.coreutils"    = ">= 9.11"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"

@@ -1,15 +1,21 @@
-# disk-boot — the main-root half of disk boot. Owns the cmdline TEMPLATE and
-# pulls the initramfs half (disk-boot-irf) into the initramfs root via a
-# cross-root dependency, exactly as live-boot does. Installing disk-boot in /
-# brings the whole disk-boot machinery with it.
+# The main-root half owns the cmdline template and pulls the matching hook into
+# the initramfs. The two payloads change as one release, so this is an exact
+# dependency rather than an open-ended compatibility claim.
 
 [package]
-description = "Disk boot support: kernel cmdline template + initramfs root-mount hook"
+name        = "dev.peios.disk-boot"
+description = "Peios installed-system boot support"
+
+[provides]
+disk-boot = "1.0.0-10"
+
+[replaces]
+disk-boot = "<= 1.0.0-9"
 
 # disk-boot-irf's home is the initramfs root, so this edge carries IN initramfs
 # (the table `root` field).
 [dependencies]
-disk-boot-irf = { constraint = ">= 1.0.0", root = "initramfs" }
+"dev.peios.disk-boot-irf" = { constraint = "1.0.0-10", root = "initramfs" }
 
 # The cmdline TEMPLATE — deliberately not the finished article. It carries
 # everything an installed system needs except `root=`, which cannot be package
@@ -40,4 +46,5 @@ disk-boot-irf = { constraint = ">= 1.0.0", root = "initramfs" }
 #                  the panic on screen is the more useful behaviour for
 #                  something you have to actually recover.
 [files]
-"src/cmdline" = "usr/share/disk-boot/cmdline"
+"src/cmdline"   = "usr/share/disk-boot/cmdline"
+"docs/LICENSE"  = "usr/share/licenses/dev.peios.disk-boot/LICENSE"

@@ -1,5 +1,4 @@
-# disk-boot-irf — the initramfs half: the root-mount hook mkirf packs into the
-# cpio. Its home is the initramfs root (disk-boot depends on it IN initramfs).
+# The initramfs half contains the root-mount hook mkirf packs into the cpio.
 # It depends on peiosutils so the hook's mount and lsblk land in the initramfs
 # alongside it — as a dep of an initramfs-homed package, peiosutils routes to
 # the initramfs by default, no IN needed.
@@ -12,22 +11,36 @@
 # arrive at by accident.
 
 [package]
-description = "Initramfs root-mount hook for disk boot (direct mount of an installed root)"
+name         = "dev.peios.disk-boot-irf"
+default_root = "initramfs"
+description  = "Peios installed-root initramfs mount hook"
+
+[provides]
+disk-boot-irf = "1.0.0-10"
+
+[replaces]
+disk-boot-irf = "<= 1.0.0-9"
+
+# Package presence selects the boot flavour. State the invariant from both
+# sides so it remains enforced even if an older live-boot package did not.
+[conflicts]
+live-boot-irf = "*"
 
 [dependencies]
-peiosutils = ">= 0.1.2"
+peiosutils = ">= 0.1.4"
+sh         = ">= 1"
 # Everything this hook and prelude must agree on: that exit 69 means declined
 # rather than failed, and that the real root is mounted at /mnt/rootfs. Each
 # half fails hard on its own — against a prelude predating the outcome
 # contract the hook would HALT the boot it was standing aside for, and against
 # one still expecting /sysroot it would mount where nothing looks. The
 # dependency makes either mismatch a compose-time error instead.
-prelude-hook-abi = ">= 2"
+prelude-hook-abi = ">= 3"
 
-# The hook lives in the packaged hook directory, one of the places mkirf scans
-# when it packs the initramfs cpio. The name differs from live-boot's
-# mount-root.sh because both are packed into the SAME initramfs and a file name
-# identifies a hook — same name would mean one shadowing the other rather than
-# two hooks.
+# The hook lives in the packaged hook directory mkirf scans when it packs the
+# initramfs. Its product-specific name keeps package ownership and diagnostics
+# unambiguous across an installer transaction, even though the conflict above
+# prevents both boot flavours remaining installed together.
 [files]
 "src/mount-root-disk.sh" = "usr/libexec/prelude/hooks.d/mount-root-disk.sh"
+"docs/LICENSE"           = "usr/share/licenses/dev.peios.disk-boot-irf/LICENSE"

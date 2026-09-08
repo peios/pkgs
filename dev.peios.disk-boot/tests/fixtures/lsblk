@@ -1,0 +1,4 @@
+#!/usr/bin/sh
+printf '%s\n' "$*" > "$PEIOS_DISK_BOOT_TEST_LOG/lsblk.args"
+cat "$PEIOS_DISK_BOOT_LSBLK_OUTPUT"
+exit "${PEIOS_DISK_BOOT_LSBLK_STATUS:-0}"

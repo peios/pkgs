@@ -21,21 +21,51 @@
 # actual cause already forgotten.
 set -eu
 
-# prelude runs hooks with PATH=/usr/bin, so peiosutils (mount, lsblk) resolves
-# without the hook setting PATH itself.
+# Tests place a synthetic initramfs below an absolute prefix. Prelude clears
+# the hook environment, so production always uses the empty default and sees
+# the real root. This seam exercises the shipped script without mounting over
+# the host's /proc.
+test_root=${PEIOS_DISK_BOOT_TEST_ROOT:-}
+case "$test_root" in
+    ""|/*) ;;
+    *) printf '%s\n' "mount-root-disk: PEIOS_DISK_BOOT_TEST_ROOT must be absolute" >&2; exit 2 ;;
+esac
+root_path() { printf '%s%s\n' "$test_root" "$1"; }
+
+# The shared console format is part of prelude-hook-abi level 3.
+# shellcheck source=/dev/null
+. "$(root_path /usr/libexec/prelude/hook-log.sh)"
+hook_log_init disk-boot
+
+# prelude runs hooks with PATH=/usr/bin, so peiosutils resolves without the
+# hook setting PATH itself. Check the two specialist tools here so a damaged
+# initramfs reports its actual package-integrity failure.
+for required_tool in lsblk mount; do
+    command -v "$required_tool" >/dev/null 2>&1 || {
+        log_fail "no $required_tool in the initramfs; dev.peios.disk-boot-irf depends on peiosutils"
+        exit 1
+    }
+done
+unset required_tool
 
 # --- the target ---------------------------------------------------------------
 # Not "selection" any more: this reads which device to mount, not whether to.
 # Last root= wins, matching the kernel's own handling of repeated parameters.
 root_spec=
-for word in $(cat /proc/cmdline); do
+cmdline=$(cat "$(root_path /proc/cmdline)")
+# Kernel arguments are whitespace-delimited, but their bytes must never be
+# treated as path globs in the hook's working directory.
+set -f
+for word in $cmdline; do
     case "$word" in
         root=*) root_spec="${word#root=}" ;;
     esac
 done
+set +f
+unset cmdline word
 
 if [ -z "$root_spec" ]; then
-    echo "disk-boot: no root= on the cmdline; nothing names the root to mount" >&2
+    log_fail "no root= on the cmdline; nothing names the root to mount"
     exit 1
 fi
 
@@ -70,7 +100,7 @@ resolve_root() {
 case "$root_spec" in
     /dev/*|UUID=*|PARTUUID=*|LABEL=*) ;;
     *)
-        echo "disk-boot: unsupported root= form '$root_spec'" >&2
+        log_fail "unsupported root= form '$root_spec'"
         exit 1
         ;;
 esac
@@ -85,17 +115,25 @@ esac
 # the first miss would fail the boot instead of waiting for the disk.
 dev=
 tries=0
+retry_limit=${PEIOS_DISK_BOOT_RETRY_LIMIT:-50}
+case "$retry_limit" in
+    *[!0-9]*|"") log_fail "invalid retry limit '$retry_limit'"; exit 2 ;;
+esac
+if [ "$retry_limit" -eq 0 ]; then
+    log_fail "invalid retry limit '$retry_limit'"
+    exit 2
+fi
 while [ -z "$dev" ]; do
     dev=$(resolve_root "$root_spec" || true)
     [ -n "$dev" ] && break
     tries=$((tries + 1))
-    if [ "$tries" -ge 50 ]; then
-        echo "disk-boot: no device matched root=$root_spec after 5s" >&2
+    if [ "$tries" -ge "$retry_limit" ]; then
+        log_fail "no device matched root=$root_spec after ${retry_limit} attempts"
         exit 1
     fi
     sleep 0.1
 done
-echo "disk-boot: root=$root_spec resolved to $dev"
+log_ok "root=$root_spec resolved to $dev"
 
 # --- check -------------------------------------------------------------------
 # fsck is the initramfs's job — peinit must never repair a root it is already
@@ -111,12 +149,12 @@ if command -v fsck >/dev/null 2>&1; then
         # 1 = errors corrected, which is a success for our purposes. Anything
         # above that left the filesystem unfit to mount.
         if [ "$status" -gt 1 ]; then
-            echo "disk-boot: fsck $dev failed (status $status)" >&2
+            log_fail "fsck $dev failed (status $status)"
             exit 1
         fi
     }
 else
-    echo "disk-boot: no fsck in the initramfs; relying on journal replay"
+    log_warn "no fsck in the initramfs; relying on journal replay"
 fi
 
 # --- mount -------------------------------------------------------------------
@@ -128,5 +166,8 @@ fi
 # a property of the filesystem rather than of the command that mounted it.
 #
 # No -t: the type is probed. Nothing here is ext-specific.
-mount -o policy=deny-missing "$dev" /mnt/rootfs
-echo "disk-boot: mounted $dev at /mnt/rootfs"
+if ! mount -o policy=deny-missing "$dev" /mnt/rootfs; then
+    log_fail "could not mount $dev at /mnt/rootfs"
+    exit 1
+fi
+log_ok "mounted $dev at /mnt/rootfs"

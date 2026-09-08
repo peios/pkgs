@@ -1,7 +1,6 @@
-# Base metadata shared by the disk-boot packages. Each
-# <name>.package.pekit.toml (disk-boot, disk-boot-irf) inherits these fields
-# and adds its own description, dependencies, and files. Both are buildless —
-# their payloads come from src/.
+# Base metadata shared by the qualified disk-boot packages. Each package
+# fragment inherits these fields and adds its own identity, description,
+# dependencies, and files. Both are buildless: their payloads come from src/.
 #
 # x86_64, not noarch, for the same reason live-boot is: the payloads are a
 # script and a cmdline, but disk-boot-irf depends on the x86_64 userspace
@@ -36,10 +35,27 @@ format = "peipkg"
 # behaviour — the point is the recipe comment, which described the token as
 # load-bearing and would have sent anyone debugging a missing login prompt to
 # the wrong place.
-# 1.0.0-8: the shipped cmdline names no console. The kernel picks one the way
+# -8: the shipped cmdline names no console. The kernel picks one the way
 # it does on any distribution: tty0 on a machine with a display, the serial
 # port otherwise. Development boots that want serial add console=ttyS0
 # themselves (dist/release/Makefile, drive.py, provium). PEI-716.
-version      = "1.0.0-8"
+#
+# 1.0.0-9: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, matching
+# live-boot -16 — see that recipe for the full reasoning. The short version:
+# `ignore_loglevel` made printk ignore the loglevel filter entirely, so an
+# installed system booted at maximum kernel verbosity and peinit's own boot
+# narrative was buried under it. An installed system has more reason to want
+# this than a live medium does, since it is the one someone boots every day.
+# Debugging boots re-add the old pair through the UKI stub's SMBIOS channel,
+# which printk resolves last-wins. PEI-782.
+#
+# 1.0.0-10 is the production-qualified baseline. The package family moves to
+# dev.peios.*, retains the old names as migration capabilities, couples its
+# two halves at the exact release, declares the initramfs root and shell
+# contract explicitly, ships its licence, and tests the root-resolution,
+# filesystem-check, and mount outcomes. The hook also adopts the shared
+# prelude ABI-3 console format. The optional-fsck policy is unchanged.
+version      = "1.0.0-10"
 architecture = "x86_64"
 license      = "MIT"
+homepage     = "https://github.com/peios/pkgs"
