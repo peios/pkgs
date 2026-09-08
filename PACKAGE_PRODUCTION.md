@@ -10,9 +10,9 @@ Work through the 113 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, and build-essentials are complete; `coldplug` is next. If a
-package needs a product or architecture decision, record the question here and
-continue with the next independent package.
+Atrium, authd, build-essentials, and coldplug are complete; `disk-boot` is
+next. If a package needs a product or architecture decision, record the
+question here and continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,18 +61,18 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `dev.peios.build-essentials`, anchored directly in
-  the catalogue at pkgs commit `0f577be`.
-- Completed: **88 / 113** recipes (77.9%).
+- Last completed recipe: `dev.peios.coldplug`, anchored directly in the
+  catalogue at pkgs commit `727d94f`.
+- Completed: **89 / 113** recipes (78.8%).
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
-- Current first-party pass: **3 / 28 published**; `coldplug` is next.
-- Repository after publishing and independently verifying build-essentials
-  1.0.0-6: index version 189, with 783 active and 1,520 archived entries.
+- Current first-party pass: **4 / 28 published**; `disk-boot` is next.
+- Repository after publishing and independently verifying coldplug 1.0.0-3:
+  index version 190, with 784 active and 1,521 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 85 upstream recipes and three completed first-party recipes account for
-the 88 completed recipes. The upstream pass is complete.
+The 85 upstream recipes and four completed first-party recipes account for
+the 89 completed recipes. The upstream pass is complete.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -122,11 +122,11 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-`coldplug` is the next first-party recipe.
+`disk-boot` is the next first-party recipe.
 
 ## Deferred first-party recipes
 
-`disk-boot`, `eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`,
+`eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`, `libpeios`,
 `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peiosutils`, `peipkg`, `pnpd`,
@@ -158,6 +158,11 @@ still needs privileged deletion with
   edge because no active repository package provides it. Close this when the
   first-party `libpeios` recipe is qualified and published; it is a repository
   closure dependency rather than an authd payload defect.
+- Coldplug's legacy `coldplug-irf` goal resolves to its qualified provider, but
+  a clean public-repository composition presently stops at the already-known
+  `peiosutils` dependency on unpublished `libpeios.so.0`. This is a repository
+  closure gap, not a coldplug payload defect; close it with the first-party
+  `libpeios` publication.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
@@ -206,7 +211,41 @@ still needs privileged deletion with
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party completion: build-essentials 1.0.0-6
+## Latest first-party completion: coldplug 1.0.0-3
+
+Coldplug is intentionally one initramfs-only package,
+`dev.peios.coldplug-irf`: eudev owns real-root enumeration and hotplug, so a
+second daemon or real-root package would duplicate ownership. The qualified
+package provides `coldplug-irf = 1.0.0-3` and replaces legacy revisions through
+1.0.0-2. Its direct runtime closure names kmod, peiosutils, the Prelude hook ABI,
+and `sh`; the kernel module set remains an image-specific concern rather than a
+dependency of the hook.
+
+The production pass fixed two behavioural defects. An empty modalias set now
+returns Prelude's declined status 69 rather than falsely reporting success, and
+shell pathname expansion is disabled while expanding modalias values so kernel
+wildcards reach modprobe literally. Driver-change snapshots now use a private
+`mktemp` directory with trap cleanup instead of predictable files in `/tmp`.
+The test-only root indirection is inert in production because Prelude launches
+hooks under an explicit minimal environment.
+
+The six-case shell suite covers absent modprobe, absent module trees, empty
+modalias sets, deterministic deduplication with literal wildcards, newly loaded
+module reporting, and non-fatal per-alias modprobe failures. It passes directly,
+under ShellCheck, through the Debian reference profile, and through the native
+Peios profile. Both profiles package successfully. The payload contains only
+the hook and its MIT licence; compiled debug, development, source, or separate
+documentation packages would be empty or inappropriate initramfs bloat.
+
+The recipe is anchored at catalogue commit `727d94f`; its conservative
+`recipe_ref` has a `+dirty` suffix because unrelated boot recipes remain edited
+in the same catalogue, while the coldplug paths themselves match the commit.
+The signed artifact passed `verify.sh` and canonical `archive.VerifyFormat`.
+Full repository verification at index 190 reports 784 active and 1,521 archived
+packages with no problems. Public documentation was updated at learn commit
+`70f0bb2`.
+
+## Previous first-party completion: build-essentials 1.0.0-6
 
 The distribution-owned build policy is now a four-package stack:
 
