@@ -10,9 +10,12 @@ Work through the 114 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, build-essentials, coldplug, and libpeios are complete;
-`disk-boot` is next. If a package needs a product or architecture decision,
-record the question here and continue with the next independent package.
+Atrium, authd, build-essentials, coldplug, and libpeios are complete.
+`dev.peios.disk-boot` is configured and published, but its runtime closure is
+held open by the pre-0.5-libpeios `peiosutils` binary; productionizing and
+rebuilding peiosutils is therefore the next prerequisite. If a package needs a
+product or architecture decision, record the question here and continue with
+the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,13 +64,15 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last completed recipe: `dev.peios.libpeios`, anchored directly in the
+- Last fully closed recipe: `dev.peios.libpeios`, anchored directly in the
   catalogue at pkgs commit `4734895`.
 - Completed: **91 / 114** recipes (79.8%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **5 / 28 published**; `disk-boot` is next.
-- Repository after publishing and independently verifying libpeios 0.5.0-1:
-  index version 192, with 794 active and 1,531 archived entries.
+- Current first-party pass: **6 / 28 published**, **5 / 28 runtime-closed**.
+  `dev.peios.disk-boot` closes as soon as peiosutils is rebuilt against the
+  libpeios 0.5 ABI.
+- Repository after publishing and independently verifying disk-boot 1.0.0-10:
+  index version 193, with 796 active and 1,533 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -123,7 +128,10 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-`disk-boot` is the next first-party recipe.
+`dev.peios.disk-boot` 1.0.0-10 is published but remains open on its runtime
+closure. Productionize/rebuild peiosutils against libpeios 0.5, rerun the
+installed initramfs applet smoke, then close disk-boot and continue with
+`fsbase`.
 
 ## Deferred first-party recipes
 
@@ -158,6 +166,14 @@ still needs privileged deletion with
   closed by `dev.peios.libpeios` 0.5.0-1. A clean compose lock containing both
   top-level products resolves the qualified runtime in the anchor and named
   initramfs roots.
+- Resolution is not sufficient for pre-baseline libpeios consumers. Published
+  `peiosutils` 0.1.4-15 references the removed `peios_token_session_id` export,
+  so its multicall binary fails before `main` against libpeios 0.5.0-1. This
+  blocks executable boot closure for coldplug, disk-boot, fsbase, and live-boot
+  even though the SONAME-only dependency resolves. Rebuild peiosutils against
+  current peios-rs/libpeios and add an installed-root applet smoke; do not
+  restore the deliberately omitted ambiguous C export merely to bless an old
+  pre-0.5 binary.
 - Package GNU Readline separately and then enable it in Bash and `bc`.
   This was previously Acta item PEI-613 (`7qq9qu2h`).
 - Allow recipes to declare precise source-package license metadata; until
@@ -206,7 +222,58 @@ still needs privileged deletion with
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party completion: libpeios 0.5.0-1
+## Latest first-party publication: disk-boot 1.0.0-10
+
+The installed-system boot family is now published under
+`dev.peios.disk-boot` and `dev.peios.disk-boot-irf`, anchored in the catalogue
+at commit `5782669`; public boot documentation is commit `77b4480`. The main
+package owns the install-time cmdline template and has an exact cross-root
+dependency on the same-release initramfs hook. The hook declares
+`default_root = "initramfs"`, conflicts symmetrically with `live-boot-irf`,
+and retains `disk-boot` / `disk-boot-irf` migration capabilities while
+replacing the unqualified family through 1.0.0-9.
+
+Revision 10 includes the already-published PEI-782 cmdline change
+(`loglevel=4`, no `ignore_loglevel`) and completes the production pass with
+an explicit shell dependency, peiosutils 0.1.4 floor, prelude hook ABI 3,
+shipped MIT licence text, shared boot-console outcome logging, literal kernel
+argument handling, and explicit mount-failure attribution. The existing
+optional-fsck policy is unchanged: journal replay remains the baseline, status
+1 is accepted after an automatic repair, and any status above 1 stops before
+mounting.
+
+The behavioural suite covers ten paths: invalid test-root isolation, missing
+runtime tools, missing and unsupported root specifications, last-root-wins tag
+resolution, glob-looking tag data, bounded discovery retries, corrected and
+failed fsck results, and mount failure. ShellCheck, direct Dash execution, the
+Debian package-root test, and the native Peios package-root test pass. Both
+packages pass `verify.sh` and canonical `archive.VerifyFormat`; their published
+pool and repository copies are byte-identical. A compose lock places only the
+IRF half and its closure in `boot/initramfs`, and a negative lock correctly
+rejects it alongside `live-boot-irf`. After the eighteen old loose development
+artifacts were moved recoverably to
+`_pkgsOut_/archive/superseded-disk-boot-development/`, the legacy `disk-boot`
+goal also resolves to the qualified provider.
+
+Repository publication is index 193 (796 active, 1,533 archived), and full
+repository verification reports no problems. Published SHA-256 values:
+
+- `dev.peios.disk-boot`:
+  `2cb5ed50e2b526af7a6d3bc30a88606130499d12c3079fd3b6908a78dac0f944`
+- `dev.peios.disk-boot-irf`:
+  `94824abf3c085f482d6236b50cb5b3f8c2e3b8e2d38323b1c6d0fabcae0ae680`
+
+Runtime closure is not yet called complete. The native test's original
+peiosutils-backed harness exposed that the published `peiosutils` 0.1.4-15
+multicall binary still has an undefined reference to the removed pre-baseline
+`peios_token_session_id` export. Against `dev.peios.libpeios` 0.5.0-1 every
+applet fails at dynamic-load time. The hook test therefore uses packaged GNU
+coreutils only as an isolated test harness; the shipped hook correctly retains
+peiosutils as its runtime dependency. Rebuild peiosutils against current
+peios-rs/libpeios, then execute `lsblk`, `mount`, `cat`, and `sleep` from the
+composed initramfs root before counting this recipe closed.
+
+## Previous first-party completion: libpeios 0.5.0-1
 
 libpeios is now the first published, qualified Peios C ABI baseline. The
 source is public at `https://github.com/peios/libpeios`, commit `4e71047`, with
