@@ -1,0 +1,131 @@
+# cbindgen 0.29.2 is the deterministic generator for libpeios's checked C-ABI
+# snapshot. It is intentionally exact: changing generator versions is a
+# reviewed source-format transition, not an automatic tool update.
+
+out_dir = "out"
+
+[source_package]
+name = "org.mozilla.cbindgen-source"
+
+[source.url]
+url      = "https://static.crates.io/crates/cbindgen/cbindgen-{{version}}.crate"
+extract  = true
+root     = "cbindgen-{{version}}"
+versions = "= 0.29.2"
+
+[build.vendor]
+command = '''
+set -eu
+SRC=$(pwd -P)
+export CARGO_HOME=/tmp/cargo
+mkdir -p "$CARGO_HOME" "$PEKIT_OUT"
+cd "$SRC"
+cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
+test -s "$PEKIT_OUT/cargo-config.toml"
+test -n "$(find "$PEKIT_OUT/vendor" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+'''
+
+[build.vendor.dependencies.peipkg]
+"org.rust-lang.rust" = ">= 1.98.1"
+
+[build.vendor.dependencies.apt]
+cargo           = "*"
+ca-certificates = "*"
+
+[build.main]
+needs = ["vendor"]
+command = '''
+set -eu
+set -o pipefail 2>/dev/null || true
+
+SRC=$(pwd -P)
+export CARGO_HOME="$PEKIT_OUT/cargo-home"
+mkdir -p "$CARGO_HOME"
+cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+
+test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = "$PEKIT_VERSION"
+
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$PEKIT_WORKSPACE_ROOT=/usr/src/debug/org.mozilla.cbindgen/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=/usr/src/debug/org.mozilla.cbindgen/.build --remap-path-prefix=$SRC=/usr/src/debug/org.mozilla.cbindgen --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=/usr/src/debug/org.mozilla.cbindgen/vendor"
+
+# The full upstream fixture matrix compiles every case as C, C++, and Cython.
+# Peios needs the C/C++ generator and deliberately does not acquire Cython just
+# for this build tool. Run the crate's unit suites, then exercise both required
+# output languages end to end below.
+cargo test --release --locked --offline --lib --bins --target-dir "$PEKIT_OUT/target"
+cargo build --release --locked --offline --target-dir "$PEKIT_OUT/target"
+test "$("$PEKIT_OUT/target/release/cbindgen" --version)" = "cbindgen $PEKIT_VERSION"
+
+"$PEKIT_OUT/target/release/cbindgen" --lang c \
+  --output "$PEKIT_OUT/smoke.h" "$SRC/tests/rust/struct.rs"
+"$PEKIT_OUT/target/release/cbindgen" --lang c++ \
+  --output "$PEKIT_OUT/smoke.hpp" "$SRC/tests/rust/struct.rs"
+gcc -DDEFINED -I "$SRC/tests" -fsyntax-only -xc "$PEKIT_OUT/smoke.h"
+g++ -DDEFINED -I "$SRC/tests" -std=c++17 -fsyntax-only -xc++ "$PEKIT_OUT/smoke.hpp"
+rm -f "$PEKIT_OUT/smoke.h" "$PEKIT_OUT/smoke.hpp"
+
+BIN="$PEKIT_OUT/usr/bin/cbindgen"
+mkdir -p "$PEKIT_OUT/usr/bin"
+cp "$PEKIT_OUT/target/release/cbindgen" "$BIN"
+
+LIST="$PEKIT_OUT/.debug-sources"
+debugedit -b "$SRC" -d /usr/src/debug/org.mozilla.cbindgen -l "$LIST" -n "$BIN"
+BUILD_ID=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$BUILD_ID"
+FIRST=$(printf %s "$BUILD_ID" | cut -c1-2)
+REST=$(printf %s "$BUILD_ID" | cut -c3-)
+DEBUG="$PEKIT_OUT/usr/lib/debug/.build-id/$FIRST/$REST.debug"
+mkdir -p "$(dirname "$DEBUG")"
+objcopy --only-keep-debug "$BIN" "$DEBUG"
+strip --strip-unneeded "$BIN"
+objcopy --add-gnu-debuglink="$DEBUG" "$BIN"
+
+DEBUG_ROOT="$PEKIT_OUT/usr/src/debug/org.mozilla.cbindgen"
+mkdir -p "$DEBUG_ROOT"
+tr '\0' '\n' < "$LIST" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  case "$rel" in
+    vendor/*) ORIGIN="$PEKIT_VENDOR_OUT/$rel" ;;
+    *)        ORIGIN="$SRC/$rel" ;;
+  esac
+  [ -f "$ORIGIN" ] || continue
+  mkdir -p "$DEBUG_ROOT/$(dirname "$rel")"
+  cp "$ORIGIN" "$DEBUG_ROOT/$rel"
+done
+rm -f "$LIST"
+test -n "$(find "$DEBUG_ROOT" -type f -print -quit)"
+
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$BIN" | grep -q 'GNU_RELRO'
+readelf -lW "$BIN" | grep -Eq 'GNU_STACK[[:space:]].*RW[[:space:]]'
+readelf -dW "$BIN" | grep -q 'BIND_NOW'
+readelf -dW "$BIN" | grep -Eq 'FLAGS_1.*PIE'
+! readelf -dW "$BIN" | grep -Eq '(RPATH|RUNPATH)'
+! readelf -SW "$BIN" | grep -q '\.debug_info'
+readelf -SW "$DEBUG" | grep -q '\.debug_info'
+test "$(readelf -n "$DEBUG" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" = "$BUILD_ID"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"      = "*"
+peiosutils                  = "*"
+"org.gnu.findutils"        = "*"
+"org.gnu.grep"             = "*"
+"org.gnu.sed"              = "*"
+"org.rust-lang.rust"       = ">= 1.98.1"
+"org.gnu.gcc-c++"          = ">= 16, < 17"
+"org.gnu.binutils"         = "*"
+"org.sourceware.debugedit" = "*"
+
+[build.main.dependencies.apt]
+dash       = "*"
+coreutils  = "*"
+findutils  = "*"
+grep       = "*"
+sed        = "*"
+cargo      = "*"
+rustc      = "*"
+gcc        = "*"
+"g++"      = "*"
+binutils   = "*"
+debugedit  = "*"

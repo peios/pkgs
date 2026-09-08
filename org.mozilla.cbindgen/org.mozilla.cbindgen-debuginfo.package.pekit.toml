@@ -1,0 +1,10 @@
+[package]
+name        = "org.mozilla.cbindgen-debuginfo"
+description = "cbindgen debugging symbols"
+
+[dependencies]
+"org.mozilla.cbindgen" = "= {{version}}-1"
+
+[files]
+"@source:LICENSE"       = "usr/share/licenses/org.mozilla.cbindgen-debuginfo/LICENSE"
+":usr/lib/debug/**"     = "usr/lib/debug"

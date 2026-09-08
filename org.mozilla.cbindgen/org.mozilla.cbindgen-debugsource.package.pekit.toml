@@ -1,0 +1,11 @@
+[package]
+name         = "org.mozilla.cbindgen-debugsource"
+architecture = "noarch"
+description  = "cbindgen debug sources"
+
+[dependencies]
+"org.mozilla.cbindgen-debuginfo" = "= {{version}}-1"
+
+[files]
+"@source:LICENSE"         = "usr/share/licenses/org.mozilla.cbindgen-debugsource/LICENSE"
+":usr/src/debug/**"       = "usr/src/debug"

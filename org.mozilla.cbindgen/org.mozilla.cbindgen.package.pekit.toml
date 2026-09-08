@@ -1,0 +1,10 @@
+[package]
+name        = "org.mozilla.cbindgen"
+description = "cbindgen Rust-to-C/C++ bindings generator"
+
+[provides]
+cbindgen = "{{version}}-1"
+
+[files]
+"@source:LICENSE"      = "usr/share/licenses/org.mozilla.cbindgen/LICENSE"
+":usr/bin/cbindgen"    = "usr/bin/cbindgen"
