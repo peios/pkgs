@@ -1,0 +1,10 @@
+format = "peipkg"
+
+[package]
+# 1.0.0-3 productionizes the hook: reverse-DNS identity, exact runtime
+# contracts, shared boot-console logging, secure temporary files, consistent
+# declined outcomes, literal modalias forwarding, and behavioural tests.
+version      = "1.0.0-3"
+architecture = "x86_64"
+license      = "MIT"
+homepage     = "https://github.com/peios/pkgs"

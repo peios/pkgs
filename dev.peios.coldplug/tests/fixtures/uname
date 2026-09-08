@@ -1,0 +1,6 @@
+#!/usr/bin/sh
+if [ "${1:-}" = "-r" ]; then
+    printf '%s\n' test-release
+    exit 0
+fi
+exit 64

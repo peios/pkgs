@@ -1,0 +1,26 @@
+# A single initramfs package is the complete product boundary. It has no
+# real-root companion: eudev owns that lifecycle after hand-off.
+
+[package]
+name         = "dev.peios.coldplug-irf"
+default_root = "initramfs"
+description  = "Peios initramfs coldplug hook"
+
+[provides]
+coldplug-irf = "1.0.0-3"
+
+[replaces]
+coldplug-irf = "<= 1.0.0-2"
+
+[dependencies]
+"org.kernel.kmod" = ">= 34.2"
+peiosutils         = ">= 0.1.4"
+sh                 = ">= 1"
+# ABI 3 supplies hook-log.sh as well as contributes/declined semantics.
+prelude-hook-abi   = ">= 3"
+
+# The kernel module set remains an image decision. Depending on a particular
+# kernel-modules-irf here would couple this versionless hook to one kernel.
+[files]
+"src/load-drivers.sh" = "usr/libexec/prelude/hooks.d/load-drivers.sh"
+"docs/LICENSE"        = "usr/share/licenses/dev.peios.coldplug-irf/LICENSE"

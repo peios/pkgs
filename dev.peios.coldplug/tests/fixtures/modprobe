@@ -1,0 +1,10 @@
+#!/usr/bin/sh
+printf '%s\n' "$*" > "$PEIOS_COLDPLUG_TEST_LOG"
+status=${PEIOS_COLDPLUG_MODPROBE_STATUS:-0}
+if [ "$status" -eq 0 ]; then
+    {
+        printf '%s\n' 'existing 1 0 - Live 0x0'
+        printf '%s\n' 'newmodule 1 0 - Live 0x0'
+    } > "$PEIOS_COLDPLUG_TEST_ROOT/proc/modules"
+fi
+exit "$status"

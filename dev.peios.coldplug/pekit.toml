@@ -1,0 +1,19 @@
+# Peios initramfs coldplug: load modules for hardware already enumerated before
+# a root-mount hook needs its storage device (PEI-58).
+#
+# This is deliberately initramfs-only. The real root's device manager performs
+# continuous coldplug/hotplug and stable-name creation; installing another
+# one-shot implementation there would duplicate ownership.
+
+out_dir = "out"
+
+[test]
+command = "tests/test-load-drivers.sh"
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5"
+peiosutils             = ">= 0.1.4"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"
