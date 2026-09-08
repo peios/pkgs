@@ -10,9 +10,9 @@ Work through the 114 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, and peiosutils
-are complete. If a package needs a product or architecture decision, record
-the question here and continue with the next independent package.
+Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils, and
+fsbase are complete. If a package needs a product or architecture decision,
+record the question here and continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,19 +61,18 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.disk-boot`, closed against the published
-  `dev.peios.peiosutils` 0.8.2-1 closure anchored at pkgs commit `0bcaf47`.
-- Completed: **93 / 114** recipes (81.6%).
+- Last fully closed recipe: `dev.peios.fsbase` 1.0.0-10, anchored directly in
+  the catalogue at pkgs commit `d3af9c4`.
+- Completed: **94 / 114** recipes (82.5%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **7 / 28 published**, **7 / 28 runtime-closed**.
-- Repository after publishing peiosutils 0.8.2-1 and independently verifying
-  the disk-boot closure: index version 195, with 801 active and 1,539 archived
-  entries.
+- Current first-party pass: **8 / 28 published**, **8 / 28 runtime-closed**.
+- Repository after publishing and independently verifying fsbase 1.0.0-10:
+  index version 196, with 804 active and 1,542 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and seven completed first-party recipes account for
-the 93 completed recipes. The upstream total grew by one when exact cbindgen
+The 86 upstream recipes and eight completed first-party recipes account for
+the 94 completed recipes. The upstream total grew by one when exact cbindgen
 0.29.2 became a packaged prerequisite for the libpeios ABI gate.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
@@ -124,11 +123,12 @@ still needs privileged deletion with
 
 ## Remaining current-pass recipes
 
-Continue with `fsbase`.
+Continue with `eventd`; if its product boundaries need a decision, record the
+question and continue to the next independent first-party recipe.
 
 ## Deferred first-party recipes
 
-`eventd`, `feat-dynamic-boot`, `fsbase`, `kernel`,
+`eventd`, `feat-dynamic-boot`, `kernel`,
 `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peipkg`, `pnpd`,
@@ -213,7 +213,53 @@ Continue with `fsbase`.
   in the unregistered LLVM worktree needs interactive privileged deletion
   because its build namespace left files owned by another uid.
 
-## Latest first-party publication: peiosutils 0.8.2-1
+## Latest first-party publication: fsbase 1.0.0-10
+
+The base-filesystem family is now published as `dev.peios.fsbase`,
+`dev.peios.fsbase-irf`, and `dev.peios.fsbase-stratafs-mount-hooks`, anchored
+at catalogue commit `d3af9c4`; the public package-name documentation is learn
+commit `e5edc26`. The first package owns the main-root skeleton and the
+protected `/home` and `/tmp` security descriptors; the second owns the smaller
+independently executing initramfs skeleton; the third owns the two inseparable
+hooks that mount the matching StrataFS view graph in those roots.
+Keeping the hooks separate from the skeletons preserves the option to compose
+the filesystem layout without selecting StrataFS, while keeping both hooks in
+one package prevents their common view policy from drifting.
+
+The three identities provide their former unqualified names and replace those
+packages through 1.0.0-9. They carry explicit homepage, architecture, licence,
+and migration metadata, and each binary package ships its MIT licence. The
+hook package now depends directly on `dev.peios.peiosutils` from the 0.8.2
+baseline and on Prelude hook ABI 3. The previously pending console-format
+change is complete, including correction of an interrupted edit that printed
+an `OK` line before the mounted-root mount had actually succeeded.
+
+The new suite fixes and exercises the main/initramfs directory split, the
+psABI `/lib64` links, all sixteen exact StrataFS mount calls, canonical paths
+inside the mounted-root chroot, absolute test-root isolation, and successful
+and failed mount reporting. It passes on both the Debian and native Peios
+rungs. A clean compose places both hooks and their qualified runtime closure
+under `boot/initramfs`, reproduces exactly the two intended `/home` and `/tmp`
+security-descriptor records, and confirms that installed hook bytes match the
+tested sources.
+
+All three signed packages pass `verify.sh` and canonical repository format and
+signature verification. A repository-only compose requested the three legacy
+names and resolved each to its qualified 1.0.0-10 provider. The corresponding
+old flat-pool artifacts were moved recoverably to
+`_pkgsOut_/archive/reverse-dns-migrated/`, and both native build-root generators
+now seed `dev.peios.fsbase` directly. Publication is repository index 196, with
+804 active and 1,542 archived entries; full repository verification reports no
+problems. Published SHA-256 values:
+
+- `dev.peios.fsbase`:
+  `3db3e469b86d63ae9df6dea2bb8e6b1673e3c20b7a04e844d5cec4656d2737c3`
+- `dev.peios.fsbase-irf`:
+  `ed44b05fa7b423214fcf09df527ebdbb4a2b5421b16521951672b30227a4b18a`
+- `dev.peios.fsbase-stratafs-mount-hooks`:
+  `c755c60485c11a725925b4c622f017e2e468a834ca1bc1cff7fa6507bca3a230`
+
+## Previous first-party publication: peiosutils 0.8.2-1
 
 Peiosutils is now published as `dev.peios.peiosutils`,
 `dev.peios.peiosutils-common`, `dev.peios.peiosutils-debuginfo`,
@@ -854,6 +900,6 @@ Published SHA-256 values:
 
 ## Worktree guardrail
 
-The main worktree currently contains unrelated edits to `fsbase`, `live-boot`,
-and `peios-experimental`. Preserve them. Perform package work in isolated
-worktrees and integrate only reviewed commits.
+The main worktree currently contains unrelated edits to `live-boot` and
+`peios-experimental`. Preserve them. Perform package work in isolated worktrees
+and integrate only reviewed commits.
