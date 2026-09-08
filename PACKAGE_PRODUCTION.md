@@ -65,9 +65,9 @@ A completed upstream package normally has all of the following:
 - Current upstream/dependency pass: **85 / 85** recipes (100%).
 - Current first-party pass: **0 / 28 published**; Atrium is packaging-complete
   on the host rung but blocked from release by the source/toolchain items below.
-- Repository after publishing and independently verifying LLVM 22.1.8: index
-  version 185, with 756 active and 1,483 archived entries. Rolling Rust 1.98.1
-  is now building against that verified toolchain.
+- Repository after publishing and independently verifying LLVM 22.1.8 and
+  rolling Rust 1.98.1: index version 186, with 756 active and 1,493 archived
+  entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -76,11 +76,11 @@ directories. The upstream pass is complete.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
-Package-recipe changes are committed through `667ab59` (`Close LLVM current
-test environment`). The unrelated first-party edits were restored without
-conflict after LLVM publication; they remain deliberately uncommitted in the
-main worktree. Rolling Rust is isolated in its clean temporary worktree and is
-running in the detached `peios-rust-publish` tmux session.
+The exact rolling-Rust publication fix is commit `eec1f31` (`Skip empty Rust
+debug companions`) and has been merged into `pkgs/main`, preserving the recipe
+reference recorded by the signed packages. The unrelated first-party edits
+were restored without conflict after LLVM publication and remain deliberately
+uncommitted in the main worktree.
 
 Completed and published:
 
@@ -90,7 +90,10 @@ Completed and published:
   183 and 184 respectively; and
 - current `org.llvm`/`org.llvm.clang`/`org.llvm.lld` 22.1.8 as a 15-package
   runtime, development, static, debug-info, debug-source, and corresponding-
-  source family at repository index 185.
+  source family at repository index 185; and
+- rolling `org.rust-lang.rust` 1.98.1 as a 10-package compiler, Cargo,
+  rustfmt, standard-library, source, debug-info, and debug-source family at
+  repository index 186.
 
 LLVM's final native run passed every supported upstream test: LLD passed 2,069
 with 1,111 unsupported; Clang passed 44,524 with 5,200 unsupported and 24
@@ -99,19 +102,22 @@ failures. There were no unexpected failures. All 15 signed artifacts passed
 both `verify.sh` and canonical `archive.VerifyFormat`; full repository
 verification reports no problems.
 
+Rust's native self-hosting build and installed compiler, Cargo, rustdoc,
+rustfmt, offline-Cargo, licence-closure, LLVM-linkage, hardening, debug/source,
+and package-split gates passed. All 10 signed artifacts passed both archive
+verifiers, and the repository re-verification at index 186 reports no problems.
+
 Resume order:
 
-1. allow the detached rolling Rust 1.98.1 publication to finish, then verify
-   every artifact with both archive verifiers and run `peipkg-repo verify`;
-2. rebuild and test PKM with its exact Rust 1.83.0 and LLVM 18.1.8 pins; and
-3. commit only the validated PKM `pekit.toml` change, preserving unrelated
+1. rebuild and test PKM with its exact Rust 1.83.0 and LLVM 18.1.8 pins; and
+2. commit only the validated PKM `pekit.toml` change, preserving unrelated
    `audits/` and `evman/` content.
 
-Worktree cleanup remains deliberately deferred. The temporary toolchain
-worktree is needed until rolling Rust is published. The old Rust worktree has
-a 17 GiB artifact pool containing 2,057 filenames absent from the signed repo
-and requires an informed discard decision. The unregistered LLVM worktree
-remnant still needs privileged deletion with
+The temporary toolchain worktree is no longer needed once its build output has
+served the PKM validation and may then be removed. The old Rust worktree has a
+17 GiB artifact pool containing 2,057 filenames absent from the signed repo and
+requires an informed discard decision. The unregistered LLVM worktree remnant
+still needs privileged deletion with
 `sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
 
 ## Remaining current-pass recipes
