@@ -1,6 +1,12 @@
 # GNU's command binaries and the stdbuf preload helper. This package is an
 # explicit bootstrap tool, not Peios's installed-system userland.
 
+excludes = [
+  ":usr/bin/chgrp",
+  ":usr/bin/chmod",
+  ":usr/bin/chown",
+]
+
 [package]
 name        = "org.gnu.coreutils"
 description = "GNU core utilities - bootstrap build-base userland"
@@ -9,7 +15,8 @@ description = "GNU core utilities - bootstrap build-base userland"
 coreutils = "{{version}}"
 
 [dependencies]
-"org.gnu.coreutils-common" = "{{version}}-1"
+"org.gnu.coreutils-build-compat" = "{{version}}-2"
+"org.gnu.coreutils-common"       = "{{version}}-2"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils/"
