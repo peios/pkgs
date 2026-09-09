@@ -121,14 +121,65 @@ requires an informed discard decision. The unregistered LLVM worktree remnant
 still needs privileged deletion with
 `sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
 
+## Previous first-party completion: eventd 0.1.0-10
+
+Eventd is now published as a production family rather than its former
+unqualified monolith:
+
+- `dev.peios.eventd` owns the critical daemon, inert configuration and service
+  seeds, regman policy, and protected empty state-directory skeleton;
+- `dev.peios.evctl` is an independently installable native query client;
+- each ELF has its own debuginfo package;
+- one noarch debugsource package covers their shared Rust source graph; and
+- `dev.peios.eventd-source` carries the exact public Git release and packaging
+  controls.
+
+The main package depends on the exact matching evctl package so migration from
+the old monolith cannot silently remove the client, while evctl remains usable
+without installing the service. Both qualified runtime boundaries carry the
+appropriate legacy replacement metadata through `eventd` 0.1.0-9. The service
+also declares its non-ELF dependency on the production authd authority.
+
+The source is public at `https://github.com/peios/eventd`, commit `0521f34`,
+with the intentionally unsigned immutable tag `v0.1.0`; the catalogue locks
+that commit at `d809d9c` and moves the recipe to `dev.peios.eventd`. The release
+replaces mutable sibling `peios-rs` paths with the reviewed exact public commit
+`f4309f7`, vendors the complete Cargo.lock graph, and compiles offline against
+the packaged libpeios 0.5 ABI using rolling Rust 1.98.1 and LLVM 22.
+
+The native package build and the independent test target each passed all 105
+Rust tests. Installed-payload gates validate evctl dispatch and versioning, the
+six mandatory configuration paths, the exact `/usr/sbin/eventd` service image,
+SYSTEM/critical/authd service policy, empty mutable stores, regman delivery,
+PIE, full RELRO, BIND_NOW, NX stack, libpeios SONAME linkage, split-debug
+integrity, and absence of checkout/build path leaks. All six signed artifacts
+pass the strict shell verifier and canonical package parsing/resolution. Full
+repository verification at index 197 reports 810 active and 1,548 archived
+packages with no problems.
+
+Published SHA-256 values:
+
+- `dev.peios.eventd`:
+  `bd442bb8812d3f6421067af59c25810e24c0bfe929bacf28a15547d91b610bab`
+- `dev.peios.evctl`:
+  `92f9af8e6988d55a8b86567a16ce372f9f0fd24e57360d11bcd730de8875da1d`
+- `dev.peios.eventd-debuginfo`:
+  `69d9f0d787cdfbf8f4184297a993ebb2e75cdb74a53b5aee0c71a4976066c2cd`
+- `dev.peios.evctl-debuginfo`:
+  `d777ed3d533709ddbaed365b48ec00ab30dbd36e8f78f8b33fbda1c7710e0468`
+- `dev.peios.eventd-debugsource`:
+  `24ff6b829b6c1f297801088586e83dd0e68d1b216379f2c27af05604bcf907a4`
+- `dev.peios.eventd-source`:
+  `78c0358167763234d5ddef2f576dbeed6bd824572abb19c5ccc8735e290862c2`
+
 ## Remaining current-pass recipes
 
-Continue with `eventd`; if its product boundaries need a decision, record the
-question and continue to the next independent first-party recipe.
+Continue with `feat-dynamic-boot`; if its product boundaries need a decision,
+record the question and continue to the next independent first-party recipe.
 
 ## Deferred first-party recipes
 
-`eventd`, `feat-dynamic-boot`, `kernel`,
+`feat-dynamic-boot`, `kernel`,
 `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peipkg`, `pnpd`,
