@@ -11,9 +11,9 @@ standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
 Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils,
-fsbase, Dynamic Boot, and live-boot are complete. If a package needs a product or
-architecture decision, record the question here and continue with the next
-independent package.
+fsbase, Dynamic Boot, live-boot, and peios-install are complete. If a package
+needs a product or architecture decision, record the question here and
+continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -62,20 +62,40 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.live-boot` 1.0.0-19, anchored in the
-  catalogue at pkgs commit `8249d83`.
-- Completed: **96 / 114** recipes (84.2%).
+- Last fully closed recipe: `dev.peios.peios-install` 0.3.0-8, anchored in the
+  catalogue at pkgs commit `d1df5aa`.
+- Completed: **97 / 114** recipes (85.1%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **10 / 28 published**, **10 / 28 runtime-closed**.
-- Repository after publishing and independently verifying live-boot 1.0.0-19
-  and the installer migration revision: index version 205, with 819 active and 1,578
-  archived entries.
+- Current first-party pass: **11 / 28 published**, **11 / 28 runtime-closed**.
+- Repository after publishing and independently verifying the qualified
+  installer: index version 206, with 820 active and 1,579 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and ten completed first-party recipes account for the
-96 completed recipes. The upstream total grew by one when exact cbindgen
+The 86 upstream recipes and eleven completed first-party recipes account for
+the 97 completed recipes. The upstream total grew by one when exact cbindgen
 0.29.2 became a packaged prerequisite for the libpeios ABI gate.
+
+## Peios installer production release: 0.3.0-8
+
+`dev.peios.peios-install` is the qualified successor to `peios-install` and
+provides/replaces the unqualified identity through 0.3.0-7. Its runtime closure
+now names the qualified peiosutils, e2fsprogs, and dosfstools packages plus the
+shell and peipkg interfaces it actually invokes. The package ships its MIT
+licence and an installed script staged by the build rather than taking an
+unchecked recipe-tree file directly.
+
+The audit fixed a real refusal-path bug: negating `part create` before reading
+`$?` discarded exit status 3, so a protected existing partition table could
+never produce the promised `--force` guidance. A dedicated helper now retains
+the original status. Syntax and fixture tests cover block-device discovery,
+mounted-device refusal, direct and NVMe partition names, force propagation,
+the deliberate-refusal diagnostic, generic partitioning failure, and exact
+staged-payload identity. Debian and native Peipkg package rungs both pass.
+
+The signed artifact was published at repository index 206. Full repository
+verification reports 820 active and 1,579 archived entries with no problems.
+SHA-256: `b961132cd28d779e49ab44d22f66e940970babb3e94ac412b5e412306ac4bd4f`.
 
 ## Live-boot production release: 1.0.0-19
 
@@ -361,20 +381,77 @@ Published SHA-256 values:
 
 ## Remaining current-pass recipes
 
-The native `dev.peios.kernel` publication is active in the background. Continue
-the foreground pass with `loregd`; if its product boundaries need a decision,
-record the question and continue to the next independent first-party recipe.
+The native `dev.peios.kernel` publication is active in the background. Peinit
+0.0.2 is committed and tagged locally with its seven-package production split;
+its native build waits for the new kernel headers and its remote lock waits for
+explicit approval to push that source commit and tag. `loregd`, `mockinit`, and
+`netd` are audited but blocked as recorded below. `peios-dwe` and
+`peios-kernel-only` explicitly forbid public publication, and the experimental
+edition has a pre-existing uncommitted change. Continue the foreground pass
+with `peipkg`.
 
 ## Deferred first-party recipes
 
 `kernel`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
-`peios-install`, `peios-kernel-only`, `peipkg`, `pnpd`,
+`peios-kernel-only`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
 `dev.peios.oobe` and `dev.peios.peios-installer` recipes.
 
 ## Follow-ups and known blockers
 
+- `loregd` cannot meet the native-rung acceptance gate until Peios has a Go
+  toolchain package. Its current module requires Go 1.26.1, while the signed
+  package pool contains no Go compiler at all; the existing recipe therefore
+  builds only by inheriting the host toolchain and undeclared network module
+  downloads. Productionisation needs an authenticated, bootstrapped Go recipe,
+  then a vendored/offline build plus runtime, debuginfo, debugsource, and source
+  packages. The source checkout was deliberately left untouched: it is two
+  commits ahead of `origin/main` and also contains uncommitted logging/package
+  edits associated with the peinit Phase-1 relay change.
+- `mockinit` is explicitly a throwaway, pre-peinit PID-1 stand-in. Publishing
+  it as a production runtime would preserve temporary service and security
+  assumptions that the real peinit has replaced. Decide whether to delete it
+  from the public catalogue or retain it under a clearly test-only identity.
+- `netd` has a sensible daemon/operator-client split, but its clean source
+  checkout has no remote or release tags and its build consumes undeclared
+  sibling peios-rs, libpeios, and PKM trees. It needs a public source/provenance
+  home before a hermetic release can be locked and published.
+- `peios-dwe` and `peios-kernel-only` are intentionally non-public recipes.
+  The former grants unauthenticated SYSTEM access for a DWE guest and its own
+  security policy forbids repository publication; the latter is a kernel
+  conformance fixture with no init or userspace. Keep both available to their
+  controlled image/test workflows but out of the public repository.
+- `peios-experimental` carries an existing uncommitted 0.3.0-9 trust-floor
+  correction in the main worktree. Preserve it and defer the edition audit
+  until that concurrent change is ready to incorporate.
+- `peipkg` is also blocked on the authenticated Go bootstrap. The clean public
+  source requires Go but the native signed pool has no Go compiler, so its
+  current package can only be reproduced with an undeclared host toolchain.
+  Once Go is packaged, release the source from a new immutable version and
+  split the static `peipkg` consumer, `peipkg-compose` image builder, and
+  `peipkg-repo` publisher/verifier into independently installable packages,
+  with conventional debug and corresponding-source companions.
+- `pnpd` has no source remote or release tags, and its existing recipe falls
+  back to undeclared sibling peios-rs, libpeios, and built PKM header trees.
+  Give the PNP source repository a public provenance home before replacing
+  those fallbacks with immutable Rust inputs and the packaged libpeios/kernel
+  development interfaces.
+- `prelude` has a public remote and historical tags, but its source checkout
+  currently contains pre-existing modifications to `crates/prelude/src/main.rs`
+  and `package.pekit.toml` plus an untracked `src/` tree. Preserve that work and
+  defer the release audit until its ownership and intended contents are clear.
+- `resolvd`, `timed`, and `trustd` each have clean, substantial Rust source
+  trees and plausible existing package splits, but none has a configured source
+  remote or immutable release tag and all three catalogue recipes are
+  local-only. Establish public source provenance before qualifying their build
+  graphs and publishing them.
+- `dev.peios.oobe` and `dev.peios.peios-installer` are already qualified by
+  name, but both build from the same local-only `installer` checkout and its
+  sibling path dependency on the local-only `msip` repository. Neither source
+  repository has a remote or immutable release tags. Publish and pin both
+  source graphs before auditing the daemon/UI/package splits and releasing
+  them.
 - `fsbase` security-descriptor overrides made the unprivileged package root
   expose a missing CLI surface rather than a package defect. Peipkg commit
   `76b65f4` adds deterministic `--record-xattrs` JSONL output using the
