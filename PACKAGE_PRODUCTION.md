@@ -10,9 +10,10 @@ Work through the 114 recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils, and
-fsbase are complete. If a package needs a product or architecture decision,
-record the question here and continue with the next independent package.
+Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils,
+fsbase, and Dynamic Boot are complete. If a package needs a product or
+architecture decision, record the question here and continue with the next
+independent package.
 
 ## First-party namespace and acceptance
 
@@ -61,18 +62,18 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.fsbase` 1.0.0-10, anchored directly in
-  the catalogue at pkgs commit `d3af9c4`.
-- Completed: **94 / 114** recipes (82.5%).
+- Last fully closed recipe: `dev.peios.feat-dynamic-boot` 1.0.0-1, anchored in
+  the catalogue at pkgs commit `ff6e85c`.
+- Completed: **95 / 114** recipes (83.3%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **8 / 28 published**, **8 / 28 runtime-closed**.
-- Repository after publishing and independently verifying fsbase 1.0.0-10:
-  index version 196, with 804 active and 1,542 archived entries.
+- Current first-party pass: **9 / 28 published**, **9 / 28 runtime-closed**.
+- Repository after publishing and independently verifying Dynamic Boot
+  1.0.0-1: index version 199, with 811 active and 1,554 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and eight completed first-party recipes account for
-the 94 completed recipes. The upstream total grew by one when exact cbindgen
+The 86 upstream recipes and nine completed first-party recipes account for the
+95 completed recipes. The upstream total grew by one when exact cbindgen
 0.29.2 became a packaged prerequisite for the libpeios ABI gate.
 
 ## LLVM/Rust toolchain transition (2026-09-08)
@@ -120,6 +121,52 @@ served the PKM validation and may then be removed. The old Rust worktree has a
 requires an informed discard decision. The unregistered LLVM worktree remnant
 still needs privileged deletion with
 `sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
+
+## Previous first-party completion: Dynamic Boot 1.0.0-1
+
+Dynamic Boot is now a production-qualified feature package:
+
+- `dev.peios.feat-dynamic-boot` carries the `dynamic-boot` lifecycle and
+  intentionally provides/replaces the former unqualified package;
+- `mkuki --kernel-dir /usr/lib/modules` resolves exactly one
+  `<release>/vmlinuz-*` image before every build and recursively watches the
+  kernel tree, so replacing a release directory upgrades the UKI without
+  reinstalling the feature;
+- the UKI service selects `/lcl/etc/boot/cmdline` at startup and retains the
+  live-image `/usr/share/live-boot/cmdline` as its explicit fallback; and
+- the initramfs watcher excludes `var/state/peipkg` and `lcl/conf/peipkg`, in
+  line with the installer and Peiso's production image boundary.
+
+The required applet change is public in peiosutils commit `82ad66e`, released
+under the intentionally unsigned immutable tag `v0.8.3`; the catalogue locks
+that exact commit at `3b4a5ba`. Debian and Peios-native builds both passed the
+focused `mkuki` unit and CLI suites, including a real watcher test that replaces
+the release directory and observes the new kernel in the rebuilt UKI. Both
+environments also passed the feature's mocked registry/lifecycle and command-
+line-selection tests. The clean release build retained peiosutils's complete
+installed-payload, split-debug, hardening, path-leak, and package-family gates.
+
+All six signed artifacts pass the strict shell validator. Full repository
+verification, including canonical archive and signature checks, reports no
+problems at index 199. A fresh independent compose lock selects
+`dev.peios.peiosutils` 0.8.3-1 and closes the feature through libpeios, Dash,
+libblkid, glibc, and libgcc; materializing that lock preserves the executable
+watch launcher and the `mkuki` multicall link.
+
+Published SHA-256 values:
+
+- `dev.peios.feat-dynamic-boot`:
+  `1aa9637bae1f93e6619323b8d1f4c46d18caf92b4a167418a00f54cd2dee073f`
+- `dev.peios.peiosutils`:
+  `0cb7432d9743b02a50c188ad616fd1941819592547af0bae673209bd6056bd7c`
+- `dev.peios.peiosutils-common`:
+  `80169b0557c18d5e3dcd1064bf5fd4fe81a26d39966ba4ea70f17b7d4f7dc8ba`
+- `dev.peios.peiosutils-debuginfo`:
+  `2cb1ea09acd12b5bfb5d365dcf06aa80b5263d522042caeae4e2f88ce8e1b691`
+- `dev.peios.peiosutils-debugsource`:
+  `1b7b7cfd1213064fc7cc95a86cd2b2502f207f3d4e3d9c743d46ecd077ee2127`
+- `dev.peios.peiosutils-source`:
+  `8dbc773c0c83cf6b392086cd721067c0e9c9753793a012f4ea77c69283f8911b`
 
 ## Previous first-party completion: eventd 0.1.0-10
 
@@ -174,13 +221,12 @@ Published SHA-256 values:
 
 ## Remaining current-pass recipes
 
-Continue with `feat-dynamic-boot`; if its product boundaries need a decision,
-record the question and continue to the next independent first-party recipe.
+Continue with `kernel`; if its product boundaries need a decision, record the
+question and continue to the next independent first-party recipe.
 
 ## Deferred first-party recipes
 
-`feat-dynamic-boot`, `kernel`,
-`live-boot`, `loregd`,
+`kernel`, `live-boot`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
