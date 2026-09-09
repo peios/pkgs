@@ -1,0 +1,3 @@
+#!/usr/bin/sh
+printf '%s\n' "$*" > "$PEIOS_LIVE_BOOT_TEST_LOG/seed-sd.args"
+exit "${PEIOS_LIVE_BOOT_SEED_STATUS:-0}"

@@ -11,6 +11,22 @@
 # the upper for a partition without changing the overlay shape.
 set -eu
 
+# Tests place a synthetic initramfs below an absolute prefix. Prelude clears
+# the hook environment, so production always uses the empty default and sees
+# the real root. This seam exercises the shipped script without mounting over
+# the host's filesystem.
+test_root=${PEIOS_LIVE_BOOT_TEST_ROOT:-}
+case "$test_root" in
+    ""|/*) ;;
+    *) printf '%s\n' "mount-root: PEIOS_LIVE_BOOT_TEST_ROOT must be absolute" >&2; exit 2 ;;
+esac
+root_path() { printf '%s%s\n' "$test_root" "$1"; }
+
+# The shared console line format is part of prelude-hook-abi level 3.
+# shellcheck source=/dev/null
+. "$(root_path /usr/libexec/prelude/hook-log.sh)"
+hook_log_init live-boot
+
 # There is no "is this my boot?" check here, and that is the design rather
 # than an omission. This hook used to read `root=` off the kernel command line
 # and stand aside when it found one, because both root-mount hooks shipped in
@@ -23,9 +39,26 @@ set -eu
 # exactly one root-mount hook exists moved from a runtime check into the
 # package manager, which can enforce it before a boot rather than during one.
 
-# prelude runs hooks with PATH=/usr/bin, so the peiosutils tools (mkdir,
-# mount) and seed-sd resolve without the hook setting PATH itself.
-mkdir /mnt/medium /mnt/rootfs.lower /mnt/rootfs.rw
+# prelude runs hooks with PATH=/usr/bin, so peiosutils resolves without the
+# hook setting PATH itself. Check the specialist tools here so a damaged
+# initramfs reports its actual package-integrity failure.
+for required_tool in mount umount seed-sd; do
+    command -v "$required_tool" >/dev/null 2>&1 || {
+        log_fail "no $required_tool in the initramfs; dev.peios.live-boot-irf depends on dev.peios.peiosutils"
+        exit 1
+    }
+done
+unset required_tool
+
+medium=$(root_path /mnt/medium)
+root_lower=$(root_path /mnt/rootfs.lower)
+root_rw=$(root_path /mnt/rootfs.rw)
+root_merged=$(root_path /mnt/rootfs)
+
+if ! mkdir "$medium" "$root_lower" "$root_rw"; then
+    log_fail "could not create live-root mountpoints"
+    exit 1
+fi
 # Find and mount the boot medium — the ISO9660 that carries the rootfs squashfs
 # as a file. The squashfs lives here, not in the initramfs, so the whole OS
 # never has to fit in RAM: the loop device below reads its blocks off the medium
@@ -44,33 +77,51 @@ mkdir /mnt/medium /mnt/rootfs.lower /mnt/rootfs.rw
 # buses like virtio win immediately; USB needs a beat).
 found=
 tries=0
+retry_limit=${PEIOS_LIVE_BOOT_RETRY_LIMIT:-50}
+case "$retry_limit" in
+    *[!0-9]*|"") log_fail "invalid retry limit '$retry_limit'"; exit 2 ;;
+esac
+if [ "$retry_limit" -eq 0 ]; then
+    log_fail "invalid retry limit '$retry_limit'"
+    exit 2
+fi
 while [ -z "$found" ]; do
-    for sysdev in /sys/block/*; do
-        dev="/dev/${sysdev##*/}"
-        [ -b "$dev" ] || continue
-        if mount -t iso9660 -o ro "$dev" /mnt/medium 2>/dev/null; then
-            if [ -e /mnt/medium/rootfs.squashfs ]; then
+    for sysdev in "$(root_path /sys/block)"/*; do
+        dev=$(root_path "/dev/${sysdev##*/}")
+        if [ -n "$test_root" ]; then
+            [ -e "$dev" ] || continue
+        else
+            [ -b "$dev" ] || continue
+        fi
+        if mount -t iso9660 -o ro "$dev" "$medium" 2>/dev/null; then
+            if [ -e "$medium/rootfs.squashfs" ]; then
                 found="$dev"
                 break
             fi
-            umount /mnt/medium 2>/dev/null || true
+            umount "$medium" 2>/dev/null || true
         fi
     done
     [ -n "$found" ] && break
     tries=$((tries + 1))
-    if [ "$tries" -ge 50 ]; then
-        echo "live-boot: no boot medium carrying /rootfs.squashfs found after 5s" >&2
+    if [ "$tries" -ge "$retry_limit" ]; then
+        log_fail "no boot medium carrying /rootfs.squashfs found after ${retry_limit} attempts"
         exit 1
     fi
     sleep 0.1
 done
-echo "live-boot: mounted boot medium $found at /mnt/medium"
+log_ok "mounted boot medium $found at /mnt/medium"
 # The squashfs ships no SDs (the build doesn't stamp them), so under KACS
 # DENY_MISSING every file in it is locked. policy=synth-ephemeral makes KACS
 # synthesize a default SD per inode in memory — ephemeral, not synth-persist,
 # because a read-only squashfs can't accept a written-back SD.
-mount -o loop,ro,policy=synth-ephemeral -t squashfs /mnt/medium/rootfs.squashfs /mnt/rootfs.lower
-mount -t tmpfs tmpfs /mnt/rootfs.rw
+if ! mount -o loop,ro,policy=synth-ephemeral -t squashfs "$medium/rootfs.squashfs" "$root_lower"; then
+    log_fail "could not mount rootfs.squashfs"
+    exit 1
+fi
+if ! mount -t tmpfs tmpfs "$root_rw"; then
+    log_fail "could not mount the live-root tmpfs"
+    exit 1
+fi
 
 # A freshly-mounted tmpfs root has no SD xattr; under KACS DENY_MISSING
 # the mkdirs immediately below would fail. Seed one first; the OI|CI ACEs on
@@ -119,12 +170,21 @@ mount -t tmpfs tmpfs /mnt/rootfs.rw
 # nothing at all. Inherit-only, so it grants nothing on the directory it sits
 # on; KACS resolves it per created object and carries the rule onward down each
 # container (PEI-546).
-seed-sd --sddl 'O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO;GA;;;S-1-3-0)' /mnt/rootfs.rw
+if ! seed-sd --sddl 'O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO;GA;;;S-1-3-0)' "$root_rw"; then
+    log_fail "could not seed the live-root security descriptor"
+    exit 1
+fi
 
-mkdir /mnt/rootfs.rw/upper /mnt/rootfs.rw/work
-mount -t overlay overlay \
-    -o lowerdir=/mnt/rootfs.lower,upperdir=/mnt/rootfs.rw/upper,workdir=/mnt/rootfs.rw/work \
-    /mnt/rootfs
+if ! mkdir "$root_rw/upper" "$root_rw/work"; then
+    log_fail "could not create the live-root overlay directories"
+    exit 1
+fi
+if ! mount -t overlay overlay \
+    -o "lowerdir=$root_lower,upperdir=$root_rw/upper,workdir=$root_rw/work" \
+    "$root_merged"; then
+    log_fail "could not mount the live-root overlay"
+    exit 1
+fi
 
 # --- the medium, carried into the new root -----------------------------------
 # prelude mount-moves only /proc, /sys and /dev into the new root and then
@@ -160,8 +220,8 @@ mount -t overlay overlay \
 # boot at all. It says so and continues.
 # Both steps are guarded: this script runs under `set -e`, so an unguarded
 # mkdir failure would abort the boot the paragraph above just promised not to.
-if mkdir -p /mnt/rootfs/media/peios && mount --move /mnt/medium /mnt/rootfs/media/peios; then
-    echo "live-boot: medium available at /media/peios"
+if mkdir -p "$root_merged/media/peios" && mount --move "$medium" "$root_merged/media/peios"; then
+    log_ok "medium available at /media/peios"
 else
-    echo "live-boot: could not carry the medium into the new root; /media/peios will be empty" >&2
+    log_warn "could not carry the medium into the new root; /media/peios will be empty"
 fi

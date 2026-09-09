@@ -1,4 +1,4 @@
-# live-boot — live-medium boot support (kernel cmdline fragment + the
+# dev.peios.live-boot — live-medium boot support (kernel cmdline fragment + the
 # root-mount script used during early boot).
 #
 # BUILDLESS package: nothing is compiled or fetched. The payload is the
@@ -7,3 +7,14 @@
 # only because packaging writes the .peipkg under it.
 
 out_dir = "out"
+
+[test]
+command = "tests/test-mount-root.sh"
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5"
+"org.gnu.coreutils"    = ">= 9.11"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"

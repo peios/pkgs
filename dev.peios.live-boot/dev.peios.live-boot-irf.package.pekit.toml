@@ -6,17 +6,26 @@
 # initramfs's PID 1.) This is the initramfs composing itself via the dep graph.
 
 [package]
-description = "Initramfs root-mount hook for live-medium boot (squashfs + tmpfs overlay)"
+name         = "dev.peios.live-boot-irf"
+default_root = "initramfs"
+description  = "Peios live-medium initramfs mount hook"
+
+[provides]
+live-boot-irf = "1.0.0-19"
+
+[replaces]
+live-boot-irf = "<= 1.0.0-18"
 
 [dependencies]
-peiosutils = ">= 0.1.2"
+"dev.peios.peiosutils" = ">= 0.8.5"
+sh                       = ">= 1"
 # Everything this hook and prelude must agree on: that exit 69 means declined
 # rather than failed, and that the real root is mounted at /mnt/rootfs. Each
 # half fails hard on its own — against a prelude predating the outcome
 # contract the hook would HALT the boot it was standing aside for, and against
 # one still expecting /sysroot it would mount where nothing looks. The
 # dependency makes either mismatch a compose-time error instead.
-prelude-hook-abi = ">= 2"
+prelude-hook-abi = ">= 3"
 
 # Exactly one root-mount hook may exist in an initramfs, and this is where that
 # invariant now lives. It used to be enforced at runtime — both hooks shipped
@@ -33,3 +42,4 @@ disk-boot-irf = "*"
 # /lcl/libexec/prelude/hooks.d, which wins without this one being deleted.
 [files]
 "src/mount-root.sh" = "usr/libexec/prelude/hooks.d/mount-root.sh"
+"docs/LICENSE"      = "usr/share/licenses/dev.peios.live-boot-irf/LICENSE"

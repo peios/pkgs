@@ -457,8 +457,8 @@ echo "$progname: replacing the live-boot packages with disk-boot"
 # a configured channel — here, baked into the image.
 peipkg --root "$ROOT_MNT" repo add "$MEDIUM_REPO"     || die "could not establish trust in $MEDIUM_REPO on the target"
 
-peipkg --root "$ROOT_MNT" uninstall live-boot --yes     || die "could not remove live-boot from the target"
-peipkg --root "$ROOT_MNT/boot/initramfs" uninstall live-boot-irf --yes     || die "could not remove live-boot-irf from the target's initramfs"
+peipkg --root "$ROOT_MNT" uninstall dev.peios.live-boot --yes     || die "could not remove dev.peios.live-boot from the target"
+peipkg --root "$ROOT_MNT/boot/initramfs" uninstall dev.peios.live-boot-irf --yes     || die "could not remove dev.peios.live-boot-irf from the target's initramfs"
 
 # --allow-stale: a medium is a read-only artifact whose indexes are fixed at
 # manufacture, so re-fetching them returns the same index_version and the same
@@ -467,7 +467,7 @@ peipkg --root "$ROOT_MNT/boot/initramfs" uninstall live-boot-irf --yes     || di
 # stale and cannot become fresh. Saying so here, at the one operation that
 # knows the staleness is expected, beats disabling the check permanently in the
 # repository's configuration.
-peipkg --root "$ROOT_MNT" install disk-boot --yes --allow-stale     || die "could not install disk-boot into the target"
+peipkg --root "$ROOT_MNT" install dev.peios.disk-boot --yes --allow-stale     || die "could not install dev.peios.disk-boot into the target"
 
 # The medium will not be there when the target boots, and a configured
 # repository nobody can reach is worse than none: once past its trusted age

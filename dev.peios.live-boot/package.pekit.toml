@@ -1,6 +1,6 @@
-# Base metadata shared by the live-boot packages. Each <name>.package.pekit.toml
-# (live-boot, live-boot-irf) inherits these fields and adds its own description,
-# dependencies, and files. Both are buildless — their payloads come from src/.
+# Base metadata shared by the qualified live-boot packages. Each package
+# fragment adds its own identity, migration capabilities, dependencies, and
+# files. Both are buildless — their payloads come from src/.
 #
 # x86_64, not noarch: although the payloads (a script, a cmdline) are arch-
 # independent, these packages depend on the x86_64 userspace (live-boot-irf ->
@@ -63,6 +63,38 @@ format = "peipkg"
 # it does on any distribution: tty0 on a machine with a display, the serial
 # port otherwise. Development boots that want serial add console=ttyS0
 # themselves (dist/release/Makefile, drive.py, provium). PEI-716.
-version      = "1.0.0-15"
+#
+# 1.0.0-16: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, so a shipped
+# image boots at the verbosity every other distribution ships rather than at
+# maximum with the filter switched off. `ignore_loglevel` was the load-bearing
+# half: printk emits every message regardless of console_loglevel while it is
+# set, so lowering the number alone would have changed nothing. printk prints
+# a message whose level is strictly below console_loglevel, so 4 keeps
+# EMERG/ALERT/CRIT/ERR and drops WARNING down. Nothing that needs the full log
+# takes it from here: pkm's harnesses, provium's profiles, drive.py and netd's
+# VM tests all set their own cmdline, and the UKI stub's SMBIOS channel appends
+# after this line, which printk resolves last-wins. A debugging boot can
+# therefore re-add `loglevel=7 ignore_loglevel` without a rebuild. Cost,
+# accepted: the image ships no dmesg, so a kernel WARNING no longer reaches the
+# console. `loglevel=5` buys warnings back if that trade proves wrong. PEI-782.
+#
+# 1.0.0-17: the root-mount hook reports through hook-log.sh for the shared tag
+# column. The "could not carry the medium into the new root" case becomes
+# [ WARN ] rather than an undifferentiated stderr line, which is what it has
+# always been: non-fatal. Requires prelude-hook-abi >= 3. PEI-783.
+#
+# 1.0.0-18: `panic=-1` comes off the line. It rebooted the machine the instant
+# the kernel panicked, so a reproducible boot failure on a live medium was a
+# reboot loop with the panic text never on screen long enough to read. Without
+# it the kernel default (panic=0) applies: halt with the panic visible, the
+# only useful outcome on a medium somebody is sitting in front of.
+#
+# 1.0.0-19 is the production-qualified baseline. The family moves to
+# dev.peios.*, retains the old names as migration capabilities, couples its
+# two halves at the exact release, declares the initramfs root and shell
+# contract explicitly, ships its licence, and tests the medium-discovery and
+# mount outcomes.
+version      = "1.0.0-19"
 architecture = "x86_64"
 license      = "MIT"
+homepage     = "https://github.com/peios/pkgs"
