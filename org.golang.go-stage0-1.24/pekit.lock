@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "1.24.6"
+  url = "https://go.dev/dl/go1.24.6.linux-amd64.tar.gz"
+  sha256 = "bbca37cc395c974ffa4893ee35819ad23ebb27426df87af92e93a9ec66ef8712"
+  locked_at = "2026-09-09T22:56:23Z"

@@ -1,0 +1,47 @@
+# Go 1.24.6 binary bootstrap seed for building Go 1.26 and 1.27.
+#
+# Go's compiler is self-hosting. Upstream requires Go 1.24.6 or newer to build
+# Go 1.26, so this authenticated HTTPS release and Pekit's immutable SHA-256
+# lock are the explicit binary root of trust. It lives under a private prefix
+# and is intended only for the source-built org.golang.go recipe.
+
+out_dir = "out"
+
+[source_package]
+enabled = false
+
+[source.url]
+url      = "https://go.dev/dl/go{{version}}.linux-amd64.tar.gz"
+extract  = true
+root     = "go"
+versions = "= 1.24.6"
+
+[build.main]
+command = '''
+set -eu
+SRC=$(pwd -P)
+PREFIX="$PEKIT_OUT/usr/lib/x86_64-linux-peios/go-stage0"
+mkdir -p "$PREFIX"
+
+# The bootstrap go command needs the matching GOROOT source tree as well as
+# bin/ and pkg/tool; copy the complete upstream distribution and remove only
+# end-user material irrelevant to compiler bootstrapping.
+cp -a "$SRC/." "$PREFIX/"
+rm -rf "$PREFIX/doc" "$PREFIX/misc" "$PREFIX/test"
+
+test -x "$PREFIX/bin/go"
+test -x "$PREFIX/bin/gofmt"
+test "$($PREFIX/bin/go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
+test "$($PREFIX/bin/go env GOOS)" = linux
+test "$($PREFIX/bin/go env GOARCH)" = amd64
+test -d "$PREFIX/src/cmd/compile"
+test -d "$PREFIX/pkg/tool/linux_amd64"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils"   = "*"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"

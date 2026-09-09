@@ -1,0 +1,18 @@
+format = "peipkg"
+
+[package]
+name          = "org.golang.go-stage0-1.24"
+version       = "{{version}}-1"
+architecture  = "x86_64"
+description   = "Official Go 1.24.6 binary bootstrap seed for source-building newer Go toolchains"
+license       = "BSD-3-Clause"
+license_class = "free"
+homepage      = "https://go.dev/"
+
+[provides]
+"go-stage0-1.24" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.golang.go-stage0-1.24/LICENSE"
+"@source:PATENTS" = "usr/share/licenses/org.golang.go-stage0-1.24/PATENTS"
+":usr/lib/x86_64-linux-peios/go-stage0/**" = "usr/lib/x86_64-linux-peios/go-stage0"
