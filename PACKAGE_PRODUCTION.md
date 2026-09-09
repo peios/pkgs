@@ -68,7 +68,7 @@ A completed upstream package normally has all of the following:
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
 - Current first-party pass: **9 / 28 published**, **9 / 28 runtime-closed**.
 - Repository after publishing and independently verifying the peiosutils
-  0.8.4-1 security refresh: index version 202, with 817 active and 1,570
+  0.8.5-1 security refresh: index version 203, with 817 active and 1,575
   archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
@@ -123,7 +123,58 @@ requires an informed discard decision. The unregistered LLVM worktree remnant
 still needs privileged deletion with
 `sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
 
-## Peiosutils security refresh: 0.8.4-1
+## Peiosutils complete security refresh: 0.8.5-1
+
+`dev.peios.peiosutils` 0.8.5-1 supersedes 0.8.4-1 and completes the current
+security pass. Its public source and intentionally unsigned immutable
+`v0.8.5` tag are commit `f02265ad1`; catalogue commit `122fd62` locks that
+exact commit. The release retains every 0.8.4 fix and adds the two changes
+which arrived immediately after that release: cross-device `mv` now follows
+the Peios ownership contract and strips set-id bits, and `stdbuf` now uses a
+packaged private preload module rather than extracting executable code below
+`TMPDIR`.
+
+The resulting 67-advisory inventory is explicit and closed: 26 fixed, 39 not
+applicable to Peios, two accepted, and zero todo. The accepted entries are the
+low-severity mkdir create-then-SD interval and POSIX uid/gid non-preservation
+for cross-device `mv`; the latter is deliberate because destination security-
+descriptor inheritance and KACS, rather than POSIX ownership copying, are the
+Peios authority. This release therefore contains every agreed security fix
+without misrepresenting those two product-level design decisions as code
+fixes.
+
+Both the Debian reference and Peios-native clean-room package gates pass,
+including release tests, the full multicall build, installed-payload smoke
+tests, ELF hardening and ABI checks, split-debug/source checks, and checkout-
+path leak checks. Focused cross-device `mv` and external-`stdbuf` tests also
+pass. The private preload DSO is installed at the architecture-correct
+`/usr/lib/x86_64-linux-peios/peiosutils/libstdbuf.so`; it intentionally has no
+`DT_SONAME` because it is loaded privately and no package may link against it.
+
+All five signed artifacts pass the strict container validator, and canonical
+archive plus cryptographic repository verification reports no problems at
+index 203 (817 active, 1,575 archived). A fresh exact-version compose selects
+0.8.5-1 with libpeios 0.5.0, libblkid 2.42.3, glibc 2.44-7, and libgcc
+16.2.0-2. Materialization preserves the multicall binary and applet links,
+installs the private `stdbuf` DSO at the compiled-in target-triplet path, and
+executes the composed `cat` and `dirname` applets through the composed loader.
+The corresponding-source package contains `ADVISORIES.toml`, the `mv` and
+`stdbuf` sources, and the patched uucore tree.
+
+Published SHA-256 values:
+
+- `dev.peios.peiosutils`:
+  `348a79674e2a4da9a0c56cea361284d1b4cd273ae5e85abbc34d19a2aa2accdb`
+- `dev.peios.peiosutils-common`:
+  `9db773343a033edc211b5575d299ed9560599d37ad8179db7c62155d9ee2d6bd`
+- `dev.peios.peiosutils-debuginfo`:
+  `8b145b1c28e71d34970bfaf880f1d1b92a535a02b7e0547deee03292c8efc0d3`
+- `dev.peios.peiosutils-debugsource`:
+  `6aac59457d3fab797506fa5b50591d740d9f6dcff72bd1be0e5129f9895ddd15`
+- `dev.peios.peiosutils-source`:
+  `24c7f60982732dc53a42ff999454366c02500e9fb13e48eba1c618c93f4d4549`
+
+## Previous Peiosutils security refresh: 0.8.4-1
 
 The complete implemented security pass is now published as
 `dev.peios.peiosutils` 0.8.4-1. The source history was rebased cleanly onto the
