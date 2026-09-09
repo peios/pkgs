@@ -7,7 +7,7 @@ name        = "dev.peios.build-essentials-rust"
 description = "Peios Rust build environment"
 
 [dependencies]
-"dev.peios.build-essentials-c" = "1.0.0-6"
+"dev.peios.build-essentials-c" = "1.0.0-7"
 "org.rust-lang.rust"            = ">= 1.98.1, < 2"
 
 [files]
