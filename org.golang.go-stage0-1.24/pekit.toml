@@ -29,6 +29,17 @@ mkdir -p "$PREFIX"
 cp -a "$SRC/." "$PREFIX/"
 rm -rf "$PREFIX/doc" "$PREFIX/misc" "$PREFIX/test"
 
+# Upstream's source tree contains prebuilt ELF samples used by debug-package
+# tests. They are not part of the bootstrap compiler and must not be treated as
+# shipped runtime objects by Peipkg's automatic ELF dependency scanner.
+find "$PREFIX/src" -type f -path '*/testdata/*' -exec sh -c '
+  for file do
+    if readelf -h "$file" >/dev/null 2>&1; then
+      rm -f "$file"
+    fi
+  done
+' sh {} +
+
 test -x "$PREFIX/bin/go"
 test -x "$PREFIX/bin/gofmt"
 test "$($PREFIX/bin/go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
@@ -41,7 +52,11 @@ test -d "$PREFIX/pkg/tool/linux_amd64"
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "org.gnu.coreutils"   = "*"
+"org.gnu.binutils"    = "*"
+"org.gnu.findutils"   = "*"
 
 [build.main.dependencies.apt]
 dash      = "*"
 coreutils = "*"
+binutils  = "*"
+findutils = "*"
