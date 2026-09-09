@@ -1,0 +1,17 @@
+# eventd owns its build and package definitions in the public source tree.
+# This catalogue entry supplies immutable release discovery, distribution
+# policy, and the local checkout used before a release tag is published.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/eventd.git"
+ref       = "v{{version}}"
+# Soft production floor: earlier artifacts were unqualified development
+# snapshots built through undeclared sibling checkouts.
+versions  = ">= 0.1.0"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+
+[source.local]
+path = "../../eventd"
