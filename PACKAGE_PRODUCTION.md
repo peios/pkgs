@@ -67,8 +67,9 @@ A completed upstream package normally has all of the following:
 - Completed: **95 / 114** recipes (83.3%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
 - Current first-party pass: **9 / 28 published**, **9 / 28 runtime-closed**.
-- Repository after publishing and independently verifying Dynamic Boot
-  1.0.0-1: index version 199, with 811 active and 1,554 archived entries.
+- Repository after publishing and independently verifying the peiosutils
+  0.8.4-1 security refresh: index version 202, with 817 active and 1,570
+  archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -121,6 +122,59 @@ served the PKM validation and may then be removed. The old Rust worktree has a
 requires an informed discard decision. The unregistered LLVM worktree remnant
 still needs privileged deletion with
 `sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
+
+## Peiosutils security refresh: 0.8.4-1
+
+The complete implemented security pass is now published as
+`dev.peios.peiosutils` 0.8.4-1. The source history was rebased cleanly onto the
+0.8.3 release so the Dynamic Boot `mkuki --kernel-dir` work remains present;
+the public source is commit `b63ff9e`, under the intentionally unsigned
+immutable tag `v0.8.4`, and the catalogue locks that exact commit at
+`100028c`.
+
+The release carries all 26 fixes from the current 67-advisory audit. Those
+include the RustSec dependency updates for `anyhow`, `memmap2`, and
+`crossbeam-epoch`; identity- and descriptor-anchored protection for the
+root/removal, backup, recursive-copy, attribute-preservation, created-node,
+split-output, and tail-follow paths; safe non-truncating touch creation;
+private stdbuf preload extraction and TMPDIR validation; and the audited
+non-UTF-8, signal, identity, nohup, env, chroot, head, and dd corrections.
+`ADVISORIES.toml` records 39 additional advisories as not affecting Peios.
+It also keeps two decisions explicit rather than claiming them fixed: the
+accepted low-severity mkdir creator-SD exposure interval, and one low-severity
+todo concerning POSIX uid/gid preservation during cross-device `mv` (whose
+correct interaction with the KACS SD owner still requires a product decision).
+
+All Rust files changed by the security series pass rustfmt, `git diff --check`
+is clean, and `cargo check --workspace --locked` passes against libpeios 0.5.0.
+The Debian reference and Peios-native rungs both pass their release tests,
+complete multicall build, installed-payload smoke tests, ELF hardening and ABI
+checks, split-debug/source checks, and checkout/build-path leak gates. The
+locked Git-source publication repeated the native build independently of the
+local-checkout qualification.
+
+All five signed release artifacts pass the strict `verify.sh` container
+validator. `peipkg-repo verify` reports no problems at index 202 (817 active,
+1,570 archived), including canonical archive and cryptographic signature
+verification. A fresh compose lock selects `dev.peios.peiosutils` 0.8.4-1
+together with libpeios 0.5.0, libblkid 2.42.3, glibc 2.44-7, and libgcc
+16.2.0-2; materialization preserves the multicall executable and its applet
+links, and the composed loader executes the installed `cat` and `dirname`
+paths. The corresponding-source package contains `ADVISORIES.toml` and the
+patched applet/uucore source trees.
+
+Published SHA-256 values:
+
+- `dev.peios.peiosutils`:
+  `74586ef0d3eee7308c73e6e5d2a686c1b4702b72ba6b2bf51f2828062b8f261b`
+- `dev.peios.peiosutils-common`:
+  `d8b8b50c9b429713168515aa93283e9c1cb62783a11d6e7b15b9a1d321c778e3`
+- `dev.peios.peiosutils-debuginfo`:
+  `9ed79eefbda3a40812f9baefa03d94df6d398ad792a8f09c210560ef6d4614c8`
+- `dev.peios.peiosutils-debugsource`:
+  `5ac661d38356ecb695d8bf0a2416c2d1bd942c4c9cd40d143ce7d91697edd0f9`
+- `dev.peios.peiosutils-source`:
+  `861fa8378b213bcc547ba217d234dc0a909fb624f3840e1486404d3e0c5ac853`
 
 ## Previous first-party completion: Dynamic Boot 1.0.0-1
 
