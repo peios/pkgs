@@ -15,7 +15,7 @@
 format = "peipkg"
 
 [package]
-name         = "peios-install"
+name         = "dev.peios.peios-install"
 # 0.2.0: --whole-disk, which partitions the target with `part` before
 # installing. A minor bump because it adds a form rather than fixing one: the
 # two-partition invocation is unchanged. Requires peiosutils >= 0.1.3 for
@@ -75,10 +75,21 @@ name         = "peios-install"
 # resolve an old compatibility capability, but uninstallation deliberately
 # names an installed package exactly; leaving the old names here would make a
 # newly composed live image unable to replace its boot hook on the target.
-version      = "0.3.0-7"
+# -8: qualify the package identity and runtime dependencies, retain an explicit
+# migration from peios-install, fix preservation of `part create`'s refusal
+# status, and add syntax plus destructive-guard tests to the staged payload.
+version      = "0.3.0-8"
 architecture = "x86_64"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"
+license_class = "free"
+homepage     = "https://github.com/peios/pkgs"
+
+[provides]
+peios-install = "0.3.0-8"
+
+[replaces]
+peios-install = "<= 0.3.0-7"
 
 # Every tool the script calls, declared. peiosutils supplies mount, umount,
 # lsblk, cp, mkdir, sync, reg, part, mkirf and mkuki; e2fsprogs supplies mke2fs
@@ -94,10 +105,12 @@ license      = "MIT"
 # silently, which is how the "device is already mounted" guard managed to never
 # fire between 0.1.0-1 and 0.1.0-9.
 [dependencies]
-peiosutils = ">= 0.1.3"
+sh = ">= 1"
+"dev.peios.peiosutils" = ">= 0.8.5-1"
 "net.sourceforge.e2fsprogs" = ">= 1.47.4"
-dosfstools = ">= 4.2-2"
+"io.github.dosfstools.dosfstools" = ">= 4.2-4"
 peipkg     = ">= 0.1.1-2"
 
 [files]
-"src/peios-install.sh" = "usr/bin/peios-install"
+"LICENSE" = "usr/share/licenses/dev.peios.peios-install/LICENSE"
+":usr/bin/peios-install" = "usr/bin/peios-install"

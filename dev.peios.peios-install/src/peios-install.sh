@@ -33,6 +33,8 @@ progname=peios-install
 # Defined before usage(), which interpolates it: under `set -eu` an unset
 # variable in that heredoc would turn "here is how to use me" into an abort.
 ESP_SIZE=512M
+PROC_PARTITIONS=${PEIOS_INSTALL_PROC_PARTITIONS:-/proc/partitions}
+PROC_MOUNTS=${PEIOS_INSTALL_PROC_MOUNTS:-/proc/mounts}
 
 usage() {
     cat >&2 <<EOF
@@ -92,7 +94,30 @@ is_block_device() {
     case "$name" in */*) return 1 ;; esac
     while read -r _major _minor _blocks devname; do
         [ "$devname" = "$name" ] && return 0
-    done < /proc/partitions
+    done < "$PROC_PARTITIONS"
+    return 1
+}
+
+# Create the partition table without losing `part`'s status through `!`.
+# Exit 3 is a deliberate refusal and needs different operator guidance from an
+# I/O or implementation failure.
+create_partition_table() {
+    disk=$1
+    force_flag=$2
+    if [ -n "$force_flag" ]; then
+        if part create "$disk" --yes "$force_flag"; then return 0; else rc=$?; fi
+    else
+        if part create "$disk" --yes; then return 0; else rc=$?; fi
+    fi
+    [ "$rc" = 3 ] && die "$disk carries a partition table part will not replace; \
+pass --force if you mean to destroy it"
+    die "could not write a partition table to $disk"
+}
+
+is_mounted_device() {
+    while read -r source _target _rest; do
+        [ "$source" = "$1" ] && return 0
+    done < "$PROC_MOUNTS"
     return 1
 }
 
@@ -143,6 +168,7 @@ WORK=/run/peios-install
 ESP_MNT="$WORK/esp"
 ROOT_MNT="$WORK/root"
 
+main() {
 confirmed=no
 whole_disk=no
 force=
@@ -183,12 +209,7 @@ if [ "$whole_disk" = yes ]; then
     is_block_device "$disk" || die "$disk is not a block device the kernel knows about"
 
     echo "$progname: partitioning $disk (everything on it is erased)"
-    if ! part create "$disk" --yes $force; then
-        rc=$?
-        [ "$rc" = 3 ] && die "$disk carries a partition table part will not replace; \
-pass --force if you mean to destroy it"
-        die "could not write a partition table to $disk"
-    fi
+    create_partition_table "$disk" "$force"
     part add "$disk" --size "$ESP_SIZE" --type esp   --name "EFI system partition" --yes \
         || die "could not create the ESP on $disk"
     part add "$disk" --size max         --type linux --name "Peios root"           --yes \
@@ -218,13 +239,6 @@ fi
 # false. The guard below read as if it worked and had in fact never once
 # fired. /proc/mounts is the authority either way; reading it directly needs no
 # package to be present.
-is_mounted_device() {
-    while read -r source _target _rest; do
-        [ "$source" = "$1" ] && return 0
-    done < /proc/mounts
-    return 1
-}
-
 for dev in "$esp_part" "$root_part"; do
     is_block_device "$dev" || die "$dev is not a block device the kernel knows about"
     # A mounted target would be destroyed under a running filesystem. This also
@@ -414,7 +428,7 @@ is_mountpoint() {
     # Pure shell: no awk in the base image, and /proc/mounts is the authority.
     while read -r _source target _rest; do
         [ "$target" = "$1" ] && return 0
-    done < /proc/mounts
+    done < "$PROC_MOUNTS"
     return 1
 }
 
@@ -560,3 +574,10 @@ mkuki --kernel "$ROOT_MNT$kernel" \
 
 sync
 echo "$progname: done — reboot with the install medium removed"
+}
+
+# Unit tests source the functions and substitute fixture copies of the two
+# procfs tables. Production execution never sets this private recipe seam.
+if [ "${PEIOS_INSTALL_LIBRARY_ONLY:-}" != 1 ]; then
+    main "$@"
+fi

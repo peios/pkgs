@@ -1,0 +1,52 @@
+# peios-install — install the running live system onto a disk.
+#
+# The build validates the shell and its destructive-operation guard tests, then
+# stages the exact installed payload. Nothing is generated at install time.
+#
+# Scope is the minimum that produces a bootable installed system: format,
+# copy the tree, write a UKI to the ESP. Since 0.2.0 it can also partition the
+# target first (--whole-disk), delegating to `part` rather than reimplementing
+# GPT — so the two forms are "here are two partitions" and "here is a disk".
+# Nothing here needs privilege beyond what the operation itself is authorised
+# for; there is no uid check anywhere, as everywhere else in Peios.
+
+out_dir = "out"
+
+[build.main]
+command = '''
+set -eu
+sh -n src/peios-install.sh
+sh tests/test-peios-install.sh
+mkdir -p "$PEKIT_OUT/usr/bin"
+cp src/peios-install.sh "$PEKIT_OUT/usr/bin/peios-install"
+chmod 0755 "$PEKIT_OUT/usr/bin/peios-install"
+sh -n "$PEKIT_OUT/usr/bin/peios-install"
+src_sum=$(sha256sum src/peios-install.sh)
+src_sum=${src_sum%% *}
+installed_sum=$(sha256sum "$PEKIT_OUT/usr/bin/peios-install")
+installed_sum=${installed_sum%% *}
+test "$src_sum" = "$installed_sum"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils"   = "*"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+
+[test]
+command = '''
+set -eu
+sh -n src/peios-install.sh
+sh tests/test-peios-install.sh
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils"   = "*"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"
