@@ -1,4 +1,4 @@
-# kernel — the Peios kernel plus its in-tree userspace tooling, built from the
+# dev.peios.kernel — the Peios kernel plus its in-tree userspace tooling, built from the
 # pkm source (a 40-package family: the kernel-* set plus perf/bpftool/cpupower/…
 # built from the kernel's tools/).
 #

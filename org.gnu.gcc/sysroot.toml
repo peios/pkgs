@@ -22,7 +22,7 @@ local_packages = [
   "../org.gnu.mpfr/out/*/package/*/*.peipkg",
   "../org.gnu.mpc/out/*/package/*/*.peipkg",
   "../io.sourceforge.libisl.isl/out/*/package/*/*.peipkg",
-  "../kernel/out/*/package/*/*.peipkg",
+  "../dev.peios.kernel/out/*/package/*/*.peipkg",
   "../io.github.zlib-ng.zlib-ng/out/*/package/*/*.peipkg",
 ]
 
@@ -33,7 +33,7 @@ local_packages = [
 # The Linux UAPI headers (linux/, asm/, asm-generic/) that glibc's own headers
 # #include — without these the cross-gcc can't even preprocess <stdio.h>.
 [[package]]
-name    = "kernel-headers"
+name    = "dev.peios.kernel-headers"
 version = "*"
 [[package]]
 name    = "org.gnu.glibc-devel"

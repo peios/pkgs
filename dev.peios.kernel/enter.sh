@@ -3,7 +3,7 @@
 # identical except:
 #   * the stage CWD is bind-mounted when it lies outside the workspace:
 #     a delegate build runs with CWD at the fetched/local pkm source tree
-#     while outputs live under pkgs/kernel/out — the same dual-mount
+#     while outputs live under pkgs/dev.peios.kernel/out — the same dual-mount
 #     pkm's own docker wrap does ($PWD + $PEKIT_ROOT);
 #   * the pkm toolchain knobs for composed roots ride in as env:
 #       PKM_LLVM=1      kbuild uses unversioned LLVM tool names (upstream

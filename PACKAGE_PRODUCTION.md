@@ -11,7 +11,7 @@ standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
 Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils,
-fsbase, and Dynamic Boot are complete. If a package needs a product or
+fsbase, Dynamic Boot, and live-boot are complete. If a package needs a product or
 architecture decision, record the question here and continue with the next
 independent package.
 
@@ -62,20 +62,55 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.feat-dynamic-boot` 1.0.0-1, anchored in
-  the catalogue at pkgs commit `ff6e85c`.
-- Completed: **95 / 114** recipes (83.3%).
+- Last fully closed recipe: `dev.peios.live-boot` 1.0.0-19, anchored in the
+  catalogue at pkgs commit `8249d83`.
+- Completed: **96 / 114** recipes (84.2%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **9 / 28 published**, **9 / 28 runtime-closed**.
-- Repository after publishing and independently verifying the peiosutils
-  0.8.5-1 security refresh: index version 203, with 817 active and 1,575
+- Current first-party pass: **10 / 28 published**, **10 / 28 runtime-closed**.
+- Repository after publishing and independently verifying live-boot 1.0.0-19
+  and the installer migration revision: index version 205, with 819 active and 1,578
   archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and nine completed first-party recipes account for the
-95 completed recipes. The upstream total grew by one when exact cbindgen
+The 86 upstream recipes and ten completed first-party recipes account for the
+96 completed recipes. The upstream total grew by one when exact cbindgen
 0.29.2 became a packaged prerequisite for the libpeios ABI gate.
+
+## Live-boot production release: 1.0.0-19
+
+`dev.peios.live-boot` and `dev.peios.live-boot-irf` are the qualified main-root
+and initramfs halves of live-medium boot. Both retain their old unqualified
+names as migration capabilities; the main package pins its IRF sibling at the
+exact release and routes it into the declared initramfs root. The IRF package
+depends on qualified peiosutils 0.8.5, explicitly requires `sh` and prelude hook
+ABI 3, retains the disk-boot conflict, and both packages ship the MIT licence.
+
+The production command line is `loglevel=4 init=/bin/peinit2`: it no longer
+forces maximum printk verbosity or an immediate reboot on panic. The root hook
+uses prelude's common log format, validates its specialist runtime tools,
+diagnoses every load-bearing mount or security-descriptor failure, keeps the
+medium move deliberately non-fatal, and has a bounded test seam. Its Debian
+host and native Peipkg test runs cover missing tools, discovery exhaustion,
+medium selection, the complete squashfs/tmpfs/overlay mount sequence, the
+security descriptor, a non-fatal move failure, and a fatal lower-layer failure.
+
+A fresh composed closure placed the main package in `/`, the IRF package and
+its complete runtime closure in `boot/initramfs`, and materialised both payloads
+and licences. `peios-install` 0.3.0-7 was published alongside it because
+uninstall requests target exact installed names; it now removes the qualified
+live packages and installs `dev.peios.disk-boot`. All three signed artifacts
+passed the strict archive verifier, and the full repository audit at index 205
+reported 819 active and 1,578 archived entries with no problems.
+
+Published SHA-256 values:
+
+- `dev.peios.live-boot`:
+  `3e150a1c709e576d3b05c6134a893fb52a28e086b2acfc363f593ac25019335a`
+- `dev.peios.live-boot-irf`:
+  `24192031de3740173b9159b9fa15a2a2948286acb2e1faab9576ccbe30f50721`
+- compatibility revision `peios-install`:
+  `af7444f7713832dfa7523e867fdafe6eeff618926e20633ee6ca8a7ea5ca8a83`
 
 ## LLVM/Rust toolchain transition (2026-09-08)
 
@@ -326,12 +361,13 @@ Published SHA-256 values:
 
 ## Remaining current-pass recipes
 
-Continue with `kernel`; if its product boundaries need a decision, record the
-question and continue to the next independent first-party recipe.
+The native `dev.peios.kernel` publication is active in the background. Continue
+the foreground pass with `loregd`; if its product boundaries need a decision,
+record the question and continue to the next independent first-party recipe.
 
 ## Deferred first-party recipes
 
-`kernel`, `live-boot`, `loregd`,
+`kernel`, `loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-install`, `peios-kernel-only`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
@@ -1102,6 +1138,9 @@ Published SHA-256 values:
 
 ## Worktree guardrail
 
-The main worktree currently contains unrelated edits to `live-boot` and
-`peios-experimental`. Preserve them. Perform package work in isolated worktrees
-and integrate only reviewed commits.
+The main worktree currently contains unrelated edits to `peios-experimental`
+and the active kernel catalogue integration. Preserve them. The pre-existing
+live-boot edits were saved as `preserve pre-production live-boot edits` before
+the reviewed production commit was integrated; their behaviour and rationale
+are represented in the release above. Continue package work in isolated
+worktrees and integrate only reviewed commits.
