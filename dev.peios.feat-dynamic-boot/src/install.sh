@@ -10,24 +10,13 @@
 # backslash escaping inside the heredocs.
 set -eu
 
-# The kernel image ships beside its own modules at
-# /usr/lib/modules/<ver>/vmlinuz-<ver>; the service needs a concrete --kernel
-# to start from. Sorting on the whole path is still version order, since <ver>
-# appears in both the directory and the filename. mkuki watches the enclosing
-# tree, so a later kernel swap still triggers a rebuild.
-kernel="$(ls -1 /usr/lib/modules/*/vmlinuz-* 2>/dev/null | sort -V | tail -n1 || true)"
-if [ -z "$kernel" ]; then
-  echo "dynamic-boot: no /usr/lib/modules/<ver>/vmlinuz-* kernel found" >&2
-  exit 1
-fi
-
 # mkirf watcher: repack /boot/initramfs into the boot cpio on every change.
 # Simple service, Alive readiness (a foreground watcher never sends READY=1),
 # boot-started, created Disabled.
 reg apply - <<'EOF'
 { "keys": [ { "path": "Machine/System/Services/mkirf-watch", "values": [
-  { "name": "ImagePath", "type": "sz", "data": "/bin/mkirf" },
-  { "name": "Arguments", "type": "multi", "data": ["--watch", "--compress", "zstd", "/boot/initramfs", "/system/boot/initramfs.cpio.zst"] },
+  { "name": "ImagePath", "type": "sz", "data": "/usr/bin/mkirf" },
+  { "name": "Arguments", "type": "multi", "data": ["--watch", "--compress", "zstd", "--exclude", "var/state/peipkg", "--exclude", "lcl/conf/peipkg", "/boot/initramfs", "/system/boot/initramfs.cpio.zst"] },
   { "name": "Type", "type": "dword", "data": 0 },
   { "name": "Readiness", "type": "dword", "data": 1 },
   { "name": "Triggers", "type": "multi", "data": ["boot"] },
@@ -36,13 +25,14 @@ reg apply - <<'EOF'
 ] } ] }
 EOF
 
-# mkuki watcher: rebuild the UKI when the kernel, the cpio, or the cmdline file
-# changes. (Unquoted heredoc so $kernel expands; the JSON has no backslashes to
-# be mangled, since we use / separators.)
-reg apply - <<EOF
+# mkuki watcher: the launcher selects the installed command line at service
+# startup, then mkuki follows the unique kernel below /usr/lib/modules. This
+# avoids freezing the service definition to whichever release was installed
+# when the feature was added.
+reg apply - <<'EOF'
 { "keys": [ { "path": "Machine/System/Services/mkuki-watch", "values": [
-  { "name": "ImagePath", "type": "sz", "data": "/bin/mkuki" },
-  { "name": "Arguments", "type": "multi", "data": ["--watch", "--kernel", "$kernel", "--initramfs", "/system/boot/initramfs.cpio.zst", "--cmdline-file", "/usr/share/live-boot/cmdline", "--out", "/boot/efi/EFI/BOOT/BOOTX64.EFI"] },
+  { "name": "ImagePath", "type": "sz", "data": "/usr/libexec/features/dynamic-boot/watch-uki.sh" },
+  { "name": "Arguments", "type": "multi", "data": [] },
   { "name": "Type", "type": "dword", "data": 0 },
   { "name": "Readiness", "type": "dword", "data": 1 },
   { "name": "Triggers", "type": "multi", "data": ["boot"] },

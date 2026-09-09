@@ -1,0 +1,23 @@
+# dev.peios.feat-dynamic-boot — a Peios feature that runs the watch
+# (regenerate-on-change)
+# form of the Dynamic Boot tools mkirf and mkuki as services.
+#
+# BUILDLESS package: nothing is compiled or fetched. The payload is the feature
+# definition in src/ — lifecycle scripts plus the UKI watcher launcher — mapped
+# literally by package.pekit.toml into the vendor feature library
+# /usr/libexec/features/dynamic-boot/. There is no [build] and no [source];
+# out_dir only names where packaging writes the .peipkg.
+out_dir = "out"
+
+[test]
+command = "tests/test-dynamic-boot.sh"
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5"
+"org.gnu.coreutils"   = "*"
+"org.gnu.grep"        = "*"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+grep      = "*"
