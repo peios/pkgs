@@ -78,20 +78,26 @@ A completed upstream package normally has all of the following:
 - Public production inventory: **119 / 119 published**. This is all 93
   upstream/dependency recipes and 26 public Peios-owned recipes. The two
   non-public Peios-owned fixtures remain available locally by design.
-- Signed repository: **index version 234**, with **938 active** and **1,830
+- Signed repository: **index version 237**, with **939 active** and **1,833
   archived** entries. Full canonical and cryptographic verification reports no
   problems.
 - Kernel: all 41 packages are active at `0.20.1-rc13-3`. The metadata-only
   repair advanced 15 exact family edges and 40 legacy provides while preserving
   every payload and replacement bound; two deterministic repacks and an
   independent package-by-package audit passed before the atomic publication.
-- Experimental migration: `dev.peios.peios-experimental 2026.8-14` and the
-  one-use `peios-experimental 2026.8-10` bridge are published. An unprivileged
+- Experimental migration: `dev.peios.peios-experimental 2026.8-15` and the
+  one-use `peios-experimental 2026.8-11` bridge are active with clean immutable
+  provenance. An unprivileged
   Peiso composition installed the legacy 97-package root with 4,405 security
   xattrs recorded rather than applied; the post-publication Peipkg dry run
   removes the legacy edition and selects only the qualified successor. A fresh
-  Peiso composition then produced the qualified 101-package closure, with zero
-  `security.peios.*` attributes written to the host filesystem.
+  final Peiso composition then produced the qualified 103-package closure,
+  again recording all 4,405 attributes with zero `security.peios.*` attributes
+  written to the host filesystem.
+- Intel microcode: `com.intel.intel-ucode 2026.08.12-1` is active. Its release
+  discovery covers base dates, letter-suffixed corrections, and `-revN`
+  corrections without ordering the latter as prereleases. All 231 records in
+  the assembled early-load blob passed structural and checksum validation.
 - Current static recipe gate, using a freshly built current Pekit: **121
   succeeded, 0 failed, 0 skipped**. Every remaining recipe is static-clean.
   The earlier `pekit/out/pekit`
@@ -155,9 +161,9 @@ family revision together. Because the payload build was already accepted, the
 repair used Peipkg's canonical packer to re-sign the verified `-2` payloads
 without rebuilding them. Every `files.json`, installed size, file hash, symlink,
 and replacement bound is identical to `-2`; only the family revision, those 55
-relations, clean recipe reference, build timestamp, and source-package
-description changed. Two independent repacks were byte-identical, and a second
-reviewer verified all 41 package pairs and signatures before publication.
+relations, clean recipe reference, and source-package description changed. Two
+independent repacks were byte-identical, and a second reviewer verified all 41
+package pairs and signatures before publication.
 
 The family was published atomically at repository index 232 and the complete
 repository verified cleanly afterward. Final catalogue commit and recipe
@@ -488,17 +494,17 @@ All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
 verification. Full repository verification at index 214 reports 822 active
 and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
-## Experimental edition closure: 2026.8-14 plus legacy migration
+## Experimental edition closure: 2026.8-15 plus legacy migration
 
-`dev.peios.peios-experimental 2026.8-14` uses qualified identities for every
+`dev.peios.peios-experimental 2026.8-15` uses qualified identities for every
 first-party dependency, including public Peipkg 0.1.3 and PNPd 0.5.1. PNPd is
 intentionally installed and autoapplied because Experimental is the
 development-machine edition; that decision does not approve its current
 listener for a future production profile.
 
 The qualified edition provides its historical name, replaces
-`peios-experimental <= 2026.8-10`, and conflicts with any remaining concrete
-legacy package. The final `peios-experimental 2026.8-10` package is a
+`peios-experimental <= 2026.8-11`, and conflicts with any remaining concrete
+legacy package. The final `peios-experimental 2026.8-11` package is a
 dependency-only trampoline to the qualified edition. It is selected when an
 old concrete-name installation is upgraded, but the successor's replacement
 edge removes both the installed legacy revision and the candidate bridge from
@@ -506,14 +512,40 @@ the final transaction. Peiosutils 0.8.6 drives the transition by installing
 the qualified concrete name for a legacy system and upgrading that name on
 subsequent releases.
 
-The qualified package was published first at index 233 and the bridge second at
-index 234. Before publication, Peiso composed the still-active legacy
+The first qualified publication at index 233 and bridge at index 234 carried a
+dirty recipe reference caused solely by the then-present migration-test root.
+Those artifacts remain historical only. Clean replacements were built from
+catalogue commit `39c0c7d` and published at indexes 235 and 236. Before the
+initial publication, Peiso composed the still-active legacy
 2026.8-9 root from the signed repository. After publication, Peipkg's dry-run
 upgrade produced the exact intended identity transition and the production
-Installer/OOBE split. A fresh Peiso root then resolved and composed the
-qualified edition. Peiso records `security.peios.sig` and `security.peios.sd`
-for the image writer, so both compositions remained unprivileged and wrote no
-security attributes onto the host filesystem.
+Installer/OOBE split. The final active manifests preserve that transition with
+the new revision bounds. A fresh Peiso root then resolved and composed the
+qualified 2026.8-15 edition as a 103-package closure. Peiso records all 4,405
+`security.peios.sig` and `security.peios.sd` attributes for the image writer,
+so both compositions remained unprivileged and wrote no security attributes
+onto the host filesystem.
+
+## Intel microcode production release: 2026.08.12-1
+
+`com.intel.intel-ucode` packages Intel's official binary microcode data as the
+single `GenuineIntel.bin` stream consumed by the kernel's early loader. The
+recipe validates the header, size, alignment, main checksum, and extended
+signature table of every input record, builds twice from one sorted manifest,
+and validates the combined 231-record result again before packaging.
+
+Pekit release discovery now maps Intel's `microcode-YYYYMMDD` tags to
+`YYYY.MM.DD`, letter-suffixed tags to versions such as `YYYY.MM.DDa`, and
+corrective `-revN` tags to a fourth numeric component such as
+`YYYY.MM.DD.N`. The matching `{{suffix}}{{revision_suffix}}` ref template
+round-trips every accepted version to its exact upstream tag, so unattended
+tracking cannot silently miss or misorder a corrective release. The existing
+immutable lock selected `microcode-20260812` at commit `927e65c8`.
+
+The signed package has clean catalogue reference `90a919a`, passed the native
+Peipkg build and record-validation gate, and was published at repository index
+237. Full repository verification reports 939 active and 1,833 archived
+entries with no problems.
 
 ## Historical first-party state before final publication
 
