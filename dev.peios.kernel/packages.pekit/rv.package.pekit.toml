@@ -3,4 +3,5 @@
 name = "dev.peios.rv"
 
 [provides]
-"rv" = "{{version}}-3"
+
+[replaces]

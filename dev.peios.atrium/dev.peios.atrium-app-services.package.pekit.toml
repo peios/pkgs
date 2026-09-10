@@ -1,0 +1,3 @@
+[dependencies]
+"dev.peios.atrium-core" = "{{version}}"
+"dev.peios.peinit" = "*"

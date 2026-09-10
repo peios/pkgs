@@ -3,4 +3,5 @@
 name = "dev.peios.freefall"
 
 [provides]
-"freefall" = "{{version}}-3"
+
+[replaces]

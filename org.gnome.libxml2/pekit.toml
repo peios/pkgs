@@ -256,7 +256,7 @@ rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c" = "*"
+"dev.peios.build-essentials-c" = "*"
 pkgconf                = "*"
 "zlib-devel"          = "*"
 "glibc-gconv-extra"   = "*"

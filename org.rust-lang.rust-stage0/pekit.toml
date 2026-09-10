@@ -81,7 +81,7 @@ test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gn
 """
 
 [build.main.dependencies.peipkg]
-build-essentials = "*"
+"dev.peios.build-essentials" = "*"
 "org.gnu.gcc-libgcc" = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
 

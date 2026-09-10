@@ -3,4 +3,5 @@
 name = "dev.peios.libthermal"
 
 [provides]
-"libthermal" = "{{version}}-3"
+
+[replaces]

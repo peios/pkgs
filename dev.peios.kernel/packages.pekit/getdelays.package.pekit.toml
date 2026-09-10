@@ -3,4 +3,5 @@
 name = "dev.peios.getdelays"
 
 [provides]
-"getdelays" = "{{version}}-3"
+
+[replaces]

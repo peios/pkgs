@@ -182,7 +182,7 @@ rm -rf "$PEKIT_OUT/build"
 
 # bash: progs/mkcapshdoc.sh is a bash script.
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 "org.gnu.bash" = "*"
 pkgconf = "*"
 

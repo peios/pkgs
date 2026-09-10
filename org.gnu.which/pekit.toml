@@ -151,7 +151,7 @@ rm -f "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 # The installed binary is C-only, but upstream's cwm4 configure layer invokes
 # AC_PROG_CXX and tests C++ warning flags even for this package.
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 debugedit              = "*"
 patchelf               = "*"
 

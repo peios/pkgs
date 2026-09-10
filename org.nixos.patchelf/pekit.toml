@@ -146,7 +146,7 @@ rm -f "$PEKIT_OUT/.debug-list"
 '''
 
 [build.main.dependencies.peipkg]
-build-essentials = "*"
+"dev.peios.build-essentials" = "*"
 "gcc-c++"        = "*"
 debugedit        = ">= 5.2-2"
 gzip             = "*"

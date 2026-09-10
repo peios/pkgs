@@ -293,7 +293,7 @@ rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c"        = "*"
+"dev.peios.build-essentials-c"        = "*"
 pkgconf                      = "*"
 "org.gnome.libxml2-devel"  = ">= 2.15.3-1"
 "org.gnome.libxml2-static" = ">= 2.15.3-1"

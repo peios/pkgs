@@ -3,5 +3,6 @@
 name = "dev.peios.kernel-headers"
 
 [provides]
-"kernel-headers" = "{{version}}-3"
 "linux-kernel-headers" = "7.0.9"
+
+[replaces]

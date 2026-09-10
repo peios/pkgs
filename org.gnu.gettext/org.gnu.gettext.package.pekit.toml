@@ -18,7 +18,7 @@ dash                     = "*"
 glibc                    = ">= 2.43"
 grep                     = "*"
 "org.gnu.gettext-libtextstyle" = "{{version}}-3"
-peiosutils                = "*"
+"dev.peios.peiosutils"                = "*"
 "org.gnu.gettext-common" = "{{version}}-3"
 sed                      = "*"
 

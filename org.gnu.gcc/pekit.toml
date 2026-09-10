@@ -946,7 +946,7 @@ done
 # refresh required by a release; the bignum -devel packages and zlib-devel are what
 # cc1 compiles and links against — all from our own pool.
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "io.github.westes.flex" = "*"
 "org.gnu.bison" = "*"
 "org.gnu.gmp-devel" = "*"

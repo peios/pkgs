@@ -19,12 +19,6 @@ license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"
 
-[provides]
-feat-dynamic-boot = "1.0.0-1"
-
-[replaces]
-feat-dynamic-boot = "<= 0.0.1-3"
-
 # feat (runs the lifecycle scripts) and reg/mkirf/mkuki (called by them and by
 # the services) all ship in peiosutils.
 [dependencies]

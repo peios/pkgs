@@ -103,7 +103,7 @@ rm -rf "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c   = "*"
+"dev.peios.build-essentials-c"   = "*"
 "org.gnu.coreutils" = "*"
 "org.gnu.diffutils" = "*"
 sed                  = "*"

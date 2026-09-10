@@ -1,0 +1,4 @@
+# The ELF-derived libnss_peios_net.so.2 capability remains.
+[provides]
+
+[replaces]

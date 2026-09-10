@@ -3,4 +3,5 @@
 name = "dev.peios.libperf"
 
 [provides]
-"libperf" = "{{version}}-3"
+
+[replaces]

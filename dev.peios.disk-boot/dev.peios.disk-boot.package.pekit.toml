@@ -6,12 +6,6 @@
 name        = "dev.peios.disk-boot"
 description = "Peios installed-system boot support"
 
-[provides]
-disk-boot = "1.0.0-10"
-
-[replaces]
-disk-boot = "<= 1.0.0-9"
-
 # disk-boot-irf's home is the initramfs root, so this edge carries IN initramfs
 # (the table `root` field).
 [dependencies]

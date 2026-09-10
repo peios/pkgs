@@ -6,15 +6,9 @@ name         = "dev.peios.coldplug-irf"
 default_root = "initramfs"
 description  = "Peios initramfs coldplug hook"
 
-[provides]
-coldplug-irf = "1.0.0-3"
-
-[replaces]
-coldplug-irf = "<= 1.0.0-2"
-
 [dependencies]
 "org.kernel.kmod" = ">= 34.2"
-peiosutils         = ">= 0.1.4"
+"dev.peios.peiosutils" = ">= 0.8.6-1"
 sh                 = ">= 1"
 # ABI 3 supplies hook-log.sh as well as contributes/declined semantics.
 prelude-hook-abi   = ">= 3"

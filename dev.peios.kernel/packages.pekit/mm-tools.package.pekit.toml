@@ -3,4 +3,5 @@
 name = "dev.peios.mm-tools"
 
 [provides]
-"mm-tools" = "{{version}}-3"
+
+[replaces]

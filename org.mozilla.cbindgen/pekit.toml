@@ -108,7 +108,7 @@ test "$(readelf -n "$DEBUG" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" 
 
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash"      = "*"
-peiosutils                  = "*"
+"dev.peios.peiosutils"                  = "*"
 "org.gnu.findutils"        = "*"
 "org.gnu.grep"             = "*"
 "org.gnu.sed"              = "*"

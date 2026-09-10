@@ -171,7 +171,7 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 debugedit          = "*"
 patchelf           = "*"
 
@@ -203,7 +203,7 @@ LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios" "$TMP/main"
 '''
 
 [test.dependencies.peipkg]
-"build-essentials-c" = "*"
+"dev.peios.build-essentials-c" = "*"
 
 [test.dependencies.apt]
 build-essential = "*"

@@ -67,7 +67,7 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 texinfo = "*"
 
 [test]

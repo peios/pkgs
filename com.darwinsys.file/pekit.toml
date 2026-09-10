@@ -149,7 +149,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c              = "*"
+"dev.peios.build-essentials-c"              = "*"
 zlib-devel                      = "*"
 "org.sourceware.bzip2-devel"   = "*"
 xz-devel                        = "*"

@@ -18,7 +18,7 @@ glibc = ">= 2.43"
 # script or by a format script, so none of it is optional.
 "org.gnu.bash"                  = "*"
 "org.kernel.util-linux-getopt" = ">= 2.42.3"
-peiosutils                      = "*"
+"dev.peios.peiosutils"                      = "*"
 "org.gnu.grep"                 = "*"
 "org.gnu.sed"                  = "*"
 "org.gnu.findutils"            = "*"

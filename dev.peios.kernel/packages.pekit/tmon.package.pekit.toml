@@ -3,4 +3,5 @@
 name = "dev.peios.tmon"
 
 [provides]
-"tmon" = "{{version}}-3"
+
+[replaces]

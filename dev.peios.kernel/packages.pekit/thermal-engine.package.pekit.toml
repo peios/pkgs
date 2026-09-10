@@ -7,4 +7,5 @@ name = "dev.peios.thermal-engine"
 "dev.peios.libthermal-tools" = "= {{version}}-3"
 
 [provides]
-"thermal-engine" = "{{version}}-3"
+
+[replaces]

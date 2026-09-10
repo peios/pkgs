@@ -3,4 +3,5 @@
 name = "dev.peios.cgroup-tools"
 
 [provides]
-"cgroup-tools" = "{{version}}-3"
+
+[replaces]

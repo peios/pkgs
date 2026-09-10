@@ -11,7 +11,7 @@ license     = "GPL-2.0-or-later AND GPL-2.0-or-later WITH Autoconf-exception-gen
 libtool = "{{version}}"
 
 [dependencies]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 "org.gnu.autoconf" = "*"
 "org.gnu.automake" = "*"
 tar                 = "*"

@@ -3,4 +3,5 @@
 name = "dev.peios.spi-utils"
 
 [provides]
-"spi-utils" = "{{version}}-3"
+
+[replaces]

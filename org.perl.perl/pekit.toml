@@ -356,7 +356,7 @@ rm -rf "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c             = "*"
+"dev.peios.build-essentials-c"             = "*"
 debugedit                      = ">= 5.2"
 "org.debian.netbase"          = ">= 6.6"
 zlib-devel                     = ">= 2.3.3"

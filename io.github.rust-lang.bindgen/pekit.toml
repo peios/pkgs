@@ -38,7 +38,7 @@ cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
 """
 
 [build.vendor.dependencies.peipkg]
-build-essentials = "*"
+"dev.peios.build-essentials" = "*"
 rust = "*"
 
 [build.vendor.dependencies.apt]
@@ -77,7 +77,7 @@ rm -rf "$PEKIT_OUT/target" "$PEKIT_OUT/smoke.h" "$PEKIT_OUT/smoke.rs"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 rust = "*"
 clang = ">= 18.1.8, < 19"
 

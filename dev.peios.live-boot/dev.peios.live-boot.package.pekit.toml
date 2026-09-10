@@ -8,12 +8,6 @@
 name        = "dev.peios.live-boot"
 description = "Live-medium boot support: kernel cmdline + initramfs root-mount hook"
 
-[provides]
-live-boot = "1.0.0-19"
-
-[replaces]
-live-boot = "<= 1.0.0-18"
-
 # live-boot-irf's home is the initramfs root, so this edge carries IN initramfs
 # (the table `root` field). Everything else about it — what it ships, what it
 # needs — the package itself declares.

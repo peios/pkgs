@@ -1264,7 +1264,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 # on Debian; linux-kernel-headers via build-essentials-c on Peios). The debug
 # split uses debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 # Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
 # it to legacy GCC, while qualified GCC can satisfy the same provide later.
 "gcc-c++"                  = "*"
@@ -1370,7 +1370,7 @@ rm -rf "$SMOKE"
 # Build deps. Re-runs make in main's already-configured glibc tree to compile the
 # per-locale data with the localedef built there — needs the same gcc + make.
 [build.locale.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 
 [build.locale.dependencies.apt]
 build-essential = "*"

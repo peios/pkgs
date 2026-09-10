@@ -242,7 +242,7 @@ rm -f "$PEKIT_OUT/.actual-tools" "$PEKIT_OUT/.expected-tools" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 debugedit              = "*"
 patchelf               = "*"
 pkgconf                = "*"

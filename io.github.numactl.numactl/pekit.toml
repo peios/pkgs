@@ -168,7 +168,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 '''
 
 [build.main.dependencies.peipkg]
-build-essentials-c   = "*"
+"dev.peios.build-essentials-c"   = "*"
 debugedit            = "*"
 libatomic-static     = "*"
 "org.gnu.autoconf"  = "*"

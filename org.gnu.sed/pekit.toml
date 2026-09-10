@@ -164,7 +164,7 @@ rm -f "$PEKIT_OUT/.dl"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 glibc-bin          = ">= 2.43"
 glibc-langpack-en  = ">= 2.43"
 glibc-langpack-fr  = ">= 2.43"

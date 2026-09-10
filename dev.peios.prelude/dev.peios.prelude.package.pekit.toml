@@ -1,0 +1,6 @@
+# These are real boot-interface capabilities, not old concrete package names.
+[provides]
+init = "1"
+prelude-hook-abi = "3"
+
+[replaces]

@@ -235,7 +235,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++"          = "*"
+"dev.peios.build-essentials-c++"          = "*"
 pkgconf                         = "*"
 "org.sourceware.elfutils-devel" = ">= 0.196"
 "org.sourceware.elfutils"       = ">= 0.196"

@@ -3,4 +3,5 @@
 name = "dev.peios.gpio-utils"
 
 [provides]
-"gpio-utils" = "{{version}}-3"
+
+[replaces]

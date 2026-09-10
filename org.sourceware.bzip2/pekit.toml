@@ -164,7 +164,7 @@ rm -rf "$PEKIT_OUT/build"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

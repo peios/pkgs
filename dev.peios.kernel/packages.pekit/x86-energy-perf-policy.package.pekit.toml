@@ -3,4 +3,5 @@
 name = "dev.peios.x86-energy-perf-policy"
 
 [provides]
-"x86-energy-perf-policy" = "{{version}}-3"
+
+[replaces]

@@ -128,7 +128,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 # The upstream suite exercises generated scanners and Autoconf integration.
 flex = "*"
 "org.gnu.autoconf" = ">= 2.72"

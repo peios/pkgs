@@ -50,8 +50,8 @@ format = "peipkg"
 # which printk resolves last-wins. PEI-782.
 #
 # 1.0.0-10 is the production-qualified baseline. The package family moves to
-# dev.peios.*, retains the old names as migration capabilities, couples its
-# two halves at the exact release, declares the initramfs root and shell
+# dev.peios.* and couples its two halves at the exact release, declares the
+# initramfs root and shell
 # contract explicitly, ships its licence, and tests the root-resolution,
 # filesystem-check, and mount outcomes. The hook also adopts the shared
 # prelude ABI-3 console format. The optional-fsck policy is unchanged.

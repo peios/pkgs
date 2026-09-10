@@ -47,7 +47,7 @@ description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 l
 # tzselect also invokes the base cat/date/sort/tr utilities. Peiosutils is
 # Peios's coreutils implementation, so declare the actual package rather than
 # an upstream coreutils substitute.
-peiosutils = "*"
+"dev.peios.peiosutils" = "*"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-bin/"

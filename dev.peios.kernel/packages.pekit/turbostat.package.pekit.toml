@@ -3,4 +3,5 @@
 name = "dev.peios.turbostat"
 
 [provides]
-"turbostat" = "{{version}}-3"
+
+[replaces]

@@ -182,7 +182,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.srclist"
 # gzip: gettext-tools/misc creates autopoint's version archive at build time;
 # the development package ships and consumes that archive.
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 glibc-gconv-extra = "*"
 glibc-langpack-de = "*"
 glibc-langpack-en = "*"

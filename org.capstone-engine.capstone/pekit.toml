@@ -114,7 +114,7 @@ rm -rf "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake" = "*"
 
 [build.main.dependencies.apt]

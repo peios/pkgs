@@ -53,12 +53,6 @@ description = "Base filesystem for the initramfs root - the reduced Peios skelet
 # exemption it does not need.
 special_system_package = true
 
-[provides]
-fsbase-irf = "1.0.0-10"
-
-[replaces]
-fsbase-irf = "<= 1.0.0-9"
-
 [files]
 # x86-64 ABI interpreter view, needed here for the same reason as in the main
 # root: the initramfs runs dynamically linked hooks before anything is mounted.

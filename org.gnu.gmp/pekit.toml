@@ -238,7 +238,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
 # Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file" = "*"
 m4 = "*"
 "org.gnu.bison" = "*"

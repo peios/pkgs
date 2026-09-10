@@ -30,7 +30,7 @@ description = "GNU C Library - profiling and tracing utilities"
 # supplied by Peiosutils. Keep the POSIX shell role explicit independently of
 # the Bash implementation required by xtrace/sotruss.
 sh                 = ">= 1"
-peiosutils         = "*"
+"dev.peios.peiosutils"         = "*"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-utils/"

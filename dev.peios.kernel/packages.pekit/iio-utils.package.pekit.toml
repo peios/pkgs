@@ -3,4 +3,5 @@
 name = "dev.peios.iio-utils"
 
 [provides]
-"iio-utils" = "{{version}}-3"
+
+[replaces]

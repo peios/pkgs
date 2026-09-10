@@ -3,4 +3,5 @@
 name = "dev.peios.latency-collector"
 
 [provides]
-"latency-collector" = "{{version}}-3"
+
+[replaces]

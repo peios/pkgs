@@ -5,23 +5,16 @@ name         = "dev.peios.peios-experimental"
 # -9: move the ca-certificates floor onto the successor's version scheme (see
 # the trust block below).
 # -10: production qualification. The edition moves to its reverse-DNS name,
-# retains a bounded migration from the last unqualified package, follows every
-# already-qualified package by its canonical identity, owns its licence text,
-# and is correctly architecture-bound by its x86_64 dependency closure.
-# -11: close the first-party migration. Prelude, Peinit, Netd, Resolvd, Trustd,
-# Timed, Installer and OOBE now use their production reverse-DNS identities and
-# floors. Peipkg and PNPd remain on their historical names deliberately. Peipkg
-# still has an independent legal review; PNPd is intentionally part of this
-# development-machine edition while it awaits a public qualified source release.
-# -12: make the qualification reachable from the final legacy-name migration
-# release and require the upgrader that uses the concrete name thereafter.
-# -13: follow PNPd's qualified source and package identity at 0.5.1-2; retain
-# Peipkg's historical identity until its independent licence review and
-# qualification release are complete.
+# follows every package by its canonical identity, owns its licence text, and
+# is correctly architecture-bound by its x86_64 dependency closure.
+# -11: Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer and OOBE move to
+# their production reverse-DNS identities and floors.
+# -12: require the qualified concrete edition name through the upgrader.
+# -13: follow PNPd's qualified source and package identity at 0.5.1-2.
 # -14: follow Peipkg's qualified 0.1.3 release. Every first-party dependency
 # in the edition now uses its production reverse-DNS identity.
 # -15: replace the provenance-tainted -14 publication from a clean catalogue
-# commit and extend the bounded legacy replacement through the final -11 bridge.
+# commit.
 version      = "{{version}}-15"
 architecture = "x86_64"
 description  = "Peios Experimental edition: the base system and its OS release identity"
@@ -42,16 +35,6 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # "some Peios"; depend on an edition to mean that edition.
 [provides]
 peios-release = "{{version}}"
-peios-experimental = "{{version}}-15"
-
-[replaces]
-peios-experimental = "<= 2026.8-11"
-
-# `replaces` performs the installed-system migration. The matching conflict is
-# the fail-closed half: the legacy bridge cannot be installed alongside this
-# package into an empty root, and an out-of-range legacy package cannot coexist.
-[conflicts]
-peios-experimental = "*"
 
 # The base system. Every entry is a `>=` floor rather than a pin: at this
 # pre-alpha stage the floors let packages move without a repackage of the
@@ -153,9 +136,9 @@ peios-experimental = "*"
 # The floor is on the dotted YYYY.MM.DD scheme org.mozilla.ca-certificates
 # uses, and has to be: that package provides the `ca-certificates` name at its
 # own version, and a dotted date sorts BELOW an undotted one because the
-# numeric major is 2026 rather than 20260830. The old undotted floor was
-# satisfied only by the legacy package itself, so archiving that package left
-# this edition unresolvable (PEI-840).
+# numeric major is 2026 rather than 20260830. The prior undotted floor could not
+# be satisfied by a qualified package, leaving this edition unresolvable
+# (PEI-840).
 "dev.peios.trustd" = ">= 0.1.1-1"
 "dev.peios.trust"  = ">= 0.1.1-1"
 "org.mozilla.ca-certificates" = ">= 2026.09.06-1"

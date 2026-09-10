@@ -6,4 +6,5 @@ name = "dev.peios.kernel-modules"
 "dev.peios.kernel" = "= {{version}}-3"
 
 [provides]
-"kernel-modules" = "{{version}}-3"
+
+[replaces]

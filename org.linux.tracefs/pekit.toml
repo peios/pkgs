@@ -339,7 +339,7 @@ rm -f "$PEKIT_OUT/.actual-libs" "$PEKIT_OUT/.expected-libs" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c"              = "*"
+"dev.peios.build-essentials-c"              = "*"
 debugedit                           = "*"
 findutils                           = "*"
 "org.gnu.grep"                    = "*"

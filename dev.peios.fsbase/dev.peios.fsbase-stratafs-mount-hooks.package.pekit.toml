@@ -38,12 +38,6 @@ description = "Initramfs hooks that mount the Peios base StrataFS views"
 # is where it runs, not where it acts.
 default_root = "initramfs"
 
-[provides]
-fsbase-stratafs-mount-hooks = "1.0.0-10"
-
-[replaces]
-fsbase-stratafs-mount-hooks = "<= 1.0.0-9"
-
 [dependencies]
 # The hook is a #!/usr/bin/sh script.
 sh = ">= 1"

@@ -233,7 +233,7 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file"   = "*"
 debugedit               = "*"
 "org.gnu.autoconf"      = "*"

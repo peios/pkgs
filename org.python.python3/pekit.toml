@@ -270,7 +270,7 @@ done
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c                 = "*"
+"dev.peios.build-essentials-c"                 = "*"
 debugedit                         = "*"
 "org.pkgconf.pkgconf"             = "*"
 "org.openssl.openssl-devel"       = "*"

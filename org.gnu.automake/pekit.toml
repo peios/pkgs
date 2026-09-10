@@ -48,7 +48,7 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "org.gnu.bash"           = "*"
 gzip                     = "*"
 "org.gnu.autoconf"      = ">= 2.72"

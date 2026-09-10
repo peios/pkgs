@@ -12,7 +12,7 @@ command = "tests/test-load-drivers.sh"
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
-peiosutils             = ">= 0.1.4"
+"dev.peios.peiosutils" = ">= 0.8.6-1"
 
 [test.dependencies.apt]
 dash      = "*"

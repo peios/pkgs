@@ -356,7 +356,7 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++"       = "*"
+"dev.peios.build-essentials-c++"       = "*"
 "org.rust-lang.rust-stage0" = "= 1.82.0-2"
 python3                      = "*"
 llvm                         = ">= 18.1.8, < 19"

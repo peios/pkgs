@@ -1,0 +1,8 @@
+# pkgconfig(rsi) remains derived from the staged payload.
+[provides]
+
+[replaces]
+
+[dependencies]
+"dev.peios.librsi" = "= {{version}}-1"
+"dev.peios.kernel-headers" = ">= 0.20.1-rc13-3"

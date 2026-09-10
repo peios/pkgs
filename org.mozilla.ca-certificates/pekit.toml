@@ -147,7 +147,7 @@ test "$actual" = usr/share/ca-certificates/mozilla.crt
 "org.git.kernel.dash" = "*"
 "org.gnu.findutils"     = "*"
 "org.python.python3"    = "*"
-peiosutils               = "*"
+"dev.peios.peiosutils"               = "*"
 
 [build.main.dependencies.apt]
 coreutils = "*"

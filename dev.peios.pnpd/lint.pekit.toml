@@ -1,2 +1,5 @@
 [allow]
+"package.license" = "Package licence metadata is owned by the immutable delegated source and is checked by versioned lint"
+"package.homepage" = "Package homepage metadata is owned by the immutable delegated source and is checked by versioned lint"
+"package.description" = "Package descriptions are owned by the immutable delegated source and are checked by versioned lint"
 "elf.cet" = "Rust 1.98 does not emit the x86 GNU property note for IBT or shadow-stack compatibility; PNPd retains NX stack, PIE, full RELRO, RELR, and no text relocations"

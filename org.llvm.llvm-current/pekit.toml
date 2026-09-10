@@ -284,7 +284,7 @@ rm -f "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.source-list" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake"      = "*"
 "org.ninja-build.ninja" = "*"
 python3                 = "*"

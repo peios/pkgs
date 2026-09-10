@@ -6,4 +6,5 @@ name = "dev.peios.thermometer"
 "dev.peios.libthermal-tools" = "= {{version}}-3"
 
 [provides]
-"thermometer" = "{{version}}-3"
+
+[replaces]

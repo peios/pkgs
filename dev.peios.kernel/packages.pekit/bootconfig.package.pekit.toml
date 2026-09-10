@@ -3,4 +3,5 @@
 name = "dev.peios.bootconfig"
 
 [provides]
-"bootconfig" = "{{version}}-3"
+
+[replaces]

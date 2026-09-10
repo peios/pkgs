@@ -3,4 +3,5 @@
 name = "dev.peios.bpftool"
 
 [provides]
-"bpftool" = "{{version}}-3"
+
+[replaces]

@@ -3,4 +3,5 @@
 name = "dev.peios.intel-speed-select"
 
 [provides]
-"intel-speed-select" = "{{version}}-3"
+
+[replaces]

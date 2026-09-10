@@ -239,7 +239,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # The C floor: compiler, binutils, libc/kernel headers, the shell + userland
 # every build assumes, and the debug-split tools (debugedit, patchelf; strip/
 # objcopy/readelf come with binutils) the command below invokes.
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 # makeinfo, for doc/libext2fs.info (claimed as usr/share/info/**).
 texinfo = "*"
 pkgconf = "*"
@@ -247,8 +247,8 @@ pkgconf = "*"
 # build needs libpeios's headers and dev symlink; -devel pulls kernel-headers
 # for the <pkm/*.h> those headers include. This replaces the vendored deps/
 # bridge the recipe used before libpeios published (deps/README.md).
-libpeios = "*"
-libpeios-devel = "*"
+"dev.peios.libpeios" = "*"
+"dev.peios.libpeios-devel" = "*"
 
 # The upstream regression suite stores several filesystem images as compressed
 # fixtures and unpacks them with the command-line tools.  `which` is used by
@@ -277,5 +277,5 @@ test -x "$BIN/debugfs"
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
-libpeios = "*"
+"dev.peios.libpeios" = "*"
 "org.kernel.libblkid" = "*"

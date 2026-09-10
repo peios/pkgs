@@ -204,7 +204,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # assembler/linker this package is replacing, and the debug-split tools
 # (debugedit, patchelf, strip/objcopy) the post-install pipeline invokes.
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 # Libtool uses file(1) to classify objects and libraries during configure.
 file = "*"
 # gas uses perl/pod2man when refreshing the installed command manuals. Release

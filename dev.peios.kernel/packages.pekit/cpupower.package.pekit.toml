@@ -6,4 +6,5 @@ name = "dev.peios.cpupower"
 "dev.peios.cpupower-libs" = "= {{version}}-3"
 
 [provides]
-"cpupower" = "{{version}}-3"
+
+[replaces]

@@ -191,7 +191,7 @@ rm -f "$PEKIT_OUT/.srclist"
 '''
 
 [build.main.dependencies.peipkg]
-build-essentials-c         = "*"
+"dev.peios.build-essentials-c"         = "*"
 "org.gnu.autoconf"        = ">= 2.72"
 "org.gnu.automake"        = ">= 1.18"
 "org.nixos.patchelf"      = "*"

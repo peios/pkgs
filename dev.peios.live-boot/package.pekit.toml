@@ -1,5 +1,5 @@
 # Base metadata shared by the qualified live-boot packages. Each package
-# fragment adds its own identity, migration capabilities, dependencies, and
+# fragment adds its own identity, dependencies, and
 # files. Both are buildless — their payloads come from src/.
 #
 # x86_64, not noarch: although the payloads (a script, a cmdline) are arch-
@@ -90,8 +90,8 @@ format = "peipkg"
 # only useful outcome on a medium somebody is sitting in front of.
 #
 # 1.0.0-19 is the production-qualified baseline. The family moves to
-# dev.peios.*, retains the old names as migration capabilities, couples its
-# two halves at the exact release, declares the initramfs root and shell
+# dev.peios.* and couples its two halves at the exact release, declares the
+# initramfs root and shell
 # contract explicitly, ships its licence, and tests the medium-discovery and
 # mount outcomes.
 version      = "1.0.0-19"

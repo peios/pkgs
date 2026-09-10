@@ -1,0 +1,5 @@
+# The ELF-derived libnss_peios.so.2 capability remains; only the old package
+# alias is cleared here.
+[provides]
+
+[replaces]

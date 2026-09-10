@@ -23,7 +23,7 @@ sh                                            = ">= 1"
 # udev-coldplug uses uname, sleep, mkdir, dirname and mknod. Peiosutils is
 # Peios's system implementation of those core applets; eudev must not pull in
 # the GNU compatibility package merely to run its boot hook.
-peiosutils                                    = "*"
+"dev.peios.peiosutils"                                    = "*"
 
 [files]
 "@source:COPYING"                     = "usr/share/licenses/io.github.eudev-project.eudev/"

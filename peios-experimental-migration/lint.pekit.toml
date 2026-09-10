@@ -1,2 +1,0 @@
-[allow]
-"package.name.style" = "This is the final package under the legacy concrete name; its only purpose is to migrate installed systems to dev.peios.peios-experimental"

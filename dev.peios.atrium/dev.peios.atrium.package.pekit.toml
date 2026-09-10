@@ -1,0 +1,4 @@
+# No legacy concrete-name aliases: no pre-rDNS package was ever deployed.
+[provides]
+
+[replaces]

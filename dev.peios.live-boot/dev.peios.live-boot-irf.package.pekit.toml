@@ -10,12 +10,6 @@ name         = "dev.peios.live-boot-irf"
 default_root = "initramfs"
 description  = "Peios live-medium initramfs mount hook"
 
-[provides]
-live-boot-irf = "1.0.0-19"
-
-[replaces]
-live-boot-irf = "<= 1.0.0-18"
-
 [dependencies]
 "dev.peios.peiosutils" = ">= 0.8.5"
 sh                       = ">= 1"
@@ -34,7 +28,7 @@ prelude-hook-abi = ">= 3"
 # it where it can be caught before a boot instead of during one: two hooks both
 # mounting /mnt/rootfs means the second fails and takes the boot with it.
 [conflicts]
-disk-boot-irf = "*"
+"dev.peios.disk-boot-irf" = "*"
 
 # The hook lives in the packaged hook directory, one of the places mkirf scans
 # when it packs the initramfs cpio. /usr because it is package payload; an

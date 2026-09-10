@@ -130,7 +130,7 @@ rm -rf "$SMOKE" "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++" = "*"
+"dev.peios.build-essentials-c++" = "*"
 openssl-devel = "*"
 debugedit = "*"
 patchelf = "*"

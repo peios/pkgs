@@ -203,7 +203,7 @@ rm -rf "$SMOKE" "$PEKIT_OUT/build"
 '''
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 python3            = "*"
 
 [build.main.dependencies.apt]
@@ -263,7 +263,7 @@ if readelf -dW "$SMOKE/main" 2>/dev/null | grep -q NEEDED; then exit 1; fi
 '''
 
 [test.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 
 [test.dependencies.apt]
 build-essential = "*"

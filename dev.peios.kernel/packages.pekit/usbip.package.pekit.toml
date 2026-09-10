@@ -3,4 +3,5 @@
 name = "dev.peios.usbip"
 
 [provides]
-"usbip" = "{{version}}-3"
+
+[replaces]

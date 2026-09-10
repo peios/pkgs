@@ -1,0 +1,6 @@
+# registryd is an architectural provider role used by Peinit's claim; it is
+# not a legacy concrete package name.
+[provides]
+registryd = "1"
+
+[replaces]

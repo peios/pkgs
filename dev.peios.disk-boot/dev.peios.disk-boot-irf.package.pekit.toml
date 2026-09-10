@@ -15,19 +15,13 @@ name         = "dev.peios.disk-boot-irf"
 default_root = "initramfs"
 description  = "Peios installed-root initramfs mount hook"
 
-[provides]
-disk-boot-irf = "1.0.0-10"
-
-[replaces]
-disk-boot-irf = "<= 1.0.0-9"
-
 # Package presence selects the boot flavour. State the invariant from both
 # sides so it remains enforced even if an older live-boot package did not.
 [conflicts]
-live-boot-irf = "*"
+"dev.peios.live-boot-irf" = "*"
 
 [dependencies]
-peiosutils = ">= 0.1.4"
+"dev.peios.peiosutils" = ">= 0.8.6-1"
 sh         = ">= 1"
 # Everything this hook and prelude must agree on: that exit 69 means declined
 # rather than failed, and that the real root is mounted at /mnt/rootfs. Each

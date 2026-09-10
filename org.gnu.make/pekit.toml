@@ -163,7 +163,7 @@ usr/bin/make --version | head -1 | grep -F "$PEKIT_VERSION"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 debugedit          = "*"
 gettext            = "*"
 patchelf           = "*"

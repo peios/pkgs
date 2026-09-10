@@ -3,4 +3,5 @@
 name = "dev.peios.rtla"
 
 [provides]
-"rtla" = "{{version}}-3"
+
+[replaces]

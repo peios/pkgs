@@ -147,7 +147,7 @@ if readelf -d "$MPFR_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; the
 '''
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 gmp-devel          = "*"
 gmp-static         = "*"
 pkgconf            = "*"

@@ -299,7 +299,7 @@ rm -f "$PEKIT_OUT/.actual-install" "$PEKIT_OUT/.expected-install" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c" = "*"
+"dev.peios.build-essentials-c" = "*"
 "org.cmake.cmake"     = "*"
 debugedit             = "*"
 pkgconf               = "*"

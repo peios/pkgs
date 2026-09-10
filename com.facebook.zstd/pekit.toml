@@ -268,7 +268,7 @@ rm -f "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++"                    = "*"
+"dev.peios.build-essentials-c++"                    = "*"
 "org.cmake.cmake"                         = "*"
 debugedit                                 = "*"
 pkgconf                                   = "*"

@@ -7,4 +7,5 @@ name = "dev.peios.kernel-devel"
 "dev.peios.build-essentials-c" = "*"
 
 [provides]
-"kernel-devel" = "{{version}}-3"
+
+[replaces]

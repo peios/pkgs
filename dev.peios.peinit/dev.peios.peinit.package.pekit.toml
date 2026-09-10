@@ -1,0 +1,5 @@
+# init and registryd are architectural roles, not concrete package aliases.
+[provides]
+init = "1"
+
+[replaces]

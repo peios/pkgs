@@ -3,4 +3,5 @@
 name = "dev.peios.kvm-stat"
 
 [provides]
-"kvm-stat" = "{{version}}-3"
+
+[replaces]

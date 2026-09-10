@@ -168,7 +168,7 @@ rm -rf "$SMOKE"
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c   = "*"
+"dev.peios.build-essentials-c"   = "*"
 "com.darwinsys.file" = "*"
 glibc-langpack-en    = ">= 2.43"
 glibc-langpack-fr    = ">= 2.43"

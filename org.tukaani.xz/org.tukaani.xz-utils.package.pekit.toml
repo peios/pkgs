@@ -8,7 +8,7 @@ license     = "GPL-2.0-or-later"
 
 [dependencies]
 dash                = "*"
-peiosutils          = "*"
+"dev.peios.peiosutils"          = "*"
 "org.gnu.diffutils" = "*"
 "org.gnu.grep"      = "*"
 "org.gnu.sed"       = "*"

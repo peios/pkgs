@@ -1,7 +1,7 @@
 # Base metadata shared by the fsbase packages. Each <name>.package.pekit.toml
 # (`dev.peios.fsbase`, `dev.peios.fsbase-irf`, and
 # `dev.peios.fsbase-stratafs-mount-hooks`) inherits these fields and adds its
-# own identity, description, migration metadata, and files.
+# own identity, description, dependencies, and files.
 #
 # The functional payload of the two skeletons is the empty directories the
 # recipe's build mints, carved into two subsets; each also carries the shared
@@ -43,8 +43,8 @@ format = "peipkg"
 # prelude-hook-abi >= 3. PEI-783.
 #
 # 1.0.0-10 is the production-qualified baseline. The three package identities
-# move under dev.peios while retaining bounded migration capabilities; every
-# binary package ships its MIT licence. The build and hook test suite fixes the
+# move under dev.peios; every binary package ships its MIT licence. The build
+# and hook test suite fixes the
 # directory contract, exact StrataFS mount graph, test-root isolation, and the
 # rule that a failed mount must never emit an OK line.
 version      = "1.0.0-10"

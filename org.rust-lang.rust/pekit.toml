@@ -495,7 +495,7 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 '''
 
 [build.main.dependencies.peipkg]
-"build-essentials-c++"       = "*"
+"dev.peios.build-essentials-c++"       = "*"
 # Stable Rust is bootstrapped by the newest stable release on the preceding
 # minor line. The upper bound is rendered from the compiler being built, so a
 # point release cannot accidentally select the same-minor compiler as stage0.
@@ -588,7 +588,7 @@ if readelf -dW "$MUSL_BIN" | grep -q NEEDED; then exit 1; fi
 '''
 
 [test.dependencies.peipkg]
-"build-essentials-c++"          = "*"
+"dev.peios.build-essentials-c++"          = "*"
 "org.gnu.gcc-libatomic-static" = ">= 16"
 llvm                            = ">= 22.1.6, < 23"
 zlib                            = ">= 2.3.3"

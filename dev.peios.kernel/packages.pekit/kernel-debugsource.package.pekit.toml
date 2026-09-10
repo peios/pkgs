@@ -6,4 +6,5 @@ name = "dev.peios.kernel-debugsource"
 "dev.peios.kernel" = "= {{version}}-3"
 
 [provides]
-"kernel-debugsource" = "{{version}}-3"
+
+[replaces]

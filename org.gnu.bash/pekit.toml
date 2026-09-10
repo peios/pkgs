@@ -59,7 +59,7 @@ rm -rf "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/include" \
 """
 
 [build.main.dependencies.peipkg]
-build-essentials-c = "*"
+"dev.peios.build-essentials-c" = "*"
 gettext = "*"
 ncurses-devel = ">= 6.6"
 

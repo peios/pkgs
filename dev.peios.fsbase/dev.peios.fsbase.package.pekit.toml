@@ -24,12 +24,6 @@ description = "Base filesystem - the Peios filesystem skeleton"
 # exemption it does not need.
 special_system_package = true
 
-[provides]
-fsbase = "1.0.0-10"
-
-[replaces]
-fsbase = "<= 1.0.0-9"
-
 [files]
 # x86-64 ABI interpreter view. This is deliberately package-owned rather than
 # compose-intrinsic; removing fsbase removes the topology it supplied.
