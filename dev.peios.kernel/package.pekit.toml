@@ -1,0 +1,7 @@
+# v0.20.1-rc13-1 was published before the production rebuild completed.  The
+# repository is immutable, so carry the corrected family as a catalogue-level
+# revision instead of rewriting that release.  Recipe package defaults overlay
+# the delegated source defaults and therefore apply uniformly to every kernel
+# and in-tree-tools subpackage (including the corresponding source package).
+[package]
+version = "{{version}}-2"

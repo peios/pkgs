@@ -35,3 +35,5 @@ sysroot.lock.toml
 # Local dev package-signing key material (PEI-154); never commit.
 /dev-signing.key
 /dev-signing.pub
+# Local kernel TCB/module-signing material used inside the native build root.
+/dev.peios.kernel/.dev-keys/

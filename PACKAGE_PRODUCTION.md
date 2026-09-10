@@ -11,9 +11,9 @@ standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
 Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils,
-fsbase, Dynamic Boot, live-boot, and peios-install are complete. If a package
-needs a product or architecture decision, record the question here and
-continue with the next independent package.
+fsbase, Dynamic Boot, live-boot, peios-install, and the kernel family are
+complete. If a package needs a product or architecture decision, record the
+question here and continue with the next independent package.
 
 ## First-party namespace and acceptance
 
@@ -62,19 +62,45 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.peios-install` 0.3.0-8, anchored in the
-  catalogue at pkgs commit `d1df5aa`.
-- Completed: **97 / 114** recipes (85.1%).
+- Last fully closed recipe: `dev.peios.kernel` 0.20.1-rc13-2 (catalogue commit
+  recorded below).
+- Completed: **98 / 114** recipes (86.0%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
-- Current first-party pass: **11 / 28 published**, **11 / 28 runtime-closed**.
-- Repository after publishing and independently verifying Gettext 1.0-2:
-  index version 214, with 822 active and 1,614 archived entries.
+- Current first-party pass: **12 / 28 published**, **12 / 28 runtime-closed**.
+- Repository after publishing and independently verifying the kernel family:
+  index version 216, with 863 active and 1,696 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and eleven completed first-party recipes account for
-the 97 completed recipes. The upstream total grew by one when exact cbindgen
+The 86 upstream recipes and twelve completed first-party recipes account for
+the 98 completed recipes. The upstream total grew by one when exact cbindgen
 0.29.2 became a packaged prerequisite for the libpeios ABI gate.
+
+## Kernel production release: 0.20.1-rc13-2
+
+The delegated `dev.peios.kernel` recipe now publishes forty binary package
+definitions plus one generated corresponding-source package from immutable PKM
+tag `v0.20.1-rc13`. The kernel, modules, headers, development tree, split debug
+payloads, perf/bpftool/cpupower family, thermal tools, Hyper-V and USB/IP tools,
+and the smaller in-tree utilities all completed their declared native build
+stages using the exact Rust 1.83.0 and LLVM 18.1.8 kernel toolchain lane.
+
+The native root keeps Peiosutils as the system Coreutils implementation and
+exposes GNU compatibility tools only below `/usr/libexec/coreutils-build` for
+upstream build machinery. It materialises the effective StrataFS `/etc` view in
+the disposable build root and records security xattrs instead of attempting to
+apply them on the Linux host. The locked release needed two fail-closed outer
+recipe corrections: perf receives the Python development interface that
+provides `python3-config`, and exactly two reviewed cpupower invocations receive
+the private GNU `install` path. The matching source-tree corrections are
+retained for the next PKM release.
+
+An earlier partial publication had already consumed revision `-1`; repository
+immutability correctly rejected replacement artifacts. The production rebuild
+therefore uses one shared catalogue overlay to advance the whole family to
+revision `-2`, retaining the old history. All 41 signed artifacts passed the
+strict container verifier, and canonical archive plus cryptographic repository
+verification reports no problems at index 216 (863 active, 1,696 archived).
 
 ## Peios installer production release: 0.3.0-8
 
@@ -401,18 +427,17 @@ and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
 ## Remaining current-pass recipes
 
-The native `dev.peios.kernel` publication is active in the background. Peinit
-0.0.2 is committed and tagged locally with its seven-package production split;
-its native build waits for the new kernel headers and its remote lock waits for
-explicit approval to push that source commit and tag. `loregd`, `mockinit`, and
-`netd` are audited but blocked as recorded below. `peios-dwe` and
+The native `dev.peios.kernel` family is complete. Peinit 0.0.2 is committed and
+tagged locally with its seven-package production split; its remote lock waits
+for explicit approval to push that source commit and tag. `loregd`, `mockinit`,
+and `netd` are audited but blocked as recorded below. `peios-dwe` and
 `peios-kernel-only` explicitly forbid public publication, and the experimental
 edition has a pre-existing uncommitted change. Continue the foreground pass
 with `peipkg`.
 
 ## Deferred first-party recipes
 
-`kernel`, `loregd`,
+`loregd`,
 `mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
 `peios-kernel-only`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified

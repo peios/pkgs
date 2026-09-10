@@ -38,7 +38,13 @@ trap 'rm -rf "$work"' EXIT INT TERM
 # half of that two-key exemption. A build root is precisely the case
 # it exists for, and it grants nothing to a package that has not
 # declared itself special.
+#
+# --record-xattrs: package build roots are disposable bwrap inputs, not images
+# that will boot, and the maintainer process cannot set Peios security.*
+# attributes on the Linux host. Preserve compose's complete descriptor output
+# in the temporary work area instead; it is discarded with the root.
 peipkg-compose build "$work/root.toml" --out "$work/root" \
+  --record-xattrs "$work/xattrs.jsonl" \
   --dangerously-bypass-path-restrictions
 
 # Root-level runtime views. A booted Peios gets /bin, /sbin and /lib from
@@ -64,6 +70,15 @@ for view in bin sbin lib; do
   [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
 done
 
+# /etc is a StrataFS view at runtime. Materialise the effective low-to-high
+# overlay for this disposable build root so configure scripts see the same
+# vendor, registry-derived, and local configuration paths as a booted system.
+mkdir -p "$work/root/etc"
+for tier in usr/etc system/retc lcl/etc; do
+  [ -d "$work/root/$tier" ] || continue
+  cp -a "$work/root/$tier/." "$work/root/etc/"
+done
+
 # Delegate dual-mount: bind the source-tree CWD when the workspace bind
 # does not already cover it.
 case "$PWD/" in
@@ -71,6 +86,9 @@ case "$PWD/" in
   *) set -- --bind "$PWD" "$PWD" ;;
 esac
 
+# Keep Peiosutils as the system Coreutils implementation, while exposing the
+# deliberately private GNU compatibility tools to upstream build machinery.
+# They never enter a runtime package's dependency closure or /usr/bin.
 status=0
 bwrap \
   --die-with-parent \
@@ -84,7 +102,7 @@ bwrap \
   "$@" \
   --chdir "$PWD" \
   --clearenv \
-  --setenv PATH /usr/bin \
+  --setenv PATH /usr/libexec/coreutils-build:/usr/bin \
   --setenv HOME /tmp \
   --setenv FORCE_UNSAFE_CONFIGURE 1 \
   ${PKM_JOBS:+--setenv PKM_JOBS "$PKM_JOBS"} \

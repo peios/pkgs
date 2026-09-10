@@ -1,6 +1,6 @@
 # dev.peios.kernel — the Peios kernel plus its in-tree userspace tooling, built from the
-# pkm source (a 40-package family: the kernel-* set plus perf/bpftool/cpupower/…
-# built from the kernel's tools/).
+# pkm source (40 binary package definitions covering the kernel-* set plus
+# perf/bpftool/cpupower/etc., and one generated corresponding-source package).
 #
 # Delegate recipe: pkm is self-describing — from v0.20.1-rc1 on it commits its
 # own pekit files (the build pipeline in pekit.toml, the package definitions in
@@ -48,3 +48,112 @@ versions = ">=0.20.1-rc1"
 # Relative to this recipe dir; never used by the farm.
 [source.local]
 path = "../../pkm"
+
+# The locked 0.20.1-rc13 tools recipe names only the Python runtime, but perf
+# builds its native extension through python3-config. A delegated target is the
+# unit of override, so retain the release's complete command and dependency
+# closure here while correcting that one native dependency. The next PKM source
+# tag carries the correction directly and can drop this override.
+[build.tools]
+needs = ["source"]
+command = """
+script=$(mktemp)
+trap 'rm -f "$script"' EXIT
+# cpupower hard-codes /usr/bin/install, bypassing the private GNU build path.
+# Patch only the two reviewed cpupower make invocations and fail closed if the
+# locked script ever changes shape.
+test "$(grep -c 'CPUFREQ_BENCH=false' ./build/build-tools.sh)" -eq 2
+sed 's|CPUFREQ_BENCH=false|CPUFREQ_BENCH=false INSTALL=/usr/libexec/coreutils-build/install|' \
+  ./build/build-tools.sh > "$script"
+/usr/bin/bash "$script" "$PEKIT_SOURCE_OUT" "$PEKIT_OUT"
+"""
+
+[build.tools.dependencies.peipkg]
+"dev.peios.build-essentials" = "*"
+"org.gnu.bash" = "*"
+"org.gnu.which" = "*"
+"org.samba.rsync" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.gnu.gcc" = "*"
+"org.gnu.gcc-c++" = "*"
+"org.gnu.make" = "*"
+"org.gnu.bison" = "*"
+"io.github.westes.flex" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.sourceware.elfutils-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"org.kernel.libcap-devel" = "*"
+"io.github.numactl.libnuma-devel" = "*"
+"org.jedsoft.slang-devel" = "*"
+"org.linux.traceevent-devel" = "*"
+"org.linux.tracefs-devel" = "*"
+"cz.ucw.libpci-devel" = "*"
+"org.gnu.gettext" = "*"
+"org.perl.perl" = "*"
+"org.gnu.binutils" = "*"
+"org.python.python3-devel" = "*"
+"net.sourceforge.perfmon2.libpfm-devel" = "*"
+"io.github.eudev-project.eudev-devel" = "*"
+"org.gnu.ncurses-devel" = "*"
+"io.github.thom311.libnl-devel" = "*"
+"io.github.hyperrealm.libconfig-devel" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"
+"org.capstone-engine.capstone-devel" = "*"
+"org.llvm.llvm-devel" = "*"
+"org.llvm.llvm" = "*"
+"org.llvm.clang" = "*"
+"io.sourceforge.docutils.docutils" = "*"
+"io.github.asciidoc-py.asciidoc" = "*"
+"io.pagure.xmlto" = "*"
+"org.docbook.docbook-xsl" = "*"
+"org.oasis-open.docbook-xml" = "*"
+"io.pypa.setuptools" = "*"
+
+[build.tools.dependencies.apt]
+build-essential = "*"
+bison = "*"
+flex = "*"
+pkg-config = "*"
+libdw-dev = "*"
+zlib1g-dev = "*"
+libzstd-dev = "*"
+libcap-dev = "*"
+libnuma-dev = "*"
+libslang2-dev = "*"
+libtraceevent-dev = "*"
+libtracefs-dev = "*"
+libpci-dev = "*"
+gettext = "*"
+libperl-dev = "*"
+binutils-dev = "*"
+python3-dev = "*"
+python3-docutils = "*"
+python3-setuptools = "*"
+libpfm4-dev = "*"
+asciidoc = "*"
+xmlto = "*"
+docbook-xml = "*"
+docbook-xsl = "*"
+libudev-dev = "*"
+libncurses-dev = "*"
+libnl-3-dev = "*"
+libnl-genl-3-dev = "*"
+libconfig-dev = "*"
+autoconf = "*"
+automake = "*"
+libtool = "*"
+libcapstone-dev = "*"
+llvm-18-dev = "*"
+libbpf-dev = "*"
+bpftool = "*"
+libcpupower-dev = "*"
+libdebuginfod-dev = "*"
+systemtap-sdt-dev = "*"
+libbabeltrace-dev = "*"
+default-jdk = "*"
+source-highlight = "*"
+python3 = "*"
+perl = "*"
