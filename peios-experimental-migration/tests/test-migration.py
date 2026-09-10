@@ -10,7 +10,7 @@ with Path("peios-experimental.package.pekit.toml").open("rb") as stream:
 
 assert recipe["package"] == {
     "name": "peios-experimental",
-    "version": "{{version}}-10",
+    "version": "{{version}}-11",
     "architecture": "noarch",
     "description": "One-time migration from the legacy Experimental edition package name",
     "license": "MIT",
@@ -21,7 +21,7 @@ assert recipe["package"] == {
     },
 }
 assert recipe["dependencies"] == {
-    "dev.peios.peios-experimental": ">= 2026.8-14"
+    "dev.peios.peios-experimental": ">= 2026.8-15"
 }
 assert "provides" not in recipe
 assert "replaces" not in recipe

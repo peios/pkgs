@@ -76,10 +76,10 @@ with recipe_toml.open("rb") as stream:
 
 assert recipe["package"]["name"] == "dev.peios.peios-experimental"
 assert recipe["package"]["architecture"] == "x86_64"
-assert recipe["package"]["version"] == "{{version}}-14"
+assert recipe["package"]["version"] == "{{version}}-15"
 assert recipe["provides"]["peios-release"] == "{{version}}"
-assert recipe["provides"]["peios-experimental"] == "{{version}}-14"
-assert recipe["replaces"] == {"peios-experimental": "<= 2026.8-10"}
+assert recipe["provides"]["peios-experimental"] == "{{version}}-15"
+assert recipe["replaces"] == {"peios-experimental": "<= 2026.8-11"}
 assert recipe["conflicts"] == {"peios-experimental": "*"}
 
 dependencies = recipe["dependencies"]
