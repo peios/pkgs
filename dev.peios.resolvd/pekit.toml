@@ -1,0 +1,10 @@
+# resolvd owns its build, package boundaries, tests, hardening gates, and
+# source/debug artifacts. The catalogue identity is production-qualified now;
+# immutable release discovery is intentionally absent until resolvd and its
+# libnetd dependency have public repositories and release tags.
+
+out_dir = "out"
+delegate = true
+
+[source.local]
+path = "../../resolvd"
