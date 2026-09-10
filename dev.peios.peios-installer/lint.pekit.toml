@@ -1,2 +1,0 @@
-[allow]
-"source.lock" = "The reviewed v0.1.1 source tag is not public yet; publish the immutable Installer and MSIP graph and regenerate this lock before package publication"

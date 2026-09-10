@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "0.1.1"
+  ref = "v0.1.1"
+  commit = "f15e1afc324b25713dc144f1b4cb6bcde92988bc"
+  locked_at = "2026-09-10T10:02:52Z"
