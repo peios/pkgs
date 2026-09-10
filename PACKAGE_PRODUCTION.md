@@ -6,7 +6,7 @@
 
 ## Objective
 
-Work through the 114 recipes in this repository, bringing each to production
+Work through the 115 campaign recipes in this repository, bringing each to production
 standard, validating it on the Debian reference rung and the native Peios
 rung, and publishing signed packages to the local `peios` peipkg repository.
 The upstream/dependency pass is complete; the first-party pass is now active.
@@ -62,19 +62,38 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `dev.peios.kernel` 0.20.1-rc13-2 (catalogue commit
-  recorded below).
-- Completed: **98 / 114** recipes (86.0%).
-- Current upstream/dependency pass: **86 / 86** recipes (100%).
+- Last fully closed recipe: `org.golang.go` 1.26.5-1, anchored in the catalogue
+  at commits `b1abb24`, `7d483c8`, and `13e9547`.
+- Completed: **99 / 115** recipes (86.1%).
+- Current upstream/dependency pass: **87 / 87** recipes (100%).
 - Current first-party pass: **12 / 28 published**, **12 / 28 runtime-closed**.
-- Repository after publishing and independently verifying the kernel family:
-  index version 216, with 863 active and 1,696 archived entries.
+- Repository after publishing and independently verifying Go 1.26.5:
+  index version 217, with 867 active and 1,700 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 86 upstream recipes and twelve completed first-party recipes account for
-the 98 completed recipes. The upstream total grew by one when exact cbindgen
-0.29.2 became a packaged prerequisite for the libpeios ABI gate.
+The 87 upstream recipes and twelve completed first-party recipes account for
+the 99 completed recipes. The upstream total grew first when exact cbindgen
+0.29.2 became a packaged prerequisite for the libpeios ABI gate, and again
+when Go became the authenticated native toolchain for first-party services.
+
+## Go toolchain production release: 1.26.5-1
+
+`org.golang.go` is the rolling source-built Go compiler family, following
+stable releases from the soft 1.26.1 floor. It bootstraps through the private,
+locked Go 1.24.6 seed and fails closed when upstream eventually raises that
+floor. The four-package split separates the compiler/tool tree, useful
+function-symbol debuginfo, installed standard-library source, and complete
+corresponding source.
+
+The native build completed the complete offline-capable standard-library and
+`cmd/go` test sets, a real CGO compile/run, independent-root deterministic
+compile checks, installed GOROOT checks, and release-policy symbol splitting.
+Pekit lint reports zero findings; the documented exceptions are Go upstream's
+unsigned source releases and its intentional static ET_EXEC/CET shape. All four
+signed artifacts passed the strict container verifier, and canonical archive
+plus cryptographic repository verification reports no problems at index 217
+(867 active, 1,700 archived).
 
 ## Kernel production release: 0.20.1-rc13-2
 
@@ -101,6 +120,8 @@ therefore uses one shared catalogue overlay to advance the whole family to
 revision `-2`, retaining the old history. All 41 signed artifacts passed the
 strict container verifier, and canonical archive plus cryptographic repository
 verification reports no problems at index 216 (863 active, 1,696 archived).
+Catalogue commit: `fb6cb22`. The matching next-release PKM build-closure fix is
+local commit `28aae2f` on `production/kernel`.
 
 ## Peios installer production release: 0.3.0-8
 
