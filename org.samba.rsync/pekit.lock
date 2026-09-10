@@ -1,6 +1,7 @@
 # pekit.lock — machine-written by pekit; records pinned source inputs.
-# Do not edit by hand. To accept changed upstream bytes for a version, run:
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
 #   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
 
 schema = 1
 
@@ -8,7 +9,8 @@ schema = 1
   version = "3.4.1"
   url = "https://download.samba.org/pub/rsync/src/rsync-3.4.1.tar.gz"
   sha256 = "2924bcb3a1ed8b551fc101f740b9f0fe0a202b115027647cf69850d65fd88c52"
-  locked_at = "2026-08-10T19:48:06Z"
+  signature_key = "9fef112dce19a0dc7e882cb81bb24997a8535f6f"
+  locked_at = "2026-09-10T05:33:37Z"
 
 [[source]]
   version = "3.5.0"

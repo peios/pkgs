@@ -18,14 +18,18 @@ file_regex  = 'findutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # automatically; command compatibility is enforced by the tests below.
 versions    = ">= 4.11.0"
 
-# GNU's 4.11.0 release is signed by Findutils maintainer James Youngman. The
-# exact primary fingerprint from Savannah's official project keyring is pinned
-# so unattended discovery never turns into trust-on-first-use.
+# Findutils 4.10.0 was signed by maintainer Bernhard Voelker and 4.11.0 by
+# maintainer James Youngman. Pin both exact primary fingerprints and keys from
+# Savannah's official project keyring so unattended discovery never turns into
+# trust-on-first-use while historical rebuilds remain authenticated.
 [source.url.signature]
 url          = "{{source_url}}.sig"
 of           = "artifact"
-key_files    = ["keys/james-youngman.asc"]
-fingerprints = ["0CF4E8D871593224842832B888DD9E08C5DDACB9"]
+key_files    = ["keys/bernhard-voelker.asc", "keys/james-youngman.asc"]
+fingerprints = [
+  "A5189DB69C1164D33002936646502EF796917195",
+  "0CF4E8D871593224842832B888DD9E08C5DDACB9",
+]
 
 [build.main]
 command = """

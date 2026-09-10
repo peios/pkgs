@@ -20,8 +20,14 @@ versions    = ">= 5.3"
 [source.url.signature]
 url          = "{{source_url}}.sig"
 of           = "artifact"
-key_files    = ["keys/mark-wielaard.asc"]
-fingerprints = ["28FF4B30A88D5523A7E2CBA20376A15C6FFC11CD"]
+key_files = [
+  "keys/mark-wielaard-2019.asc",
+  "keys/mark-wielaard.asc",
+]
+fingerprints = [
+  "EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A",
+  "28FF4B30A88D5523A7E2CBA20376A15C6FFC11CD",
+]
 
 [build.main]
 command = """

@@ -1,2 +1,0 @@
-[allow]
-"source.lock" = "The historical 4.10.0 lock predates signature enforcement and must be repinned against James Youngman's committed key before any rebuild or republication of that old version"
