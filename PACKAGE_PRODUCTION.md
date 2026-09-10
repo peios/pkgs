@@ -9,18 +9,19 @@
 Work through every recipe directory in this repository, bringing each public
 package to production standard, validating it on the Debian reference rung and
 the native Peios rung, and publishing signed packages to the local `peios`
-Peipkg repository. The tree currently contains **121 physical recipes**: 93
-upstream/dependency recipes and 28 Peios-owned recipes. Older totals compressed
-later bootstrap/version lanes into their parent toolchain families and predate
-the Experimental migration trampoline; physical directory counts are now the
-authoritative inventory.
+Peipkg repository. The tree currently contains **120 physical recipes**: 93
+upstream/dependency recipes and 27 Peios-owned recipes. Older totals compressed
+later bootstrap/version lanes into their parent toolchain families and, for a
+time, counted the now-deleted Experimental migration trampoline; physical
+directory counts are the authoritative inventory.
 
-The production pass is complete. All **120 public recipes** have been audited,
+The production pass is complete. All **119 public recipes** have been audited,
 built through their applicable release gates, signed, and published. The sole
 non-public recipe, `dev.peios.dwed`, is also production-audited, signed, and
 published to the local development-image composition pool; its security policy
-structurally excludes it from the public repository. The tree is **121
-static-clean recipes out of 121**. The obsolete pre-Peinit `mockinit`
+structurally excludes it from the public repository. The public workspace gate
+is **119 static-clean recipes out of 119**; DWE is excluded from fan-out by
+design and was audited independently. The obsolete pre-Peinit `mockinit`
 fixture was deleted rather than promoted into the catalogue. Versioned payload
 lint still requires a staged build and remains part of each future release gate;
 the static result does not replace it.
@@ -28,11 +29,14 @@ the static result does not replace it.
 ## First-party namespace and acceptance
 
 Peios-owned recipe directories and package names use the
-`dev.peios.<product>` namespace. Existing unqualified package names receive
-intentional `provides`/`replaces` migration metadata where needed. This is a
-package identity rule: application catalogue IDs, service names, executable
-names, registry paths, and protocol identities are separate interfaces and are
-not renamed implicitly.
+`dev.peios.<product>` namespace. Because no release using the former names was
+deployed, the catalogue carries no unqualified package-name compatibility
+aliases or replacement edges. Only genuine abstract capabilities remain, such
+as `init`, `peios-release`, `registryd`, `prelude-hook-abi`, the kernel roles,
+ELF SONAMEs, and `pkgconfig(...)` interfaces. This is a package identity rule:
+application catalogue IDs, service names, executable names, registry paths,
+and protocol identities are separate interfaces and are not renamed
+implicitly.
 
 First-party production review uses Peios's own contracts rather than looking
 for a nominal Fedora or Debian equivalent. In addition to the common package
@@ -54,8 +58,8 @@ closure above, each package must have:
 
 A completed upstream package normally has all of the following:
 
-- reverse-DNS recipe and package names, with intentional migration
-  `provides`/`replaces` metadata where an older unqualified name exists;
+- reverse-DNS recipe and concrete package names, with `provides` reserved for
+  genuine interchangeable capabilities rather than compatibility aliases;
 - automatic upstream release discovery bounded only by a documented soft
   minimum; compatibility changes are caught by build/test gates rather than a
   ceiling that silently stops unattended maintenance;
@@ -73,20 +77,20 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Physical inventory: **121 recipes**: **93 upstream/dependency** and **28
-  Peios-owned** (27 `dev.peios.*` directories plus
-  `peios-experimental-migration`).
-- Public production inventory: **120 / 120 published**. This is all 93
-  upstream/dependency recipes and 27 public Peios-owned recipes. The sole
+- Physical inventory: **120 recipes**: **93 upstream/dependency** and **27
+  Peios-owned** (`dev.peios.*`) recipes.
+- Public production inventory: **119 / 119 published**. This is all 93
+  upstream/dependency recipes and 26 public Peios-owned recipes. The sole
   non-public Peios-owned package family is production-closed and available
   locally by design.
-- Signed repository: **index version 238**, with **940 active** and **1,834
-  archived** entries. Full canonical and cryptographic verification reports no
-  problems.
+- Signed repository: the clean pre-deployment namespace reset is **index
+  version 2**, with **899 active** and **899 archived** entries. It contains no
+  unqualified concrete package names and no DWE artifacts. Full canonical and
+  cryptographic verification reports no problems.
 - Kernel: all 41 packages are active at `0.20.1-rc13-3`. The metadata-only
-  repair advanced 15 exact family edges and 40 legacy provides while preserving
-  every payload and replacement bound; two deterministic repacks and an
-  independent package-by-package audit passed before the atomic publication.
+  repair removed the legacy package-name aliases and qualified the exact family
+  edges while preserving every authenticated payload; canonical verification
+  passed before repository assembly.
 - Kernel integration edition: `dev.peios.testing.peios-kernel-only 1.0.0-1` is
   active. Its deliberately unconstrained `dev.peios.kernel` dependency makes
   each composition exercise the newest kernel visible in that repository
@@ -101,29 +105,24 @@ A completed upstream package normally has all of the following:
   with a local-directory target, remains excluded from workspace fan-out, and
   a post-publication hash comparison confirmed every public repository index
   and signature file was unchanged.
-- Experimental migration: `dev.peios.peios-experimental 2026.8-15` and the
-  one-use `peios-experimental 2026.8-11` bridge are active with clean immutable
-  provenance. An unprivileged
-  Peiso composition installed the legacy 97-package root with 4,405 security
-  xattrs recorded rather than applied; the post-publication Peipkg dry run
-  removes the legacy edition and selects only the qualified successor. A fresh
-  final Peiso composition then produced the qualified 103-package closure,
-  again recording all 4,405 attributes with zero `security.peios.*` attributes
-  written to the host filesystem.
+- Namespace reset: `dev.peios.peios-experimental 2026.8-15` is the sole
+  Experimental identity. The unused migration trampoline was deleted instead
+  of becoming permanent compatibility debt. A fresh Peipkg dry run resolves
+  the full qualified Experimental graph, including its registered initramfs
+  root, and the kernel-only integration edition independently resolves the
+  newest qualified kernel.
 - Intel microcode: `com.intel.intel-ucode 2026.08.12-1` is active. Its release
   discovery covers base dates, letter-suffixed corrections, and `-revN`
   corrections without ordering the latter as prereleases. All 231 records in
   the assembled early-load blob passed structural and checksum validation.
-- Provenance census: all 940 active packages carry a `recipe_ref`. 198
-  artifacts across 38 catalogue commits carry Pekit's truthful but
-  conservative `+dirty` marker because it currently observes the entire
-  workspace, including unrelated concurrent recipe and ledger work. This is
-  recorded release provenance, not a signature or payload-verification
-  failure; replacing those immutable identities solely to remove the marker
-  would require new package revisions. The final Experimental and Intel
-  publications were cheap to correct before closure and are clean.
-- Current static recipe gate, using a freshly built current Pekit: **121
-  succeeded, 0 failed, 0 skipped**. Every remaining recipe is static-clean.
+- Artifact census: all 899 public artifacts have signed manifests and were
+  accepted by the canonical repository publisher and full verifier. The 177
+  affected active artifacts were replaced from the corrected recipes or by a
+  verified metadata-only repack that preserved their authenticated payloads;
+  the remaining 722 were retained unchanged.
+- Current static recipe gate, using a freshly built current Pekit: **119
+  succeeded, 0 failed, 0 skipped**. Every public workspace member is
+  static-clean.
   The earlier `pekit/out/pekit`
   and PATH binaries predated the lint command and must not be used as evidence.
 - Eleven historical locks that predated their configured signature policies
@@ -518,7 +517,7 @@ All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
 verification. Full repository verification at index 214 reports 822 active
 and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
-## Experimental edition closure: 2026.8-15 plus legacy migration
+## Experimental edition closure: 2026.8-15
 
 `dev.peios.peios-experimental 2026.8-15` uses qualified identities for every
 first-party dependency, including public Peipkg 0.1.3 and PNPd 0.5.1. PNPd is
@@ -526,29 +525,19 @@ intentionally installed and autoapplied because Experimental is the
 development-machine edition; that decision does not approve its current
 listener for a future production profile.
 
-The qualified edition provides its historical name, replaces
-`peios-experimental <= 2026.8-11`, and conflicts with any remaining concrete
-legacy package. The final `peios-experimental 2026.8-11` package is a
-dependency-only trampoline to the qualified edition. It is selected when an
-old concrete-name installation is upgraded, but the successor's replacement
-edge removes both the installed legacy revision and the candidate bridge from
-the final transaction. Peiosutils 0.8.6 drives the transition by installing
-the qualified concrete name for a legacy system and upgrading that name on
-subsequent releases.
+The edition provides only the semantic `peios-release` role. It does not
+provide, replace, or conflict with the former unqualified package identity:
+none of those releases were deployed, so preserving an upgrade transition
+would create compatibility debt without a compatibility requirement. The
+one-use `peios-experimental` trampoline was consequently deleted from the
+catalogue and omitted from the clean repository.
 
-The first qualified publication at index 233 and bridge at index 234 carried a
-dirty recipe reference caused solely by the then-present migration-test root.
-Those artifacts remain historical only. Clean replacements were built from
-catalogue commit `39c0c7d` and published at indexes 235 and 236. Before the
-initial publication, Peiso composed the still-active legacy
-2026.8-9 root from the signed repository. After publication, Peipkg's dry-run
-upgrade produced the exact intended identity transition and the production
-Installer/OOBE split. The final active manifests preserve that transition with
-the new revision bounds. A fresh Peiso root then resolved and composed the
-qualified 2026.8-15 edition as a 103-package closure. Peiso records all 4,405
-`security.peios.sig` and `security.peios.sd` attributes for the image writer,
-so both compositions remained unprivileged and wrote no security attributes
-onto the host filesystem.
+The clean repository contains only qualified package names. A fresh Peipkg
+trust ceremony and dry-run resolved the complete `dev.peios.peios-experimental`
+graph and its initramfs root without an unqualified compatibility dependency.
+The earlier migration exercise remains useful historical evidence, but its
+bridge packages and alias metadata are intentionally absent from the current
+release state.
 
 ## Intel microcode production release: 2026.08.12-1
 
