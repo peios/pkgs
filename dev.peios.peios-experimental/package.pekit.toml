@@ -15,7 +15,9 @@ name         = "dev.peios.peios-experimental"
 # in the edition now uses its production reverse-DNS identity.
 # -15: replace the provenance-tainted -14 publication from a clean catalogue
 # commit.
-version      = "{{version}}-15"
+# -16: consume the qualified-only upgrade path in peiosutils 0.8.8 and the
+# production-tested installer/OOBE 0.1.5 package set.
+version      = "{{version}}-16"
 architecture = "x86_64"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -78,7 +80,7 @@ peios-release = "{{version}}"
 
 # Base userspace. peios-install is part of every Peios, not of the live
 # medium: an installed system can install another.
-"dev.peios.peiosutils" = ">= 0.8.6-1"
+"dev.peios.peiosutils" = ">= 0.8.8-1"
 "dev.peios.libpeios"   = ">= 0.5.0-1"
 "org.git.kernel.dash"  = ">= 0.5.13.5-3"
 "dev.peios.peipkg" = ">= 0.1.3-1"
@@ -88,7 +90,7 @@ peios-release = "{{version}}"
 # install-tui (its terminal surface). Ships alongside peios-install, not
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
-"dev.peios.peios-installer" = ">= 0.1.1-18"
+"dev.peios.peios-installer" = ">= 0.1.5-18"
 
 # First-boot setup: oobed and its own terminal surface. A separate package
 # from the installer because the two have separate lifetimes -- an installed
@@ -97,7 +99,7 @@ peios-release = "{{version}}"
 #
 # It ships a seed master and nothing applies it here: `install_autoapply` in
 # release.toml is what opts it in, on the installed machine only.
-"dev.peios.oobe" = ">= 0.1.1-18"
+"dev.peios.oobe" = ">= 0.1.5-18"
 
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 "dev.peios.prelude" = { constraint = ">= 0.0.3-1", root = "initramfs" }

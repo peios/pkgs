@@ -76,11 +76,11 @@ with recipe_toml.open("rb") as stream:
 
 assert recipe["package"]["name"] == "dev.peios.peios-experimental"
 assert recipe["package"]["architecture"] == "x86_64"
-assert recipe["package"]["version"] == "{{version}}-15"
+assert recipe["package"]["version"] == "{{version}}-16"
 assert recipe["provides"]["peios-release"] == "{{version}}"
-assert recipe["provides"]["peios-experimental"] == "{{version}}-15"
-assert recipe["replaces"] == {"peios-experimental": "<= 2026.8-11"}
-assert recipe["conflicts"] == {"peios-experimental": "*"}
+assert set(recipe["provides"]) == {"peios-release"}
+assert "replaces" not in recipe
+assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
@@ -96,11 +96,11 @@ expected_first_party = {
     "dev.peios.libpeios": ">= 0.5.0-1",
     "dev.peios.net": ">= 0.1.1-15",
     "dev.peios.netd": ">= 0.1.1-15",
-    "dev.peios.oobe": ">= 0.1.1-18",
+    "dev.peios.oobe": ">= 0.1.5-18",
     "dev.peios.peinit": ">= 0.0.2-1",
     "dev.peios.peios-install": ">= 0.3.0-8",
-    "dev.peios.peios-installer": ">= 0.1.1-18",
-    "dev.peios.peiosutils": ">= 0.8.6-1",
+    "dev.peios.peios-installer": ">= 0.1.5-18",
+    "dev.peios.peiosutils": ">= 0.8.8-1",
     "dev.peios.peipkg": ">= 0.1.3-1",
     "dev.peios.pnpd": ">= 0.5.1-2",
     "dev.peios.resolv": ">= 0.1.0-7",

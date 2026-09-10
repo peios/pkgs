@@ -121,7 +121,7 @@ EOF
 # present in both reference environments rather than inherited from the host.
 [build.dependencies.peipkg]
 "org.git.kernel.dash"    = ">= 0.5.13.5-3"
-"dev.peios.peiosutils"   = ">= 0.8.6-1"
+"dev.peios.peiosutils"   = ">= 0.8.8-1"
 
 [build.dependencies.apt]
 dash      = "*"
