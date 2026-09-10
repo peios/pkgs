@@ -1,0 +1,112 @@
+# IANA Time Zone Database — architecture-independent TZif data used by libc,
+# Jiff, Python, and every service that interprets a named civil timezone.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://data.iana.org/time-zones/releases/tzdata{{version}}.tar.gz"
+listing_url = "https://data.iana.org/time-zones/releases/"
+extract     = true
+root        = "."
+file_regex  = 'tzdata[0-9]{4}[a-z]\.tar\.gz'
+# Soft production floor. New lettered IANA releases are discovered and locked
+# automatically; the compile, determinism, and installed-zone checks fail
+# closed if a future data format is not understood by the packaged zic.
+versions    = ">= 2026c"
+
+[source.url.signature]
+url          = "https://data.iana.org/time-zones/releases/tzdata{{version}}.tar.gz.asc"
+key_files    = ["keys/paul-eggert.asc"]
+fingerprints = ["7E3792A9D8ACF7D633BC1588ED97E90E62AA7E34"]
+
+[build.main]
+command = '''
+set -eu
+umask 022
+SRC=$(pwd -P)
+BUILD="$PEKIT_OUT/build"
+FIRST="$PEKIT_OUT/zoneinfo-a"
+SECOND="$PEKIT_OUT/zoneinfo-b"
+DEST="$PEKIT_OUT/usr/share/zoneinfo"
+
+for tool in make gawk zic find diff cmp grep cp; do
+  command -v "$tool" >/dev/null || {
+    echo "tzdata: missing required build tool: $tool" >&2
+    exit 1
+  }
+done
+
+rm -rf "$BUILD" "$FIRST" "$SECOND" "$DEST"
+mkdir -p "$BUILD" "$FIRST" "$SECOND" "$DEST"
+cp -R "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+test "$(cat version)" = "$PEKIT_VERSION"
+# The data-only archive intentionally omits zic's C sources. Generate IANA's
+# main-format aggregate without trying to rebuild its shipped version file,
+# then compile it with the distribution's packaged glibc zic.
+make -o version AWK=gawk DATAFORM=main REDO=posix_only tzdata.zi leapseconds
+
+zic -b slim -d "$FIRST" tzdata.zi
+zic -b slim -d "$SECOND" tzdata.zi
+diff -qr "$FIRST" "$SECOND"
+test "$(find "$FIRST" -type f | wc -l)" -ge 500
+
+cp -R "$FIRST/." "$DEST/"
+for file in iso3166.tab zone.tab zone1970.tab zonenow.tab tzdata.zi leapseconds; do
+  test -s "$file"
+  cp "$file" "$DEST/$file"
+done
+# Exercise canonical aliases, a current DST transition, and a fixed-offset
+# zone through the installed payload rather than only checking file presence.
+for zone in UTC Etc/UTC Europe/London America/New_York Asia/Tokyo; do
+  test -s "$DEST/$zone"
+  grep -a -q '^TZif' "$DEST/$zone"
+done
+cmp "$DEST/UTC" "$DEST/Etc/UTC"
+TZDIR="$DEST" zdump -v -c 2026,2027 Europe/London > "$PEKIT_OUT/london.transitions"
+grep -F 'Sun Mar 29 01:00:00 2026 UT = Sun Mar 29 02:00:00 2026 BST' \
+  "$PEKIT_OUT/london.transitions" >/dev/null
+grep -F 'Sun Oct 25 01:00:00 2026 UT = Sun Oct 25 01:00:00 2026 GMT' \
+  "$PEKIT_OUT/london.transitions" >/dev/null
+
+rm -rf "$BUILD" "$FIRST" "$SECOND" "$PEKIT_OUT/london.transitions"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = ">= 0.8.5"
+"org.gnu.findutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.gawk" = "*"
+"org.gnu.make" = "*"
+"org.gnu.glibc-bin" = ">= 2.44"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+findutils = "*"
+diffutils = "*"
+grep      = "*"
+gawk      = "*"
+make      = "*"
+libc-bin  = "*"
+
+[test]
+command = '''
+set -eu
+test "$(cat version)" = "$PEKIT_VERSION"
+test -s LICENSE
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = ">= 0.8.5"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+
+[clean]
+command = "rm -rf out"

@@ -1,0 +1,8 @@
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "noarch"
+license       = "LicenseRef-Public-Domain"
+license_class = "free"
+homepage      = "https://www.iana.org/time-zones"

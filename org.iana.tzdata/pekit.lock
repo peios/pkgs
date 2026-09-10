@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "2026c"
+  url = "https://data.iana.org/time-zones/releases/tzdata2026c.tar.gz"
+  sha256 = "e4a178a4477f3d0ea77cc31828ff72aa38feff8d61aa13e7e99e142e9d902be4"
+  signature_key = "7e3792a9d8acf7d633bc1588ed97e90e62aa7e34"
+  locked_at = "2026-09-10T03:34:31Z"
