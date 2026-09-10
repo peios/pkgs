@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "The authoritative SourceForge release area publishes archives without detached signatures, and its corresponding Git release tags are unsigned lightweight tags; HTTPS plus Pekit's immutable SHA-256 lock is the available provenance boundary"

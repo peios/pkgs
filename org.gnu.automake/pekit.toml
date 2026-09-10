@@ -10,7 +10,8 @@
 out_dir = "out"
 
 [source.url]
-url      = "https://ftp.gnu.org/gnu/automake/automake-{{version}}.tar.xz"
+url         = "https://ftp.gnu.org/gnu/automake/automake-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/automake/"
 extract  = true
 root     = "automake-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU
@@ -61,3 +62,19 @@ gzip           = "*"
 autoconf       = ">= 2.72"
 perl           = ">= 5.6"
 tar            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+case "$("$PEKIT_MAIN_OUT/usr/bin/automake" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+test -x "$PEKIT_MAIN_OUT/usr/bin/aclocal"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.perl.perl" = "*"
+
+[test.dependencies.apt]
+dash = "*"
+perl = "*"

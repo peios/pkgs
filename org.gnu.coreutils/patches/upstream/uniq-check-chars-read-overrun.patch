@@ -1,3 +1,6 @@
+Description: Prevent uniq --check-chars from reading beyond the input line
+Origin: upstream, https://github.com/coreutils/coreutils/commit/d64e35a8
+
 diff --git a/src/uniq.c b/src/uniq.c
 index 3046359..5834596 100644
 --- a/src/uniq.c

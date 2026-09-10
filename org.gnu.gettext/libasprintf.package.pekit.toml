@@ -1,13 +1,19 @@
 # Public C/C++ formatted-output ABI shipped by the Gettext source tree.
 
 [package]
-name        = "libasprintf"
+name        = "org.gnu.gettext-libasprintf"
 description = "GNU autosprintf shared library"
 license     = "LGPL-2.1-or-later"
+
+[provides]
+libasprintf = "{{version}}"
+
+[replaces]
+libasprintf = "<= {{version}}-2"
 
 [dependencies]
 glibc = ">= 2.43"
 
 [files]
-"@source:gettext-runtime/libasprintf/COPYING.LIB" = "usr/share/licenses/libasprintf/COPYING.LIB"
+"@source:gettext-runtime/libasprintf/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext-libasprintf/COPYING.LIB"
 ":usr/lib/x86_64-linux-peios/libasprintf.so.0*" = "usr/lib/x86_64-linux-peios"

@@ -4,7 +4,7 @@
 
 [package]
 name        = "org.gnome.libxml2"
-description = "libxml2 XML and HTML parser runtime library"
+description = "XML and HTML parser runtime library"
 
 [provides]
 libxml2 = "{{version}}-1"

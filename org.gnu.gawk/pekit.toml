@@ -13,9 +13,9 @@ listing_url = "https://ftp.gnu.org/gnu/gawk/"
 extract     = true
 root        = "gawk-{{version}}"
 file_regex  = 'gawk-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 5.x releases
-# automatically; a future major line requires a compatibility review.
-versions    = ">= 5.4.1, < 6"
+# Soft maintenance floor. Follow every authenticated stable release
+# automatically; language and extension compatibility is tested below.
+versions    = ">= 5.4.1"
 
 # Gawk releases are signed by the maintainer. Pin Arnold Robbins's exact
 # primary fingerprint from Savannah's official Gawk project keyring.
@@ -166,3 +166,18 @@ debugedit       = "*"
 locales-all     = "*"
 libmpfr-dev     = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+GAWK="$PEKIT_MAIN_OUT/usr/bin/gawk"
+test "$(printf '%s\n' 'alpha 2' 'beta 5' | "$GAWK" '{ total += $2 } END { print total }')" = 7
+case "$("$GAWK" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

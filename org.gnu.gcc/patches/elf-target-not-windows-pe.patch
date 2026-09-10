@@ -1,3 +1,6 @@
+Description: Do not misclassify the Peios target as Windows PE
+Author: Peios maintainers
+
 GCC decides whether the target uses ELF with a case statement whose non-ELF
 arm includes `*-*-pe*`, meant to catch Windows PE (Portable Executable)
 targets like arm-wince-pe.  Shell globs span dashes, so

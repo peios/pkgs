@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.git.kernel.dash"
-description = "DASH - a small POSIX-compliant system shell"
+description = "Small POSIX-compliant system shell"
 license     = "BSD-3-Clause"
 
 # Preserve the retired package name during the reverse-DNS migration. Dash is

@@ -8,14 +8,13 @@ out_dir = "out"
 
 [source.url]
 url         = "https://download.gnome.org/sources/libxslt/{{major}}.{{minor}}/libxslt-{{version}}.tar.xz"
-listing_url = "https://download.gnome.org/sources/libxslt/1.1/"
+listing_url = "https://download.gnome.org/sources/libxslt/cache.json"
 file_regex  = 'libxslt-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
 extract     = true
 root        = "libxslt-{{version}}"
-# Soft maintenance floor within the SONAME-1 release line. New 1.1.x stable
-# releases advance automatically; 1.2 is an intentional feature/ABI review
-# point. The build gates below catch contract drift within 1.1.
-versions    = ">= 1.1.45, < 1.2"
+# Soft maintenance floor. New stable releases advance automatically; the
+# SONAME, API and payload gates below fail closed on incompatible drift.
+versions    = ">= 1.1.45"
 
 # GNOME publishes the canonical archive and a SHA-256 sidecar, but no detached
 # maintainer signature Pekit can verify. HTTPS plus Pekit's immutable SHA-256
@@ -308,3 +307,27 @@ libxml2-dev     = ">= 2.15.1"
 debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+TMP="$PEKIT_OUT/libxslt-test"
+mkdir -p "$TMP"
+printf '%s\n' '<root><value>Peios</value></root>' > "$TMP/input.xml"
+cat > "$TMP/style.xsl" <<'EOF'
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="text"/>
+  <xsl:template match="/"><xsl:value-of select="root/value"/></xsl:template>
+</xsl:stylesheet>
+EOF
+export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
+test "$("$STAGE/usr/bin/xsltproc" "$TMP/style.xsl" "$TMP/input.xml")" = Peios
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

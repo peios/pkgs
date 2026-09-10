@@ -20,9 +20,10 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url        = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
-root       = "binutils-{{version}}"
-extract    = true
+url         = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/binutils/"
+root        = "binutils-{{version}}"
+extract     = true
 # Matched within the directory-listing HTML, so deliberately unanchored.
 file_regex = 'binutils-[0-9]+\.[0-9]+(\.[0-9]+)?\.tar\.xz'
 # Soft maintenance floor: retain the stable 2.46 series and every newer stable
@@ -222,3 +223,18 @@ file = "*"
 patchelf = "*"
 perl = "*"
 zlib1g-dev = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+case "$("$BIN/ld" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+case "$("$BIN/as" --version)" in *x86_64-linux-peios*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

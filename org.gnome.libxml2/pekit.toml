@@ -8,17 +8,16 @@ out_dir = "out"
 
 [source.url]
 url         = "https://download.gnome.org/sources/libxml2/{{major}}.{{minor}}/libxml2-{{version}}.tar.xz"
-listing_url = "https://download.gnome.org/sources/libxml2/2.15/"
+listing_url = "https://download.gnome.org/sources/libxml2/cache.json"
 # The filename's project stem ends in a digit, which Pekit's embedded-version
 # extractor could otherwise read as a prerelease. The listing is dedicated to
 # libxml2, so match the numeric archive suffix directly.
-file_regex  = '[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+file_regex  = 'libxml2-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
 extract     = true
 root        = "libxml2-{{version}}"
-# Soft maintenance floor within the SONAME-16 release line. New 2.15.x stable
-# releases advance automatically; 2.16 is an intentional API/ABI and Python-
-# removal review point. The build gates below catch contract drift within 2.15.
-versions    = ">= 2.15.3, < 2.16"
+# Soft maintenance floor. New stable releases advance automatically; the
+# SONAME, API and payload gates below fail closed on incompatible drift.
+versions    = ">= 2.15.3"
 
 # GNOME publishes the canonical archive and a checksum sidecar, but no detached
 # maintainer signature Pekit can verify. HTTPS plus Pekit's immutable SHA-256
@@ -268,3 +267,20 @@ pkg-config      = "*"
 zlib1g-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+XMLLINT="$STAGE/usr/bin/xmllint"
+export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
+printf '%s\n' '<root><child>ok</child></root>' | "$XMLLINT" --noout -
+case "$("$XMLLINT" --version 2>&1)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

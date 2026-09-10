@@ -1,3 +1,6 @@
+Description: Reinherit Peios security descriptors while populating ext filesystems
+Author: Peios maintainers
+
 diff --git a/debugfs/Makefile.in b/debugfs/Makefile.in
 index 689bf0c4..c3cad4fc 100644
 --- a/debugfs/Makefile.in

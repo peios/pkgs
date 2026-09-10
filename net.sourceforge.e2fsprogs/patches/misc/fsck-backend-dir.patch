@@ -1,3 +1,6 @@
+Description: Discover filesystem checkers only in the Peios libexec directory
+Author: Peios maintainers
+
 diff --git a/misc/fsck.8.in b/misc/fsck.8.in
 index c1890df..d7506a4 100644
 --- a/misc/fsck.8.in

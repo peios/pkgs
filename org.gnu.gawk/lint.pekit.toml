@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "The historical 5.3.2 lock predates signature enforcement and must be repinned against Arnold Robbins's committed key before any rebuild or republication of that old version"

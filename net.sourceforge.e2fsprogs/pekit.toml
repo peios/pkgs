@@ -42,7 +42,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url        = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v{{version}}/e2fsprogs-{{version}}.tar.xz"
+url         = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v{{version}}/e2fsprogs-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/"
 extract    = true
 root       = "e2fsprogs-{{version}}"
 file_regex = 'v[0-9]+\.[0-9]+(\.[0-9]+)?/'
@@ -261,3 +262,20 @@ which = "*"
 # No [build.main.dependencies.apt]: this recipe is rung-2 only. Debian has no
 # libpeios, so the apt provider cannot satisfy the patchset's link dependency
 # — the same reason `kernel` is peipkg-only. Build it with --env peipkg.
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
+output=$("$BIN/mke2fs" -V 2>&1)
+case "$output" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+test -x "$BIN/e2fsck"
+test -x "$BIN/debugfs"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+libpeios = "*"
+"org.kernel.libblkid" = "*"

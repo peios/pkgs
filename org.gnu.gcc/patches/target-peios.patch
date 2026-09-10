@@ -1,3 +1,6 @@
+Description: Define the Peios target identity macro
+Author: Peios maintainers
+
 Make peios a target GCC knows by name rather than one it merely falls through
 to, and give it an identity macro.
 

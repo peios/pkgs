@@ -10,7 +10,8 @@
 out_dir = "out"
 
 [source.url]
-url      = "https://ftp.gnu.org/gnu/autoconf/autoconf-{{version}}.tar.xz"
+url         = "https://ftp.gnu.org/gnu/autoconf/autoconf-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/autoconf/"
 extract  = true
 root     = "autoconf-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU
@@ -54,3 +55,18 @@ build-essential = "*"
 bash  = "*"
 m4    = ">= 1.4.16"
 perl  = ">= 5.6"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+case "$("$PEKIT_MAIN_OUT/usr/bin/autoconf" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.perl.perl" = "*"
+
+[test.dependencies.apt]
+dash = "*"
+perl = "*"

@@ -11,13 +11,14 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url        = "https://ftp.gnu.org/gnu/cpio/cpio-{{version}}.tar.gz"
-extract    = true
-root       = "cpio-{{version}}"
+url         = "https://ftp.gnu.org/gnu/cpio/cpio-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/cpio/"
+extract     = true
+root        = "cpio-{{version}}"
 file_regex = 'cpio-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
-# Soft maintenance floor. Newer stable 2.x releases are discovered
-# automatically; a future major version is an intentional compatibility gate.
-versions   = ">= 2.15, < 3"
+# Soft maintenance floor. Every newer stable release is discovered
+# automatically; archive compatibility is enforced by the tests below.
+versions   = ">= 2.15"
 
 # The release signature is made by GNU cpio maintainer Sergey Poznyakoff. The
 # complete primary-key fingerprint is pinned for unattended version discovery.
@@ -161,3 +162,24 @@ debugedit      = "*"
 patchelf       = "*"
 perl           = "*"
 tar            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+CPIO="$PEKIT_MAIN_OUT/usr/bin/cpio"
+TMP="$PEKIT_OUT/cpio-test"
+mkdir -p "$TMP/in" "$TMP/out"
+printf '%s' payload > "$TMP/in/file"
+(cd "$TMP/in" && printf '%s\n' file | "$CPIO" -o -H newc > "$TMP/archive.cpio")
+(cd "$TMP/out" && "$CPIO" -id < "$TMP/archive.cpio")
+test "$(cat "$TMP/out/file")" = payload
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils" = "*"
+
+[test.dependencies.apt]
+coreutils = "*"
+dash = "*"

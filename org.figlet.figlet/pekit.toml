@@ -7,8 +7,9 @@
 out_dir = "out"
 
 [source.git]
-url    = "https://github.com/cmatsuoka/figlet.git"
-ref    = "{{version}}"
+url       = "https://github.com/cmatsuoka/figlet.git"
+ref       = "{{version}}"
+tag_regex = '^(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)$'
 # Soft maintenance floor: retain the current production baseline and follow
 # every newer stable upstream tag automatically. The release tags are not
 # signed; Pekit's git lock still pins each accepted tag to its exact commit.
@@ -114,3 +115,19 @@ coreutils       = "*"
 diffutils       = "*"
 sed             = "*"
 debugedit       = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin/figlet"
+FONTDIR="$PEKIT_MAIN_OUT/usr/share/figlet"
+test -n "$("$BIN" -d "$FONTDIR" -f standard PEIOS)"
+case "$("$BIN" -v 2>&1)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

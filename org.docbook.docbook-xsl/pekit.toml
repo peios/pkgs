@@ -19,11 +19,9 @@ listing_url = "https://cdn.docbook.org/release/xsl-nons/"
 extract     = true
 root        = "docbook-xsl-nons-{{version}}"
 file_regex  = '[0-9]+\.[0-9]+\.[0-9]+/'
-# Soft maintenance floor. Follow stable 1.x releases automatically; a future
-# major line is a review boundary because XSLT engine and DocBook-version
-# requirements may change. Upstream still identifies 1.79.2 as its latest
-# stable release.
-versions    = ">= 1.79.2, < 2"
+# Soft maintenance floor. Follow every later stable release automatically;
+# payload and transformation checks fail closed on incompatible layout drift.
+versions    = ">= 1.79.2"
 
 # Upstream publishes this release as HTTPS-hosted GitHub assets from a
 # lightweight tag, without a detached signature or checksum manifest. The
@@ -191,3 +189,19 @@ diffutils     = "*"
 libxml2-utils = "*"
 xsltproc      = "*"
 docbook-xml   = ">= 4.5"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+ROOT="$PEKIT_MAIN_OUT/usr/share/xml/docbook/xsl-stylesheets"
+test -s "$ROOT/html/docbook.xsl"
+test -s "$ROOT/manpages/docbook.xsl"
+test -s "$ROOT/VERSION"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

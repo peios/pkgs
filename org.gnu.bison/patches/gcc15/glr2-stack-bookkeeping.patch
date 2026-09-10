@@ -1,5 +1,6 @@
-https://bugs.gentoo.org/935754
-https://lists.gnu.org/archive/html/bison-patches/2024-07/msg00000.html
+Description: Keep C++ GLR lookahead bookkeeping synchronized when deleting stacks
+Origin: upstream, https://lists.gnu.org/archive/html/bison-patches/2024-07/msg00000.html
+Bug: https://bugs.gentoo.org/935754
 
 * data/skeletons/glr2.cc (yyundeleteLastStack): Recover
 yylookaheadNeeds stack entry also, to prevent desyncing the sizes

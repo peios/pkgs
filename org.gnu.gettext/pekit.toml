@@ -29,9 +29,9 @@ listing_url = "https://ftp.gnu.org/gnu/gettext/"
 extract     = true
 root        = "gettext-{{version}}"
 file_regex  = 'gettext-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 1.x releases
-# automatically; a future major line requires a compatibility review.
-versions    = ">= 1.0, < 2"
+# Soft maintenance floor. Follow every authenticated stable release
+# automatically; ABI and catalog round-trip gates fail closed on drift.
+versions    = ">= 1.0"
 
 # GNU publishes detached signatures for every release. Pin the exact primary
 # fingerprint named in the 1.0 release announcement; unattended discovery is
@@ -206,3 +206,37 @@ locales-all = "*"
 perl = "*"
 debugedit = "*"
 patchelf = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin"
+TMP="$PEKIT_OUT/gettext-test"
+mkdir -p "$TMP"
+cat > "$TMP/messages.po" <<'EOF'
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "hello"
+msgstr "bonjour"
+EOF
+export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
+"$BIN/msgfmt" --check -o "$TMP/messages.mo" "$TMP/messages.po"
+"$BIN/msgunfmt" "$TMP/messages.mo" > "$TMP/roundtrip.po"
+found=false
+while IFS= read -r line; do
+  test "$line" != 'msgstr "bonjour"' || found=:
+done < "$TMP/roundtrip.po"
+$found
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils" = "*"
+
+[test.dependencies.apt]
+coreutils = "*"
+dash = "*"

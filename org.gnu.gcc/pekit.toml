@@ -79,9 +79,9 @@ listing_url = "https://ftp.gnu.org/gnu/gcc/"
 extract     = true
 root        = "gcc-{{version}}"
 file_regex  = 'gcc-[0-9]+\.[0-9]+\.[0-9]+/'
-# Soft maintenance floor. Follow authenticated GCC 16 point releases
-# automatically, but stop at GCC 17 for an ABI/bootstrap and patch review.
-versions    = ">= 16, < 17"
+# Soft maintenance floor. Follow every authenticated stable GCC release;
+# bootstrap, ABI, target and hardening gates fail closed on incompatible drift.
+versions    = ">= 16"
 
 # GCC's official mirror page identifies both active release signers. The
 # bundled minimal keys were extracted from GNU's canonical gnu-keyring.gpg
@@ -975,3 +975,24 @@ patchelf = "*"
 texinfo = "*"
 dejagnu = "*"
 file = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+TMP="$PEKIT_OUT/gcc-test"
+mkdir -p "$TMP"
+printf '%s\n' 'int answer(void) { return 42; }' > "$TMP/main.c"
+PATH="$STAGE/usr/bin:$PATH" "$STAGE/usr/bin/gcc" -c "$TMP/main.c" -o "$TMP/main.o"
+test -s "$TMP/main.o"
+case "$("$STAGE/usr/bin/gcc" -dumpmachine)" in x86_64-*-linux-peios) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.binutils" = "*"
+
+[test.dependencies.apt]
+binutils = "*"
+dash = "*"

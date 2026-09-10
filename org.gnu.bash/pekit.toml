@@ -15,7 +15,8 @@
 out_dir = "out"
 
 [source.url]
-url      = "https://ftp.gnu.org/gnu/bash/bash-{{version}}.tar.gz"
+url         = "https://ftp.gnu.org/gnu/bash/bash-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/bash/"
 extract  = true
 root     = "bash-{{version}}"
 # Soft maintenance floor: automatic sweeps follow newer stable base releases
@@ -66,3 +67,18 @@ ncurses-devel = ">= 6.6"
 build-essential = "*"
 gettext = "*"
 libncurses-dev = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BASH="$PEKIT_MAIN_OUT/usr/bin/bash"
+test "$("$BASH" --noprofile --norc -c 'a=(zero one two); printf %s "${a[2]}"')" = two
+case "$("$BASH" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

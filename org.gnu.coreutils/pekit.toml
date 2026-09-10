@@ -19,13 +19,14 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url        = "https://ftp.gnu.org/gnu/coreutils/coreutils-{{version}}.tar.xz"
-extract    = true
-root       = "coreutils-{{version}}"
+url         = "https://ftp.gnu.org/gnu/coreutils/coreutils-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/coreutils/"
+extract     = true
+root        = "coreutils-{{version}}"
 file_regex = 'coreutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Stable 9.x releases are discovered automatically;
-# a future major version is an intentional compatibility review point.
-versions   = ">= 9.11, < 10"
+# Soft maintenance floor. Every later stable release is discovered
+# automatically; the upstream and security-regression suites fail closed.
+versions   = ">= 9.11"
 
 # GNU's release announcement identifies this as Pádraig Brady's signing key.
 # Pinning it closes the trust-on-first-use gap for unattended version sweeps.
@@ -211,3 +212,19 @@ debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
 gzip            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+digest=$(printf '%s' Peios | "$BIN/sha256sum")
+case "$digest" in 9a1ceeca8dc1e75def84ca9fdf7fed8360c314bda8a4cff1f52ef9c92358d258*) ;; *) exit 1;; esac
+test "$(printf '%s\n%s\n' same same | "$BIN/uniq" | "$BIN/wc" -l)" -eq 1
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

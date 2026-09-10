@@ -6,7 +6,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.figlet.figlet"
-description = "FIGlet - terminal banner-text renderer and font catalogue"
+description = "Terminal banner-text renderer and font catalogue"
 
 [provides]
 figlet = "{{version}}"

@@ -1,4 +1,5 @@
-gprofng: use a POSIX word list for the gp-* compatibility symlinks
+Subject: gprofng: use a POSIX word list for the gp-* compatibility symlinks
+Author: Peios maintainers
 
 install-exec-local writes gprofng's five legacy `gp-*` names as symlinks
 onto the current `gprofng-*` binaries, and spells the list with a brace

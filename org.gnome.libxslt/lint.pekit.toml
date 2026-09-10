@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "GNOME publishes libxslt release archives and checksum sidecars but no detached maintainer signatures; HTTPS plus Pekit's immutable SHA-256 lock, checked against the sidecar on acceptance, is the available provenance boundary"

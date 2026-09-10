@@ -14,9 +14,9 @@ listing_url = "https://ftp.gnu.org/gnu/findutils/"
 extract     = true
 root        = "findutils-{{version}}"
 file_regex  = 'findutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 4.x releases
-# automatically; a future major line is an intentional compatibility review.
-versions    = ">= 4.11.0, < 5"
+# Soft maintenance floor. Follow every authenticated stable release
+# automatically; command compatibility is enforced by the tests below.
+versions    = ">= 4.11.0"
 
 # GNU's 4.11.0 release is signed by Findutils maintainer James Youngman. The
 # exact primary fingerprint from Savannah's official project keyring is pinned
@@ -142,3 +142,23 @@ build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+TMP="$PEKIT_OUT/findutils-test"
+mkdir -p "$TMP/tree/a" "$TMP/tree/b"
+: > "$TMP/tree/a/one"
+: > "$TMP/tree/b/two"
+test "$("$BIN/find" "$TMP/tree" -type f -printf x)" = xx
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils" = "*"
+
+[test.dependencies.apt]
+coreutils = "*"
+dash = "*"

@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "The historical 9.9 lock predates signature enforcement and must be repinned against Pádraig Brady's committed key before any rebuild or republication of that old version"

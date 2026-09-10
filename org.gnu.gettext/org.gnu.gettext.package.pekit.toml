@@ -17,9 +17,9 @@ gettext = "{{version}}"
 dash                     = "*"
 glibc                    = ">= 2.43"
 grep                     = "*"
-libtextstyle             = "{{version}}"
+"org.gnu.gettext-libtextstyle" = "{{version}}-3"
 peiosutils                = "*"
-"org.gnu.gettext-common" = "{{version}}-2"
+"org.gnu.gettext-common" = "{{version}}-3"
 sed                      = "*"
 
 [files]

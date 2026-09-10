@@ -1,0 +1,2 @@
+[allow]
+"build.dependencies.providers" = "The Peios security-descriptor patchset links libpeios, which has no Debian apt provider; this recipe is deliberately rung-2-only and its peipkg inputs are fully declared"

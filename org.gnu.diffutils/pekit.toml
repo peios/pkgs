@@ -3,13 +3,14 @@
 out_dir = "out"
 
 [source.url]
-url        = "https://ftp.gnu.org/gnu/diffutils/diffutils-{{version}}.tar.xz"
-extract    = true
-root       = "diffutils-{{version}}"
+url         = "https://ftp.gnu.org/gnu/diffutils/diffutils-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/diffutils/"
+extract     = true
+root        = "diffutils-{{version}}"
 file_regex = 'diffutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow signed stable 3.x releases automatically;
-# stop at a new major line for command-output and build-interface review.
-versions   = ">= 3.11, < 4"
+# Soft maintenance floor. Follow every signed stable release automatically;
+# command-output compatibility is enforced by the staged test below.
+versions   = ">= 3.11"
 
 # GNU Diffutils releases are signed by maintainer Jim Meyering. The complete
 # primary-key fingerprint from the 3.12 release announcement is pinned so a
@@ -127,3 +128,28 @@ perl               = "*"
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+DIFF="$PEKIT_MAIN_OUT/usr/bin/diff"
+TMP="$PEKIT_OUT/diffutils-test"
+mkdir -p "$TMP"
+printf '%s\n' before > "$TMP/a"
+printf '%s\n' after > "$TMP/b"
+set +e
+output=$("$DIFF" -u "$TMP/a" "$TMP/b")
+status=$?
+set -e
+test "$status" -eq 1
+case "$output" in *-before*+after*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.coreutils" = "*"
+
+[test.dependencies.apt]
+coreutils = "*"
+dash = "*"

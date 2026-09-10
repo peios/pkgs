@@ -15,7 +15,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url      = "https://ftp.gnu.org/gnu/bc/bc-{{version}}.tar.gz"
+url         = "https://ftp.gnu.org/gnu/bc/bc-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/bc/"
 extract  = true
 root     = "bc-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU
@@ -68,6 +69,21 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 [build.main.dependencies.peipkg]
 build-essentials-c = "*"
 texinfo = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+test "$(printf '%s\n' 'scale=4; 1/8' | "$BIN/bc")" = .1250
+test "$(printf '%s\n' '16i FF p' | "$BIN/dc")" = 255
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

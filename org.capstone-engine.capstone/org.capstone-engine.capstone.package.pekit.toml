@@ -2,7 +2,7 @@
 
 [package]
 name        = "org.capstone-engine.capstone"
-description = "Capstone - multi-architecture command-line disassembler"
+description = "Multi-architecture command-line disassembler"
 
 [dependencies]
 "org.capstone-engine.capstone-libs" = "{{version}}-1"

@@ -1,3 +1,6 @@
+Description: Compile Peios filesystem and security-descriptor defaults into mke2fs
+Author: Peios maintainers
+
 diff --git a/misc/mke2fs.conf.in b/misc/mke2fs.conf.in
 index b7fc95d..983283e 100644
 --- a/misc/mke2fs.conf.in

@@ -3,7 +3,7 @@
 
 [package]
 name        = "org.cmake.cmake"
-description = "CMake - cross-platform build system generator"
+description = "Cross-platform build-system generator"
 
 [dependencies]
 "org.cmake.cmake-data" = "{{version}}-1"

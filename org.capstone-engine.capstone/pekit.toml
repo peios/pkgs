@@ -8,10 +8,10 @@ out_dir = "out"
 [source.git]
 url       = "https://github.com/capstone-engine/capstone.git"
 ref       = "{{version}}"
-tag_regex = '^(?P<version>5\.[0-9]+\.[0-9]+)$'
-# Soft maintenance floor within ABI 5. New 5.x releases are automatic; a
-# stable ABI 6 transition remains an intentional packaging review point.
-versions = ">= 5.0.9, < 6"
+tag_regex = '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. New stable releases are automatic; the SONAME and
+# consumer gates below fail closed if a future release changes the public ABI.
+versions = ">= 5.0.9"
 
 [build.main]
 command = """
@@ -122,3 +122,19 @@ build-essential = "*"
 cmake          = "*"
 debugedit      = "*"
 patchelf       = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+output=$(LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios" \
+  "$STAGE/usr/bin/cstool" x64 554889e5)
+case "$output" in *push*rbp*mov*rbp*rsp*) ;; *) exit 1;; esac
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

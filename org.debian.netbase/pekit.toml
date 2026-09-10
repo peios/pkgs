@@ -60,3 +60,24 @@ coreutils = "*"
 gawk      = "*"
 grep      = "*"
 sed       = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+ROOT="$PEKIT_MAIN_OUT/usr/etc"
+test -s "$ROOT/protocols"
+test -s "$ROOT/services"
+test -s "$ROOT/ethertypes"
+found=false
+while IFS= read -r line; do
+  case "$line" in tcp[[:space:]]6[[:space:]]TCP*) found=:; break;; esac
+done < "$ROOT/protocols"
+$found
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

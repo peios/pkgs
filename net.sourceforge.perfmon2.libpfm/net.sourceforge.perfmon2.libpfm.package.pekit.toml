@@ -2,7 +2,7 @@
 
 [package]
 name        = "net.sourceforge.perfmon2.libpfm"
-description = "libpfm - hardware performance event encoding runtime library"
+description = "Hardware performance-event discovery and encoding runtime library"
 
 [provides]
 libpfm = "{{version}}"

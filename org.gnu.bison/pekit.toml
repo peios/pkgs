@@ -15,9 +15,10 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url        = "https://ftp.gnu.org/gnu/bison/bison-{{version}}.tar.xz"
-extract    = true
-root       = "bison-{{version}}"
+url         = "https://ftp.gnu.org/gnu/bison/bison-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/bison/"
+extract     = true
+root        = "bison-{{version}}"
 file_regex = 'bison-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # Soft maintenance floor: unattended sweeps accept every newer stable GNU
 # release. Older history is intentionally outside routine publication.
@@ -144,3 +145,23 @@ m4 = ">= 1.4"
 gettext = "*"
 debugedit = "*"
 patchelf = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+BISON="$PEKIT_MAIN_OUT/usr/bin/bison"
+TMP="$PEKIT_OUT/bison-test"
+mkdir -p "$TMP"
+printf '%s\n' '%%' 'input: ;' '%%' > "$TMP/minimal.y"
+M4=m4 "$BISON" -o "$TMP/parser.c" "$TMP/minimal.y"
+test -s "$TMP/parser.c"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+m4 = "*"
+
+[test.dependencies.apt]
+dash = "*"
+m4 = "*"

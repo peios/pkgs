@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "The historical 0.26 lock predates signature enforcement and must be repinned against Bruno Haible's committed key before any rebuild or republication of that old version"

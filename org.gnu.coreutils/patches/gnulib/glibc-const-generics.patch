@@ -1,3 +1,6 @@
+Description: Avoid collisions with glibc const-generic function macros
+Origin: upstream, https://git.savannah.gnu.org/cgit/gnulib.git/commit/?id=df17f4f3
+
 diff -ur a/lib/stdlib.in.h b/lib/stdlib.in.h
 --- a/lib/stdlib.in.h
 +++ b/lib/stdlib.in.h

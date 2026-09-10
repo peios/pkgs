@@ -1,3 +1,6 @@
+Description: Detect glibc's redirected posix_spawn_file_actions_addchdir declaration
+Origin: upstream, https://git.savannah.gnu.org/cgit/gnulib.git/commit/?id=ca635799
+
 diff -ur a/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4 b/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4
 --- a/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4
 +++ b/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4

@@ -1,3 +1,6 @@
+Description: Add root security-descriptor options to mke2fs
+Author: Peios maintainers
+
 diff --git a/misc/Makefile.in b/misc/Makefile.in
 index 0e3bed66..6b87bb71 100644
 --- a/misc/Makefile.in

@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "DocBook XSLT release assets are published from unsigned lightweight Git tags without detached archive signatures; HTTPS plus Pekit's immutable SHA-256 lock is the available upstream provenance boundary"
