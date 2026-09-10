@@ -1,0 +1,10 @@
+# netd owns its build, package boundaries, tests, hardening gates, and exact
+# source/debug artifacts. The catalogue identity is production-qualified;
+# immutable release discovery remains absent until the source repository is
+# public and tagged.
+
+out_dir = "out"
+delegate = true
+
+[source.local]
+path = "../../netd"

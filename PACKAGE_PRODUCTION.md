@@ -453,10 +453,12 @@ Peinit 0.0.2, Loregd 0.21.6, and Prelude 0.0.3 are committed and tagged
 locally with production package splits; their remote locks wait for explicit
 approval to publish the source commits and tags. Prelude's remaining native
 build prerequisite, the Rust musl standard-library target, is being packaged.
-Resolvd's complete local production split is committed, while its immutable
-source graph waits on public Resolvd and Netd repositories. Trustd and Timed
-are active production lanes. `mockinit` needs a catalogue-disposition choice;
-`peios-dwe` and `peios-kernel-only` explicitly forbid public publication.
+Resolvd's complete local production split is committed. Netd's matching local
+production family is source-committed and package-validated; both now share one
+exact Peios Rust revision. Their immutable top-level release graphs wait on
+public Resolvd and Netd repositories. Trustd and Timed are active production
+lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
+`peios-kernel-only` explicitly forbid public publication.
 
 ## Deferred first-party recipes
 
@@ -481,10 +483,15 @@ are active production lanes. `mockinit` needs a catalogue-disposition choice;
   it as a production runtime would preserve temporary service and security
   assumptions that the real peinit has replaced. Decide whether to delete it
   from the public catalogue or retain it under a clearly test-only identity.
-- `netd` has a sensible daemon/operator-client split, but its clean source
-  checkout has no remote or release tags and its build consumes undeclared
-  sibling peios-rs, libpeios, and PKM trees. It needs a public source/provenance
-  home before a hermetic release can be locked and published.
+- `netd` is locally productionized at source commit `7e258e4`. Its five-package
+  runtime/debug family passed 87 release tests, strict Clippy, two independent
+  deterministic builds, installed service/profile/state/manual gates, exact
+  split-debug/source validation, complete licence collection, and native
+  Peipkg hardening checks. Mutable peios-rs, libpeios, and PKM sibling fallbacks
+  are gone: the two Rust sources are exact public revisions and native builds
+  consume `dev.peios.libpeios-devel` 0.5.0. The source checkout still has no
+  remote or immutable release tag, so the catalogue intentionally remains
+  local-only until a public provenance home exists.
 - `peios-dwe` and `peios-kernel-only` are intentionally non-public recipes.
   The former grants unauthenticated SYSTEM access for a DWE guest and its own
   security policy forbids repository publication; the latter is a kernel
@@ -511,11 +518,13 @@ are active production lanes. `mockinit` needs a catalogue-disposition choice;
   tests, deterministic rebuild checks, and zero unwaived production-lint
   findings. Publish the source commit/tag, lock it, and run the native package
   rung once the packaged Rust musl standard library is available.
-- `resolvd` is locally productionized at source commit `7dd3e63` and catalogue
-  commit `e485d26`: 41 tests, strict Clippy, hardened daemon/client/NSS splits,
-  debug/source payloads, and migration metadata pass. Publication waits on
-  public Resolvd and Netd repositories so `libnetd` and `peios-rs` can be pinned
-  together without creating two native libraries with `links = "peios"`.
+- `resolvd` is locally productionized at source commits `7dd3e63` and
+  `ec7da6f`, and catalogue commit `e485d26`: 41 tests, strict Clippy, hardened
+  daemon/client/NSS splits, debug/source payloads, and migration metadata pass.
+  Its direct Peios binding now shares libnetd's exact public revision, so the
+  combined graph contains one `peios-sys` with `links = "peios"`. Publication
+  still waits on public Resolvd and Netd repositories so the remaining local
+  libnetd edge can become an immutable Netd revision.
 - `timed` and `trustd` are active local productionization lanes. Neither has a
   configured public source remote or immutable release tag, so publication will
   still require an explicit provenance home after their local gates pass.
