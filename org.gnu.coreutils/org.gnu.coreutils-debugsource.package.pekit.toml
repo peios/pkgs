@@ -3,7 +3,7 @@ name        = "org.gnu.coreutils-debugsource"
 description = "GNU core utilities - debug sources"
 
 [dependencies]
-"org.gnu.coreutils-debuginfo" = "{{version}}-2"
+"org.gnu.coreutils-debuginfo" = "{{version}}-3"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

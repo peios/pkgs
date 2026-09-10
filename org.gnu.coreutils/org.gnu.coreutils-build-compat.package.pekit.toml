@@ -1,16 +1,16 @@
-# GNU ownership and mode commands needed by conventional upstream build
-# systems but intentionally absent from Peiosutils. This narrowly scoped
-# package can coexist with Peiosutils in a pristine build root.
+# GNU command semantics needed by conventional upstream build systems but not
+# promised by Peiosutils. The commands live exclusively on Pekit's private
+# build PATH, so this package can coexist with Peiosutils without claiming any
+# installed-system command path.
 
 [package]
 name        = "org.gnu.coreutils-build-compat"
-description = "GNU ownership and mode utilities for package build roots"
+description = "Private GNU core utilities for package build roots"
 
 [provides]
 "coreutils-build-compat" = "{{version}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils-build-compat/"
-":usr/bin/chgrp" = "usr/bin/chgrp"
-":usr/bin/chmod" = "usr/bin/chmod"
-":usr/bin/chown" = "usr/bin/chown"
+":usr/bin/**" = "usr/libexec/coreutils-build"
+":usr/lib/x86_64-linux-peios/**" = "usr/lib/x86_64-linux-peios"

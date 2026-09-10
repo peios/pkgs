@@ -3,7 +3,7 @@ name        = "org.gnu.coreutils-debuginfo"
 description = "GNU core utilities - debugging symbols"
 
 [dependencies]
-"org.gnu.coreutils" = "{{version}}-2"
+"org.gnu.coreutils" = "{{version}}-3"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"
