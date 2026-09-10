@@ -5,7 +5,7 @@ name        = "io.github.eudev-project.eudev-debuginfo"
 description = "eudev - debugging symbols"
 
 [dependencies]
-"io.github.eudev-project.eudev" = "{{version}}-3"
+"io.github.eudev-project.eudev" = "{{version}}-4"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"
