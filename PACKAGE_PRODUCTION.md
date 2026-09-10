@@ -253,7 +253,8 @@ after the required artifacts had been preserved.
 The follow-up catalogue revision 0.20.1-rc13-3 is a metadata-only coherence
 repair. All 40 binary packages provide their legacy unqualified name at the
 same `-3` revision, and all 15 exact dependencies within the family select
-that revision. The 40 replacement bounds deliberately remain at
+that revision. The corresponding-source package version and description
+likewise identify `0.20.1-rc13-3`. The 40 replacement bounds deliberately remain at
 `<= 0.20.1-rc12-26`, the final legacy-name family they supersede. Repackaging
 reuses only the verified `-2` archives: payload manifests and installed sizes
 must remain identical, and no kernel compilation is involved.
