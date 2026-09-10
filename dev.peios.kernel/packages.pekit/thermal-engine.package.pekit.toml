@@ -1,0 +1,10 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.thermal-engine"
+
+[dependencies]
+"dev.peios.libthermal" = "= {{version}}-3"
+"dev.peios.libthermal-tools" = "= {{version}}-3"
+
+[provides]
+"thermal-engine" = "{{version}}-3"

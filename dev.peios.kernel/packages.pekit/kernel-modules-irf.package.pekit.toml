@@ -1,0 +1,9 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.kernel-modules-irf"
+
+[dependencies]
+"dev.peios.kernel" = "= {{version}}-3"
+
+[provides]
+"kernel-modules-irf" = "{{version}}-3"

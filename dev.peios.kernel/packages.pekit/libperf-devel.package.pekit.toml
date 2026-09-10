@@ -1,0 +1,9 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.libperf-devel"
+
+[dependencies]
+"dev.peios.libperf" = "= {{version}}-3"
+
+[provides]
+"libperf-devel" = "{{version}}-3"

@@ -1,0 +1,9 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.thermometer"
+
+[dependencies]
+"dev.peios.libthermal-tools" = "= {{version}}-3"
+
+[provides]
+"thermometer" = "{{version}}-3"

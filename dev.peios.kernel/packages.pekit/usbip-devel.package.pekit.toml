@@ -1,0 +1,9 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.usbip-devel"
+
+[dependencies]
+"dev.peios.usbip" = "= {{version}}-3"
+
+[provides]
+"usbip-devel" = "{{version}}-3"

@@ -1,0 +1,7 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.kernel-headers"
+
+[provides]
+"kernel-headers" = "{{version}}-3"
+"linux-kernel-headers" = "7.0.9"

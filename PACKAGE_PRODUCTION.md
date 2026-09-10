@@ -250,6 +250,14 @@ The subsequent PKM qualification completed with its exact Rust 1.83.0 and LLVM
 temporary toolchain worktrees and their superseded build output were removed
 after the required artifacts had been preserved.
 
+The follow-up catalogue revision 0.20.1-rc13-3 is a metadata-only coherence
+repair. All 40 binary packages provide their legacy unqualified name at the
+same `-3` revision, and all 15 exact dependencies within the family select
+that revision. The 40 replacement bounds deliberately remain at
+`<= 0.20.1-rc12-26`, the final legacy-name family they supersede. Repackaging
+reuses only the verified `-2` archives: payload manifests and installed sizes
+must remain identical, and no kernel compilation is involved.
+
 ## Peiosutils complete security refresh: 0.8.5-1
 
 `dev.peios.peiosutils` 0.8.5-1 supersedes 0.8.4-1 and completes the current

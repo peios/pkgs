@@ -1,0 +1,6 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.x86-energy-perf-policy"
+
+[provides]
+"x86-energy-perf-policy" = "{{version}}-3"

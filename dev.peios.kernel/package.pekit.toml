@@ -1,7 +1,9 @@
-# v0.20.1-rc13-1 was published before the production rebuild completed.  The
-# repository is immutable, so carry the corrected family as a catalogue-level
-# revision instead of rewriting that release.  Recipe package defaults overlay
-# the delegated source defaults and therefore apply uniformly to every kernel
-# and in-tree-tools subpackage (including the corresponding source package).
+# v0.20.1-rc13-1 and -2 were published before the production metadata audit
+# completed. The repository is immutable, so carry the coherent family as a
+# catalogue-level revision instead of rewriting either release. Recipe package
+# defaults overlay the delegated source defaults and therefore apply uniformly
+# to every kernel and in-tree-tools subpackage (including corresponding source);
+# the selector overlays align every exact intra-family dependency and legacy
+# provide with that same revision.
 [package]
-version = "{{version}}-2"
+version = "{{version}}-3"

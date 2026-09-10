@@ -1,0 +1,9 @@
+# Catalogue revision overlay: keep all same-family relations aligned with -3.
+[package]
+name = "dev.peios.kernel-debugsource"
+
+[dependencies]
+"dev.peios.kernel" = "= {{version}}-3"
+
+[provides]
+"kernel-debugsource" = "{{version}}-3"
