@@ -633,13 +633,13 @@ Explicit decisions or exclusions:
   independent musl builds byte-for-byte, and validates static-PIE hardening,
   debug, source, and all three strict-format package artifacts. Push the source
   commit/tag, generate the immutable remote lock, and publish the family.
-- `resolvd` is locally productionized at source commits `7dd3e63` and
-  `ec7da6f`, and catalogue commit `e485d26`: 41 tests, strict Clippy, hardened
-  daemon/client/NSS splits, debug/source payloads, and migration metadata pass.
-  Its direct Peios binding now shares libnetd's exact public revision, so the
-  combined graph contains one `peios-sys` with `links = "peios"`. Publication
-  still waits on public Resolvd and Netd repositories so the remaining local
-  libnetd edge can become an immutable Netd revision.
+- `resolvd` is productionized and public at source commit `aea35d4` and tag
+  `v0.1.0`: 41 tests, strict Clippy, hardened daemon/client/NSS splits,
+  debug/source payloads, and migration metadata pass. Both its main and fuzz
+  graphs pin libnetd to public Netd commit `301fdab`; locked acquisition vendors
+  that dependency before every compile/test stage switches offline. The
+  catalogue now follows and locks the public tag with no provenance allowance.
+  Rebuild and publish its seven-package family from that immutable source.
 - `timed` and `trustd` are locally production-ready at source commits
   `fa1679d` and `0887b81`, with local tags `v0.1.1` and catalogue commits
   `5b82f1a` and `20dfe9c`. Timed's follow-up removes 7,621 generated fuzz,
