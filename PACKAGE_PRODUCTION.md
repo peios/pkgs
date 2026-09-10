@@ -448,18 +448,20 @@ and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
 ## Remaining current-pass recipes
 
-The native `dev.peios.kernel` family is complete. Peinit 0.0.2 is committed and
-tagged locally with its seven-package production split; its remote lock waits
-for explicit approval to push that source commit and tag. `loregd`, `mockinit`,
-and `netd` are audited but blocked as recorded below. `peios-dwe` and
-`peios-kernel-only` explicitly forbid public publication, and the experimental
-edition has a pre-existing uncommitted change. Continue the foreground pass
-with `peipkg`.
+The native `dev.peios.kernel` and `org.golang.go` families are complete.
+Peinit 0.0.2, Loregd 0.21.6, and Prelude 0.0.3 are committed and tagged
+locally with production package splits; their remote locks wait for explicit
+approval to publish the source commits and tags. Prelude's remaining native
+build prerequisite, the Rust musl standard-library target, is being packaged.
+Resolvd's complete local production split is committed, while its immutable
+source graph waits on public Resolvd and Netd repositories. Trustd and Timed
+are active production lanes. `mockinit` needs a catalogue-disposition choice;
+`peios-dwe` and `peios-kernel-only` explicitly forbid public publication.
 
 ## Deferred first-party recipes
 
 `loregd`,
-`mockinit`, `netd`, `peinit`, `peios-dwe`, `peios-experimental`,
+`mockinit`, `netd`, `peinit`, `peios-dwe`,
 `peios-kernel-only`, `peipkg`, `pnpd`,
 `prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
 `dev.peios.oobe` and `dev.peios.peios-installer` recipes.
@@ -503,15 +505,20 @@ with `peipkg`.
   Give the PNP source repository a public provenance home before replacing
   those fallbacks with immutable Rust inputs and the packaged libpeios/kernel
   development interfaces.
-- `prelude` has a public remote and historical tags, but its source checkout
-  currently contains pre-existing modifications to `crates/prelude/src/main.rs`
-  and `package.pekit.toml` plus an untracked `src/` tree. Preserve that work and
-  defer the release audit until its ownership and intended contents are clear.
-- `resolvd`, `timed`, and `trustd` each have clean, substantial Rust source
-  trees and plausible existing package splits, but none has a configured source
-  remote or immutable release tag and all three catalogue recipes are
-  local-only. Establish public source provenance before qualifying their build
-  graphs and publishing them.
+- `prelude` is locally release-ready at source commit `2d44ae6`, unsigned tag
+  `v0.0.3`, and catalogue commit `1281f38`. It has a vendored offline source
+  graph, static musl PIE runtime, per-family debug/source split, 40 passing
+  tests, deterministic rebuild checks, and zero unwaived production-lint
+  findings. Publish the source commit/tag, lock it, and run the native package
+  rung once the packaged Rust musl standard library is available.
+- `resolvd` is locally productionized at source commit `7dd3e63` and catalogue
+  commit `e485d26`: 41 tests, strict Clippy, hardened daemon/client/NSS splits,
+  debug/source payloads, and migration metadata pass. Publication waits on
+  public Resolvd and Netd repositories so `libnetd` and `peios-rs` can be pinned
+  together without creating two native libraries with `links = "peios"`.
+- `timed` and `trustd` are active local productionization lanes. Neither has a
+  configured public source remote or immutable release tag, so publication will
+  still require an explicit provenance home after their local gates pass.
 - `dev.peios.oobe` and `dev.peios.peios-installer` are already qualified by
   name, but both build from the same local-only `installer` checkout and its
   sibling path dependency on the local-only `msip` repository. Neither source
