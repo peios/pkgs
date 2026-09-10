@@ -1,0 +1,3 @@
+[allow]
+"source.signature.required" = "Upstream release tags are SSH-signed but release archives have no detached signature Pekit can verify; HTTPS and the immutable lock pin accepted bytes"
+"build.test" = "The upstream Meson suite and staged dependency-resolution command matrix run inside build.main so package and publish fail closed"

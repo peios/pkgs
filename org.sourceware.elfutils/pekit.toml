@@ -8,12 +8,13 @@
 out_dir = "out"
 
 [source.url]
-url        = "https://sourceware.org/elfutils/ftp/{{version}}/elfutils-{{version}}.tar.bz2"
-extract    = true
-root       = "elfutils-{{version}}"
-file_regex = '[0-9]+\.[0-9]+/'
+url         = "https://sourceware.org/elfutils/ftp/{{version}}/elfutils-{{version}}.tar.bz2"
+listing_url = "https://sourceware.org/elfutils/ftp/"
+extract     = true
+root        = "elfutils-{{version}}"
+file_regex  = '(?P<version>[0-9]+\.[0-9]+)/'
 # Soft maintenance floor: follow authenticated stable releases automatically.
-versions   = ">= 0.196"
+versions    = ">= 0.196"
 
 [source.url.signature]
 url          = "{{source_url}}.sig"

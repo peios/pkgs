@@ -10,9 +10,9 @@ listing_url = "https://ftp.gnu.org/gnu/m4/"
 extract     = true
 root        = "m4-{{version}}"
 file_regex  = 'm4-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
-# Soft maintenance floor. Follow newer stable 1.x releases automatically;
-# M4 2.x is expected to change compatibility surfaces and needs review.
-versions    = ">= 1.4.21, < 2"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible macro-language changes stop at the build and test gates.
+versions    = ">= 1.4.21"
 
 # GNU publishes a detached signature next to every release archive. Eric
 # Blake's complete primary fingerprint is stated in GNU's 1.4.21 release

@@ -1,3 +1,6 @@
+Description: Make NSS identity selection a fixed Peios authority boundary
+Origin: vendor, Peios
+
 diff --git a/nss/initgroups.c b/nss/initgroups.c
 index f4106226ec..c0399b38e8 100644
 --- a/nss/initgroups.c

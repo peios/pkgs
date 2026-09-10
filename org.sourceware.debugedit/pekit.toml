@@ -13,9 +13,9 @@ listing_url = "https://sourceware.org/pub/debugedit/"
 extract     = true
 root        = "debugedit-{{version}}"
 file_regex  = '[0-9]+\.[0-9]+/'
-# Soft maintenance floor. Follow authenticated stable 5.x releases
-# automatically; a future major line requires a DWARF/CLI compatibility audit.
-versions    = ">= 5.3, < 6"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible DWARF or CLI changes stop at the build and regression gates.
+versions    = ">= 5.3"
 
 [source.url.signature]
 url          = "{{source_url}}.sig"

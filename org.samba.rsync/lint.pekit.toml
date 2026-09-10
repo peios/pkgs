@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The applicable upstream checks and staged metadata-preserving transfer matrix run inside build.main so package and publish fail closed"

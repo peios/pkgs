@@ -8,9 +8,9 @@ listing_url = "https://ftp.gnu.org/gnu/gperf/"
 extract     = true
 root        = "gperf-{{version}}"
 file_regex  = 'gperf-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
-# Soft maintenance floor. Follow authenticated stable 3.x releases
-# automatically; stop at a new major line for output-compatibility review.
-versions    = ">= 3.3, < 4"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible output changes stop at the generated-code tests.
+versions    = ">= 3.3"
 
 # GNU gperf 3.3 is signed by maintainer Bruno Haible. Pin the complete primary
 # fingerprint from the release announcement so discovery remains authenticated.

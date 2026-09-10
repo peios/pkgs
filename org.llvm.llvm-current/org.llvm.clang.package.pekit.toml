@@ -5,7 +5,7 @@
 
 [package]
 name        = "org.llvm.clang"
-description = "Clang C, C++ and Objective-C compiler"
+description = "C, C++, and Objective-C compiler"
 
 [provides]
 clang = "{{version}}-2"

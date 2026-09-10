@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-audio-codecs"
-description   = "Laptop audio codec and amplifier firmware (Cirrus CS35L41/56, CS42L43/45; TI TAS2781/2783/2563; Creative CA0132)"
+description   = "Laptop audio codec and amplifier firmware"
 license       = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
 license_class = "firmware"
 

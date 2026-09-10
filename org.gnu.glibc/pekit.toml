@@ -55,9 +55,9 @@ listing_url = "https://ftp.gnu.org/gnu/libc/"
 extract     = true
 root        = "glibc-{{version}}"
 file_regex  = 'glibc-[0-9]+\.[0-9]+\.tar\.xz'
-# Soft maintenance floor.  Stable 2.x releases advance automatically, while a
-# new major line stops for an ABI, loader-path and bootstrap-policy review.
-versions    = ">= 2.44, < 3"
+# Soft maintenance floor. Every newer authenticated release is attempted;
+# ABI, loader-path, or bootstrap changes stop at the build and test gates.
+versions    = ">= 2.44"
 
 # glibc 2.44 is signed by release manager Andreas K. Huettel.  The full primary
 # fingerprint is pinned; the imported key includes the signing subkey GNU used

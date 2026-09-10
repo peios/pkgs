@@ -5,7 +5,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.samba.rsync"
-description = "rsync - fast incremental file transfer"
+description = "Fast incremental file-transfer utility"
 
 [provides]
 rsync = "{{version}}-1"

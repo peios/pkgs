@@ -12,9 +12,9 @@ listing_url = "https://ftp.gnu.org/gnu/grep/"
 extract     = true
 root        = "grep-{{version}}"
 file_regex  = 'grep-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 3.x releases
-# automatically; a future major line requires a compatibility review.
-versions    = ">= 3.12, < 4"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible changes stop at the command-behaviour tests.
+versions    = ">= 3.12"
 
 # GNU Grep releases are signed by maintainer Jim Meyering. Pin his complete
 # primary fingerprint from the 3.12 release announcement so unattended

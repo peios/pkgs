@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The upstream Meson suite and staged libkmod/command integration checks run inside build.main so package and publish fail closed"

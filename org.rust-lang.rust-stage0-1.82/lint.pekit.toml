@@ -1,0 +1,4 @@
+[allow]
+"source.discovery" = "This private seed is pinned to the exact Rust 1.82.0 bootstrap required by the frozen Rust 1.83.0 compiler"
+"source.versions.ceiling" = "The exact Rust 1.82.0 seed is a deliberate bootstrap root coordinated with PKM's frozen compiler"
+"build.test" = "The private signed seed has no independent runtime surface; build.main verifies the exact compiler, Cargo, and standard-library manifests before Rust 1.83 uses it"

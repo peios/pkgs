@@ -9,11 +9,9 @@ listing_url = "https://github.com/NixOS/patchelf/releases"
 extract     = true
 root        = "patchelf-{{version}}"
 file_regex  = 'patchelf-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
-# Soft maintenance bounds. Follow later pre-1.0 stable releases automatically;
-# 1.x is a deliberate command-contract review point, not a claim that it must
-# be incompatible. The regression and installed-interface gates below decide
-# whether an otherwise eligible release is publishable without intervention.
-versions    = ">= 0.19.1, < 1"
+# Soft maintenance floor. Follow every newer stable release; the regression
+# and installed-interface gates decide whether it is publishable.
+versions    = ">= 0.19.1"
 
 # Upstream publishes release archives and GitHub-recorded SHA-256 digests, but
 # no maintainer-signed detached checksum or archive signature. The release

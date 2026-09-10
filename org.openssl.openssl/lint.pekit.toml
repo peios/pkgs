@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The full upstream OpenSSL suite and staged TLS/provider/command probes run inside build.main so package and publish fail closed"

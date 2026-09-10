@@ -10,9 +10,9 @@ listing_url = "https://tukaani.org/xz/"
 extract     = true
 root        = "xz-{{version}}"
 file_regex  = 'xz-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
-# Soft maintenance bounds. Follow authenticated stable 5.8 releases
-# automatically; review ABI and command compatibility before a new branch.
-versions    = ">= 5.8.3, < 5.9"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible format or ABI changes stop at the build and test gates.
+versions    = ">= 5.8.3"
 
 # XZ release archives are signed by maintainer Lasse Collin. Pin the complete
 # primary-key fingerprint so unattended discovery cannot accept another key.

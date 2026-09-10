@@ -1,3 +1,6 @@
+Description: Backport the relative --one-top-level diagnostic prerequisite
+Origin: backport, https://gitlab.com/redhat/centos-stream/rpms/tar/-/tree/c10s
+
 diff --git a/NEWS b/NEWS
 index 77112313..5eadfe9d 100644
 --- a/NEWS

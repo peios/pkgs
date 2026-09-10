@@ -11,9 +11,9 @@ listing_url = "https://download.samba.org/pub/rsync/src/"
 file_regex  = '^rsync-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$'
 extract     = true
 root        = "rsync-{{version}}"
-# Soft maintenance floor. Follow authenticated stable 3.x releases
-# automatically; review the compatibility and feature contract for 4.x.
-versions    = ">= 3.5.0, < 4"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible protocol or command changes stop at the staged transfer gates.
+versions    = ">= 3.5.0"
 
 # Samba's release archive supplies detached signatures. Pin the complete
 # primary fingerprint published for Andrew Tridgell rather than accepting any

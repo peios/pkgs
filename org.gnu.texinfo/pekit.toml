@@ -14,10 +14,9 @@ listing_url = "https://ftp.gnu.org/gnu/texinfo/"
 extract     = true
 root        = "texinfo-{{version}}"
 file_regex  = 'texinfo-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 7.x releases
-# automatically; a future major line requires a converter-compatibility
-# review and a renewed check of the deferred reader/install-info boundary.
-versions    = ">= 7.3, < 8"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# converter or install-info changes stop at the regression and payload gates.
+versions    = ">= 7.3"
 
 # GNU Texinfo 7.3 is signed by maintainer Gavin Smith. Pin the complete
 # primary fingerprint from GNU's release key material so unattended

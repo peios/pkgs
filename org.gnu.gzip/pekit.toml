@@ -8,9 +8,9 @@ listing_url = "https://ftp.gnu.org/gnu/gzip/"
 extract     = true
 root        = "gzip-{{version}}"
 file_regex  = 'gzip-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 1.x releases
-# automatically; stop at a new major line for command/build review.
-versions    = ">= 1.14, < 2"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible changes stop at the command and archive tests.
+versions    = ">= 1.14"
 
 # GNU gzip releases are signed by maintainer Jim Meyering. Pin the complete
 # primary-key fingerprint so every discovered release must authenticate before

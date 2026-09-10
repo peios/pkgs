@@ -8,11 +8,10 @@ out_dir = "out"
 [source.git]
 url       = "https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git"
 ref       = "libtraceevent-{{version}}"
-tag_regex = '^libtraceevent-(?P<version>1\.[0-9]+\.[0-9]+)$'
-# Soft maintenance floor. Follow later stable 1.x releases automatically; the
-# explicit SONAME, header, plugin and test gates below stop a release whose
-# packaging contract needs deliberate review. A 2.x release is an ABI review.
-versions  = ">= 1.9, < 2"
+tag_regex = '^libtraceevent-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow every newer immutable release; the explicit
+# SONAME, header, plugin, and test gates stop incompatible ABI changes.
+versions  = ">= 1.9"
 
 # Upstream's release tags are annotated and signed, but Pekit cannot yet
 # authenticate Git tag signatures (PEI-665). HTTPS authenticates transport and

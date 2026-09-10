@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-misc"
-description   = "Miscellaneous x86 device firmware: USB serial adapters, DVB/V4L tuners and capture devices, legacy Wi-Fi, PCMCIA CIS, sound cards"
+description   = "Miscellaneous x86 peripheral firmware"
 license       = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
 

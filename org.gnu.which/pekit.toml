@@ -12,9 +12,9 @@ listing_url = "https://ftp.gnu.org/gnu/which/"
 extract     = true
 root        = "which-{{version}}"
 file_regex  = 'which-[0-9]+\.[0-9]+\.tar\.gz'
-# Soft maintenance floor. Follow authenticated stable 2.x releases
-# automatically; stop at a future major line for command/build review.
-versions    = ">= 2.25, < 3"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible command changes stop at the staged-command tests.
+versions    = ">= 2.25"
 
 # GNU which releases are signed by maintainer Carlo Wood. Pin the complete
 # primary-key fingerprint from GNU's official keyring so every release chosen

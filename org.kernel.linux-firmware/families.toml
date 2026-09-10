@@ -37,7 +37,7 @@ licenses = ["LICENCE.iwlwifi_firmware"]
 license  = "LicenseRef-Intel-Firmware"
 
 [family.atheros]
-description = "Qualcomm Atheros Wi-Fi and Bluetooth firmware (ath9k/10k/11k/12k, ath6kl, ar3k, btqca, wil6210)"
+description = "Qualcomm Atheros Wi-Fi and Bluetooth firmware"
 drivers  = ["ar9170", "ath9k_htc", "ath3k", "ath6kl", "ath10k", "ath11k", "ath12k",
             "ar5523", "carl9170", "wil6210", "btqca", "qca",
             "DFU Driver for Atheros bluetooth chipset AR3012",
@@ -62,20 +62,20 @@ licenses = ["LICENCE.ralink-firmware.txt"]
 license  = "LicenseRef-Ralink-Firmware"
 
 [family.realtek]
-description = "Realtek Wi-Fi, Bluetooth, Ethernet and audio codec firmware (rtlwifi, rtw88/89, rtl_bt, r8169, r8152)"
+description = "Realtek Wi-Fi, Bluetooth, Ethernet, and audio firmware"
 drivers  = ["r8712u", "rtl8[0-9a-z]+", "rtw88", "rtw89", "r8169", "r8152", "rt1320"]
 paths    = ["rtl_bt/*"]
 licenses = ["LICENCE.rtlwifi_firmware.txt", "LICENSE.r8169", "LICENSE.rt1320"]
 license  = "LicenseRef-Realtek-Firmware"
 
 [family.broadcom]
-description = "Broadcom and Cypress Wi-Fi, Bluetooth and Ethernet firmware (brcmfmac, brcmsmac, tg3, bnx2, bnx2x)"
+description = "Broadcom and Cypress Wi-Fi, Bluetooth, and Ethernet firmware"
 drivers  = ["brcmfmac", "brcmsmac", "BCM-0bb4-0306", "tg3", "bnx2", "bnx2x"]
 licenses = ["LICENCE.broadcom_bcm43xx", "LICENCE.cypress", "LICENCE.tigon", "LICENCE.bnx2", "LICENCE.bnx2x"]
 license  = "LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
 
 [family.marvell]
-description = "Marvell and NXP Wi-Fi and Bluetooth firmware (mwifiex, libertas, mwl8k, mwlwifi, btnxpuart)"
+description = "Marvell and NXP Wi-Fi and Bluetooth firmware"
 drivers  = ["libertas", "mwl8k", "mwifiex", "mwlwifi", "nxpwifi", "btnxpuart", "nxp-sr1xx"]
 licenses = ["LICENCE.Marvell", "LICENCE.OLPC", "LICENCE.NXP", "LICENSE.nxp"]
 license  = "LicenseRef-Marvell-Firmware AND LicenseRef-NXP-Firmware"
@@ -99,7 +99,7 @@ licenses = ["LICENSE.i915", "LICENSE.xe"]
 license  = "LicenseRef-Intel-Firmware"
 
 [family.intel-platform]
-description = "Intel platform firmware: Bluetooth (ibt), ISH sensor hub, IPU cameras, VSC, NPU, QAT, E800 NICs"
+description = "Intel platform, sensor, camera, accelerator, and NIC firmware"
 drivers  = ["btusb", "ish", "atomisp", "ipu3-imgu", "intel-ipu6-isys", "intel-ipu7-isys", "mei-vsc-hw",
             "intel_vpu", "qat", "ice", "e100", "isci"]
 licenses = ["LICENCE.ibt_firmware", "LICENCE.HP", "LICENCE.lenovo", "LICENSE.dell", "LICENSE.intel",
@@ -110,7 +110,7 @@ license  = "LicenseRef-Intel-Firmware"
 # family's path pattern claims those first — see the matching note above.
 
 [family.intel-sound]
-description = "Intel audio DSP firmware (AVS, catpt, Skylake SST). Sound Open Firmware is a separate upstream."
+description = "Intel AVS, catpt, and Skylake SST audio DSP firmware"
 drivers  = ["snd_soc_sst_acpi", "snd_soc_catpt", "snd_soc_avs", "snd_intel_sst_core", "snd-soc-skl"]
 licenses = ["LICENCE.fw_sst_0f28", "LICENCE.IntcSST2", "LICENCE.adsp_sst"]
 license  = "LicenseRef-Intel-Firmware"
@@ -122,14 +122,14 @@ licenses = ["LICENCE.nvidia"]
 license  = "LicenseRef-NVIDIA-Firmware"
 
 [family.audio-codecs]
-description = "Laptop audio codec and amplifier firmware (Cirrus CS35L41/56, CS42L43/45; TI TAS2781/2783/2563; Creative CA0132)"
+description = "Laptop audio codec and amplifier firmware"
 drivers  = ["cs35l41", "cs35l56", "cs42l43", "cs42l45", "ti-tas2781", "ti-tas2783", "ti-tas2563", "PCM6240",
             "snd-hda-codec-ca0132"]
 licenses = ["LICENSE.cirrus", "LICENCE.ti-tspa", "LICENCE.ca0132"]
 license  = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
 
 [family.nic]
-description = "Wired NIC firmware (Chelsio, QLogic qed, Myricom, Tehuti, 3Com, Exar, Alacritech, NetXen, Aeonsemi PHY, legacy USB Ethernet)"
+description = "Wired Ethernet adapter and PHY firmware"
 drivers  = ["cxgb3", "cxgb4", "qed", "myri10ge", "tehuti", "typhoon", "vxge", "slicoss", "sxg", "netxen_nic",
             "kaweth", "starfire", "as21xxx"]
 licenses = ["LICENCE.cxgb3", "LICENCE.chelsio_firmware", "LICENSE.qed", "LICENCE.myri10ge_firmware",
@@ -139,13 +139,13 @@ license  = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND Licen
 # starfire's firmware is GPL-2.0-or-later (upstream "LICENSED" marker).
 
 [family.storage]
-description = "Storage HBA firmware (QLogic qla2xxx/qla1280, QLogic BR-series FC, AdvanSys, ENE UB6250 card reader)"
+description = "Storage HBA, Fibre Channel, and card-reader firmware"
 drivers  = ["qla2xxx", "qla1280", "advansys", "BFA/BNA", "ene-ub6250"]
 licenses = ["LICENCE.qla2xxx", "LICENCE.qla1280", "LICENCE.advansys", "LICENSE.bfa", "LICENCE.ene_firmware"]
 license  = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND LicenseRef-ENE-Firmware"
 
 [family.misc]
-description = "Miscellaneous x86 device firmware: USB serial adapters, DVB/V4L tuners and capture devices, legacy Wi-Fi, PCMCIA CIS, sound cards"
+description = "Miscellaneous x86 peripheral firmware"
 drivers  = ["keyspan", "keyspan_pda", "emi26", "ti_usb_3410_5052", "whiteheat", "io_edgeport", "io_ti",
             "mxu11x0", "mxuport", "rp2",
             "cpia2", "dabusb", "cx231xx", "cx23418", "cx23885", "cx23840", "dvb-ttpci", "xc4000", "xc5000",

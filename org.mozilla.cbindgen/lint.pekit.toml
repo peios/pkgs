@@ -1,0 +1,5 @@
+[allow]
+"source.discovery" = "This generator is deliberately pinned to the exact version defining libpeios's checked C ABI snapshot"
+"source.versions.ceiling" = "Changing cbindgen is a reviewed generated-source transition coordinated with libpeios, not unattended package maintenance"
+"source.signature.required" = "crates.io publishes immutable checksummed crate files over HTTPS but no detached release signatures"
+"build.test" = "Cargo unit suites and compiled C/C++ generation probes run inside build.main so package and publish fail closed"

@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The applicable upstream converter suite and staged document conversions run inside build.main so package and publish fail closed"

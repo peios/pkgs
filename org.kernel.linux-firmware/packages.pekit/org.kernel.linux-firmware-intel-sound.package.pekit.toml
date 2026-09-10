@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-intel-sound"
-description   = "Intel audio DSP firmware (AVS, catpt, Skylake SST). Sound Open Firmware is a separate upstream."
+description   = "Intel AVS, catpt, and Skylake SST audio DSP firmware"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
 

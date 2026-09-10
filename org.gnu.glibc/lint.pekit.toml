@@ -1,0 +1,3 @@
+[allow]
+"build.test" = "The complete glibc suite and Peios NSS matrix run inside build.main so package and publish fail closed; separating them would weaken the release gate"
+"package.name.style" = "The language-pack member uses a validated multipack template whose rendered org.gnu.glibc-langpack-* names are reverse-DNS package names"

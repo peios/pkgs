@@ -10,9 +10,9 @@ listing_url = "https://invisible-island.net/archives/ncurses/"
 extract     = true
 root        = "ncurses-{{version}}"
 file_regex  = 'ncurses-[0-9]+\.[0-9]+\.tar\.gz'
-# Soft maintenance floor and major-version compatibility ceiling. Stable 6.x
-# releases advance automatically; a new ABI major or failed gate needs review.
-versions    = ">= 6.6, < 7"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# ABI changes stop at the terminfo and staged API gates.
+versions    = ">= 6.6"
 
 # Thomas Dickey publishes this full primary fingerprint and detached release
 # signatures on the ncurses site. Key rotation remains an explicit trust event.

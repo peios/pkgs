@@ -10,9 +10,9 @@ listing_url = "https://distfiles.ariadne.space/pkgconf/"
 file_regex  = '^pkgconf-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz$'
 extract     = true
 root        = "pkgconf-{{version}}"
-# Soft production-line floor. Track stable 3.x releases automatically while
-# excluding the 3.9.90+ development series for a future incompatible major.
-versions    = ">= 3.0.6, < 3.9.90"
+# Soft production floor. Follow every newer stable release; development or
+# incompatible releases stop at the build and command-behaviour gates.
+versions    = ">= 3.0.6"
 
 # Upstream release tags are SSH-signed on GitHub, but neither the official
 # tarball directory nor the release assets publish detached signatures Pekit

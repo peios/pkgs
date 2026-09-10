@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.gnu.ncurses"
-description = "ncurses terminal-information utilities"
+description = "Terminal-information database and utilities"
 
 [provides]
 ncurses = "{{version}}-3"

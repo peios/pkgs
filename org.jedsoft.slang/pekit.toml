@@ -10,9 +10,9 @@ listing_url = "https://www.jedsoft.org/releases/slang/"
 file_regex  = '^slang-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2$'
 extract     = true
 root        = "slang-{{version}}"
-# Soft maintenance floor. Follow authenticated stable 2.x releases
-# automatically; a future ABI-major line requires a compatibility review.
-versions    = ">= 2.3.3, < 3"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible ABI changes stop at the build and API tests.
+versions    = ">= 2.3.3"
 
 # John E. Davis signs releases beside the tarballs. Pin the complete primary
 # fingerprint: a signing-key rotation remains an explicit trust decision.

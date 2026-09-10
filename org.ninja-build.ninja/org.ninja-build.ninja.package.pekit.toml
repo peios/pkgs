@@ -1,6 +1,6 @@
 [package]
 name        = "org.ninja-build.ninja"
-description = "Ninja high-speed build executor"
+description = "High-speed build executor"
 
 [provides]
 ninja = "{{version}}"

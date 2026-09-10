@@ -1,3 +1,6 @@
+Description: Accept the Peios multiarch platform triplet
+Origin: vendor, Peios
+
 --- a/configure
 +++ b/configure
 @@ -7189,6 +7189,13 @@

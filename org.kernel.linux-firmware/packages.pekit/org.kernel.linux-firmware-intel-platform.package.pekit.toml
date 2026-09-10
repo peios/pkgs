@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-intel-platform"
-description   = "Intel platform firmware: Bluetooth (ibt), ISH sensor hub, IPU cameras, VSC, NPU, QAT, E800 NICs"
+description   = "Intel platform, sensor, camera, accelerator, and NIC firmware"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
 

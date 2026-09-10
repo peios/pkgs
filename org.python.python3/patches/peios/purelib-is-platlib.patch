@@ -1,3 +1,6 @@
+Description: Install pure and platform Python modules in the Peios ABI directory
+Origin: vendor, Peios
+
 PEIOS-DIVERGENCE(purelib): one site-packages, inside the triplet directory.
 
 --with-platlibdir moves only platlib; the purelib scheme still names

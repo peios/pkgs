@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "Staged shared/static API, metadata, and unprivileged command tests run inside build.main; privileged capability-xattr tests are inapplicable in the build namespace"

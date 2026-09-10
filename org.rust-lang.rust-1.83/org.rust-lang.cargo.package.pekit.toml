@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.rust-lang.cargo"
-description = "Cargo package manager and build tool for Rust"
+description = "Package manager and build tool for Rust"
 
 [provides]
 cargo = "{{version}}-2"

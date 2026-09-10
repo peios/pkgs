@@ -14,9 +14,9 @@ listing_url = "https://api.github.com/repos/util-linux/util-linux/tags?per_page=
 extract     = true
 root        = "util-linux-{{version}}"
 file_regex  = '"name"[[:space:]]*:[[:space:]]*"v?[0-9]+\.[0-9]+(?:\.[0-9]+)?"'
-# Soft maintenance floor. Follow authenticated stable releases throughout the
-# current major line; util-linux documents a major bump as a fatal/deep change.
-versions    = ">= 2.42.3, < 3"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# deep command or ABI changes stop at the build and staged-interface gates.
+versions    = ">= 2.42.3"
 
 # kernel.org signs the decompressed tar rather than its xz transport. Karel
 # Zak's complete primary fingerprint is embedded in the 2.42.3 signature.

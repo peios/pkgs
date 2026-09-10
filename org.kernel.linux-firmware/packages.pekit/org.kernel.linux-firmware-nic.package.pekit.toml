@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-nic"
-description   = "Wired NIC firmware (Chelsio, QLogic qed, Myricom, Tehuti, 3Com, Exar, Alacritech, NetXen, Aeonsemi PHY, legacy USB Ethernet)"
+description   = "Wired Ethernet adapter and PHY firmware"
 license       = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
 

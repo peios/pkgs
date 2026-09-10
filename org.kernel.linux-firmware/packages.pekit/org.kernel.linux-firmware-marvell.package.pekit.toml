@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-marvell"
-description   = "Marvell and NXP Wi-Fi and Bluetooth firmware (mwifiex, libertas, mwl8k, mwlwifi, btnxpuart)"
+description   = "Marvell and NXP Wi-Fi and Bluetooth firmware"
 license       = "LicenseRef-Marvell-Firmware AND LicenseRef-NXP-Firmware"
 license_class = "firmware"
 

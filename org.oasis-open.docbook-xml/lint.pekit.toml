@@ -1,0 +1,5 @@
+[allow]
+"source.discovery" = "DocBook XML 4.5 is the final DocBook 4 DTD; DocBook 5 is a distinct namespace-aware RELAX NG schema, not an update"
+"source.versions.ceiling" = "The normative DocBook 4.5 standard is intentionally exact and immutable rather than an upstream software release stream"
+"source.signature.required" = "OASIS publishes the normative 4.5 archive over HTTPS without a detached signature or checksum channel; Pekit's lock pins the accepted standard bytes"
+"build.test" = "Catalog resolution and full offline XML validation run inside build.main so package and publish fail closed"

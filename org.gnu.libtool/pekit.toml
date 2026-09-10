@@ -8,9 +8,9 @@ listing_url = "https://ftp.gnu.org/gnu/libtool/"
 extract     = true
 root        = "libtool-{{version}}"
 file_regex  = '^libtool-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz$'
-# Soft maintenance floor. The main GNU archive contains stable releases;
-# automatically follow the rest of the 2.x line but review a new major line.
-versions    = ">= 2.6.2, < 3"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible build-system changes stop at the regression gates.
+versions    = ">= 2.6.2"
 
 # GNU's stable archives carry detached signatures. Pin current maintainer
 # Ileana Dumitrescu's complete primary-key fingerprint, as published in the

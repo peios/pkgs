@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The applicable upstream suites and staged command/library integration matrix run inside build.main so package and publish fail closed"

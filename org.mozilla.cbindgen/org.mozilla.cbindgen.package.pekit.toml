@@ -1,6 +1,6 @@
 [package]
 name        = "org.mozilla.cbindgen"
-description = "cbindgen Rust-to-C/C++ bindings generator"
+description = "Rust-to-C and C++ bindings generator"
 
 [provides]
 cbindgen = "{{version}}-1"

@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.openssl.openssl"
-description = "OpenSSL cryptography and TLS command-line toolkit"
+description = "Cryptography and TLS command-line toolkit"
 
 [provides]
 openssl = "{{version}}"

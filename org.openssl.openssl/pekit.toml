@@ -9,10 +9,10 @@ url         = "https://github.com/openssl/openssl/releases/download/openssl-{{ve
 listing_url = "https://openssl-library.org/source/"
 extract     = true
 root        = "openssl-{{version}}"
-file_regex  = 'openssl-3\.5\.[0-9]+\.tar\.gz'
-# Soft maintenance floor and LTS-line ceiling. Patch releases advance without
-# recipe edits; a new feature line or failed production gate needs review.
-versions    = ">= 3.5.8, < 3.6"
+file_regex  = 'openssl-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible API or provider changes stop at the build and test gates.
+versions    = ">= 3.5.8"
 
 # OpenSSL publishes detached signatures and the complete release certificate
 # on its official download page. The pinned full primary fingerprint is the

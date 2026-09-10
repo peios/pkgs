@@ -2,7 +2,7 @@
 
 [package]
 name        = "org.llvm.lld"
-description = "lld - the LLVM linker (ld.lld)"
+description = "LLVM linker and compatible driver names"
 
 [provides]
 lld = "{{version}}-2"

@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The upstream suite and staged DWARF rewrite/build-ID probes run inside build.main so package and publish fail closed"

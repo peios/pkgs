@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "Upstream tests plus staged shared/static API, ABI, documentation, and reproducibility gates run inside build.main so package and publish fail closed"

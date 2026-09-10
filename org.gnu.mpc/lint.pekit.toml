@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The upstream rounding suite and staged shared/static complex-arithmetic ABI probes run inside build.main so package and publish fail closed"

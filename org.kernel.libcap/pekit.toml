@@ -14,9 +14,9 @@ listing_url = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap
 extract     = true
 root        = "libcap-{{version}}"
 file_regex  = '^libcap-[0-9]+\.[0-9]+\.tar\.xz$'
-# Soft maintenance floor. Follow authenticated stable 2.x releases; a future
-# major line receives an ABI and command-interface review.
-versions    = ">= 2.78, < 3"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# ABI or command changes stop at the staged-interface tests.
+versions    = ">= 2.78"
 
 # kernel.org signs the decompressed release tar, not its xz transport. Pin the
 # complete fingerprint of Andrew G. Morgan's kernel.org automation key, which

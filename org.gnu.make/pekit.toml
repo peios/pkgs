@@ -13,9 +13,9 @@ listing_url = "https://ftp.gnu.org/gnu/make/"
 extract     = true
 root        = "make-{{version}}"
 file_regex  = 'make-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
-# Soft maintenance floor. Follow compatible 4.x releases automatically;
-# a new major version may change Makefile and loadable-module semantics.
-versions    = ">= 4.4.1, < 5"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible Makefile or module changes stop at the test gates.
+versions    = ">= 4.4.1"
 
 # GNU publishes detached signatures alongside its release archives. The full
 # primary fingerprint belongs to GNU Make maintainer Paul D. Smith; 4.4.1 is

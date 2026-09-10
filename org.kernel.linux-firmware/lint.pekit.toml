@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "Binary firmware has no executable upstream test suite; build.main verifies generated ownership, compression, symlinks, licence coverage, inventory floors, and every PIP signature"

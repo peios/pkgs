@@ -1,0 +1,3 @@
+[allow]
+"source.signature.required" = "The official sof-bin release channel publishes HTTPS assets but no detached signatures; Pekit's immutable lock pins accepted bytes and every staged firmware blob is independently PIP-signed"
+"build.test" = "Binary DSP firmware has no host-executable upstream suite; build.main verifies payload classes, compression, symlink integrity, exclusions, and every PIP signature"

@@ -1,0 +1,2 @@
+[allow]
+"build.test" = "The upstream regression suite and staged libtool integration probes run inside build.main so package and publish fail closed"

@@ -3,7 +3,7 @@
 
 [package]
 name          = "org.kernel.linux-firmware-realtek"
-description   = "Realtek Wi-Fi, Bluetooth, Ethernet and audio codec firmware (rtlwifi, rtw88/89, rtl_bt, r8169, r8152)"
+description   = "Realtek Wi-Fi, Bluetooth, Ethernet, and audio firmware"
 license       = "LicenseRef-Realtek-Firmware"
 license_class = "firmware"
 

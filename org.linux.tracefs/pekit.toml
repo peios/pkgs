@@ -6,11 +6,10 @@ out_dir = "out"
 [source.git]
 url       = "https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git"
 ref       = "libtracefs-{{version}}"
-tag_regex = '^libtracefs-(?P<version>1\.[0-9]+\.[0-9]+)$'
-# Soft maintenance floor. Follow future stable 1.x releases automatically;
-# ABI, header, documentation and test gates below stop incompatible changes.
-# A 2.x release requires an explicit ABI and packaging review.
-versions  = ">= 1.8.3, < 2"
+tag_regex = '^libtracefs-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow every newer immutable release; ABI, header,
+# documentation, and test gates below stop incompatible changes.
+versions  = ">= 1.8.3"
 
 # Upstream release tags are annotated and signed by the same kernel.org
 # maintainer key as libtraceevent. The 1.8.3 tag verifies against signing

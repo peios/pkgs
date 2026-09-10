@@ -1,3 +1,6 @@
+Description: Include cstdint explicitly when building LLVM 18 with GCC 16
+Origin: vendor, Peios
+
 diff -ur a/llvm/include/llvm/ADT/SmallVector.h b/llvm/include/llvm/ADT/SmallVector.h
 --- a/llvm/include/llvm/ADT/SmallVector.h	2026-08-11 10:13:17.684327697 +0100
 +++ b/llvm/include/llvm/ADT/SmallVector.h	2026-08-11 10:13:17.685893774 +0100

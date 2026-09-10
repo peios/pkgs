@@ -8,7 +8,7 @@ excludes = [
 
 [package]
 name        = "org.llvm.llvm"
-description = "LLVM compiler infrastructure tools"
+description = "Compiler infrastructure command-line tools"
 
 [provides]
 llvm = "{{version}}-2"

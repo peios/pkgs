@@ -10,10 +10,9 @@ listing_url = "https://ftp.gnu.org/gnu/mpc/"
 root        = "mpc-{{version}}"
 extract     = true
 file_regex  = 'mpc-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
-# Soft maintenance floor and major-version compatibility ceiling. Follow all
-# newer authenticated 1.x releases automatically; stop for recipe review only
-# if upstream changes the major version or breaks the build contract.
-versions    = ">= 1.4, < 2"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# ABI or arithmetic changes stop at the build and test gates.
+versions    = ">= 1.4"
 
 # MPC's official download page links this release key and the detached
 # signature beside every archive. Pin the full primary fingerprint rather than

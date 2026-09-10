@@ -5,7 +5,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.pkgconf.pkgconf"
-description = "pkgconf - package compiler and linker metadata toolkit"
+description = "Compiler and linker metadata toolkit"
 
 [provides]
 pkgconf      = "{{version}}"

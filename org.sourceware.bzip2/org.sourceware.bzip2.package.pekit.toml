@@ -4,7 +4,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.sourceware.bzip2"
-description = "bzip2 - block-sorting compression tools"
+description = "Block-sorting compression tools"
 
 [provides]
 # Version the compatibility capability so dependency resolution prefers this

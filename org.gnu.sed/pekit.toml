@@ -13,9 +13,9 @@ listing_url = "https://ftp.gnu.org/gnu/sed/"
 extract     = true
 root        = "sed-{{version}}"
 file_regex  = 'sed-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
-# Soft maintenance floor. Follow authenticated stable 4.x releases
-# automatically; a future major line requires a command-compatibility review.
-versions    = ">= 4.10, < 5"
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# incompatible command changes stop at the staged-command tests.
+versions    = ">= 4.10"
 
 # GNU sed releases are signed by maintainer Jim Meyering. Pin the complete
 # primary fingerprint published in the signed 4.10 release announcement so

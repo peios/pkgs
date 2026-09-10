@@ -1,3 +1,6 @@
+Description: Fix the long-long compiler probe for C23 compilers
+Origin: upstream, https://gmplib.org/repo/gmp/rev/8e7bb4ae7a18
+
 gmp's "long long reliability" probe — the one that decides whether the
 compiler works at all — calls g() with six arguments after declaring it
 `void g(){}`. Under C17 and earlier that is a function with an unspecified
