@@ -1,0 +1,2 @@
+[allow]
+"source.reproducible" = "Trustd has no public source remote yet; the local-only catalogue entry is an explicit release blocker and must gain an immutable tag before publication"

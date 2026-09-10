@@ -1,0 +1,10 @@
+# Trustd owns its hermetic build, package boundaries, tests, hardening gates,
+# and source/debug artifacts. The catalogue identity is production-qualified;
+# immutable discovery remains intentionally absent until this source repository
+# has a public release remote and an immutable v0.1.1 tag.
+
+out_dir = "out"
+delegate = true
+
+[source.local]
+path = "../../trustd"
