@@ -235,6 +235,3 @@ test "$a_sum" = "$b_sum"
 build-essential = "*"
 bash            = "*"
 binutils        = "*"
-
-[clean]
-command = "rm -rf out"

@@ -55,6 +55,25 @@ Keep them under ignored `out/` or workspace operational directories. Do not
 leave obsolete pre-qualification directories or compatibility recipes beside
 their replacements.
 
+`out_dir` must be a dedicated child of the recipe root; use the inherited
+convention `out_dir = "out"`. Do not point it at source, a parent/workspace
+directory, `_pkgsOut_`, or `_peipkgRepo_`. A `[clean]` target is only for
+additional regeneratable state outside `out_dir` (for example Cargo's local
+`target/`) and must name that state narrowly. Never add `[clean] command =
+"rm -rf out"`: Pekit already owns and removes `out_dir`.
+
+The normal catalogue cleanup is:
+
+```sh
+pekit workspace clean
+```
+
+With no catalogue clean targets this removes each included member's managed
+`out_dir` and preserves the local artifact pool and signed repository. Preview
+the exact member/path plan with `pekit --dry-run workspace clean`. Workspace
+exclusions still apply: clean an intentionally excluded local-only recipe, such
+as `dev.peios.dwed`, explicitly when required.
+
 When a recipe generates maintained package fragments or inventories, make the
 generator deterministic and give its `gen` target a read-only
 `verify_commands` drift check. Commit only the intended reviewable result, mark

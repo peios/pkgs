@@ -154,6 +154,3 @@ coreutils = "*"
 dash      = "*"
 findutils = "*"
 python3   = "*"
-
-[clean]
-command = "rm -rf out"
