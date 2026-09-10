@@ -11,6 +11,12 @@
 # fix (2025-11-23, df17f4f3) for glibc >= 2.43's _Generic const-correctness
 # macros; the same #undef patch as m4's, replicated per bundled gnulib copy.
 # Drop when a gettext release bundles a fixed gnulib.
+#
+# gnulib/posix-spawn-addchdir-glibc-2.44: upstream Gnulib commit ca635799
+# (2026-07-30) fixes the declaration probe added after Gettext 1.0 was cut.
+# Without it, glibc 2.44 redirects Gnulib's fallback definition onto the _np
+# symbol and the resulting function recursively jumps to itself. Drop when a
+# Gettext release bundles Gnulib ca635799 or later.
 
 out_dir = "out"
 
@@ -49,6 +55,9 @@ CXXFLAGS = "-O2 -g -pipe -fexceptions -Wall -Wformat -Wformat-security -Wp,-D_FO
 command = """
 set -eu
 SRC="$(pwd)"
+# Regenerate only the configure script affected by the upstream Gnulib m4
+# backport. Gettext 1.0's generated script predates ca635799.
+(cd "$SRC/gettext-tools" && autoconf)
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --libdir=/usr/lib/x86_64-linux-peios \

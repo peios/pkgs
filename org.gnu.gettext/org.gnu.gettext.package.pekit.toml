@@ -18,8 +18,8 @@ dash                     = "*"
 glibc                    = ">= 2.43"
 grep                     = "*"
 libtextstyle             = "{{version}}"
-"org.gnu.coreutils"      = "*"
-"org.gnu.gettext-common" = "{{version}}-1"
+peiosutils                = "*"
+"org.gnu.gettext-common" = "{{version}}-2"
 sed                      = "*"
 
 [files]
