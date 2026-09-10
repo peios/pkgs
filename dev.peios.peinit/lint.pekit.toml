@@ -1,10 +1,4 @@
 [allow]
-# v0.0.2 remains local-only until its completed source commit and tag are
-# approved for publication. The remote has no v0.0.2 ref for pekit to lock;
-# publication must be followed by `pekit lock --latest` before this recipe is
-# itself published.
-"source.lock" = "The completed v0.0.2 source tag is deliberately local-only and must be published and locked before catalogue publication"
-
 # Stable Rust does not currently expose x86 GNU IBT instrumentation to normal
 # downstream crates. Adding only linker property notes would advertise ENDBR
 # coverage that the generated code does not have, so the Rust artifacts retain

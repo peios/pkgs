@@ -1,2 +1,0 @@
-[allow]
-"source.lock" = "The reviewed v0.21.6 commit and tag are local-only; push the tag and regenerate this lock before package publication"

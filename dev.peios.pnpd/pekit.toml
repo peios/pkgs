@@ -1,10 +1,17 @@
 # PNPd owns its hermetic build, package split, tests, hardening gates, and
-# source/debug artifacts. Publication remains blocked twice over: this source
-# repository has no public immutable release, and the current SYSTEM service
-# exposes unauthenticated observation and policy mutation on TCP 8081.
+# source/debug artifacts. It is intentionally development-machine tooling for
+# the Experimental edition: its unauthenticated listener is not approved for a
+# future production profile. The catalogue follows its immutable public source
+# release while retaining the local checkout for development builds.
 
 out_dir = "out"
 delegate = true
+
+[source.git]
+url       = "https://github.com/peios/pnp.git"
+ref       = "v{{version}}"
+versions  = ">= 0.5.0"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 
 [source.local]
 path = "../../pnp"

@@ -1,3 +1,2 @@
 [allow]
-"source.reproducible" = "PNPd has no public source remote yet; the local-only entry is an explicit provenance blocker and must gain immutable release discovery before publication"
 "elf.cet" = "Rust 1.98 does not emit the x86 GNU property note for IBT or shadow-stack compatibility; PNPd retains NX stack, PIE, full RELRO, RELR, and no text relocations"
