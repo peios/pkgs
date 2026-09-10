@@ -471,7 +471,13 @@ passes the strict container verifier. The package is intentionally not ready
 to publish yet: an actual repository-resolver/compose gate must wait for the
 locally productionized Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer
 and OOBE artifacts to be published, and for the Peipkg licence and PNPd
-exposure decisions to close. Local catalogue branch:
+exposure decisions to close. There is also one upgrade-transition gate:
+`upgrade-peios` still invokes `peipkg upgrade peios-experimental`, while a
+named Peipkg upgrade deliberately targets only a concrete installed package
+and never resolves `provides`. The compatibility capability therefore cannot
+move an installed `dev.peios.peios-experimental`; the upgrader needs an
+intentional legacy install/replace path plus concrete-name upgrades before
+this qualified edition can ship. Local catalogue branch:
 `production/experimental-closure`.
 
 ## Remaining current-pass recipes
@@ -530,7 +536,9 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   until its unpublished first-party floors exist in the repository. Two direct
   dependencies remain deliberately unqualified and blocking: Peipkg needs its
   source-licence decisions, and PNPd needs a product/security disposition for
-  its current unauthenticated development listener.
+  its current unauthenticated development listener. `upgrade-peios` also needs
+  a concrete-package migration path; named Peipkg upgrades intentionally do
+  not follow the edition's compatibility `provides` edge.
 - `peipkg` is also blocked on the authenticated Go bootstrap. The clean public
   source requires Go but the native signed pool has no Go compiler, so its
   current package can only be reproduced with an undeclared host toolchain.
