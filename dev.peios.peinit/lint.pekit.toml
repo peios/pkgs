@@ -1,0 +1,23 @@
+[allow]
+# v0.0.2 remains local-only until its completed source commit and tag are
+# approved for publication. The remote has no v0.0.2 ref for pekit to lock;
+# publication must be followed by `pekit lock --latest` before this recipe is
+# itself published.
+"source.lock" = "The completed v0.0.2 source tag is deliberately local-only and must be published and locked before catalogue publication"
+
+# Stable Rust does not currently expose x86 GNU IBT instrumentation to normal
+# downstream crates. Adding only linker property notes would advertise ENDBR
+# coverage that the generated code does not have, so the Rust artifacts retain
+# the workspace's other hardening gates until the compiler boundary closes.
+"elf.cet" = "Stable Rust cannot yet emit complete x86 IBT instrumentation for downstream crates; marking uninstrumented code as IBT compatible would be unsafe"
+
+# One source-family debug package owns build-ID symbols for PID 1, svctl, and
+# libpeinit. Splitting the identical source corpus by payload package would add
+# ambiguity and duplication without changing build-ID lookup.
+"elf.debuginfo" = "dev.peios.peinit-debuginfo intentionally owns build-ID symbols for every ELF emitted by the Peinit source family"
+
+# libpeinit-devel contains an ABI-specific linker symlink below the Peios
+# x86_64 triplet and exactly depends on that runtime. Conversely debugsource is
+# source-only; lint mistakes its conventional src/bin directory for an
+# installed executable directory.
+"package.architecture" = "libpeinit-devel is tied to the x86_64 ABI path and runtime, while debugsource's src/bin path contains Rust source rather than host executables"
