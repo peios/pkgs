@@ -1,4 +1,4 @@
-# peinit — Peios real-root PID 1 service manager.
+# dev.peios.peinit — Peios real-root PID 1 service manager.
 #
 # Delegate recipe: peinit is self-describing — it commits its own pekit files
 # (the build pipeline in pekit.toml, the package definition in
@@ -7,11 +7,9 @@
 # The runtime glibc / libgcc dependencies are derived automatically from the
 # binary's DT_NEEDED (and versioned per the workspace symbol-version policy).
 #
-# Note: peinit's build needs a Rust toolchain and the sibling libp-rs crates,
-# which it references via `../libp-rs` path deps but does not vendor. A git-tag
-# build therefore needs libp-rs checked out alongside the fetched source; until
-# that build bridge is sorted (vendor libp-rs, or migrate peinit onto the peios
-# crate), build with --local against the in-dev tree where libp-rs is a sibling.
+# From v0.0.2 onward the source pins its authd protocol and peios-rs crates to
+# immutable public commits and vendors the complete graph before either build
+# environment goes offline. No sibling checkout participates in a release.
 
 out_dir = "out"
 delegate = true
@@ -19,10 +17,9 @@ delegate = true
 [source.git]
 url = "https://github.com/peios/peinit.git"
 ref = "v{{version}}"
-# peinit carries its own pekit files from its first tag (0.0.1); there are no
-# tags before that, so a "*" sweep simply finds nothing until that first tag
-# rather than failing on a pre-pekit revision.
-versions = ">=0.0.1"
+# v0.0.2 is the first immutable, self-contained production package family.
+# The floor is soft: future releases are discovered automatically.
+versions = ">=0.0.2"
 
 # Local working copy for `--local` (compile the in-dev tree, no tag).
 # Relative to this recipe dir; never used by the farm.
