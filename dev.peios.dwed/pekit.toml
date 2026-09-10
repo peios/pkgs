@@ -1,0 +1,19 @@
+# PDT owns dwed's hermetic build, package split, release tests, hardening gates,
+# and corresponding source. The catalogue tracks immutable public source tags
+# while retaining the local checkout for pre-release validation.
+#
+# DWE itself remains local-distribution-only: the source package definition
+# overrides this workspace's publish targets with only the local composition
+# pool, and this member is excluded from workspace-wide fan-out.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/pdt.git"
+ref       = "v{{version}}"
+versions  = ">= 0.1.0"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+
+[source.local]
+path = "../../pdt"

@@ -1,0 +1,2 @@
+[allow]
+"elf.cet" = "Stable Rust cannot yet emit complete x86 IBT instrumentation for downstream crates; dwed retains NX stack, PIE, full RELRO, RELR, and no text relocations"

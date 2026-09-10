@@ -1,0 +1,6 @@
+# Peios Kernel Only testing edition. Read by Peiso.
+#
+# There are no services in this root, so there is nothing to seed. The file
+# ships because Peiso's edition contract requires an explicit release policy.
+[registry]
+autoapply = []

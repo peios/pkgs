@@ -1,0 +1,26 @@
+format = "peipkg"
+
+[package]
+name          = "dev.peios.testing.peios-kernel-only"
+version       = "1.0.0-1"
+architecture  = "x86_64"
+description   = "Peios kernel-conformance edition: the latest kernel and nothing else"
+license       = "MIT"
+license_class = "free"
+homepage      = "https://github.com/peios/pkgs"
+
+# Any edition satisfies `peios-release`; kernel integration profiles select
+# this qualified testing edition explicitly.
+[provides]
+peios-release = "1.0.0"
+
+# The newest kernel visible in the selected repository, and deliberately
+# nothing else — no modules package, kmod, coldplug, or init. The unconstrained
+# edge is intentional: integration tests exercise the current candidate. The
+# composed root/test result records the exact version selected for diagnosis.
+[dependencies]
+"dev.peios.kernel" = "*"
+
+[files]
+"src/release.toml" = "usr/share/peios/release.toml"
+"docs/LICENSE" = "usr/share/licenses/dev.peios.testing.peios-kernel-only/LICENSE"

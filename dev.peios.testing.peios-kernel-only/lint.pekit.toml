@@ -1,0 +1,3 @@
+[allow]
+"package.architecture" = "The edition payload is architecture-neutral, but its unconstrained dev.peios.kernel dependency is currently x86_64-only; noarch would advertise a composition that cannot resolve on other architectures"
+"build.test" = "This sourceless edition metapackage is exercised by repository resolution, Peiso composition, and the kernel conformance suites it exists to boot"

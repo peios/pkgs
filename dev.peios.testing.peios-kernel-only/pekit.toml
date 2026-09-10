@@ -1,0 +1,22 @@
+# dev.peios.testing.peios-kernel-only — the edition the kernel conformance
+# testsets boot.
+#
+# This is a public testing facility, not an end-user Peios edition: it has no
+# init, no userspace, and no way to reach a login. Publishing it lets CI and
+# third-party kernel work compose the same controlled test root from the
+# normal repository.
+#
+# It exists because peiso composes an *edition*, and composing a testset
+# VM the same way a release is composed is the point: a kernel test that
+# passed against a hand-assembled tree would be testing a tree no user
+# ever boots.
+#
+# The whole edition is one package. StrataFS is builtin
+# (fs/stratafs/stratafs.ko in modules.builtin), as are vsock, the virtio
+# vsock transport, virtio_console and virtio_pci — so the kernel alone
+# can carry both the filesystem under test and provium's transport to
+# it, with nothing to load and nothing to load it with.
+
+# There is no generated payload. The edition definition is the static
+# release.toml in src/ and the functional contract is its dependency closure.
+out_dir = "out"

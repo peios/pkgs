@@ -15,11 +15,12 @@ later bootstrap/version lanes into their parent toolchain families and predate
 the Experimental migration trampoline; physical directory counts are now the
 authoritative inventory.
 
-The production pass is complete. All **119 public recipes** have been audited,
-built through their applicable release gates, signed, and published. The two
-remaining physical recipes, `peios-dwe` and `peios-kernel-only`, are intentional
-private image/test fixtures and are excluded from public publication. The tree
-is **121 static-clean recipes out of 121**. The obsolete pre-Peinit `mockinit`
+The production pass is complete. All **120 public recipes** have been audited,
+built through their applicable release gates, signed, and published. The sole
+non-public recipe, `dev.peios.dwed`, is also production-audited, signed, and
+published to the local development-image composition pool; its security policy
+structurally excludes it from the public repository. The tree is **121
+static-clean recipes out of 121**. The obsolete pre-Peinit `mockinit`
 fixture was deleted rather than promoted into the catalogue. Versioned payload
 lint still requires a staged build and remains part of each future release gate;
 the static result does not replace it.
@@ -73,18 +74,33 @@ A completed upstream package normally has all of the following:
 ## Checkpoint
 
 - Physical inventory: **121 recipes**: **93 upstream/dependency** and **28
-  Peios-owned** (25 `dev.peios.*` directories plus `peios-dwe`,
-  `peios-experimental-migration`, and `peios-kernel-only`).
-- Public production inventory: **119 / 119 published**. This is all 93
-  upstream/dependency recipes and 26 public Peios-owned recipes. The two
-  non-public Peios-owned fixtures remain available locally by design.
-- Signed repository: **index version 237**, with **939 active** and **1,833
+  Peios-owned** (27 `dev.peios.*` directories plus
+  `peios-experimental-migration`).
+- Public production inventory: **120 / 120 published**. This is all 93
+  upstream/dependency recipes and 27 public Peios-owned recipes. The sole
+  non-public Peios-owned package family is production-closed and available
+  locally by design.
+- Signed repository: **index version 238**, with **940 active** and **1,834
   archived** entries. Full canonical and cryptographic verification reports no
   problems.
 - Kernel: all 41 packages are active at `0.20.1-rc13-3`. The metadata-only
   repair advanced 15 exact family edges and 40 legacy provides while preserving
   every payload and replacement bound; two deterministic repacks and an
   independent package-by-package audit passed before the atomic publication.
+- Kernel integration edition: `dev.peios.testing.peios-kernel-only 1.0.0-1` is
+  active. Its deliberately unconstrained `dev.peios.kernel` dependency makes
+  each composition exercise the newest kernel visible in that repository
+  snapshot; the integration profile selects the qualified edition and matching
+  qualified modules package explicitly.
+- DWE: `dev.peios.dwed 0.1.0-2`, `-debuginfo`, `-debugsource`, and `-source`
+  are signed and published only to `_pkgsOut_`. The catalogue lock pins public
+  source tag `v0.1.0` at commit `42d2b95941466ee3c347f1e8e77ec088bce5cf0e`.
+  Debian-reference and native-Peipkg release builds passed unit, installed
+  interface, deterministic rebuild, licence-closure, split-debug, hardening,
+  and payload lint gates. The family overrides inherited publication targets
+  with a local-directory target, remains excluded from workspace fan-out, and
+  a post-publication hash comparison confirmed every public repository index
+  and signature file was unchanged.
 - Experimental migration: `dev.peios.peios-experimental 2026.8-15` and the
   one-use `peios-experimental 2026.8-11` bridge are active with clean immutable
   provenance. An unprivileged
@@ -98,8 +114,8 @@ A completed upstream package normally has all of the following:
   discovery covers base dates, letter-suffixed corrections, and `-revN`
   corrections without ordering the latter as prereleases. All 231 records in
   the assembled early-load blob passed structural and checksum validation.
-- Provenance census: all 939 active packages carry a `recipe_ref`. 197
-  artifacts across 37 catalogue commits carry Pekit's truthful but
+- Provenance census: all 940 active packages carry a `recipe_ref`. 198
+  artifacts across 38 catalogue commits carry Pekit's truthful but
   conservative `+dirty` marker because it currently observes the entire
   workspace, including unrelated concurrent recipe and ledger work. This is
   recorded release provenance, not a signature or payload-verification
@@ -588,7 +604,7 @@ Explicit decisions or exclusions:
 - `dev.peios.pnpd` is locally package-ready and intentionally belongs in the
   Experimental development-machine image; publication still needs public
   source provenance.
-- `peios-dwe` and `peios-kernel-only` are intentionally non-public fixtures.
+- `dev.peios.dwed` is intentionally a non-public package family.
 
 ## Historical follow-ups and resolved blockers
 
@@ -639,11 +655,12 @@ be read as the current publication state.
   must be regenerated from the final public tag rather than reused. Its public checkout is
   ahead of `origin/main`; push the reviewed commits and moved local tag before
   generating the immutable remote lock and publishing.
-- `peios-dwe` and `peios-kernel-only` are intentionally non-public recipes.
-  The former grants unauthenticated SYSTEM access for a DWE guest and its own
-  security policy forbids repository publication; the latter is a kernel
-  conformance fixture with no init or userspace. Keep both available to their
-  controlled image/test workflows but out of the public repository.
+- `dev.peios.dwed` is production-closed but intentionally non-public: it grants
+  unauthenticated SYSTEM access for a DWE guest, and its package-family publish
+  configuration permits only the local image-composition pool. The former
+  `peios-kernel-only` fixture was subsequently promoted
+  to the public `dev.peios.testing.peios-kernel-only` package: it has no init or
+  userspace by design, and its namespace makes that testing-only role explicit.
 - `dev.peios.peios-experimental` is locally closed at revision 2026.8-12,
   including the final `peios-experimental 2026.8-10` migration trampoline and
   Peiosutils 0.8.6's concrete-name upgrade logic. Repository resolution still
