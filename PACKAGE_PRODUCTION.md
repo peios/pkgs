@@ -98,6 +98,14 @@ A completed upstream package normally has all of the following:
   discovery covers base dates, letter-suffixed corrections, and `-revN`
   corrections without ordering the latter as prereleases. All 231 records in
   the assembled early-load blob passed structural and checksum validation.
+- Provenance census: all 939 active packages carry a `recipe_ref`. 197
+  artifacts across 37 catalogue commits carry Pekit's truthful but
+  conservative `+dirty` marker because it currently observes the entire
+  workspace, including unrelated concurrent recipe and ledger work. This is
+  recorded release provenance, not a signature or payload-verification
+  failure; replacing those immutable identities solely to remove the marker
+  would require new package revisions. The final Experimental and Intel
+  publications were cheap to correct before closure and are clean.
 - Current static recipe gate, using a freshly built current Pekit: **121
   succeeded, 0 failed, 0 skipped**. Every remaining recipe is static-clean.
   The earlier `pekit/out/pekit`
@@ -587,6 +595,13 @@ Explicit decisions or exclusions:
 This ledger accumulated issues throughout the campaign. Entries are retained
 for provenance; many were resolved by the releases recorded above and must not
 be read as the current publication state.
+
+- Make Pekit's recipe provenance describe the effective recipe input set — the
+  member directory plus inherited workspace configuration — so unrelated
+  catalogue edits do not force `+dirty`. It must remain fail-closed for changes
+  to any input that can affect the package. Until then, the repository-wide
+  marker is intentionally conservative and release notes must distinguish it
+  from package-specific dirt.
 
 - Three dependency package families are locally production-ready but absent from
   repository index 217: `org.iana.tzdata` 2026c-1,
