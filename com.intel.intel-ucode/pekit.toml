@@ -17,13 +17,11 @@ url = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files.git"
 # Intel's release tags are unsigned lightweight tags. Until authenticated Git
 # sources land under PEI-665, retrieval therefore relies on HTTPS and pekit's
 # immutable commit lock: a moved tag cannot silently change locked source.
-# Named captures present microcode-YYYYMMDD as the Peios version YYYY.MM.DD.
-# PEI-671 blocks production publication: Pekit cannot yet map Intel's
-# corrective `-revN` and letter-suffixed tags to versions that sort after the
-# base date while retaining this public version convention. Keep the exact
-# regex so corrections are not accidentally ordered as prereleases.
-ref       = "microcode-{{major}}{{minor}}{{patch}}"
-tag_regex = '^microcode-(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
+# Named captures present microcode-YYYYMMDD as YYYY.MM.DD, corrective -revN
+# tags as a fourth numeric component, and letter-suffixed tags unchanged. The
+# ref template round-trips every accepted version to its exact upstream tag.
+ref       = "microcode-{{major}}{{minor}}{{patch}}{{suffix}}{{revision_suffix}}"
+tag_regex = '^microcode-(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})(?:(?P<suffix>[a-z])|-rev(?P<revision>\d+))?$'
 # Soft catalogue floor for routine unattended selection, not a compatibility
 # boundary. Older releases can be admitted by lowering/removing this constraint.
 versions  = ">=2026.0.0"
