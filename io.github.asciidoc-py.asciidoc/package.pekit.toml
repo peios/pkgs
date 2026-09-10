@@ -12,7 +12,8 @@ version      = "{{version}}-2"
 # x86_64, not noarch: a private application's modules live under the triplet
 # directory, and its bytecode is bound to this interpreter.
 architecture = "x86_64"
-description  = "AsciiDoc - text document format processor, with a2x"
+description  = "Text document format processor with a2x"
+license_class = "free"
 license      = "GPL-2.0-or-later"
 homepage     = "https://asciidoc-py.github.io/"
 

@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "upstream publishes release hashes but no detached signatures for release archives"

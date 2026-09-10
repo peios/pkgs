@@ -221,3 +221,19 @@ perl            = "*"
 debugedit        = "*"
 patchelf         = "*"
 pkgconf          = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -f "$PEKIT_MAIN_OUT/usr/include/crypt.h"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libcrypt.a"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libcrypt.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

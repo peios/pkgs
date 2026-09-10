@@ -1,0 +1,4 @@
+[allow]
+"source.discovery" = "kernel toolchain.lock intentionally pins bindgen exactly; updates move both pins together"
+"source.versions.ceiling" = "kernel toolchain.lock intentionally pins bindgen exactly; updates move both pins together"
+"source.signature.required" = "crates.io publishes immutable checksummed crates but has no detached signature channel"

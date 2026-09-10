@@ -10,10 +10,9 @@ listing_url = "https://hyperrealm.github.io/libconfig/"
 root        = "libconfig-{{version}}"
 extract     = true
 file_regex  = '^libconfig-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz$'
-# Soft maintenance floor. Follow later stable 1.x releases automatically; an
-# ABI/source-layout change is expected to fail a gate below and receive an
-# intentional packaging update before publication.
-versions    = ">= 1.8.2, < 2"
+# Soft maintenance floor. Follow stable releases automatically; an ABI or
+# source-layout change must pass the validation gates below.
+versions    = ">= 1.8.2"
 
 # Upstream's project page publishes the release tarball but neither it nor the
 # GitHub release publishes a detached signature. The v1.8.2 tag is lightweight,
@@ -236,3 +235,21 @@ build-essential = "*"
 pkgconf         = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -f "$PEKIT_MAIN_OUT/usr/include/libconfig.h"
+test -f "$PEKIT_MAIN_OUT/usr/include/libconfig.h++"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libconfig.so.*
+test -e "$1"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libconfig++.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

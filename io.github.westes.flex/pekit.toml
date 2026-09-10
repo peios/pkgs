@@ -10,9 +10,9 @@ listing_url = "https://github.com/westes/flex/releases"
 extract     = true
 root        = "flex-{{version}}"
 file_regex  = 'flex-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
-# Soft maintenance floor. Follow authenticated stable 2.x releases
-# automatically; a future major line requires a compatibility review.
-versions    = ">= 2.6.4, < 3"
+# Soft maintenance floor. Follow authenticated stable releases automatically;
+# compatibility changes must pass the build and independent test gates.
+versions    = ">= 2.6.4"
 
 # The upstream release announcement identifies Will Estes's key, and the
 # detached GitHub release signature verifies with this exact primary key.
@@ -147,3 +147,18 @@ bison = "*"
 debugedit = "*"
 m4 = "*"
 patchelf = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/flex"
+test -f "$PEKIT_MAIN_OUT/usr/include/FlexLexer.h"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libfl.a"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

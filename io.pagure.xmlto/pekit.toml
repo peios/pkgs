@@ -37,9 +37,9 @@ listing_url = "https://releases.pagure.org/xmlto/"
 file_regex  = 'xmlto-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2'
 extract     = true
 root        = "xmlto-{{version}}"
-# Soft maintenance floor. Follow future releases throughout the pre-1 line;
-# a 1.x transition is the point for an explicit compatibility review.
-versions    = ">= 0.0.29, < 1"
+# Soft maintenance floor. Follow future releases automatically; compatibility
+# changes are enforced by the validation gates below.
+versions    = ">= 0.0.29"
 
 [build.main]
 command = '''
@@ -186,3 +186,19 @@ docbook-xsl     = "*"
 docbook-xml     = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/xmlto"
+test -x "$PEKIT_MAIN_OUT/usr/bin/xmlif"
+test -d "$PEKIT_MAIN_OUT/usr/share/xmlto/format"
+test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/xmlto.1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

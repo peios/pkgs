@@ -6,7 +6,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "com.xxhash.xxhash"
-description = "xxHash checksum command-line tools"
+description = "Extremely fast non-cryptographic checksum tools"
 license     = "BSD-2-Clause AND GPL-2.0-or-later"
 
 [provides]

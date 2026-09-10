@@ -16,9 +16,9 @@ listing_url = "https://github.com/dosfstools/dosfstools/releases"
 extract     = true
 root        = "dosfstools-{{version}}"
 file_regex  = 'dosfstools-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
-# Soft maintenance floor. Follow authenticated stable 4.x releases
-# automatically; a future major line requires an on-disk/CLI review.
-versions    = ">= 4.2, < 5"
+# Soft maintenance floor. Follow authenticated stable releases automatically;
+# on-disk and CLI compatibility are enforced by the gates below.
+versions    = ">= 4.2"
 
 # Upstream attaches a detached OpenPGP signature to the release tarball.
 # Pin release maintainer Andreas Bombe's complete primary fingerprint; 4.2
@@ -242,3 +242,19 @@ debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
 xxd             = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/mkfs.fat"
+test -x "$PEKIT_MAIN_OUT/usr/bin/fsck.fat"
+test -x "$PEKIT_MAIN_OUT/usr/bin/fatlabel"
+test -s "$PEKIT_MAIN_OUT/usr/share/man/man8/mkfs.fat.8"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

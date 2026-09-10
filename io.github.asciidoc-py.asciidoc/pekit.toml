@@ -86,3 +86,18 @@ xsltproc           = "*"
 libxml2-utils      = "*"
 docbook-xsl        = "*"
 docbook-xml        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/asciidoc"
+test -x "$PEKIT_MAIN_OUT/usr/bin/a2x"
+test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/asciidoc.1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

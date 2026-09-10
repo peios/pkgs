@@ -241,3 +241,20 @@ tar            = "*"
 xz-utils       = "*"
 coreutils      = "*"
 debugedit      = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/udevadm"
+test -s "$PEKIT_MAIN_OUT/usr/etc/udev/hwdb.bin"
+test -f "$PEKIT_MAIN_OUT/usr/include/libudev.h"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libudev.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

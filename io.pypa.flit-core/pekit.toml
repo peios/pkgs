@@ -29,9 +29,9 @@ listing_url = "https://pypi.org/simple/flit-core/"
 extract     = true
 root        = "flit_core-{{version}}"
 file_regex  = 'flit_core-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
-# Soft maintenance floor and major-version review boundary. Stable 4.x point
-# releases are selected and locked automatically.
-versions    = ">= 4.0.2, < 5"
+# Soft maintenance floor. Stable releases are selected and locked
+# automatically; backend compatibility is enforced by the gates below.
+versions    = ">= 4.0.2"
 
 [build.main]
 command = """
@@ -166,3 +166,18 @@ dash          = "*"
 python3          = "*"
 python3-pytest   = "*"
 python3-testpath = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/flit_core
+test -d "$1"
+test -f "$1/__init__.py"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

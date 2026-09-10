@@ -1,3 +1,6 @@
+Description: Raise libxslt's template-recursion limit for large DocBook inputs
+Origin: Peios packaging
+
 PEIOS-DIVERGENCE(maxdepth): raise libxslt's template-recursion limit.
 
 DocBook's string.subst (docbook-xsl lib/lib.xsl) substitutes by recursing

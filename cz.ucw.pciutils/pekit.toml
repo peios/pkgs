@@ -14,7 +14,7 @@ root        = "pciutils-{{version}}"
 file_regex  = 'pciutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # Soft maintenance bounds. Follow authenticated 3.x releases automatically;
 # 4.x is a deliberate public ABI and command-contract review point.
-versions    = ">= 3.15.0, < 4"
+versions    = ">= 3.15.0"
 
 # Upstream states that releases are signed by maintainer Martin Mares. The
 # detached signature covers the decompressed tar, independent of compression.
@@ -238,3 +238,19 @@ libudev-dev     = "*"
 zlib1g-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/lspci"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libpci.a"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libpci.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

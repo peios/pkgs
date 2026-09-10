@@ -4,7 +4,7 @@
 
 [package]
 name        = "io.github.hyperrealm.libconfig"
-description = "libconfig - structured configuration C runtime"
+description = "Structured configuration-file C runtime"
 
 [provides]
 libconfig = "{{version}}"

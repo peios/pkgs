@@ -224,3 +224,17 @@ dash      = "*"
 coreutils = "*"
 findutils = "*"
 gawk      = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -s "$PEKIT_MAIN_OUT/++/intel-ucode/kernel/x86/microcode/GenuineIntel.bin"
+test -d "$PEKIT_MAIN_OUT/usr/share/licenses/com.intel.intel-ucode"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

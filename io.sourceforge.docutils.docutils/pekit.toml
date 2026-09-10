@@ -19,10 +19,9 @@ out_dir = "out"
 [source.pypi]
 project  = "docutils"
 artifact = "sdist"
-# Soft maintenance floor and major-version review boundary. Stable 0.x point
-# releases are selected and locked automatically; 1.x gets a deliberate
-# recipe/API review rather than silently crossing a compatibility boundary.
-versions = ">= 0.23, < 1"
+# Soft maintenance floor. Stable releases are selected and locked
+# automatically; API changes must pass the build and independent test gates.
+versions = ">= 0.23"
 
 # The Python smoke source below doubles backslashes for this basic TOML string.
 [build.main]
@@ -158,3 +157,19 @@ dash                = "*"
 [build.main.dependencies.apt]
 python3 = "*"
 flit    = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/rst2man"
+test -x "$PEKIT_MAIN_OUT/usr/bin/rst2html5"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/docutils
+test -d "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

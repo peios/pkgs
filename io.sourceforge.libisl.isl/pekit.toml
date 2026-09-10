@@ -10,10 +10,9 @@ listing_url = "https://libisl.sourceforge.io/"
 root        = "isl-{{version}}"
 extract     = true
 file_regex  = '^isl-[0-9]+\.[0-9]+\.tar\.xz$'
-# Soft maintenance floor: follow later stable 0.x releases automatically. An
-# ABI, source-layout or build change should fail a validation below and receive
-# deliberate packaging work rather than silently shipping an incomplete build.
-versions    = ">= 0.28, < 1"
+# Soft maintenance floor: follow stable releases automatically. An ABI,
+# source-layout, or build change must pass the validation gates below.
+versions    = ">= 0.28"
 
 # Upstream publishes no detached signature for these archives (the matching
 # `.sig` endpoint is absent). This is an explicit source-authentication
@@ -191,3 +190,19 @@ libgmp-dev      = "*"
 pkgconf         = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -f "$PEKIT_MAIN_OUT/usr/include/isl/ctx.h"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libisl.a"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libisl.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

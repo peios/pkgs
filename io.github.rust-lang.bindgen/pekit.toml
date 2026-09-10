@@ -86,3 +86,17 @@ build-essential = "*"
 cargo = "*"
 clang-18 = "*"
 libclang-18-dev = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/bindgen"
+test -n "$PEKIT_VERSION"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

@@ -76,3 +76,17 @@ findutils     = "*"
 dash      = "*"
 coreutils = "*"
 findutils = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -s "$PEKIT_MAIN_OUT/++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"
+test -d "$PEKIT_MAIN_OUT/usr/share/licenses/com.amd.amd-ucode"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

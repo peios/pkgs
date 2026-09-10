@@ -4,7 +4,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "com.mesonbuild.meson"
-description = "Meson high-performance build system"
+description = "High-performance software build system"
 license     = "Apache-2.0"
 
 [provides]

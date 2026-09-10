@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "upstream publishes release archives over HTTPS but provides no detached signature channel"

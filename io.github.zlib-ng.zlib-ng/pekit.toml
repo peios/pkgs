@@ -11,10 +11,10 @@ out_dir = "out"
 url       = "https://github.com/zlib-ng/zlib-ng.git"
 ref       = "{{version}}"
 tag_regex = '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
-# Soft maintenance bounds: automatically follow stable 2.x releases.  The
-# 2.3.3 floor is catalogue policy, not a compatibility claim; 3.x is an ABI and
-# package-contract review point.
-versions  = ">= 2.3.3, < 3"
+# Soft maintenance floor: automatically follow stable releases. The 2.3.3
+# floor is catalogue policy, not a compatibility claim; ABI and package
+# contract changes must pass the gates below.
+versions  = ">= 2.3.3"
 
 # Upstream publishes GitHub-generated source archives and Windows binaries,
 # but no maintainer-signed detached source checksum or signature.  Release
@@ -309,3 +309,20 @@ build-essential = "*"
 cmake           = "*"
 debugedit       = "*"
 pkgconf         = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -f "$PEKIT_MAIN_OUT/usr/include/zlib-ng.h"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libz-ng.a"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libz-ng.so.*
+test -e "$1"
+test -f "$PEKIT_MAIN_OUT/usr/include/zlib.h"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

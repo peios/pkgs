@@ -5,7 +5,7 @@ name         = "io.pypa.setuptools"
 version      = "{{version}}-2"
 # x86_64, not noarch: the one site-packages is inside the triplet directory.
 architecture = "x86_64"
-description  = "Setuptools PEP 517 build backend for Python projects"
+description  = "PEP 517 build backend for Python projects"
 # Setuptools itself and most vendored libraries are MIT. importlib_metadata is
 # Apache-2.0, packaging is dual licensed, and autocommand is LGPL-3.0-only.
 # The generated project validators also contain BSD-3-Clause fastjsonschema

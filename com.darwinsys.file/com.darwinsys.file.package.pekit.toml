@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "com.darwinsys.file"
-description = "file - identify file formats from content"
+description = "Identify file formats from their content"
 
 [provides]
 file = "{{version}}"

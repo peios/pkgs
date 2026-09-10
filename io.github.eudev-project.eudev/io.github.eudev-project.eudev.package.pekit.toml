@@ -12,7 +12,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "io.github.eudev-project.eudev"
-description = "eudev - device manager: driver loading from uevents, coldplug, stable device names"
+description = "Device manager for uevents, coldplug, and stable device names"
 
 [dependencies]
 glibc                                         = ">= 2.43"

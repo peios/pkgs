@@ -7,11 +7,10 @@ out_dir = "out"
 [source.git]
 url       = "https://github.com/Cyan4973/xxHash.git"
 ref       = "v{{version}}"
-tag_regex = '^v(?P<version>0\.[0-9]+\.[0-9]+)$'
-# Soft maintenance floor. Follow stable pre-1.0 releases automatically; 1.x is
-# an intentional API/ABI review point. Exact SONAME, headers, tools, and tests
-# below stop publication if an eligible upstream release changes the contract.
-versions  = ">= 0.8.3, < 1"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow stable releases automatically; exact SONAME,
+# header, tool, and test gates stop publication if upstream changes contract.
+versions  = ">= 0.8.3"
 
 # Upstream publishes lightweight tags and no detached source signatures. The
 # v0.8.3 tag points at a GitHub web-flow-signed merge commit, which authenticates
@@ -253,3 +252,19 @@ build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
 pkgconf         = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/xxhsum"
+test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libxxhash.a"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libxxhash.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

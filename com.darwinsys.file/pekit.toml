@@ -173,3 +173,19 @@ xz-utils        = "*"
 zstd            = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/file"
+test -s "$PEKIT_MAIN_OUT/usr/share/misc/magic.mgc"
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libmagic.so.*
+test -e "$1"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+
+[test.dependencies.apt]
+dash = "*"

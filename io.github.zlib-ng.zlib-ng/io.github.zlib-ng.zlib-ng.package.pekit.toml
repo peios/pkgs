@@ -4,7 +4,7 @@
 
 [package]
 name        = "io.github.zlib-ng.zlib-ng"
-description = "zlib-ng native API runtime library"
+description = "High-performance native compression API runtime library"
 license     = "Zlib"
 
 [provides]
