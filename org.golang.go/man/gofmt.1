@@ -1,0 +1,33 @@
+.TH GOFMT 1
+.SH NAME
+gofmt \- format Go source code
+.SH SYNOPSIS
+.B gofmt
+.RI [ flags ]
+.RI [ path ...]
+.SH DESCRIPTION
+.B gofmt
+reads Go source code and emits the canonical formatting defined by the
+installed Go release. With no paths it reads standard input. A path may name a
+file or a directory tree.
+.SH OPTIONS
+.TP
+.B \-d
+Display a diff instead of formatted source.
+.TP
+.B \-e
+Report all parse errors.
+.TP
+.B \-l
+List files whose formatting differs.
+.TP
+.BI \-r " rule"
+Apply a rewrite rule before formatting.
+.TP
+.B \-s
+Apply permitted source simplifications.
+.TP
+.B \-w
+Write the formatted result back to each source file.
+.SH SEE ALSO
+.BR go (1)

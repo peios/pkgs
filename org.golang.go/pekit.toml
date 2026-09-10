@@ -1,0 +1,232 @@
+# Go — the rolling source-built compiler and standard library.
+#
+# Go 1.26 and newer releases are bootstrapped by the private, locked Go 1.24.6
+# binary seed for as long as upstream accepts that compiler. The source build
+# then self-hosts in the upstream cmd/dist pipeline. When upstream raises its
+# bootstrap floor, the unattended update will fail closed and make the seed
+# transition an explicit maintenance event instead of silently holding Go back.
+
+out_dir = "out"
+
+[source_package]
+name = "org.golang.go-source"
+
+[source.url]
+url         = "https://go.dev/dl/go{{version}}.src.tar.gz"
+listing_url = "https://go.dev/dl/"
+extract     = true
+root        = "go"
+file_regex  = 'go[0-9]+\.[0-9]+\.[0-9]+\.src\.tar\.gz'
+# Soft production floor. Track all later stable releases automatically.
+versions    = ">= 1.26.1"
+
+[build.main]
+command = '''
+set -eu
+set -o pipefail 2>/dev/null || true
+
+SRC=$(pwd -P)
+BOOTSTRAP=/usr/lib/x86_64-linux-peios/go-stage0
+GOROOT="$PEKIT_OUT/usr/lib/x86_64-linux-peios/go"
+
+for tool in bash gcc readelf objcopy strip sha256sum grep find gzip; do
+  command -v "$tool" >/dev/null || {
+    echo "go: missing required build tool: $tool" >&2
+    exit 1
+  }
+done
+if [ ! -x "$BOOTSTRAP/bin/go" ]; then
+  command -v go >/dev/null || {
+    echo "go: no native or distribution bootstrap compiler is installed" >&2
+    exit 1
+  }
+  BOOTSTRAP=$(go env GOROOT)
+fi
+test -x "$BOOTSTRAP/bin/go"
+bootstrap_version=$($BOOTSTRAP/bin/go version | cut -d' ' -f3)
+case "$bootstrap_version" in
+  go1.24.[6-9]|go1.24.[1-9][0-9]|go1.2[5-7].*) ;;
+  *) echo "go: unsupported bootstrap $bootstrap_version" >&2; exit 1 ;;
+esac
+
+# Keep all compiler-recorded roots stable and cap concurrency while the kernel
+# qualification build may be active beside this package job.
+export GOROOT_BOOTSTRAP="$BOOTSTRAP"
+export GOROOT_FINAL=/usr/lib/x86_64-linux-peios/go
+export GOOS=linux GOARCH=amd64 GOAMD64=v1
+export GOENV=off
+export GOCACHE="$PEKIT_OUT/.gocache"
+export GOMAXPROCS="${PEKIT_GO_JOBS:-2}"
+export GOFLAGS='-trimpath'
+
+cd "$SRC/src"
+bash ./make.bash
+cd "$SRC"
+
+mkdir -p "$GOROOT" "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/go"
+for entry in VERSION VERSION.cache go.env bin lib pkg; do
+  [ -e "$SRC/$entry" ] || continue
+  cp -a "$SRC/$entry" "$GOROOT/"
+done
+cp -a "$SRC/src" "$PEKIT_OUT/usr/share/go/src"
+ln -s ../../../share/go/src "$GOROOT/src"
+ln -s ../lib/x86_64-linux-peios/go/bin/go "$PEKIT_OUT/usr/bin/go"
+ln -s ../lib/x86_64-linux-peios/go/bin/gofmt "$PEKIT_OUT/usr/bin/gofmt"
+mkdir -p "$PEKIT_OUT/usr/share/man/man1"
+gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/go.1" \
+  > "$PEKIT_OUT/usr/share/man/man1/go.1.gz"
+gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/gofmt.1" \
+  > "$PEKIT_OUT/usr/share/man/man1/gofmt.1.gz"
+
+export PATH="$GOROOT/bin:$PATH"
+export GOROOT
+test "$(go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
+test "$(go env GOROOT)" = "$GOROOT"
+test "$(go env GOOS)" = linux
+test "$(go env GOARCH)" = amd64
+test -x "$GOROOT/pkg/tool/linux_amd64/compile"
+test -d "$GOROOT/src/runtime"
+
+# As with the bootstrap seed, Go's source tree contains foreign ELF samples
+# for debug-package tests. They are not runtime payload and must not create
+# dependencies for the independently packaged source tree.
+find "$GOROOT/src" -type f -path '*/testdata/*' -exec sh -c '
+  for file do
+    if readelf -h "$file" >/dev/null 2>&1; then
+      rm -f "$file"
+    fi
+  done
+' sh {} +
+# Compiler-importer fixtures are prebuilt archives for other Go releases and
+# architectures. They are test inputs, not part of the installed source API.
+find "$PEKIT_OUT/usr/share/go/src" -type f -path '*/testdata/*' \
+  -name '*.a' -delete
+
+# Upstream deliberately builds release toolchains with -ldflags=-w and
+# -gcflags=cmd/...=-dwarf=false. Preserve that release policy rather than
+# rebuilding a subtly different toolchain, but detach the remaining ELF symbol
+# tables so build-ID lookup can still provide useful function-level debugging.
+# Go 1.24+ derives a GNU build ID from its own build ID on ELF targets.
+find "$GOROOT/bin" "$GOROOT/pkg/tool/linux_amd64" -type f -perm -0100 -print |
+while IFS= read -r elf; do
+  readelf -h "$elf" >/dev/null 2>&1 || continue
+  rel=${elf#"$PEKIT_OUT"/}
+  build_id=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  [ -n "$build_id" ] || {
+    echo "go: $rel has no GNU build ID" >&2
+    exit 1
+  }
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  debug="$PEKIT_OUT/debug/usr/lib/debug/.build-id/$first/$rest.debug"
+  mkdir -p "$(dirname "$debug")"
+  objcopy --only-keep-debug "$elf" "$debug"
+  readelf -sW "$debug" | grep 'FUNC' >/dev/null
+  strip --strip-unneeded "$elf"
+  objcopy --add-gnu-debuglink="$debug" "$elf"
+  ! readelf -dW "$elf" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'
+  ! grep -aF "$SRC" "$elf" "$debug" >/dev/null
+done
+test -n "$(find "$PEKIT_OUT/debug/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
+rm -rf "$PEKIT_OUT/.gocache"
+'''
+
+[build.main.dependencies.peipkg]
+"org.golang.go-stage0-1.24"    = ">= 1.24.6-2"
+"dev.peios.build-essentials-c" = ">= 1.0.0-6"
+"org.gnu.bash"                  = "*"
+"org.debian.netbase"            = "*"
+"org.gnu.gzip"                  = "*"
+
+[build.main.dependencies.apt]
+golang-go      = ">= 2:1.24~"
+build-essential = "*"
+bash            = "*"
+binutils        = "*"
+gzip            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+DIST_GOROOT=$(pwd -P)
+PACKAGED_GOROOT="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/go"
+GOROOT="$DIST_GOROOT"
+export GOROOT PATH="$GOROOT/bin:$PATH"
+export GOOS=linux GOARCH=amd64 GOAMD64=v1 GOENV=off
+export GOCACHE="$PEKIT_OUT/.gocache"
+export GOMAXPROCS="${PEKIT_GO_JOBS:-2}"
+
+test "$(go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
+test "$(go env GOROOT)" = "$DIST_GOROOT"
+test -x "$PACKAGED_GOROOT/pkg/tool/linux_amd64/compile"
+test -d "$PACKAGED_GOROOT/src/runtime"
+
+# Exercise the complete offline-capable standard library and cmd/go suite.
+# CGO_ENABLED remains unset so the installed go command exercises upstream's
+# automatic compiler detection. The explicit cgo smoke below proves that path.
+# -short is upstream's switch for external-network and very large-vector suites.
+# Peios intentionally uses Go's netgo/osusergo path instead of glibc NSS. The
+# two root-only chown cases cannot apply in bubblewrap's single-ID user namespace.
+unset GOFLAGS CGO_ENABLED
+STD_PACKAGES=$(go list std)
+go test -short -count=1 -tags=netgo,osusergo \
+  -skip '^(TestRootChown|TestRootLchown)$' $STD_PACKAGES cmd/go
+
+# All remaining checks use the exact stripped and pruned package payload.
+GOROOT="$PACKAGED_GOROOT"
+PATH="$GOROOT/bin:$PATH"
+export GOROOT PATH
+test "$(go env GOROOT)" = "$PACKAGED_GOROOT"
+
+CGO_SMOKE="$PEKIT_OUT/cgo-smoke"
+mkdir -p "$CGO_SMOKE"
+cat > "$CGO_SMOKE/main.go" <<'EOF'
+package main
+
+/*
+#include <stdint.h>
+static int peios_answer(void) { return 42; }
+*/
+import "C"
+
+func main() {
+	if C.peios_answer() != 42 {
+		panic("cgo returned the wrong value")
+	}
+}
+EOF
+(cd "$CGO_SMOKE" && CGO_ENABLED=1 go build -trimpath -buildvcs=false -o smoke main.go)
+"$CGO_SMOKE/smoke"
+
+# Two identical clean source roots must produce an identical executable.
+SMOKE="$PEKIT_OUT/go-smoke"
+mkdir -p "$SMOKE/a" "$SMOKE/b"
+cat > "$SMOKE/a/main.go" <<'EOF'
+package main
+
+import "fmt"
+
+func main() { fmt.Println("peios-go-ok") }
+EOF
+cp "$SMOKE/a/main.go" "$SMOKE/b/main.go"
+(cd "$SMOKE/a" && go build -trimpath -buildvcs=false -o hello main.go)
+(cd "$SMOKE/b" && go build -trimpath -buildvcs=false -o hello main.go)
+test "$($SMOKE/a/hello)" = peios-go-ok
+a_sum=$(sha256sum "$SMOKE/a/hello"); a_sum=${a_sum%% *}
+b_sum=$(sha256sum "$SMOKE/b/hello"); b_sum=${b_sum%% *}
+test "$a_sum" = "$b_sum"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = ">= 1.0.0-6"
+"org.gnu.bash"                  = "*"
+"org.debian.netbase"            = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+bash            = "*"
+binutils        = "*"
+
+[clean]
+command = "rm -rf out"

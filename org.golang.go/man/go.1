@@ -1,0 +1,59 @@
+.TH GO 1
+.SH NAME
+go \- build, test, install, and manage Go modules and programs
+.SH SYNOPSIS
+.B go
+.I command
+.RI [ arguments ]
+.SH DESCRIPTION
+The
+.B go
+command is the primary interface to the Go toolchain. It builds and tests
+packages, manages modules and workspaces, installs commands, formats packages,
+and invokes lower-level tools.
+.PP
+Run
+.B go help
+for the current command list,
+.BI "go help " command
+for command-specific documentation, and
+.B go env
+for the effective toolchain environment.
+.SH COMMON COMMANDS
+.TP
+.B build
+Compile packages and dependencies.
+.TP
+.B test
+Compile and test packages.
+.TP
+.B install
+Compile and install packages and commands.
+.TP
+.B mod
+Manage modules and their dependencies.
+.TP
+.B work
+Manage multi-module workspaces.
+.TP
+.B tool
+Run a named Go tool.
+.SH ENVIRONMENT
+The command is configured by variables including
+.BR GOENV ,
+.BR GOFLAGS ,
+.BR GOPATH ,
+.BR GOPROXY ,
+.BR GOROOT ,
+.BR GOOS ,
+and
+.BR GOARCH .
+Use
+.B go env
+for authoritative descriptions and current values.
+.SH SEE ALSO
+.BR gofmt (1)
+.PP
+The complete version-matched documentation is available through
+.B go help
+and in the Go source package.

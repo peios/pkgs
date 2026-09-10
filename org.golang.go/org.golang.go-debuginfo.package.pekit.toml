@@ -1,0 +1,11 @@
+[package]
+name        = "org.golang.go-debuginfo"
+description = "Go toolchain detached debugging symbols"
+
+[dependencies]
+"org.golang.go" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.golang.go-debuginfo/LICENSE"
+"@source:PATENTS" = "usr/share/licenses/org.golang.go-debuginfo/PATENTS"
+":debug/usr/lib/debug/**" = "usr/lib/debug/"

@@ -1,0 +1,26 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.golang.go"
+description = "Go compiler, formatter, build command, and target tools"
+
+[provides]
+go     = "{{version}}-1"
+golang = "{{version}}-1"
+
+[dependencies]
+"org.golang.go-src" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.golang.go/LICENSE"
+"@source:PATENTS" = "usr/share/licenses/org.golang.go/PATENTS"
+":usr/bin/go" = "usr/bin/go"
+":usr/bin/gofmt" = "usr/bin/gofmt"
+":usr/share/man/man1/go.1.gz" = "usr/share/man/man1/go.1.gz"
+":usr/share/man/man1/gofmt.1.gz" = "usr/share/man/man1/gofmt.1.gz"
+":usr/lib/x86_64-linux-peios/go/VERSION" = "usr/lib/x86_64-linux-peios/go/VERSION"
+":usr/lib/x86_64-linux-peios/go/go.env" = "usr/lib/x86_64-linux-peios/go/go.env"
+":usr/lib/x86_64-linux-peios/go/bin/**" = "usr/lib/x86_64-linux-peios/go/bin/"
+":usr/lib/x86_64-linux-peios/go/lib/**" = "usr/lib/x86_64-linux-peios/go/lib/"
+":usr/lib/x86_64-linux-peios/go/pkg/**" = "usr/lib/x86_64-linux-peios/go/pkg/"
+":usr/lib/x86_64-linux-peios/go/src" = "usr/lib/x86_64-linux-peios/go/src"

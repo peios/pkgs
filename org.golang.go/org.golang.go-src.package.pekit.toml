@@ -1,0 +1,12 @@
+[package]
+name         = "org.golang.go-src"
+architecture = "noarch"
+description  = "Go standard-library and toolchain sources required by the Go command"
+
+[provides]
+go-src = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.golang.go-src/LICENSE"
+"@source:PATENTS" = "usr/share/licenses/org.golang.go-src/PATENTS"
+":usr/share/go/src/**" = "usr/share/go/src/"
