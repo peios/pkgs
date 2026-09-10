@@ -6,14 +6,19 @@
 
 ## Objective
 
-Work through the 115 campaign recipes in this repository, bringing each to production
-standard, validating it on the Debian reference rung and the native Peios
-rung, and publishing signed packages to the local `peios` peipkg repository.
-The upstream/dependency pass is complete; the first-party pass is now active.
-Atrium, authd, build-essentials, coldplug, libpeios, disk-boot, peiosutils,
-fsbase, Dynamic Boot, live-boot, peios-install, and the kernel family are
-complete. If a package needs a product or architecture decision, record the
-question here and continue with the next independent package.
+Work through every recipe directory in this repository, bringing each public
+package to production standard, validating it on the Debian reference rung and
+the native Peios rung, and publishing signed packages to the local `peios`
+Peipkg repository. The tree currently contains **122 physical recipes**: 93
+upstream/dependency recipes and 29 Peios-owned recipes. Older totals compressed
+later bootstrap/version lanes into their parent toolchain families and predate
+the Experimental migration trampoline; physical directory counts are now the
+authoritative inventory.
+
+The upstream/dependency code pass is complete, with the new IANA tzdata, musl
+sysroot, and Rust musl-target artifacts awaiting publication. The first-party
+implementation pass is also locally exhausted; the remaining work is the
+explicit product, provenance, push, and publication decisions recorded below.
 
 ## First-party namespace and acceptance
 
@@ -62,20 +67,30 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Last fully closed recipe: `org.golang.go` 1.26.5-1, anchored in the catalogue
-  at commits `b1abb24`, `7d483c8`, and `13e9547`.
-- Completed: **99 / 115** recipes (86.1%).
-- Current upstream/dependency pass: **87 / 87** recipes (100%).
-- Current first-party pass: **12 / 28 published**, **12 / 28 runtime-closed**.
+- Physical inventory: **122 recipes**: **93 upstream/dependency** and **29
+  Peios-owned** (25 `dev.peios.*` directories plus `mockinit`, `peios-dwe`,
+  `peios-experimental-migration`, and `peios-kernel-only`).
+- Current first-party publication baseline: **14 / 29** recipes are both
+  production-closed and published: Atrium, authd, build-essentials, coldplug,
+  disk-boot, eventd, Dynamic Boot, fsbase, kernel, libpeios, librsi, live-boot,
+  peios-install, and peiosutils.
+- Eight more first-party recipes are locally production-ready but not
+  published: Loregd, Netd, Peinit, the combined installer/OOBE family, Prelude,
+  Resolvd, Timed, and Trustd.
+- The two Experimental edition recipes are locally closed but wait on their
+  unpublished dependency floors. PNPd is locally package-ready but retains a
+  security/product decision. Peipkg and mockinit also need product decisions;
+  `peios-dwe` and `peios-kernel-only` are intentionally private.
 - Repository after publishing and independently verifying Go 1.26.5:
   index version 217, with 867 active and 1,700 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
-The 87 upstream recipes and twelve completed first-party recipes account for
-the 99 completed recipes. The upstream total grew first when exact cbindgen
-0.29.2 became a packaged prerequisite for the libpeios ABI gate, and again
-when Go became the authenticated native toolchain for first-party services.
+The previous 115-recipe denominator was a historical campaign-family count,
+not a filesystem inventory. It was not expanded consistently as new
+toolchain/bootstrap lanes and recipes were added, and it separately counted the
+former OOBE delegate that is now part of the installer family. Do not derive
+completion percentages from that obsolete denominator.
 
 ## Go toolchain production release: 1.26.5-1
 
@@ -212,18 +227,10 @@ rustfmt, offline-Cargo, licence-closure, LLVM-linkage, hardening, debug/source,
 and package-split gates passed. All 10 signed artifacts passed both archive
 verifiers, and the repository re-verification at index 186 reports no problems.
 
-Resume order:
-
-1. rebuild and test PKM with its exact Rust 1.83.0 and LLVM 18.1.8 pins; and
-2. commit only the validated PKM `pekit.toml` change, preserving unrelated
-   `audits/` and `evman/` content.
-
-The temporary toolchain worktree is no longer needed once its build output has
-served the PKM validation and may then be removed. The old Rust worktree has a
-17 GiB artifact pool containing 2,057 filenames absent from the signed repo and
-requires an informed discard decision. The unregistered LLVM worktree remnant
-still needs privileged deletion with
-`sudo rm -rf -- /home/jack/projects/peios/pkgs-llvm-production.worktree`.
+The subsequent PKM qualification completed with its exact Rust 1.83.0 and LLVM
+18.1.8 pins and produced the published kernel 0.20.1-rc13-2 family. The
+temporary toolchain worktrees and their superseded build output were removed
+after the required artifacts had been preserved.
 
 ## Peiosutils complete security refresh: 0.8.5-1
 
@@ -477,12 +484,10 @@ is present, upgrades the qualified concrete name thereafter, and refuses
 both/neither inconsistent states. Four focused Rust tests, strict targeted
 Clippy, and the full Debian-reference package-family build pass; the latter
 also runs the upgrader tests and installed `upgrade-peios --help` smoke and
-emits runtime, common, debuginfo, and debugsource packages. Source commit
-`e6edce7dfcc968f4d7d9b963d121f7310d733a6a` and tag `v0.8.6` remain local.
-The Peipkg resolver regression is local commit
-`177ba9736524975afebdd096f469b062781c65af`; the user-facing migration
-documentation is local learn commit
-`cdea360`.
+emits runtime, common, debuginfo, and debugsource packages. The integrated
+Peiosutils source commit is `a64a91422`, and tag `v0.8.6` remains local. The
+integrated Peipkg resolver regression is commit `1eb2261`; the user-facing
+migration documentation is learn commit `cdea360`.
 
 Both edition recipes pass their Debian-reference tests and package builds.
 The qualified recipe lints with zero findings and its one established
@@ -496,39 +501,50 @@ final repository-resolver/compose gate
 also still waits for the other locally productionized first-party artifacts,
 the Peipkg licence decision, and the PNPd exposure decision.
 
-## Remaining current-pass recipes
+## Current first-party state
 
-The native `dev.peios.kernel` and `org.golang.go` families are complete.
-Peinit 0.0.2, Loregd 0.21.6, and Prelude 0.0.3 are committed and tagged
-locally with production package splits; their remote locks wait for explicit
-approval to publish the source commits and tags. Prelude's remaining native
-build prerequisite, the Rust musl standard-library target, is being packaged.
-Resolvd's complete local production split is committed. Netd's matching local
-production family is source-committed and package-validated; both now share one
-exact Peios Rust revision. Their immutable top-level release graphs wait on
-public Resolvd and Netd repositories. Trustd and Timed are active production
-lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
-`peios-kernel-only` explicitly forbid public publication.
+Published and production-closed:
 
-## Deferred first-party recipes
+- `dev.peios.atrium`, `dev.peios.authd`, `dev.peios.build-essentials`,
+  `dev.peios.coldplug`, `dev.peios.disk-boot`, `dev.peios.eventd`,
+  `dev.peios.feat-dynamic-boot`, `dev.peios.fsbase`, `dev.peios.kernel`,
+  `dev.peios.libpeios`, `dev.peios.librsi`, `dev.peios.live-boot`,
+  `dev.peios.peios-install`, and `dev.peios.peiosutils`.
 
-`loregd`,
-`mockinit`, `netd`, `peinit`, `peios-dwe`,
-`peios-kernel-only`, `peipkg`, `pnpd`,
-`prelude`, `resolvd`, `timed`, and `trustd`, plus the already-qualified
-`dev.peios.oobe` and `dev.peios.peios-installer` recipes.
+Locally production-ready; source publication and immutable remote locks remain:
+
+- `dev.peios.loregd`, `dev.peios.netd`, `dev.peios.peinit`,
+  `dev.peios.peios-installer` (the combined installer/OOBE source family),
+  `dev.peios.prelude`, `dev.peios.resolvd`, `dev.peios.timed`, and
+  `dev.peios.trustd`.
+
+Locally closed release bridge; dependency publication remains:
+
+- `dev.peios.peios-experimental` and `peios-experimental-migration`.
+
+Explicit decisions or exclusions:
+
+- `dev.peios.peipkg` is structurally productionized but deliberately fails
+  closed until the redistribution terms of two linked Go modules are decided.
+- `mockinit` needs deletion versus a clearly test-only identity.
+- `dev.peios.pnpd` is locally package-ready but needs its public exposure and
+  provenance decisions.
+- `peios-dwe` and `peios-kernel-only` are intentionally non-public fixtures.
 
 ## Follow-ups and known blockers
 
-- `loregd` cannot meet the native-rung acceptance gate until Peios has a Go
-  toolchain package. Its current module requires Go 1.26.1, while the signed
-  package pool contains no Go compiler at all; the existing recipe therefore
-  builds only by inheriting the host toolchain and undeclared network module
-  downloads. Productionisation needs an authenticated, bootstrapped Go recipe,
-  then a vendored/offline build plus runtime, debuginfo, debugsource, and source
-  packages. The source checkout was deliberately left untouched: it is two
-  commits ahead of `origin/main` and also contains uncommitted logging/package
-  edits associated with the peinit Phase-1 relay change.
+- Three dependency package families are locally production-ready but absent from
+  repository index 217: `org.iana.tzdata` 2026c-1,
+  `org.libc.musl-sysroot` 1.2.6-1, and the eleven-package
+  `org.rust-lang.rust` 1.98.1-3 family that adds
+  `org.rust-lang.rust-std-x86-64-unknown-linux-musl`. Publish and verify these
+  before releasing their first-party consumers.
+- `loregd` is locally production-ready at source commit `9335ce3`, local tag
+  `v0.21.6`, and catalogue commit `39eae91`. Its Debian reference and native
+  builds use the packaged Go toolchain and emit the qualified runtime,
+  debuginfo, debugsource, and corresponding-source family. The public source
+  checkout is four commits ahead of `origin/main`; push the reviewed commits
+  and tag before generating the immutable remote lock and publishing packages.
 - `mockinit` is explicitly a throwaway, pre-peinit PID-1 stand-in. Publishing
   it as a production runtime would preserve temporary service and security
   assumptions that the real peinit has replaced. Decide whether to delete it
@@ -540,8 +556,15 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   Peipkg hardening checks. Mutable peios-rs, libpeios, and PKM sibling fallbacks
   are gone: the two Rust sources are exact public revisions and native builds
   consume `dev.peios.libpeios-devel` 0.5.0. The source checkout still has no
-  remote or immutable release tag, so the catalogue intentionally remains
-  local-only until a public provenance home exists.
+  remote, so the catalogue intentionally remains local-only until a public
+  provenance home exists. Local tag `v0.1.1` points at the reviewed source.
+- `peinit` is locally production-ready at source commit `490960c`, local tag
+  `v0.0.2`, and catalogue commit `a9fbb45`. The Debian reference and native
+  builds close its generated C ABI and runtime tool dependencies, pass 1,067
+  tests plus all-feature and ABI gates, and emit six strict-format runtime,
+  library, development, debug, and svctl artifacts. Its public checkout is
+  ahead of `origin/main`; push the reviewed commits and moved local tag before
+  generating the immutable remote lock and publishing.
 - `peios-dwe` and `peios-kernel-only` are intentionally non-public recipes.
   The former grants unauthenticated SYSTEM access for a DWE guest and its own
   security policy forbids repository publication; the latter is a kernel
@@ -556,24 +579,30 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   unauthenticated development listener. Before either edition package can be
   published, the local Peiosutils source/tag must be pushed, its catalogue lock
   regenerated, and 0.8.6 published.
-- `peipkg` is also blocked on the authenticated Go bootstrap. The clean public
-  source requires Go but the native signed pool has no Go compiler, so its
-  current package can only be reproduced with an undeclared host toolchain.
-  Once Go is packaged, release the source from a new immutable version and
-  split the static `peipkg` consumer, `peipkg-compose` image builder, and
-  `peipkg-repo` publisher/verifier into independently installable packages,
-  with conventional debug and corresponding-source companions.
-- `pnpd` has no source remote or release tags, and its existing recipe falls
-  back to undeclared sibling peios-rs, libpeios, and built PKM header trees.
-  Give the PNP source repository a public provenance home before replacing
-  those fallbacks with immutable Rust inputs and the packaged libpeios/kernel
-  development interfaces.
-- `prelude` is locally release-ready at source commit `2d44ae6`, unsigned tag
-  `v0.0.3`, and catalogue commit `1281f38`. It has a vendored offline source
-  graph, static musl PIE runtime, per-family debug/source split, 40 passing
-  tests, deterministic rebuild checks, and zero unwaived production-lint
-  findings. Publish the source commit/tag, lock it, and run the native package
-  rung once the packaged Rust musl standard library is available.
+- `dev.peios.peipkg` is structurally productionized at source commits
+  `30ebeca` and `64c0f7a`, with catalogue commit `b1d7115`. It builds and tests
+  through the packaged Go toolchain and splits the static `peipkg` consumer,
+  `peipkg-compose` image builder, and `peipkg-repo` publisher/verifier with
+  independent debuginfo plus shared debugsource and corresponding source.
+  Packaging deliberately fails closed because `github.com/peios/libp-go`
+  v0.8.0 has no licence file and the terms inherited by
+  `github.com/peios/pkm/uapi/go` v0.20.0 are ambiguous. Decide and record those
+  redistribution terms before creating and publishing `v0.1.2`.
+- `dev.peios.pnpd` is locally package-ready at source commit `78ac815`, local
+  tag `v0.5.0`, and catalogue commit `6a3ac24`. Fifteen strict tests, offline
+  post-vendoring builds, byte-identical rebuilds, installed payload/service and
+  manual checks, hardening, split-debug, path-remapping, licence-closure, lint,
+  and all three emitted strict-format artifacts pass. The source package waits
+  on immutable source discovery. Publication remains blocked on both a public
+  source provenance home and the product/security decision for an unauthenticated
+  SYSTEM daemon that listens on `0.0.0.0:8081` and permits observation and
+  policy mutation.
+- `prelude` is locally release-ready at source commit `285906f`, unsigned tag
+  `v0.0.3`, and catalogue commit `1281f38`. Its native build consumes the
+  packaged Rust musl standard library and LLD, passes 40 tests, compares two
+  independent musl builds byte-for-byte, and validates static-PIE hardening,
+  debug, source, and all three strict-format package artifacts. Push the source
+  commit/tag, generate the immutable remote lock, and publish the family.
 - `resolvd` is locally productionized at source commits `7dd3e63` and
   `ec7da6f`, and catalogue commit `e485d26`: 41 tests, strict Clippy, hardened
   daemon/client/NSS splits, debug/source payloads, and migration metadata pass.
@@ -581,15 +610,19 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   combined graph contains one `peios-sys` with `links = "peios"`. Publication
   still waits on public Resolvd and Netd repositories so the remaining local
   libnetd edge can become an immutable Netd revision.
-- `timed` and `trustd` are active local productionization lanes. Neither has a
-  configured public source remote or immutable release tag, so publication will
-  still require an explicit provenance home after their local gates pass.
-- `dev.peios.oobe` and `dev.peios.peios-installer` are already qualified by
-  name, but both build from the same local-only `installer` checkout and its
-  sibling path dependency on the local-only `msip` repository. Neither source
-  repository has a remote or immutable release tags. Publish and pin both
-  source graphs before auditing the daemon/UI/package splits and releasing
-  them.
+- `timed` and `trustd` are locally production-ready at source commits
+  `f6a5a33` and `0887b81`, with local tags `v0.1.1` and catalogue commits
+  `5b82f1a` and `20dfe9c`. Their complete native package families passed 117
+  and 26 tests respectively, deterministic rebuilds, installed-service,
+  hardening, debug/source, and strict-format gates. Neither source checkout has
+  a public remote; create the provenance homes before locking and publishing.
+- `dev.peios.peios-installer` now delegates one productionized source family
+  for installerd, install-tui, msip-drive, oobed, oobe-tui, compatibility
+  aggregates, debug, and source packages. Installer commit `48fb40c4` and MSIP
+  commit `c2c5424f` have local `v0.1.1` tags; the catalogue is commit `9cd3b87`.
+  The Debian and native gates pass, but neither source repository has a public
+  remote. Publish MSIP first, replace the temporary local edge with its
+  immutable Git revision, then publish and lock the installer source.
 - `fsbase` security-descriptor overrides made the unprivileged package root
   expose a missing CLI surface rather than a package defect. Peipkg commit
   `76b65f4` adds deterministic `--record-xattrs` JSONL output using the
@@ -606,8 +639,9 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   first-party `peipkg` (2), and the unregistered first-party `initramfs` root
   used by disk/live boot (2). The audit caught and this pass corrected glibc
   revision 6's stale exact sibling constraints in revision 7. Deferred
-  first-party `peios-experimental` still constrains the undotted CA version as
-  `>= 20260830` and must migrate to the qualified package.
+  the then-current first-party `peios-experimental` recipe still constrained
+  the undotted CA version as `>= 20260830`; revision 9 migrated that edge to
+  qualified `org.mozilla.ca-certificates >= 2026.09.06-1`.
 - Authd's and coldplug's previously open `libpeios.so.0` closure edges are now
   closed by `dev.peios.libpeios` 0.5.0-1. A clean compose lock containing both
   top-level products resolves the qualified runtime in the anchor and named
@@ -641,7 +675,9 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   while the rolling recipe follows stable releases from a soft 1.98.1 floor.
   LLVM 22 likewise has a separate rolling recipe so publishing a current
   userspace compiler cannot move Kbuild. Current LLVM 22 and Rust 1.98.1 are
-  published; the final frozen-kernel rebuild remains outstanding.
+  published, and the frozen toolchain was used for the published kernel
+  0.20.1-rc13-2 family. The newer Rust revision 3 adds the source-built musl
+  standard-library target and is locally validated but not yet published.
 - The native build-root wrapper currently resolves every top-level artifact in
   `_pkgsOut_`, including superseded migrations. Legacy libxml2, libxslt,
   libtraceevent, and libtracefs pool artifacts were moved, recoverably, under
@@ -655,16 +691,14 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   legacy-provider artifacts). No signed repository entry was deleted or
   rewritten. The wrapper now exposes an external delegated local source tree
   to both reference roots without exposing undeclared sibling checkouts.
-- Package-campaign cleanup removed every per-recipe `out/` cache and 19 stale
-  registered `pkgs` worktrees after confirming that each carried no unique
-  tracked patch. After the LLVM/Rust transition, another approximately 237 GiB
-  of reproducible LLVM 22 and Rust/stage0 working output was pruned from the
-  main catalogue and temporary toolchain worktree. The one retained Rust
-  worktree contains an old 17 GiB package pool with 2,057 filenames absent from
-  the signed repository and therefore needs an explicit discard decision
-  rather than being treated as an ordinary build cache. The remaining 8.4 GiB
-  in the unregistered LLVM worktree needs interactive privileged deletion
-  because its build namespace left files owned by another uid.
+- Package-campaign cleanup removed the stale registered package worktrees and
+  approximately 237 GiB of reproducible LLVM/Rust working output after
+  confirming that none carried a unique tracked patch or unpublished artifact.
+  The retained `.peinit-local-pool` and `.prelude-local-pool` trees are hardlink
+  views used by completed native validation; every file has another link in the
+  main pool or its owning recipe output. Removing those top-level pools is a
+  destructive action outside the current sandbox approval and still requires
+  explicit user approval; do not work around that boundary.
 
 ## Latest first-party publication: fsbase 1.0.0-10
 
@@ -1353,9 +1387,7 @@ Published SHA-256 values:
 
 ## Worktree guardrail
 
-The main worktree currently contains unrelated edits to `peios-experimental`
-and the active kernel catalogue integration. Preserve them. The pre-existing
-live-boot edits were saved as `preserve pre-production live-boot edits` before
-the reviewed production commit was integrated; their behaviour and rationale
-are represented in the release above. Continue package work in isolated
-worktrees and integrate only reviewed commits.
+Continue package work in isolated worktrees and integrate only reviewed
+commits. Before removing a completed worktree, confirm both that its tracked
+patches are represented on the owning repository's main branch and that any
+unpublished package artifacts have been preserved outside the worktree.
