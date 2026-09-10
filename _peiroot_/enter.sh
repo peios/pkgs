@@ -87,6 +87,23 @@ for tier in usr/etc system/retc lcl/etc; do
   cp -a "$work/root/$tier/." "$work/root/etc/"
 done
 
+# A build sandbox has a synthetic uid/gid and no boot-time identity or network
+# initialisation. Give libc and upstream test suites the minimal matching
+# static databases they would otherwise receive from those runtime layers.
+# These files exist only in the disposable build root and are never packaged.
+[ -e "$work/root/etc/passwd" ] || cat > "$work/root/etc/passwd" <<'EOF'
+root:x:0:0:root:/root:/bin/sh
+peibuild:x:1000:1000:Peios package builder:/tmp:/bin/sh
+EOF
+[ -e "$work/root/etc/group" ] || cat > "$work/root/etc/group" <<'EOF'
+root:x:0:
+peibuild:x:1000:
+EOF
+[ -e "$work/root/etc/hosts" ] || cat > "$work/root/etc/hosts" <<'EOF'
+127.0.0.1 localhost
+::1 localhost ip6-localhost ip6-loopback
+EOF
+
 # The recipe may delegate to a local checkout outside the package workspace.
 # Expose that checkout at the exact path Pekit exported, but nothing around it:
 # undeclared sibling-tree dependencies must remain unavailable so the native
