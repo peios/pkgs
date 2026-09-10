@@ -9,4 +9,5 @@ version      = "1.0.0-9"
 # primary architecture makes that choice explicit.
 architecture = "x86_64"
 license      = "MIT"
+license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

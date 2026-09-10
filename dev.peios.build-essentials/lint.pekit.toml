@@ -1,0 +1,6 @@
+[allow]
+# This family consists solely of dependency-policy metapackages plus static
+# documentation and licence payloads. Its executable contract is dependency
+# resolution, which the repository closure and edition-compose gates exercise;
+# there is no program or generated data for a recipe test target to run.
+"build.test" = "Build-essentials is a sourceless policy metapackage family whose behavior is exercised by repository resolution and compose closure"

@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "Timed v0.1.1 cannot be locked until its Netd, Resolvd, and Trustd sibling edges are replaced by public immutable Git revisions"

@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "Peipkg v0.1.2 cannot be tagged and locked until its two dependency licence decisions are resolved; package publication remains blocked"

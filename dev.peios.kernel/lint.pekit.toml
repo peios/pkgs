@@ -1,0 +1,9 @@
+[allow]
+# The catalogue file is only a revision overlay for a delegated source recipe.
+# Static lint sees the overlay's internal target name (`main`) before a version
+# is fetched and therefore cannot see the real package names or their shared
+# source metadata. Versioned lint validates the fetched package family.
+"package.name.style" = "Static lint sees only the delegated recipe overlay named main; released package names come from the immutable PKM source"
+"package.license" = "Package licence metadata is owned by the immutable delegated PKM source and is checked by versioned lint"
+"package.homepage" = "Package homepage metadata is owned by the immutable delegated PKM source and is checked by versioned lint"
+"package.description" = "Package descriptions are owned by the immutable delegated PKM source and are checked by versioned lint"

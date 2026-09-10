@@ -1,0 +1,6 @@
+[allow]
+"package.name.style" = "peios-kernel-only is an intentionally private kernel conformance fixture, not a distributable package identity"
+"package.homepage" = "The private kernel conformance fixture has no public package homepage"
+"package.license_class" = "The fixture is never distributed; its delegated kernel payload carries the source licence when exercised"
+"build.dependencies.providers" = "The private fixture delegates all build inputs to the selected PKM source and is not built as a standalone public recipe"
+"build.test" = "The fixture exists to run the delegated kernel conformance build itself and has no separate package test target"

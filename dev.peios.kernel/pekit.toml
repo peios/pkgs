@@ -37,6 +37,7 @@ delegate = true
 [source.git]
 url = "https://github.com/peios/pkm.git"
 ref = "v{{version}}"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-rc[0-9]+)?)$'
 # pkm only carries its own pekit files from v0.20.1-rc1 on; earlier tags
 # (≤ v0.20.0-rc2) predate them, so a "*" sweep skips them instead of failing.
 # The floor is written with the prerelease (-rc1, not 0.20.1) deliberately: a

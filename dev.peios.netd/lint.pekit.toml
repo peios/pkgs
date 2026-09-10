@@ -1,0 +1,2 @@
+[allow]
+"source.reproducible" = "Netd is locally qualified but has no public source repository yet; immutable Git discovery is a release blocker"

@@ -1,0 +1,2 @@
+[allow]
+"source.lock" = "The reviewed v0.0.3 source tag is local-only; push the tag and regenerate this lock before package publication"
