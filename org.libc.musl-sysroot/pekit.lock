@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "1.2.6"
+  url = "https://musl.libc.org/releases/musl-1.2.6.tar.gz"
+  sha256 = "d585fd3b613c66151fc3249e8ed44f77020cb5e6c1e635a616d3f9f82460512a"
+  signature_key = "836489290bb6b70f99ffda0556bcdb593020450f"
+  locked_at = "2026-09-10T02:04:10Z"

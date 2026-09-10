@@ -1,0 +1,10 @@
+[package]
+name        = "org.libc.musl-sysroot"
+description = "Private static musl sysroot for x86_64 cross-target builds"
+
+[provides]
+musl-static-sysroot = "{{version}}-1"
+
+[files]
+"@source:COPYRIGHT" = "usr/share/licenses/org.libc.musl-sysroot/COPYRIGHT"
+":usr/lib/x86_64-linux-peios/musl/**" = "usr/lib/x86_64-linux-peios/musl"

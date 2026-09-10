@@ -1,0 +1,269 @@
+# musl libc — a private, static x86_64 sysroot for Rust's
+# x86_64-unknown-linux-musl target. This is build infrastructure, not Peios's
+# process libc: keeping every file under a private prefix prevents it from
+# competing with glibc or advertising a musl dynamic runtime.
+
+out_dir = "out"
+
+[source_package]
+name = "org.libc.musl-source"
+
+[source.url]
+url         = "https://musl.libc.org/releases/musl-{{version}}.tar.gz"
+listing_url = "https://musl.libc.org/releases.html"
+extract     = true
+root        = "musl-{{version}}"
+file_regex  = 'musl-1\.2\.[0-9]+\.tar\.gz'
+# Soft production floor: track new releases automatically. musl keeps ABI
+# compatibility across releases; the build, security and static-link tests are
+# the fail-closed review gate if a future release changes this sysroot contract.
+versions    = ">= 1.2.6"
+
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/musl-release.asc"]
+fingerprints = ["836489290BB6B70F99FFDA0556BCDB593020450F"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd -P)"
+BUILD="$PEKIT_OUT/build"
+PREFIX=/usr/lib/x86_64-linux-peios/musl
+STAGE="$PEKIT_OUT$PREFIX"
+
+# musl 1.2.6 predates the upstream fix for CVE-2026-6042. Apply the exact
+# upstream commit while the vulnerable decoder is present; the postcondition
+# lets a future 1.2 release which already contains it update unattended.
+if ! grep -q '#include "gb18030utf.h"' "$SRC/src/locale/iconv.c"; then
+  python3 - "$SRC" \
+    "$PEKIT_RECIPE_ROOT/patches/0001-fix-cve-2026-6042-gb18030-dos.patch" <<'PY'
+import pathlib
+import re
+import sys
+
+source = pathlib.Path(sys.argv[1])
+patch_text = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+
+# Materialize the new table directly from the signed-off upstream patch.
+table_diff, iconv_diff = patch_text.split(
+    "diff --git a/src/locale/iconv.c b/src/locale/iconv.c", 1
+)
+table_hunk = table_diff.split("@@ -0,0 +1,206 @@\n", 1)[1]
+table_lines = [line[1:] for line in table_hunk.splitlines(keepends=True)
+               if line.startswith("+") and not line.startswith("+++")]
+if len(table_lines) != 206:
+    raise SystemExit("musl: upstream GB18030 table patch is malformed")
+(source / "src/locale/gb18030utf.h").write_text(
+    "".join(table_lines), encoding="utf-8"
+)
+
+# Apply each iconv hunk with exact context and no fuzz. This small strict
+# parser exists because Peios does not yet package the standalone patch tool.
+target = source / "src/locale/iconv.c"
+original = target.read_text(encoding="utf-8").splitlines(keepends=True)
+hunk_re = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@.*$", re.M)
+matches = list(hunk_re.finditer(iconv_diff))
+if len(matches) != 3:
+    raise SystemExit("musl: unexpected iconv security-patch hunk count")
+result = []
+cursor = 0
+for index, match in enumerate(matches):
+    old_start = int(match.group(1)) - 1
+    old_count = int(match.group(2) or "1")
+    new_count = int(match.group(4) or "1")
+    result.extend(original[cursor:old_start])
+    cursor = old_start
+    old_seen = new_seen = 0
+    body_end = matches[index + 1].start() if index + 1 < len(matches) else len(iconv_diff)
+    body = iconv_diff[match.end():body_end].lstrip("\n")
+    for line in body.splitlines(keepends=True):
+        if old_seen == old_count and new_seen == new_count:
+            break
+        if not line or line[0] not in " +-":
+            raise SystemExit("musl: malformed iconv security-patch hunk")
+        marker, payload = line[0], line[1:]
+        if marker in " -":
+            if cursor >= len(original) or original[cursor] != payload:
+                raise SystemExit("musl: iconv security patch context drifted")
+            cursor += 1
+            old_seen += 1
+        if marker in " +":
+            result.append(payload)
+            new_seen += 1
+    if old_seen != old_count or new_seen != new_count:
+        raise SystemExit("musl: incomplete iconv security-patch hunk")
+result.extend(original[cursor:])
+target.write_text("".join(result), encoding="utf-8")
+PY
+fi
+grep -q '#include "gb18030utf.h"' "$SRC/src/locale/iconv.c"
+test -s "$SRC/src/locale/gb18030utf.h"
+
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+# The compiler is a Peios-native GCC, but the produced ABI is musl. Setting
+# the target gives musl the canonical architecture while CROSS_COMPILE= on
+# make deliberately selects the native binutils already in the build root.
+export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3} -fcf-protection=full -ffile-prefix-map=$SRC=/usr/src/debug/org.libc.musl-sysroot/source"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk"
+CC=cc "$SRC/configure" \
+  --target=x86_64-linux-musl \
+  --prefix="$PREFIX" \
+  --syslibdir="$PREFIX/lib" \
+  --disable-wrapper \
+  --disable-shared
+
+make CROSS_COMPILE= -j"$(nproc)"
+make CROSS_COMPILE= install DESTDIR="$PEKIT_OUT"
+
+# This sysroot is intentionally static-only. Rust copies libc.a and the crt
+# objects into its target's self-contained directory and performs final
+# linking itself; no generic compiler wrapper can accidentally mix glibc
+# libraries into a musl program.
+test ! -d "$STAGE/bin"
+test -s "$STAGE/lib/libc.a"
+for crt in crt1.o Scrt1.o rcrt1.o crti.o crtn.o; do
+  test -s "$STAGE/lib/$crt"
+done
+test ! -e "$STAGE/lib/libc.so"
+test ! -e "$STAGE/lib/ld-musl-x86_64.so.1"
+test -s "$STAGE/include/stddef.h"
+test -s "$STAGE/include/pthread.h"
+
+# Exercise the staged headers, static libc, static-PIE startup path, threading
+# and the security-fixed GB18030 decoder. The explicit self-contained link is
+# the same contract Rust consumes and cannot fall back to host glibc.
+SMOKE="$PEKIT_OUT/.musl-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/smoke.c" <<'C'
+#include <errno.h>
+#include <iconv.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+
+static void *identity(void *value) { return value; }
+
+int main(void) {
+    pthread_t thread;
+    void *joined = 0;
+    char input_storage[] = { (char)0x90, 0x30, (char)0x81, 0x30 };
+    char output_storage[8] = { 0 };
+    char *input = input_storage;
+    char *output = output_storage;
+    size_t input_left = sizeof(input_storage);
+    size_t output_left = sizeof(output_storage);
+    const unsigned char expected[] = { 0xf0, 0x90, 0x80, 0x80 };
+
+    if (pthread_create(&thread, 0, identity, (void *)42) != 0 ||
+        pthread_join(thread, &joined) != 0 || joined != (void *)42)
+        return 1;
+
+    iconv_t converter = iconv_open("UTF-8", "GB18030");
+    if (converter == (iconv_t)-1)
+        return 2;
+    if (iconv(converter, &input, &input_left, &output, &output_left) == (size_t)-1)
+        return 3;
+    if (iconv_close(converter) != 0 || input_left != 0 ||
+        (size_t)(output - output_storage) != sizeof(expected) ||
+        memcmp(output_storage, expected, sizeof(expected)) != 0)
+        return 4;
+
+    puts("musl-static-ok");
+    return 0;
+}
+C
+NO_ATOMIC=
+if cc -fno-link-libatomic -x c -c /dev/null -o "$SMOKE/flag-test.o" 2>/dev/null; then
+  NO_ATOMIC=-fno-link-libatomic
+fi
+cc -O2 -fstack-protector-strong -fcf-protection=full \
+  -nostdinc -isystem "$STAGE/include" -c "$SMOKE/smoke.c" -o "$SMOKE/smoke.o"
+cc $NO_ATOMIC -nostdlib -static-pie \
+  -Wl,-z,relro,-z,now,-z,pack-relative-relocs,-z,ibt,-z,shstk \
+  -o "$SMOKE/smoke" \
+  "$STAGE/lib/rcrt1.o" "$STAGE/lib/crti.o" \
+  "$(cc -print-file-name=crtbeginS.o)" "$SMOKE/smoke.o" \
+  -Wl,--start-group "$STAGE/lib/libc.a" \
+  "$(cc -print-file-name=libgcc.a)" "$(cc -print-file-name=libgcc_eh.a)" \
+  -Wl,--end-group "$(cc -print-file-name=crtendS.o)" "$STAGE/lib/crtn.o"
+test "$("$SMOKE/smoke")" = musl-static-ok
+readelf -h "$SMOKE/smoke" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$SMOKE/smoke" | grep 'GNU_STACK' | grep -q ' RW '
+readelf -lW "$SMOKE/smoke" | grep -q 'GNU_RELRO'
+readelf -dW "$SMOKE/smoke" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+readelf -dW "$SMOKE/smoke" | grep -q '(RELR)'
+readelf -nW "$SMOKE/smoke" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+if readelf -lW "$SMOKE/smoke" | grep -q INTERP; then exit 1; fi
+if readelf -dW "$SMOKE/smoke" 2>/dev/null | grep -q NEEDED; then exit 1; fi
+rm -rf "$SMOKE" "$PEKIT_OUT/build"
+'''
+
+[build.main.dependencies.peipkg]
+build-essentials-c = "*"
+python3            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+python3         = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+PREFIX=/usr/lib/x86_64-linux-peios/musl
+STAGE="$PEKIT_MAIN_OUT$PREFIX"
+SMOKE="$PEKIT_OUT/musl-test"
+mkdir -p "$SMOKE"
+
+# Re-test the self-contained static-PIE ABI in the independently composed test
+# environment rather than trusting the build-stage process state.
+cat > "$SMOKE/main.c" <<'C'
+#include <pthread.h>
+#include <stdio.h>
+
+static void *identity(void *value) { return value; }
+
+int main(void) {
+    pthread_t thread;
+    void *joined = 0;
+    if (pthread_create(&thread, 0, identity, (void *)42) != 0 ||
+        pthread_join(thread, &joined) != 0 || joined != (void *)42)
+        return 1;
+    puts("musl-test-ok");
+    return 0;
+}
+C
+NO_ATOMIC=
+if cc -fno-link-libatomic -x c -c /dev/null -o "$SMOKE/flag-test.o" 2>/dev/null; then
+  NO_ATOMIC=-fno-link-libatomic
+fi
+cc -O2 -fstack-protector-strong -fcf-protection=full \
+  -nostdinc -isystem "$STAGE/include" -c "$SMOKE/main.c" -o "$SMOKE/main.o"
+cc $NO_ATOMIC -nostdlib -static-pie \
+  -Wl,-z,relro,-z,now,-z,pack-relative-relocs,-z,ibt,-z,shstk \
+  -o "$SMOKE/main" \
+  "$STAGE/lib/rcrt1.o" "$STAGE/lib/crti.o" \
+  "$(cc -print-file-name=crtbeginS.o)" "$SMOKE/main.o" \
+  -Wl,--start-group "$STAGE/lib/libc.a" \
+  "$(cc -print-file-name=libgcc.a)" "$(cc -print-file-name=libgcc_eh.a)" \
+  -Wl,--end-group "$(cc -print-file-name=crtendS.o)" "$STAGE/lib/crtn.o"
+test "$("$SMOKE/main")" = musl-test-ok
+readelf -h "$SMOKE/main" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$SMOKE/main" | grep 'GNU_STACK' | grep -q ' RW '
+readelf -lW "$SMOKE/main" | grep -q 'GNU_RELRO'
+readelf -dW "$SMOKE/main" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+readelf -dW "$SMOKE/main" | grep -q '(RELR)'
+readelf -nW "$SMOKE/main" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+if readelf -lW "$SMOKE/main" | grep -q INTERP; then exit 1; fi
+if readelf -dW "$SMOKE/main" 2>/dev/null | grep -q NEEDED; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+build-essentials-c = "*"
+
+[test.dependencies.apt]
+build-essential = "*"

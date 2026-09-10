@@ -1,0 +1,5 @@
+[allow]
+# These five crt*.o files are the target's required startup objects, consumed
+# by Rust's self-contained linker. They are intentional sysroot payload, not
+# intermediate object files left behind by the build.
+"payload.junk" = "musl sysroot intentionally ships crt1.o, Scrt1.o, rcrt1.o, crti.o and crtn.o"
