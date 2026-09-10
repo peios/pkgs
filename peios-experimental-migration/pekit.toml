@@ -1,0 +1,21 @@
+# Final legacy-name Experimental release. This dependency-only trampoline is
+# how an already-shipped upgrade-peios can reach the qualified edition without
+# weakening Peipkg's rule that named upgrades resolve concrete names only.
+#
+# An installed peios-experimental <= 2026.8-9 upgrades by concrete name to this
+# candidate. Its dependency selects dev.peios.peios-experimental, whose bounded
+# replaces edge removes the legacy package (including this candidate) from the
+# final transaction. Consequently this package is never installed. The
+# successor's matching conflict makes direct installation into an empty root
+# fail closed rather than leave both edition identities installed.
+
+out_dir = "out"
+
+[test]
+command = "python3 tests/test-migration.py"
+
+[test.dependencies.peipkg]
+"org.python.python3" = ">= 3.14.7-4"
+
+[test.dependencies.apt]
+python3 = "*"

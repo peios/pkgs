@@ -446,39 +446,55 @@ All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
 verification. Full repository verification at index 214 reports 822 active
 and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
-## Experimental edition closure: 2026.8-11
+## Experimental edition closure: 2026.8-12 plus legacy migration
 
-`dev.peios.peios-experimental` revision 11 closes every independent part of
-the current first-party identity transition. Its 55 direct release edges now
-contain 31 canonical `dev.peios.*` packages, 22 qualified upstream packages,
-and exactly two documented historical first-party identities: `peipkg` and
-`pnpd`. Prelude remains explicitly rooted in `initramfs` alongside the IRF
-kernel/module, fsbase, StrataFS-hook, and coldplug edges. Peinit, Netd and its
-operator, Resolvd and its operator/NSS shim, Trustd and its operator, Timed and
-its operator, and the production Installer/OOBE aggregate packages all use
-their qualified identities and audited release floors. The legacy Peipkg and
-PNPd entries are deliberately pinned to the latest published development
-baselines, 0.1.1-8 and 0.5.0-1 respectively, rather than accepting an older
-artifact while their independent legal and network-policy decisions remain
-open.
+`dev.peios.peios-experimental` revision 12 retains revision 11's audited 55
+direct release edges: 31 canonical `dev.peios.*` packages, 22 qualified
+upstream packages, and exactly two documented historical first-party
+identities, `peipkg` and `pnpd`. Its migration contract is now explicit. The
+qualified package provides the compatibility capability at its exact revision,
+replaces `peios-experimental <= 2026.8-10`, conflicts with every installed
+legacy edition, and requires `dev.peios.peiosutils >= 0.8.6-1` so every system
+that has completed the transition also has a concrete-name-aware upgrader.
 
-The release-payload test now checks those first-party floors, rejects every
-retired unqualified service alias, and verifies the complete set of named-root
-placements in addition to parsing `os-release` and `release.toml`. Native and
-Debian-reference builds and tests pass, Pekit lint reports zero findings with
-one documented architecture exception, and the resulting 2026.8-11 archive
-passes the strict container verifier. The package is intentionally not ready
-to publish yet: an actual repository-resolver/compose gate must wait for the
-locally productionized Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer
-and OOBE artifacts to be published, and for the Peipkg licence and PNPd
-exposure decisions to close. There is also one upgrade-transition gate:
-`upgrade-peios` still invokes `peipkg upgrade peios-experimental`, while a
-named Peipkg upgrade deliberately targets only a concrete installed package
-and never resolves `provides`. The compatibility capability therefore cannot
-move an installed `dev.peios.peios-experimental`; the upgrader needs an
-intentional legacy install/replace path plus concrete-name upgrades before
-this qualified edition can ship. Local catalogue branch:
-`production/experimental-closure`.
+An already-shipped upgrader cannot use that new logic on its first run: it
+still asks Peipkg to upgrade the concrete name `peios-experimental`, and named
+upgrades intentionally never follow `provides`. The final legacy concrete
+release, `peios-experimental 2026.8-10`, is therefore a dependency-only
+migration trampoline requiring `dev.peios.peios-experimental >= 2026.8-12`.
+When it is selected over an installed legacy revision, the successor's bounded
+`replaces` edge removes the old edition and the candidate trampoline in the
+same transaction. The trampoline is absent from the final world. The matching
+conflict makes a direct empty-root installation fail closed instead of leaving
+both identities installed; the resolver regression exercises the real
+x86_64-to-noarch bridge, exact final plan, direct-install rejection, and the
+next ordinary upgrade of the qualified concrete name.
+
+Peiosutils 0.8.6 then makes the steady-state behavior unambiguous. It derives
+both names from `os-release`, reads the installed package identity through
+`peipkg list --json`, installs the qualified package only when the legacy name
+is present, upgrades the qualified concrete name thereafter, and refuses
+both/neither inconsistent states. Four focused Rust tests, strict targeted
+Clippy, and the full Debian-reference package-family build pass; the latter
+also runs the upgrader tests and installed `upgrade-peios --help` smoke and
+emits runtime, common, debuginfo, and debugsource packages. Source commit
+`e6edce7dfcc968f4d7d9b963d121f7310d733a6a` and tag `v0.8.6` remain local.
+The Peipkg resolver regression is local commit
+`177ba9736524975afebdd096f469b062781c65af`; the user-facing migration
+documentation is local learn commit
+`cdea360`.
+
+Both edition recipes pass their Debian-reference tests and package builds.
+The qualified recipe lints with zero findings and its one established
+architecture exception; the intentionally legacy-named trampoline has zero
+unallowed findings and two justified name-style findings. Nothing in this
+closure has been pushed or published. Publication must be ordered: push the
+Peiosutils source commit and immutable tag, regenerate the catalogue lock from
+that public tag, publish Peiosutils 0.8.6, then publish the qualified edition
+before exposing the legacy trampoline in the same repository release. The
+final repository-resolver/compose gate
+also still waits for the other locally productionized first-party artifacts,
+the Peipkg licence decision, and the PNPd exposure decision.
 
 ## Remaining current-pass recipes
 
@@ -531,14 +547,15 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   security policy forbids repository publication; the latter is a kernel
   conformance fixture with no init or userspace. Keep both available to their
   controlled image/test workflows but out of the public repository.
-- `dev.peios.peios-experimental` is locally closed at revision 2026.8-11. Its
-  native/reference recipe gates pass, but repository resolution cannot pass
-  until its unpublished first-party floors exist in the repository. Two direct
-  dependencies remain deliberately unqualified and blocking: Peipkg needs its
-  source-licence decisions, and PNPd needs a product/security disposition for
-  its current unauthenticated development listener. `upgrade-peios` also needs
-  a concrete-package migration path; named Peipkg upgrades intentionally do
-  not follow the edition's compatibility `provides` edge.
+- `dev.peios.peios-experimental` is locally closed at revision 2026.8-12,
+  including the final `peios-experimental 2026.8-10` migration trampoline and
+  Peiosutils 0.8.6's concrete-name upgrade logic. Repository resolution still
+  waits for its unpublished first-party floors. Two direct dependencies remain
+  deliberately unqualified and blocking: Peipkg needs its source-licence
+  decisions, and PNPd needs a product/security disposition for its current
+  unauthenticated development listener. Before either edition package can be
+  published, the local Peiosutils source/tag must be pushed, its catalogue lock
+  regenerated, and 0.8.6 published.
 - `peipkg` is also blocked on the authenticated Go bootstrap. The clean public
   source requires Go but the native signed pool has no Go compiler, so its
   current package can only be reproduced with an undeclared host toolchain.

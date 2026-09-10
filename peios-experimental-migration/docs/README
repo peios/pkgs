@@ -1,0 +1,7 @@
+peios-experimental is a migration-only package.
+
+The Experimental edition's canonical package name is
+dev.peios.peios-experimental. This final legacy-name release lets an existing
+upgrade-peios binary select that successor through an explicit dependency; the
+successor replaces this package in the same transaction. This package is not
+part of the installed result and must not receive a later version.
