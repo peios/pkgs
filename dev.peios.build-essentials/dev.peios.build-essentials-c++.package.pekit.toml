@@ -6,13 +6,13 @@ name        = "dev.peios.build-essentials-c++"
 description = "Peios C++ build environment"
 
 [provides]
-"build-essentials-c++" = "1.0.0-8"
+"build-essentials-c++" = "1.0.0-9"
 
 [replaces]
-"build-essentials-c++" = "<= 1.0.0-7"
+"build-essentials-c++" = "<= 1.0.0-8"
 
 [dependencies]
-"dev.peios.build-essentials-c"      = "1.0.0-8"
+"dev.peios.build-essentials-c"      = "1.0.0-9"
 "org.gnu.gcc-c++"                   = ">= 16, < 17"
 "org.gnu.gcc-libstdc++-devel"       = ">= 16, < 17"
 

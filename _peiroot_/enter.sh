@@ -116,7 +116,7 @@ bwrap \
   "$@" \
   --chdir "$PWD" \
   --clearenv \
-  --setenv PATH /usr/bin \
+  --setenv PATH /usr/libexec/coreutils-build:/usr/bin \
   --setenv HOME /tmp \
   --setenv USER peibuild \
   --setenv LOGNAME peibuild \

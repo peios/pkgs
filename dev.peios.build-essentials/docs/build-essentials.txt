@@ -8,9 +8,9 @@ and Sed.
 Peiosutils is Peios's Coreutils implementation. Keeping it in the baseline
 ensures build roots exercise the same fundamental userland that ships on the
 installed system and prevents conflicting ownership of standard utility paths.
-The non-overlapping GNU build-compatibility supplement provides chgrp, chmod,
-and chown for conventional upstream build systems; it contains no command path
-owned by Peiosutils.
+The non-overlapping GNU build-compatibility supplement places conventional GNU
+command semantics on Pekit's private build-only PATH. It contains no command
+path owned by Peiosutils and is not the installed-system userland.
 
 This package contains no compiler. Select dev.peios.build-essentials-c,
 dev.peios.build-essentials-c++, or dev.peios.build-essentials-rust for a

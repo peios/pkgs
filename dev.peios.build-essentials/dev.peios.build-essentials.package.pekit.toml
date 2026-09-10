@@ -6,15 +6,15 @@ name        = "dev.peios.build-essentials"
 description = "Peios baseline build environment"
 
 [provides]
-build-essentials = "1.0.0-8"
+build-essentials = "1.0.0-9"
 
 [replaces]
-build-essentials = "<= 1.0.0-7"
+build-essentials = "<= 1.0.0-8"
 
 [dependencies]
 "org.git.kernel.dash" = ">= 0.5.13.5"
 "dev.peios.peiosutils" = ">= 0.8.5-1"
-"org.gnu.coreutils-build-compat" = ">= 9.11-2"
+"org.gnu.coreutils-build-compat" = ">= 9.11-3"
 "org.gnu.diffutils"   = ">= 3.12"
 "org.gnu.findutils"   = ">= 4.11.0"
 "org.gnu.gawk"        = ">= 5.4.1"
