@@ -1,0 +1,73 @@
+# Lint rules for every recipe in this workspace (PEI-21).
+#
+# pekit ships no rules on by default; this file is what turns them on. A
+# recipe may re-parameterise a rule in its own lint.pekit.toml but may not
+# switch one off — an exemption is an [allow] entry there, with the reason,
+# so `pekit workspace lint --json` lists every one. Rule reference:
+# learn.peios.org/pekit/running/linting.
+#
+# The rows here are the mechanical half of the production checklist that
+# PACKAGE_PRODUCTION.md used to carry in prose. What stays human: the
+# product role agreeing with learn/, ownership boundaries, whether a split
+# is sensible, and least-privilege identities.
+
+[package]
+name.style    = "reverse-dns"
+license       = "spdx"
+license_class = true
+homepage      = "https"
+description   = 80
+dependencies  = "consistent"
+architecture  = "consistent"
+
+[source]
+reproducible          = true
+discovery             = true
+# A floor, never a ceiling: discovery must keep following new releases
+# unattended. `< x` bounds are a review decision recorded in the recipe.
+versions.floor        = true
+ref                   = "immutable"
+url.scheme            = "https"
+lock                  = true
+signature.required    = true
+signature.fingerprint = "full"
+signature.keys        = true
+patches.headers       = true
+
+[build]
+# Every build target declares its inputs for both rungs; an empty table
+# says "none" explicitly.
+dependencies.providers = ["peipkg", "apt"]
+test                   = true
+
+[payload]
+junk                 = true
+scripts              = true
+symlinks.dangling    = "forbidden"
+symlinks.absolute    = "forbidden"
+filenames            = "portable"
+special_files        = "forbidden"
+manpages.required    = true
+manpages.compression = "gzip"
+pkgconfig            = true
+license_file         = "usr/share/licenses/{{name}}/"
+dirs.lib             = ["lib", "lib64", "usr/lib", "usr/lib64", "usr/lib/x86_64-linux-peios"]
+
+[split]
+devel.packages = "*-devel"
+
+# The hardening every shipped object is expected to carry: the same set the
+# workspace [env] flags produce, checked on the result rather than trusted
+# from the flags. Replaces the readelf tails hand-written into build scripts.
+[elf]
+pie         = true
+stack       = "non-exec"
+relro       = "full"
+relr        = true
+cet         = true
+rpath       = "forbidden"
+textrel     = "forbidden"
+stripped    = true
+debuginfo   = "{{name}}-debuginfo"
+build_paths = "forbidden"
+soname      = true
