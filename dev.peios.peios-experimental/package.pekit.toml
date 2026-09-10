@@ -1,13 +1,19 @@
 format = "peipkg"
 
 [package]
-name         = "peios-experimental"
-# -7: split the seed lists. lpsd-first-account is live-only (its password is
-# public), oobe-service is install-only, and dev.peios.oobe ships the latter.
-version      = "{{version}}-8"
-architecture = "noarch"
+name         = "dev.peios.peios-experimental"
+# -9: move the ca-certificates floor onto the successor's version scheme (see
+# the trust block below).
+# -10: production qualification. The edition moves to its reverse-DNS name,
+# retains a bounded migration from the last unqualified package, follows every
+# already-qualified package by its canonical identity, owns its licence text,
+# and is correctly architecture-bound by its x86_64 dependency closure.
+version      = "{{version}}-10"
+architecture = "x86_64"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
+license_class = "free"
+homepage     = "https://github.com/peios/pkgs"
 
 # An edition is not moved by a routine package operation: upgrading it
 # also has to reconcile what the package manager deliberately does not
@@ -22,6 +28,10 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # "some Peios"; depend on an edition to mean that edition.
 [provides]
 peios-release = "{{version}}"
+peios-experimental = "{{version}}-10"
+
+[replaces]
+peios-experimental = "<= 2026.8-9"
 
 # The base system. Every entry is a `>=` floor rather than a pin: at this
 # pre-alpha stage the floors let packages move without a repackage of the
@@ -51,31 +61,31 @@ peios-release = "{{version}}"
 # the *-irf hooks and ELF-derived edges pull them there.
 [dependencies]
 # Kernel, modules, and the tools that load them.
-kernel             = ">= 0.20.1-rc12"
-kernel-modules     = ">= 0.20.1-rc12"
-kernel-modules-irf = { constraint = ">= 0.20.1-rc12", root = "initramfs" }
-kmod               = ">= 33"
-coldplug-irf       = { constraint = ">= 1.0.0", root = "initramfs" }
-"io.github.eudev-project.eudev" = ">= 3.2.14"
+"dev.peios.kernel"             = ">= 0.20.1-rc13-2"
+"dev.peios.kernel-modules"     = ">= 0.20.1-rc13-2"
+"dev.peios.kernel-modules-irf" = { constraint = ">= 0.20.1-rc13-2", root = "initramfs" }
+"org.kernel.kmod"              = ">= 34.2-2"
+"dev.peios.coldplug-irf"       = { constraint = ">= 1.0.0-3", root = "initramfs" }
+"io.github.eudev-project.eudev" = ">= 3.2.14-3"
 
 # Base filesystem and topology, in both roots.
-fsbase                      = ">= 1.0.0"
-fsbase-irf                  = { constraint = ">= 1.0.0", root = "initramfs" }
-fsbase-stratafs-mount-hooks = { constraint = ">= 1.0.0", root = "initramfs" }
+"dev.peios.fsbase"                      = ">= 1.0.0-10"
+"dev.peios.fsbase-irf"                  = { constraint = ">= 1.0.0-10", root = "initramfs" }
+"dev.peios.fsbase-stratafs-mount-hooks" = { constraint = ">= 1.0.0-10", root = "initramfs" }
 
 # Base userspace. peios-install is part of every Peios, not of the live
 # medium: an installed system can install another.
-peiosutils    = ">= 0.1.4"
-libpeios      = ">= 0.3.4"
-dash          = ">= 0.5.12"
+"dev.peios.peiosutils" = ">= 0.8.5-1"
+"dev.peios.libpeios"   = ">= 0.5.0-1"
+"org.git.kernel.dash"  = ">= 0.5.13.5-3"
 peipkg        = ">= 0.1.1"
-peios-install = ">= 0.3.0"
+"dev.peios.peios-install" = ">= 0.3.0-8"
 
 # The installer proper: installerd (the engine, a SYSTEM service) and
 # install-tui (its terminal surface). Ships alongside peios-install, not
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
-"dev.peios.peios-installer" = ">= 0.1.0"
+"dev.peios.peios-installer" = ">= 0.1.0-17"
 
 # First-boot setup: oobed and its own terminal surface. A separate package
 # from the installer because the two have separate lifetimes -- an installed
@@ -84,25 +94,25 @@ peios-install = ">= 0.3.0"
 #
 # It ships a seed master and nothing applies it here: `install_autoapply` in
 # release.toml is what opts it in, on the installed machine only.
-"dev.peios.oobe" = ">= 0.1.0"
+"dev.peios.oobe" = ">= 0.1.0-7"
 
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 prelude = { constraint = ">= 0.0.1", root = "initramfs" }
 peinit  = ">= 0.0.1"
 
 # Identity (PGSS Logon).
-authd     = ">= 0.0.13"
-lpsd      = ">= 0.0.13"
-lps       = ">= 0.0.13"
-login     = ">= 0.0.13"
-nss-peios = ">= 0.0.13"
+"dev.peios.authd"       = ">= 0.0.14-1"
+"dev.peios.authd-lpsd"  = ">= 0.0.14-1"
+"dev.peios.authd-lps"   = ">= 0.0.14-1"
+"dev.peios.authd-login" = ">= 0.0.14-1"
+"dev.peios.authd-nss"   = ">= 0.0.14-1"
 # The passwordless live-image administrator is deliberately no longer carried
 # by lpsd itself. This image explicitly opts into both its payload and registry
 # seed; installed/production images do not acquire it transitively.
-"dev.peios.authd-live-account" = ">= 0.0.14"
+"dev.peios.authd-live-account" = ">= 0.0.14-1"
 
 # Durable events, service logs and metrics.
-eventd = ">= 0.1.0"
+"dev.peios.eventd" = ">= 0.1.0-10"
 
 # Networking: netd owns links, addresses, routes and DHCP; resolvd owns
 # name resolution; net and resolv are their operator commands;
@@ -119,9 +129,16 @@ nss-peios-net = ">= 0.1.0"
 # renders /etc/ssl for the software that reads trust from a path. Nothing
 # depends on ca-certificates — trustd needs *a* bundle at a known path, not
 # that package specifically — so, like the nss modules, it is listed here.
-trustd          = ">= 0.1.0"
-trust           = ">= 0.1.0"
-ca-certificates = ">= 20260830"
+#
+# The floor is on the dotted YYYY.MM.DD scheme org.mozilla.ca-certificates
+# uses, and has to be: that package provides the `ca-certificates` name at its
+# own version, and a dotted date sorts BELOW an undotted one because the
+# numeric major is 2026 rather than 20260830. The old undotted floor was
+# satisfied only by the legacy package itself, so archiving that package left
+# this edition unresolvable (PEI-840).
+trustd = ">= 0.1.0"
+trust  = ">= 0.1.0"
+"org.mozilla.ca-certificates" = ">= 2026.09.06-1"
 
 # Time. timed is the only process permitted to set the clock; clock is its
 # operator command. There is deliberately no NTP server here — that is a
@@ -132,7 +149,7 @@ timed = ">= 0.1.0"
 clock = ">= 0.1.0"
 
 # The web session host.
-atriumd = ">= 0.0.24"
+"dev.peios.atrium" = ">= 0.0.25-2"
 
 # The PNP viewer (PEI-598): network observation, starting as the packet
 # viewer. Experimental-edition development tooling; whether it survives into
@@ -140,30 +157,31 @@ atriumd = ">= 0.0.24"
 pnpd = ">= 0.1.0"
 
 # Device firmware (PEI-466). Unconditional: see above.
-firmware-iwlwifi         = ">= 20260810"
-firmware-atheros         = ">= 20260810"
-firmware-mediatek        = ">= 20260810"
-firmware-realtek         = ">= 20260810"
-firmware-broadcom        = ">= 20260810"
-firmware-marvell         = ">= 20260810"
-firmware-ralink          = ">= 20260810"
-firmware-amd-graphics    = ">= 20260810"
-firmware-amd-platform    = ">= 20260810"
-firmware-intel-graphics  = ">= 20260810"
-firmware-intel-platform  = ">= 20260810"
-firmware-intel-sound     = ">= 20260810"
-firmware-nvidia-graphics = ">= 20260810"
-firmware-audio-codecs    = ">= 20260810"
-firmware-nic             = ">= 20260810"
-firmware-storage         = ">= 20260810"
-firmware-misc            = ">= 20260810"
-"org.sofproject.sof-firmware" = ">= 2025.12.2"
+"org.kernel.linux-firmware-iwlwifi"         = ">= 20260810-3"
+"org.kernel.linux-firmware-atheros"         = ">= 20260810-3"
+"org.kernel.linux-firmware-mediatek"        = ">= 20260810-3"
+"org.kernel.linux-firmware-realtek"         = ">= 20260810-3"
+"org.kernel.linux-firmware-broadcom"        = ">= 20260810-3"
+"org.kernel.linux-firmware-marvell"         = ">= 20260810-3"
+"org.kernel.linux-firmware-ralink"          = ">= 20260810-3"
+"org.kernel.linux-firmware-amd-graphics"    = ">= 20260810-3"
+"org.kernel.linux-firmware-amd-platform"    = ">= 20260810-3"
+"org.kernel.linux-firmware-intel-graphics"  = ">= 20260810-3"
+"org.kernel.linux-firmware-intel-platform"  = ">= 20260810-3"
+"org.kernel.linux-firmware-intel-sound"     = ">= 20260810-3"
+"org.kernel.linux-firmware-nvidia-graphics" = ">= 20260810-3"
+"org.kernel.linux-firmware-audio-codecs"    = ">= 20260810-3"
+"org.kernel.linux-firmware-nic"             = ">= 20260810-3"
+"org.kernel.linux-firmware-storage"         = ">= 20260810-3"
+"org.kernel.linux-firmware-misc"            = ">= 20260810-3"
+"org.sofproject.sof-firmware" = ">= 2025.12.2-4"
 
 # The os-release file generated by the build, plus its compat symlink in the
 # vendor config layer (/usr/etc, the bottom of the /etc merge — packages never
 # write /etc directly). `:` sources from the main build's stage; an exact
 # (non-glob) source maps to its exact destination path.
 [files]
+"docs/LICENSE"                   = "usr/share/licenses/dev.peios.peios-experimental/LICENSE"
 ":usr/lib/os-release"           = "usr/lib/os-release"
 ":usr/etc/os-release"           = "usr/etc/os-release"
 ":usr/share/peios/release.toml" = "usr/share/peios/release.toml"

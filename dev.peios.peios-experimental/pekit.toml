@@ -1,4 +1,4 @@
-# peios-experimental — the Peios Experimental edition.
+# dev.peios.peios-experimental — the Peios Experimental edition.
 #
 # This package IS the release. Its version is the OS version (2026.8), its
 # dependency closure is the base system, and installing it into an empty root
@@ -114,3 +114,29 @@ install_autoapply = [
 ]
 EOF
 """
+
+# The build is small, but it is still hermetic: every command it executes is
+# present in both reference environments rather than inherited from the host.
+[build.dependencies.peipkg]
+"org.git.kernel.dash"    = ">= 0.5.13.5-3"
+"dev.peios.peiosutils"   = ">= 0.8.5-1"
+
+[build.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+
+# Parse both public data formats rather than only checking that files exist.
+# This catches malformed shell quoting in os-release, malformed TOML, missing
+# policy seeds, accidental autoapply reclassification, and a broken compat
+# symlink before an edition artifact is signed.
+[test]
+needs = ["main"]
+command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" python3 tests/test-release.py'
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = ">= 0.5.13.5-3"
+"org.python.python3" = ">= 3.14.7-4"
+
+[test.dependencies.apt]
+dash    = "*"
+python3 = "*"
