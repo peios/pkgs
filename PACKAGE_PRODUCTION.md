@@ -15,16 +15,14 @@ later bootstrap/version lanes into their parent toolchain families and predate
 the Experimental migration trampoline; physical directory counts are now the
 authoritative inventory.
 
-The upstream/dependency functional pass is complete, with the new IANA tzdata,
-musl sysroot, and Rust musl-target artifacts awaiting publication. A subsequent
-audit with Pekit `1ed76c7` found that the installed audit binaries were stale
-and had hidden 326 findings from the current workspace lint policy. The tree has
-now been remediated to **121 static-clean recipes out of 121**. The obsolete
-pre-Peinit `mockinit` fixture was deleted rather than published as a package.
-Versioned payload lint still requires a staged build and therefore remains part
-of each future build/publication gate rather than being inferred from this
-static result. The remaining first-party work is the explicit product,
-provenance, push, and publication decisions recorded below.
+The production pass is complete. All **119 public recipes** have been audited,
+built through their applicable release gates, signed, and published. The two
+remaining physical recipes, `peios-dwe` and `peios-kernel-only`, are intentional
+private image/test fixtures and are excluded from public publication. The tree
+is **121 static-clean recipes out of 121**. The obsolete pre-Peinit `mockinit`
+fixture was deleted rather than promoted into the catalogue. Versioned payload
+lint still requires a staged build and remains part of each future release gate;
+the static result does not replace it.
 
 ## First-party namespace and acceptance
 
@@ -77,20 +75,23 @@ A completed upstream package normally has all of the following:
 - Physical inventory: **121 recipes**: **93 upstream/dependency** and **28
   Peios-owned** (25 `dev.peios.*` directories plus `peios-dwe`,
   `peios-experimental-migration`, and `peios-kernel-only`).
-- Current first-party publication baseline: **14 / 28** recipes are both
-  production-closed and published: Atrium, authd, build-essentials, coldplug,
-  disk-boot, eventd, Dynamic Boot, fsbase, kernel, libpeios, librsi, live-boot,
-  peios-install, and peiosutils.
-- Eight more first-party recipes are locally production-ready but not
-  published: Loregd, Netd, Peinit, the combined installer/OOBE family, Prelude,
-  Resolvd, Timed, and Trustd.
-- The two Experimental edition recipes are locally closed but wait on their
-  unpublished dependency floors. PNPd intentionally remains installed and
-  autoapplied because Experimental is the development-machine image; Peipkg
-  still needs its licence decision, and `peios-dwe` and `peios-kernel-only`
-  are intentionally private.
-- Repository after publishing and independently verifying Go 1.26.5:
-  index version 217, with 867 active and 1,700 archived entries.
+- Public production inventory: **119 / 119 published**. This is all 93
+  upstream/dependency recipes and 26 public Peios-owned recipes. The two
+  non-public Peios-owned fixtures remain available locally by design.
+- Signed repository: **index version 234**, with **938 active** and **1,830
+  archived** entries. Full canonical and cryptographic verification reports no
+  problems.
+- Kernel: all 41 packages are active at `0.20.1-rc13-3`. The metadata-only
+  repair advanced 15 exact family edges and 40 legacy provides while preserving
+  every payload and replacement bound; two deterministic repacks and an
+  independent package-by-package audit passed before the atomic publication.
+- Experimental migration: `dev.peios.peios-experimental 2026.8-14` and the
+  one-use `peios-experimental 2026.8-10` bridge are published. An unprivileged
+  Peiso composition installed the legacy 97-package root with 4,405 security
+  xattrs recorded rather than applied; the post-publication Peipkg dry run
+  removes the legacy edition and selects only the qualified successor. A fresh
+  Peiso composition then produced the qualified 101-package closure, with zero
+  `security.peios.*` attributes written to the host filesystem.
 - Current static recipe gate, using a freshly built current Pekit: **121
   succeeded, 0 failed, 0 skipped**. Every remaining recipe is static-clean.
   The earlier `pekit/out/pekit`
@@ -128,7 +129,7 @@ signed artifacts passed the strict container verifier, and canonical archive
 plus cryptographic repository verification reports no problems at index 217
 (867 active, 1,700 archived).
 
-## Kernel production release: 0.20.1-rc13-2
+## Kernel production release: 0.20.1-rc13-3
 
 The delegated `dev.peios.kernel` recipe now publishes forty binary package
 definitions plus one generated corresponding-source package from immutable PKM
@@ -147,14 +148,21 @@ provides `python3-config`, and exactly two reviewed cpupower invocations receive
 the private GNU `install` path. The matching source-tree corrections are
 retained for the next PKM release.
 
-An earlier partial publication had already consumed revision `-1`; repository
-immutability correctly rejected replacement artifacts. The production rebuild
-therefore uses one shared catalogue overlay to advance the whole family to
-revision `-2`, retaining the old history. All 41 signed artifacts passed the
-strict container verifier, and canonical archive plus cryptographic repository
-verification reports no problems at index 216 (863 active, 1,696 archived).
-Catalogue commit: `fb6cb22`. The matching next-release PKM build-closure fix is
-local commit `28aae2f` on `production/kernel`.
+The `-2` publication exposed stale generated metadata during the real edition
+migration test: all 40 compatibility provides and 15 exact intra-family edges
+still named revision `-1`. Catalogue overlays now advance those fields and the
+family revision together. Because the payload build was already accepted, the
+repair used Peipkg's canonical packer to re-sign the verified `-2` payloads
+without rebuilding them. Every `files.json`, installed size, file hash, symlink,
+and replacement bound is identical to `-2`; only the family revision, those 55
+relations, clean recipe reference, build timestamp, and source-package
+description changed. Two independent repacks were byte-identical, and a second
+reviewer verified all 41 package pairs and signatures before publication.
+
+The family was published atomically at repository index 232 and the complete
+repository verified cleanly afterward. Final catalogue commit and recipe
+reference: `7dbdd9c90e65d8208fc733a27052061980ace713`. The matching next-release PKM
+build-closure fix remains local commit `28aae2f` on `production/kernel`.
 
 ## Peios installer production release: 0.3.0-8
 
@@ -480,57 +488,37 @@ All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
 verification. Full repository verification at index 214 reports 822 active
 and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
-## Experimental edition closure: 2026.8-12 plus legacy migration
+## Experimental edition closure: 2026.8-14 plus legacy migration
 
-`dev.peios.peios-experimental` revision 12 retains revision 11's audited 55
-direct release edges: 31 canonical `dev.peios.*` packages, 22 qualified
-upstream packages, and exactly two documented historical first-party
-identities, `peipkg` and `pnpd`. Its migration contract is now explicit. The
-qualified package provides the compatibility capability at its exact revision,
-replaces `peios-experimental <= 2026.8-10`, conflicts with every installed
-legacy edition, and requires `dev.peios.peiosutils >= 0.8.6-1` so every system
-that has completed the transition also has a concrete-name-aware upgrader.
+`dev.peios.peios-experimental 2026.8-14` uses qualified identities for every
+first-party dependency, including public Peipkg 0.1.3 and PNPd 0.5.1. PNPd is
+intentionally installed and autoapplied because Experimental is the
+development-machine edition; that decision does not approve its current
+listener for a future production profile.
 
-An already-shipped upgrader cannot use that new logic on its first run: it
-still asks Peipkg to upgrade the concrete name `peios-experimental`, and named
-upgrades intentionally never follow `provides`. The final legacy concrete
-release, `peios-experimental 2026.8-10`, is therefore a dependency-only
-migration trampoline requiring `dev.peios.peios-experimental >= 2026.8-12`.
-When it is selected over an installed legacy revision, the successor's bounded
-`replaces` edge removes the old edition and the candidate trampoline in the
-same transaction. The trampoline is absent from the final world. The matching
-conflict makes a direct empty-root installation fail closed instead of leaving
-both identities installed; the resolver regression exercises the real
-x86_64-to-noarch bridge, exact final plan, direct-install rejection, and the
-next ordinary upgrade of the qualified concrete name.
+The qualified edition provides its historical name, replaces
+`peios-experimental <= 2026.8-10`, and conflicts with any remaining concrete
+legacy package. The final `peios-experimental 2026.8-10` package is a
+dependency-only trampoline to the qualified edition. It is selected when an
+old concrete-name installation is upgraded, but the successor's replacement
+edge removes both the installed legacy revision and the candidate bridge from
+the final transaction. Peiosutils 0.8.6 drives the transition by installing
+the qualified concrete name for a legacy system and upgrading that name on
+subsequent releases.
 
-Peiosutils 0.8.6 then makes the steady-state behavior unambiguous. It derives
-both names from `os-release`, reads the installed package identity through
-`peipkg list --json`, installs the qualified package only when the legacy name
-is present, upgrades the qualified concrete name thereafter, and refuses
-both/neither inconsistent states. Four focused Rust tests, strict targeted
-Clippy, and the full Debian-reference package-family build pass; the latter
-also runs the upgrader tests and installed `upgrade-peios --help` smoke and
-emits runtime, common, debuginfo, and debugsource packages. The integrated
-Peiosutils source commit is `a64a91422`, and tag `v0.8.6` remains local. The
-integrated Peipkg resolver regression is commit `1eb2261`; the user-facing
-migration documentation is learn commit `cdea360`.
+The qualified package was published first at index 233 and the bridge second at
+index 234. Before publication, Peiso composed the still-active legacy
+2026.8-9 root from the signed repository. After publication, Peipkg's dry-run
+upgrade produced the exact intended identity transition and the production
+Installer/OOBE split. A fresh Peiso root then resolved and composed the
+qualified edition. Peiso records `security.peios.sig` and `security.peios.sd`
+for the image writer, so both compositions remained unprivileged and wrote no
+security attributes onto the host filesystem.
 
-Both edition recipes pass their Debian-reference tests and package builds.
-The qualified recipe lints with zero findings and its one established
-architecture exception; the intentionally legacy-named trampoline has zero
-unallowed findings and two justified name-style findings. Nothing in this
-closure has been pushed or published. Publication must be ordered: push the
-Peiosutils source commit and immutable tag, regenerate the catalogue lock from
-that public tag, publish Peiosutils 0.8.6, then publish the qualified edition
-before exposing the legacy trampoline in the same repository release. The
-final repository-resolver/compose gate also still waits for the other locally
-productionized first-party artifacts, the Peipkg licence decision, and PNPd's
-public qualified source provenance. PNPd's place in this edition is settled:
-Experimental is a development-machine image, so it intentionally installs and
-autoapplies the viewer service.
+## Historical first-party state before final publication
 
-## Current first-party state
+This snapshot is retained as the campaign history. The authoritative current
+state is the checkpoint at the top of this file.
 
 Published and production-closed:
 
@@ -562,7 +550,11 @@ Explicit decisions or exclusions:
   source provenance.
 - `peios-dwe` and `peios-kernel-only` are intentionally non-public fixtures.
 
-## Follow-ups and known blockers
+## Historical follow-ups and resolved blockers
+
+This ledger accumulated issues throughout the campaign. Entries are retained
+for provenance; many were resolved by the releases recorded above and must not
+be read as the current publication state.
 
 - Three dependency package families are locally production-ready but absent from
   repository index 217: `org.iana.tzdata` 2026c-1,
