@@ -1,0 +1,10 @@
+# PNPd owns its hermetic build, package split, tests, hardening gates, and
+# source/debug artifacts. Publication remains blocked twice over: this source
+# repository has no public immutable release, and the current SYSTEM service
+# exposes unauthenticated observation and policy mutation on TCP 8081.
+
+out_dir = "out"
+delegate = true
+
+[source.local]
+path = "../../pnp"

@@ -1,5 +1,0 @@
-out_dir = "out"
-delegate = true
-
-[source.local]
-path = "../../pnp"
