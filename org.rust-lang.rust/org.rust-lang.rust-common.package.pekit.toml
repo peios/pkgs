@@ -4,7 +4,7 @@ architecture = "noarch"
 description  = "Rust compiler-suite licenses and installed-component inventories"
 
 [provides]
-rust-license = "{{version}}-2"
+rust-license = "{{version}}-3"
 
 [files]
 "@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-common/COPYRIGHT"

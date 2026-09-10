@@ -3,12 +3,14 @@ name         = "org.rust-lang.rust-src"
 description  = "Rust standard-library source for rust-analyzer and kernel builds"
 
 [provides]
-rust-src = "{{version}}-2"
+rust-src = "{{version}}-3"
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-2"
-"org.rust-lang.rust-common" = "= {{version}}-2"
+"org.rust-lang.rustc"       = "= {{version}}-3"
+"org.rust-lang.rust-common" = "= {{version}}-3"
 
 [files]
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-src/LICENSE-APACHE"
+"@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rust-src/LICENSE-MIT"
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src"
 ":usr/lib/x86_64-linux-peios/rustlib/src/**" = "usr/lib/x86_64-linux-peios/rustlib/src"

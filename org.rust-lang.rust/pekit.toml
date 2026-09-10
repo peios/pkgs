@@ -28,15 +28,35 @@ url          = "{{source_url}}.asc"
 fingerprints = ["108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"]
 
 [build.main]
+clear_out = false
 command = '''
 set -eu
 SRC="$(pwd -P)"
 TRIPLET=x86_64-unknown-linux-gnu
+MUSL_TARGET=x86_64-unknown-linux-musl
 TRIPLET_DIR=/usr/lib/x86_64-linux-peios
 STAGE0="$TRIPLET_DIR/rust-stage0"
+MUSL_ROOT="$TRIPLET_DIR/musl"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 export LD_LIBRARY_PATH="$TRIPLET_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# The native Peios compiler is also the musl cross compiler. Keep libunwind's
+# target build away from the host glibc headers while retaining GCC's builtin
+# headers and the distribution hardening/debug-path policy. A plain native C++
+# invocation otherwise compiles libunwind against glibc's fortified API and
+# leaves unresolved __*_chk references in the musl archive.
+GCC_INCLUDE=$(cc -print-file-name=include)
+test -d "$GCC_INCLUDE"
+MUSL_CFLAGS="-O2 -g -pipe -fstack-protector-strong -fcf-protection=full -nostdinc -isystem $MUSL_ROOT/include -isystem $GCC_INCLUDE -ffile-prefix-map=$SRC=/usr/src/debug/org.rust-lang.rust/source"
+export CFLAGS_x86_64_unknown_linux_musl="$MUSL_CFLAGS"
+export CXXFLAGS_x86_64_unknown_linux_musl="$MUSL_CFLAGS"
+
+# Keep x.py's compiler cache and validated install across package/test
+# invocations. Transient post-install state is always regenerated below.
+rm -rf "$PEKIT_OUT/etc" "$PEKIT_OUT/.rust-smoke" \
+  "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
+  "$PEKIT_OUT/.debug-buildids" "$PEKIT_OUT/.debug-elfs"
 
 test -x "$STAGE0/bin/rustc" || {
   echo "rust: build root is missing org.rust-lang.rust-stage0" >&2
@@ -47,6 +67,13 @@ command -v llvm-config >/dev/null || {
   echo "rust: build root is missing llvm-config" >&2
   exit 1
 }
+test -s "$MUSL_ROOT/lib/libc.a" || {
+  echo "rust: build root is missing org.libc.musl-sysroot" >&2
+  exit 1
+}
+for crt in crt1.o Scrt1.o rcrt1.o crti.o crtn.o; do
+  test -s "$MUSL_ROOT/lib/$crt"
+done
 
 # Rust's source tree is authoritative for the bootstrap compiler. Fail before
 # the expensive build if the package seed and source contract ever diverge.
@@ -74,7 +101,7 @@ change-id = 158169
 [build]
 build = "$TRIPLET"
 host = ["$TRIPLET"]
-target = ["$TRIPLET"]
+target = ["$TRIPLET", "$MUSL_TARGET"]
 rustc = "$STAGE0/bin/rustc"
 cargo = "$STAGE0/bin/cargo"
 build-dir = "$PEKIT_OUT/build"
@@ -107,11 +134,45 @@ llvm-config = "/usr/bin/llvm-config"
 # selected installed-tree tests never execute it. LLVM's test utility is not a
 # runtime or link dependency of the compiler.
 llvm-filecheck = "/usr/bin/true"
+
+[target.$MUSL_TARGET]
+# This private, source-built sysroot supplies only libc and startup objects.
+# x.py copies them into rustlib/self-contained; installed target programs never
+# depend on a host rustup cache or a system-wide musl runtime.
+musl-root = "$MUSL_ROOT"
+cc = "/usr/bin/cc"
+cxx = "/usr/bin/c++"
 EOF
 
-cd "$SRC"
-DESTDIR="$PEKIT_OUT" python3 x.py install \
-  --config "$PEKIT_OUT/config.toml" -j"$(nproc)"
+# Avoid rebuilding the self-hosted compiler merely to repeat packaging or its
+# independent test. The stamp covers every input outside config.toml that can
+# alter x.py's output; a clean source/version has its own Pekit output root.
+# Target C/C++ flags are not part of x.py's native-libunwind cache key, so a
+# changed contract also removes that small target slice before rebuilding.
+BUILD_STAMP="$PEKIT_OUT/.xpy-install.stamp"
+BUILD_CONTRACT=$(
+  {
+    sha256sum "$PEKIT_OUT/config.toml"
+    printf '%s\n' "$RUSTFLAGS_NOT_BOOTSTRAP" "$MUSL_CFLAGS"
+  } | sha256sum | awk '{print $1}'
+)
+if test -x "$PREFIX/bin/rustc" && \
+   test -s "$PEKIT_OUT$TRIPLET_DIR/rustlib/manifest-rustc" && \
+   test -s "$PEKIT_OUT$TRIPLET_DIR/rustlib/manifest-rust-std-$MUSL_TARGET" && \
+   test "$(cat "$BUILD_STAMP" 2>/dev/null || :)" = "$BUILD_CONTRACT"; then
+  echo "rust: reusing validated x.py install"
+else
+  rm -rf "$PEKIT_OUT/usr"
+  rm -rf "$PEKIT_OUT/build/$TRIPLET/stage1-std/$MUSL_TARGET" \
+    "$PEKIT_OUT/build/$MUSL_TARGET/native/libunwind"
+  cd "$SRC"
+  DESTDIR="$PEKIT_OUT" python3 x.py install \
+    --config "$PEKIT_OUT/config.toml" -j"$(nproc)"
+  test -x "$PREFIX/bin/rustc"
+  test -s "$PEKIT_OUT$TRIPLET_DIR/rustlib/manifest-rustc"
+  test -s "$PEKIT_OUT$TRIPLET_DIR/rustlib/manifest-rust-std-$MUSL_TARGET"
+  printf '%s\n' "$BUILD_CONTRACT" > "$BUILD_STAMP"
+fi
 
 # Relocate Cargo's bash completion from upstream's mutable /etc location into
 # the immutable vendor tree. Rust-installer bookkeeping and debugger wrappers
@@ -127,6 +188,35 @@ rm -rf "$PEKIT_OUT/etc" "$PREFIX/etc" "$PEKIT_OUT/usr/lib/rustlib" \
 rm -f "$PEKIT_OUT$TRIPLET_DIR/rustlib/uninstall.sh" \
   "$PEKIT_OUT$TRIPLET_DIR/rustlib/install.log" \
   "$PREFIX/bin/rust-gdb" "$PREFIX/bin/rust-gdbgui" "$PREFIX/bin/rust-lldb"
+
+# Rust's installer leaves its generated manual pages uncompressed. Normalize
+# them deterministically for the immutable package payload and man-db.
+find "$PREFIX/share/man" -type f ! -name '*.gz' -print |
+while IFS= read -r manual; do
+  gzip -9n "$manual"
+done
+test -z "$(find "$PREFIX/share/man" -type f ! -name '*.gz' -print -quit)"
+
+# x.py emits a musl libstd dylib alongside the static target libraries, but
+# Peios deliberately does not ship a process-wide musl loader/runtime. Keep the
+# target honest and self-contained by dropping that unusable dynamic variant
+# and its installer-manifest entry.
+MUSL_MANIFEST="$PEKIT_OUT$TRIPLET_DIR/rustlib/manifest-rust-std-$MUSL_TARGET"
+test -s "$MUSL_MANIFEST"
+find "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib" \
+  -maxdepth 1 -type f -name '*.so' -print |
+while IFS= read -r dylib; do
+  rel=${dylib#"$PREFIX/"}
+  sed -i "\\|^file:$rel$|d" "$MUSL_MANIFEST"
+  rm -f "$dylib"
+done
+test -z "$(find "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib" \
+  -maxdepth 1 -type f -name '*.so' -print -quit)"
+if nm -u "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib/self-contained/libunwind.a" |
+   grep -Eq '__[^[:space:]]*_chk$'; then
+  echo "rust: musl libunwind contains glibc fortified references" >&2
+  exit 1
+fi
 
 # Exercise the installed toolchain as downstream users see it. This checks the
 # compiler, linker, standard library, Cargo's offline build path, rustfmt and
@@ -171,6 +261,25 @@ test -s "$SMOKE/doc/peios_rust_smoke/index.html"
 CARGO_HOME="$SMOKE/cargo-home" cargo build --offline --locked --release \
   --manifest-path "$SMOKE/Cargo.toml"
 test "$("$SMOKE/target/release/peios-rust-smoke")" = peios-rust-ok
+
+# Prove the newly built target works without rustup or network state. Cargo's
+# empty dependency graph still exercises target selection and locked/offline
+# mode; the ELF checks establish a self-contained static PIE rather than a
+# dynamically linked executable which merely happens to use musl headers.
+MUSL_RUSTFLAGS="${RUSTFLAGS:-} -Zcf-protection=full -C relocation-model=pic -C link-self-contained=yes -C link-arg=-static-pie -C link-arg=-Wl,-z,ibt -C link-arg=-Wl,-z,shstk"
+CARGO_HOME="$SMOKE/cargo-home" CARGO_TARGET_DIR="$SMOKE/target-musl" \
+  RUSTC_BOOTSTRAP=1 RUSTFLAGS="$MUSL_RUSTFLAGS" cargo build --offline --locked --release \
+  --target "$MUSL_TARGET" --manifest-path "$SMOKE/Cargo.toml"
+MUSL_BIN="$SMOKE/target-musl/$MUSL_TARGET/release/peios-rust-smoke"
+test "$("$MUSL_BIN")" = peios-rust-ok
+readelf -h "$MUSL_BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$MUSL_BIN" | grep 'GNU_STACK' | grep -q ' RW '
+readelf -lW "$MUSL_BIN" | grep -q 'GNU_RELRO'
+readelf -dW "$MUSL_BIN" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+readelf -dW "$MUSL_BIN" | grep -q '(RELR)'
+readelf -nW "$MUSL_BIN" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+if readelf -lW "$MUSL_BIN" | grep -q INTERP; then exit 1; fi
+if readelf -dW "$MUSL_BIN" | grep -q NEEDED; then exit 1; fi
 rm -rf "$SMOKE"
 
 # Record the precise Rust crates linked into each installed component, following
@@ -391,6 +500,8 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 # minor line. The upper bound is rendered from the compiler being built, so a
 # point release cannot accidentally select the same-minor compiler as stage0.
 "org.rust-lang.rust-stage0" = ">= 1.97.1, < {{major}}.{{minor}}"
+"org.libc.musl-sysroot"    = ">= 1.2.6"
+"org.gnu.gcc-libatomic-static" = ">= 16"
 python3                      = "*"
 llvm                         = ">= 22.1.6, < 23"
 "llvm-devel"                = ">= 22.1.6, < 23"
@@ -399,6 +510,7 @@ llvm                         = ">= 22.1.6, < 23"
 pkgconf                      = "*"
 "openssl-devel"             = "*"
 debugedit                    = "*"
+gzip                         = "*"
 
 # The final self-hosted compiler is a peipkg-rung build: Debian does not carry
 # the exact private stage0 prefix. These entries retain the declared non-seed
@@ -412,3 +524,79 @@ libzstd-dev     = "*"
 pkg-config      = "*"
 libssl-dev      = "*"
 debugedit       = "*"
+gzip            = "*"
+
+[test]
+needs = ["main"]
+command = '''
+set -eu
+TRIPLET=x86_64-unknown-linux-gnu
+MUSL_TARGET=x86_64-unknown-linux-musl
+PREFIX="$PEKIT_MAIN_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/rust-installed-test"
+export PATH="$PREFIX/bin:$PATH"
+export LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+test "$(rustc --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$(cargo --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$(rustc --version --verbose | sed -n 's/^host: //p')" = "$TRIPLET"
+
+mkdir -p "$SMOKE/src" "$SMOKE/cargo-home"
+cat > "$SMOKE/src/main.rs" <<'RS'
+fn main() {
+    println!("peios-rust-test-ok");
+}
+RS
+cat > "$SMOKE/Cargo.toml" <<'TOML'
+[package]
+name = "peios-rust-installed-test"
+version = "0.0.0"
+edition = "2021"
+
+[profile.release]
+strip = false
+TOML
+cat > "$SMOKE/Cargo.lock" <<'LOCK'
+# This file is automatically @generated by Cargo.
+# It is not intended for manual editing.
+version = 3
+
+[[package]]
+name = "peios-rust-installed-test"
+version = "0.0.0"
+LOCK
+
+CARGO_HOME="$SMOKE/cargo-home" cargo build --offline --locked --release \
+  --manifest-path "$SMOKE/Cargo.toml"
+test "$("$SMOKE/target/release/peios-rust-installed-test")" = peios-rust-test-ok
+
+MUSL_RUSTFLAGS="${RUSTFLAGS:-} -Zcf-protection=full -C relocation-model=pic -C link-self-contained=yes -C link-arg=-static-pie -C link-arg=-Wl,-z,ibt -C link-arg=-Wl,-z,shstk"
+CARGO_HOME="$SMOKE/cargo-home" CARGO_TARGET_DIR="$SMOKE/target-musl" \
+  RUSTC_BOOTSTRAP=1 RUSTFLAGS="$MUSL_RUSTFLAGS" cargo build --offline --locked --release \
+  --target "$MUSL_TARGET" --manifest-path "$SMOKE/Cargo.toml"
+MUSL_BIN="$SMOKE/target-musl/$MUSL_TARGET/release/peios-rust-installed-test"
+test "$("$MUSL_BIN")" = peios-rust-test-ok
+readelf -h "$MUSL_BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$MUSL_BIN" | grep 'GNU_STACK' | grep -q ' RW '
+readelf -lW "$MUSL_BIN" | grep -q 'GNU_RELRO'
+readelf -dW "$MUSL_BIN" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+readelf -dW "$MUSL_BIN" | grep -q '(RELR)'
+readelf -nW "$MUSL_BIN" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+if readelf -lW "$MUSL_BIN" | grep -q INTERP; then exit 1; fi
+if readelf -dW "$MUSL_BIN" | grep -q NEEDED; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"build-essentials-c++"          = "*"
+"org.gnu.gcc-libatomic-static" = ">= 16"
+llvm                            = ">= 22.1.6, < 23"
+zlib                            = ">= 2.3.3"
+"org.openssl.libssl"           = ">= 3.5"
+"org.openssl.libcrypto"        = ">= 3.5"
+
+[test.dependencies.apt]
+build-essential = "*"
+"llvm-18"       = "*"
+zlib1g           = "*"
+libssl3t64       = "*"

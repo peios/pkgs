@@ -1,0 +1,24 @@
+[allow]
+# Like Fedora's source-level rust-debuginfo split, one package owns the build-ID
+# debug corpus for every compiler-suite component. Per-binary-package debug
+# splits would duplicate the same source ownership without improving lookup.
+"elf.debuginfo" = "org.rust-lang.rust-debuginfo centrally owns build-ID symbols for the Rust source package"
+
+# rust-src must preserve Cargo's vendored Cargo.toml.orig metadata and WASI
+# runtime objects for offline build-std. The musl target must also preserve its
+# crt*.o startup inputs for rustc's self-contained static linker.
+"payload.junk" = "rust-src and the musl standard library intentionally ship upstream source metadata and linker input objects"
+
+# These CMake modules are source files inside rust-src's bundled libunwind tree,
+# not installed development integration for consumers of a native library.
+"split.devel.packages" = "rust-src intentionally preserves libunwind CMake source needed by build-std"
+
+# Upstream rustfmt installs no rustfmt(1) or cargo-fmt(1) pages. Their stable
+# command reference is the installed tools' --help output and Rust documentation.
+"payload.manpages.required" = "upstream rustfmt ships no manual pages for rustfmt or cargo-fmt"
+
+# x.py installs rust-src below the host-qualified rustlib prefix and includes
+# upstream WASI runtime object/archive inputs. Pekit's package-format validator
+# therefore correctly requires the package to retain x86_64 architecture even
+# though lint sees the Rust source proper as architecture-independent.
+"package.architecture" = "rust-src occupies the host rustlib prefix and contains upstream target runtime inputs"

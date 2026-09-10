@@ -1,0 +1,19 @@
+[package]
+name        = "org.rust-lang.rust-std-x86-64-unknown-linux-musl"
+description = "Rust standard libraries for static x86_64 Linux musl targets"
+
+[provides]
+rust-std-x86-64-unknown-linux-musl = "{{version}}-3"
+
+[dependencies]
+"org.rust-lang.rust-common" = "= {{version}}-3"
+# Peios GCC injects an as-needed libatomic probe into static links. The target
+# is otherwise self-contained, but the driver must be able to resolve that
+# compiler-runtime archive when rustc invokes it for a final binary.
+"org.gnu.gcc-libatomic-static" = ">= 16"
+
+[files]
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-std-x86-64-unknown-linux-musl/LICENSE-APACHE"
+"@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rust-std-x86-64-unknown-linux-musl/LICENSE-MIT"
+":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-std-x86_64-unknown-linux-musl" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rust-std-x86_64-unknown-linux-musl"
+":usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-musl/**" = "usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-musl"
