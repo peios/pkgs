@@ -67,8 +67,8 @@ A completed upstream package normally has all of the following:
 - Completed: **97 / 114** recipes (85.1%).
 - Current upstream/dependency pass: **86 / 86** recipes (100%).
 - Current first-party pass: **11 / 28 published**, **11 / 28 runtime-closed**.
-- Repository after publishing and independently verifying the qualified
-  installer: index version 206, with 820 active and 1,579 archived entries.
+- Repository after publishing and independently verifying Gettext 1.0-2:
+  index version 214, with 822 active and 1,614 archived entries.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -378,6 +378,26 @@ Published SHA-256 values:
   `24ff6b829b6c1f297801088586e83dd0e68d1b216379f2c27af05604bcf907a4`
 - `dev.peios.eventd-source`:
   `78c0358167763234d5ddef2f576dbeed6bd824572abb19c5ccc8735e290862c2`
+
+## Gettext 1.0-2 glibc 2.44 compatibility refresh
+
+GNU Gettext remains on the newest stable upstream release, 1.0. Its package
+revision 2 replaces the runtime dependency on GNU Coreutils with
+`dev.peios.peiosutils`, while the native build uses the private GNU
+build-compatibility path where upstream's test harness requires GNU-only
+interfaces.
+
+The refresh backports upstream Gnulib commit `ca635799`, which changes the
+`posix_spawn_file_actions_addchdir` probe from a link check to a declaration
+check. Without that fix, glibc 2.44's redirected declaration causes Gettext's
+bundled fallback object to define the `_np` symbol as a jump to itself and
+three Gnulib tests spin indefinitely. With the exact backport, all 672 main
+tests, 14 system tests, and the bundled Gnulib suites complete without a
+failure or deadlock.
+
+All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
+verification. Full repository verification at index 214 reports 822 active
+and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
 ## Remaining current-pass recipes
 
