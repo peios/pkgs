@@ -1,7 +1,7 @@
 # Timed owns its build, package split, tests, hardening gates, and source/debug
-# artifacts. This catalogue entry supplies the intended immutable public
-# release discovery and the local checkout used while that source repository
-# and its protocol-crate dependencies are being released.
+# artifacts in the public source tree. This catalogue entry follows immutable
+# production releases while retaining the local checkout for pre-release
+# qualification.
 
 out_dir = "out"
 delegate = true
@@ -9,9 +9,9 @@ delegate = true
 [source.git]
 url       = "https://github.com/peios/timed.git"
 ref       = "v{{version}}"
-# Soft production floor: earlier artifacts used unqualified names, undeclared
-# sibling sources, incomplete runtime closure, and no source/debug packages.
-versions  = ">= 0.1.1"
+# Soft production floor: earlier artifacts either predate the qualified package
+# family or require an unavailable native Git bootstrap package.
+versions  = ">= 0.1.3"
 tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 
 [source.local]

@@ -640,17 +640,24 @@ Explicit decisions or exclusions:
   that dependency before every compile/test stage switches offline. The
   catalogue now follows and locks the public tag with no provenance allowance.
   Rebuild and publish its seven-package family from that immutable source.
-- `timed` and `trustd` are locally production-ready at source commits
-  `fa1679d` and `0887b81`, with local tags `v0.1.1` and catalogue commits
-  `5b82f1a` and `20dfe9c`. Timed's follow-up removes 7,621 generated fuzz,
-  corpus, and build files (about 596 MiB) while preserving all fuzz sources and
-  manifests, and requires the qualified `dev.peios.peiosutils` runtime rather
-  than its legacy capability name; move its tag after the final Git dependency
-  pins. Their complete
-  native package families passed 117
-  and 26 tests respectively, deterministic rebuilds, installed-service,
-  hardening, debug/source, and strict-format gates. Neither source checkout has
-  a public remote; create the provenance homes before locking and publishing.
+- `timed` is productionized and public at source commit `d40f691` and tag
+  `v0.1.3`. Its main and fuzz graphs pin the public Netd, Resolvd, and Trustd
+  wire crates to exact release commits; acquisition rejects external mutable
+  path dependencies and uses Cargo's built-in HTTPS transport to vendor the
+  complete graph before compilation switches offline, without requiring an
+  unavailable native Git package. Its native closure includes Diffutils for
+  deterministic comparisons and exact vendored licence notices for all three
+  public wire crates. The source checkout passes 117 tests, strict Clippy, and
+  independent fuzz-workspace checks. The catalogue follows and locks the
+  public tag with no provenance allowance; its complete six-package family
+  (clock, clock debuginfo, timed, timed debuginfo, shared debugsource, and
+  corresponding source) passes the native release gate and is staged for
+  publication.
+- `trustd` is productionized and public at source commit `0887b81` and tag
+  `v0.1.1`; its catalogue source is locked at commit `2e40d2a`. Its complete
+  native package family passed 26 tests, deterministic rebuilds,
+  installed-service, hardening, debug/source, and strict-format gates. Rebuild
+  and publish its immutable public source family.
 - `dev.peios.peios-installer` now delegates one productionized source family
   for installerd, install-tui, msip-drive, oobed, oobe-tui, compatibility
   aggregates, debug, and source packages. Installer commit `48fb40c4` and MSIP
