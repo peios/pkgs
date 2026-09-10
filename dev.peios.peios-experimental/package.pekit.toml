@@ -10,9 +10,9 @@ name         = "dev.peios.peios-experimental"
 # and is correctly architecture-bound by its x86_64 dependency closure.
 # -11: close the first-party migration. Prelude, Peinit, Netd, Resolvd, Trustd,
 # Timed, Installer and OOBE now use their production reverse-DNS identities and
-# floors. Peipkg and PNPd remain on their historical names deliberately: their
-# independent legal and network-policy reviews are explicit release blockers,
-# not aliases silently blessed by this edition.
+# floors. Peipkg and PNPd remain on their historical names deliberately. Peipkg
+# still has an independent legal review; PNPd is intentionally part of this
+# development-machine edition while it awaits a public qualified source release.
 # -12: make the qualification reachable from the final legacy-name migration
 # release and require the upgrader that uses the concrete name thereafter.
 version      = "{{version}}-12"
@@ -168,11 +168,12 @@ peipkg        = ">= 0.1.1-8"
 # The web session host.
 "dev.peios.atrium" = ">= 0.0.25-2"
 
-# The PNP viewer (PEI-598): network observation, starting as the packet
-# viewer. Experimental-edition development tooling; whether it survives into
-# production editions, and whether its current unauthenticated development
-# listener is acceptable here, are explicit PNP-shipping decisions. Keep the
-# newest published ABI-4 build as the floor until that decision is made.
+# The PNP viewer (PEI-598): network observation, starting as the packet viewer.
+# Experimental is explicitly the development-machine image, so PNPd is
+# intentionally installed and its pnpd-service seed is autoapplied. This does
+# not approve the unauthenticated listener for a future production profile;
+# such a profile requires a separate least-privilege exposure design. Keep the
+# newest published ABI-4 build as the floor pending its qualified source release.
 pnpd = ">= 0.5.0-1"
 
 # Device firmware (PEI-466). Unconditional: see above.

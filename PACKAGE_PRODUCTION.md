@@ -9,8 +9,8 @@
 Work through every recipe directory in this repository, bringing each public
 package to production standard, validating it on the Debian reference rung and
 the native Peios rung, and publishing signed packages to the local `peios`
-Peipkg repository. The tree currently contains **122 physical recipes**: 93
-upstream/dependency recipes and 29 Peios-owned recipes. Older totals compressed
+Peipkg repository. The tree currently contains **121 physical recipes**: 93
+upstream/dependency recipes and 28 Peios-owned recipes. Older totals compressed
 later bootstrap/version lanes into their parent toolchain families and predate
 the Experimental migration trampoline; physical directory counts are now the
 authoritative inventory.
@@ -19,8 +19,8 @@ The upstream/dependency functional pass is complete, with the new IANA tzdata,
 musl sysroot, and Rust musl-target artifacts awaiting publication. A subsequent
 audit with Pekit `1ed76c7` found that the installed audit binaries were stale
 and had hidden 326 findings from the current workspace lint policy. The tree has
-now been remediated to **121 static-clean recipes out of 122**; the sole failure
-is the explicit delete-versus-test-only decision for obsolete `mockinit`.
+now been remediated to **121 static-clean recipes out of 121**. The obsolete
+pre-Peinit `mockinit` fixture was deleted rather than published as a package.
 Versioned payload lint still requires a staged build and therefore remains part
 of each future build/publication gate rather than being inferred from this
 static result. The remaining first-party work is the explicit product,
@@ -74,10 +74,10 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
-- Physical inventory: **122 recipes**: **93 upstream/dependency** and **29
-  Peios-owned** (25 `dev.peios.*` directories plus `mockinit`, `peios-dwe`,
+- Physical inventory: **121 recipes**: **93 upstream/dependency** and **28
+  Peios-owned** (25 `dev.peios.*` directories plus `peios-dwe`,
   `peios-experimental-migration`, and `peios-kernel-only`).
-- Current first-party publication baseline: **14 / 29** recipes are both
+- Current first-party publication baseline: **14 / 28** recipes are both
   production-closed and published: Atrium, authd, build-essentials, coldplug,
   disk-boot, eventd, Dynamic Boot, fsbase, kernel, libpeios, librsi, live-boot,
   peios-install, and peiosutils.
@@ -85,14 +85,15 @@ A completed upstream package normally has all of the following:
   published: Loregd, Netd, Peinit, the combined installer/OOBE family, Prelude,
   Resolvd, Timed, and Trustd.
 - The two Experimental edition recipes are locally closed but wait on their
-  unpublished dependency floors. PNPd is locally package-ready but retains a
-  security/product decision. Peipkg and mockinit also need product decisions;
-  `peios-dwe` and `peios-kernel-only` are intentionally private.
+  unpublished dependency floors. PNPd intentionally remains installed and
+  autoapplied because Experimental is the development-machine image; Peipkg
+  still needs its licence decision, and `peios-dwe` and `peios-kernel-only`
+  are intentionally private.
 - Repository after publishing and independently verifying Go 1.26.5:
   index version 217, with 867 active and 1,700 archived entries.
-- Current static recipe gate, using a freshly built Pekit `1ed76c7`: **121
-  succeeded, 1 failed, 0 skipped**. The failure is only `mockinit`; every recipe
-  intended for public production is static-clean. The earlier `pekit/out/pekit`
+- Current static recipe gate, using a freshly built current Pekit: **121
+  succeeded, 0 failed, 0 skipped**. Every remaining recipe is static-clean.
+  The earlier `pekit/out/pekit`
   and PATH binaries predated the lint command and must not be used as evidence.
 - Eleven historical locks that predated their configured signature policies
   have been authenticated at unchanged source hashes. Findutils, Debugedit, and
@@ -514,9 +515,11 @@ closure has been pushed or published. Publication must be ordered: push the
 Peiosutils source commit and immutable tag, regenerate the catalogue lock from
 that public tag, publish Peiosutils 0.8.6, then publish the qualified edition
 before exposing the legacy trampoline in the same repository release. The
-final repository-resolver/compose gate
-also still waits for the other locally productionized first-party artifacts,
-the Peipkg licence decision, and the PNPd exposure decision.
+final repository-resolver/compose gate also still waits for the other locally
+productionized first-party artifacts, the Peipkg licence decision, and PNPd's
+public qualified source provenance. PNPd's place in this edition is settled:
+Experimental is a development-machine image, so it intentionally installs and
+autoapplies the viewer service.
 
 ## Current first-party state
 
@@ -543,9 +546,11 @@ Explicit decisions or exclusions:
 
 - `dev.peios.peipkg` is structurally productionized but deliberately fails
   closed until the redistribution terms of two linked Go modules are decided.
-- `mockinit` needs deletion versus a clearly test-only identity.
-- `dev.peios.pnpd` is locally package-ready but needs its public exposure and
-  provenance decisions.
+- The obsolete pre-Peinit `mockinit` fixture has been deleted rather than
+  promoted into the package catalogue.
+- `dev.peios.pnpd` is locally package-ready and intentionally belongs in the
+  Experimental development-machine image; publication still needs public
+  source provenance.
 - `peios-dwe` and `peios-kernel-only` are intentionally non-public fixtures.
 
 ## Follow-ups and known blockers
@@ -562,10 +567,9 @@ Explicit decisions or exclusions:
   debuginfo, debugsource, and corresponding-source family. The public source
   checkout is four commits ahead of `origin/main`; push the reviewed commits
   and tag before generating the immutable remote lock and publishing packages.
-- `mockinit` is explicitly a throwaway, pre-peinit PID-1 stand-in. Publishing
-  it as a production runtime would preserve temporary service and security
-  assumptions that the real peinit has replaced. Decide whether to delete it
-  from the public catalogue or retain it under a clearly test-only identity.
+- The throwaway pre-Peinit `mockinit` PID-1 stand-in has been deleted. Its
+  temporary service and security assumptions are superseded by real Peinit and
+  are not part of the package catalogue.
 - `netd` is locally productionized at source commits `7e258e4` and `301fdab`.
   The follow-up removes two generated fuzz logs from the tracked source and
   prevents their return. Its five-package
@@ -596,9 +600,12 @@ Explicit decisions or exclusions:
   including the final `peios-experimental 2026.8-10` migration trampoline and
   Peiosutils 0.8.6's concrete-name upgrade logic. Repository resolution still
   waits for its unpublished first-party floors. Two direct dependencies remain
-  deliberately unqualified and blocking: Peipkg needs its source-licence
-  decisions, and PNPd needs a product/security disposition for its current
-  unauthenticated development listener. Before either edition package can be
+  deliberately unqualified: Peipkg needs its source-licence decisions, while
+  PNPd awaits a public qualified source release. Experimental is explicitly a
+  development-machine image, so PNPd remains installed and `pnpd-service`
+  remains autoapplied there. This does not approve its current unauthenticated
+  listener for a future production profile, which requires a separate
+  least-privilege exposure design. Before either edition package can be
   published, the local Peiosutils source/tag must be pushed, its catalogue lock
   regenerated, and 0.8.6 published.
 - `dev.peios.peipkg` is structurally productionized at source commits
@@ -615,10 +622,11 @@ Explicit decisions or exclusions:
   post-vendoring builds, byte-identical rebuilds, installed payload/service and
   manual checks, hardening, split-debug, path-remapping, licence-closure, lint,
   and all three emitted strict-format artifacts pass. The source package waits
-  on immutable source discovery. Publication remains blocked on both a public
-  source provenance home and the product/security decision for an unauthenticated
-  SYSTEM daemon that listens on `0.0.0.0:8081` and permits observation and
-  policy mutation.
+  on immutable source discovery and a public provenance home. Its current
+  unauthenticated SYSTEM daemon is intentionally installed and autoapplied only
+  in Experimental, whose role is the development-machine image. Carrying that
+  interface into a future production profile remains unapproved and requires a
+  separate authenticated, least-privilege design review.
 - `prelude` is locally release-ready at source commit `285906f`, unsigned tag
   `v0.0.3`, and catalogue commit `1281f38`. Its native build consumes the
   packaged Rust musl standard library and LLD, passes 40 tests, compares two

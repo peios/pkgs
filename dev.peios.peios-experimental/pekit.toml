@@ -85,6 +85,8 @@ autoapply = [
   "timed-service",
   "timed-policy",
   "atriumd-service",
+  # Experimental is the development-machine image, so its PNP viewer service
+  # is deliberately enabled. This is not a production-profile policy.
   "pnpd-service",
   # The installer engine. Idles until a surface opens a conversation, so it
   # costs a process and nothing else on a system nobody is installing from.

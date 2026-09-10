@@ -140,7 +140,8 @@ historical_first_party_names = {
 }
 assert historical_first_party_names.isdisjoint(dependencies)
 
-# These are explicit blockers rather than forgotten aliases. Delete the
-# exception as each recipe receives its qualified production identity.
+# These are deliberate historical identities rather than forgotten aliases.
+# Peipkg remains blocked on its licence review. PNPd is intentional
+# development-machine tooling in Experimental pending its qualified release.
 assert dependencies["peipkg"] == ">= 0.1.1-8"
 assert dependencies["pnpd"] == ">= 0.5.0-1"
