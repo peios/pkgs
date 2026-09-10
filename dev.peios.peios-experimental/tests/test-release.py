@@ -76,9 +76,9 @@ with recipe_toml.open("rb") as stream:
 
 assert recipe["package"]["name"] == "dev.peios.peios-experimental"
 assert recipe["package"]["architecture"] == "x86_64"
-assert recipe["package"]["version"] == "{{version}}-13"
+assert recipe["package"]["version"] == "{{version}}-14"
 assert recipe["provides"]["peios-release"] == "{{version}}"
-assert recipe["provides"]["peios-experimental"] == "{{version}}-13"
+assert recipe["provides"]["peios-experimental"] == "{{version}}-14"
 assert recipe["replaces"] == {"peios-experimental": "<= 2026.8-10"}
 assert recipe["conflicts"] == {"peios-experimental": "*"}
 
@@ -101,6 +101,7 @@ expected_first_party = {
     "dev.peios.peios-install": ">= 0.3.0-8",
     "dev.peios.peios-installer": ">= 0.1.1-18",
     "dev.peios.peiosutils": ">= 0.8.6-1",
+    "dev.peios.peipkg": ">= 0.1.3-1",
     "dev.peios.pnpd": ">= 0.5.1-2",
     "dev.peios.resolv": ">= 0.1.0-7",
     "dev.peios.resolvd": ">= 0.1.0-7",
@@ -131,7 +132,9 @@ historical_first_party_names = {
     "net",
     "netd",
     "nss-peios-net",
+    "peipkg",
     "peinit",
+    "pnpd",
     "prelude",
     "resolv",
     "resolvd",
@@ -140,8 +143,3 @@ historical_first_party_names = {
     "trustd",
 }
 assert historical_first_party_names.isdisjoint(dependencies)
-
-# This is a deliberate historical identity rather than a forgotten alias.
-# Peipkg remains blocked on its licence review.
-assert dependencies["peipkg"] == ">= 0.1.1-8"
-assert "pnpd" not in dependencies

@@ -21,7 +21,7 @@ assert recipe["package"] == {
     },
 }
 assert recipe["dependencies"] == {
-    "dev.peios.peios-experimental": ">= 2026.8-12"
+    "dev.peios.peios-experimental": ">= 2026.8-14"
 }
 assert "provides" not in recipe
 assert "replaces" not in recipe

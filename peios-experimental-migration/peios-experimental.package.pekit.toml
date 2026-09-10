@@ -13,7 +13,7 @@ homepage      = "https://github.com/peios/pkgs"
 message = "To upgrade Peios use the `upgrade-peios` command."
 
 [dependencies]
-"dev.peios.peios-experimental" = ">= 2026.8-12"
+"dev.peios.peios-experimental" = ">= 2026.8-14"
 
 [files]
 "@recipe:docs/README" = "usr/share/doc/peios-experimental/MIGRATION"

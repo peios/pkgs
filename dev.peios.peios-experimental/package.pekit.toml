@@ -18,7 +18,9 @@ name         = "dev.peios.peios-experimental"
 # -13: follow PNPd's qualified source and package identity at 0.5.1-2; retain
 # Peipkg's historical identity until its independent licence review and
 # qualification release are complete.
-version      = "{{version}}-13"
+# -14: follow Peipkg's qualified 0.1.3 release. Every first-party dependency
+# in the edition now uses its production reverse-DNS identity.
+version      = "{{version}}-14"
 architecture = "x86_64"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -38,7 +40,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # "some Peios"; depend on an edition to mean that edition.
 [provides]
 peios-release = "{{version}}"
-peios-experimental = "{{version}}-13"
+peios-experimental = "{{version}}-14"
 
 [replaces]
 peios-experimental = "<= 2026.8-10"
@@ -94,11 +96,7 @@ peios-experimental = "*"
 "dev.peios.peiosutils" = ">= 0.8.6-1"
 "dev.peios.libpeios"   = ">= 0.5.0-1"
 "org.git.kernel.dash"  = ">= 0.5.13.5-3"
-# Peipkg is the only intentionally unqualified first-party entry left in this
-# release. It cannot move until its two source-licence questions are resolved;
-# use the latest audited/published revision in the meantime rather than
-# allowing an older development build.
-peipkg        = ">= 0.1.1-8"
+"dev.peios.peipkg" = ">= 0.1.3-1"
 "dev.peios.peios-install" = ">= 0.3.0-8"
 
 # The installer proper: installerd (the engine, a SYSTEM service) and
