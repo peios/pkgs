@@ -1,6 +1,5 @@
 [package]
 name         = "org.golang.go-src"
-architecture = "noarch"
 description  = "Go standard-library and toolchain sources required by the Go command"
 
 [provides]

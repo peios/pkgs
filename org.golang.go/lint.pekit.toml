@@ -1,0 +1,4 @@
+[allow]
+"source.signature.required" = "go.dev publishes release hashes over HTTPS but no detached source signatures"
+"elf.pie" = "upstream release cmd/dist deliberately ships the statically linked toolchain as ET_EXEC"
+"elf.cet" = "the upstream Go internal linker does not emit GNU IBT and SHSTK property notes"

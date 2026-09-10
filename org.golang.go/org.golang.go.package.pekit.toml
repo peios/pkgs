@@ -2,7 +2,7 @@ side_effects = ["man-db"]
 
 [package]
 name        = "org.golang.go"
-description = "Go compiler, formatter, build command, and target tools"
+description = "Compiler, formatter, build command, and target tools for Go"
 
 [provides]
 go     = "{{version}}-1"

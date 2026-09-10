@@ -90,7 +90,8 @@ test -d "$GOROOT/src/runtime"
 # As with the bootstrap seed, Go's source tree contains foreign ELF samples
 # for debug-package tests. They are not runtime payload and must not create
 # dependencies for the independently packaged source tree.
-find "$GOROOT/src" -type f -path '*/testdata/*' -exec sh -c '
+SOURCE_TREE="$PEKIT_OUT/usr/share/go/src"
+find "$SOURCE_TREE" -type f -path '*/testdata/*' -exec sh -c '
   for file do
     if readelf -h "$file" >/dev/null 2>&1; then
       rm -f "$file"
@@ -99,8 +100,15 @@ find "$GOROOT/src" -type f -path '*/testdata/*' -exec sh -c '
 ' sh {} +
 # Compiler-importer fixtures are prebuilt archives for other Go releases and
 # architectures. They are test inputs, not part of the installed source API.
-find "$PEKIT_OUT/usr/share/go/src" -type f -path '*/testdata/*' \
-  -name '*.a' -delete
+find "$SOURCE_TREE" -type f -path '*/testdata/*' \
+  \( -name '*.a' -o -name '*.o' \) -delete
+# Repository-only metadata and build scripts for Plan 9 or the vendored npm
+# development workflow do not participate in compiling installed Go programs.
+find "$SOURCE_TREE" -type f -name .gitignore -delete
+rm -f "$SOURCE_TREE/all.rc" "$SOURCE_TREE/clean.rc" \
+  "$SOURCE_TREE/make.rc" "$SOURCE_TREE/run.rc" \
+  "$SOURCE_TREE/cmd/vendor/golang.org/x/telemetry/npm" \
+  "$SOURCE_TREE/cmd/vendor/golang.org/x/telemetry/npx"
 
 # Upstream deliberately builds release toolchains with -ldflags=-w and
 # -gcflags=cmd/...=-dwarf=false. Preserve that release policy rather than
