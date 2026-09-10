@@ -24,8 +24,10 @@ architecture  = "consistent"
 reproducible          = true
 discovery             = true
 # A floor, never a ceiling: discovery must keep following new releases
-# unattended. `< x` bounds are a review decision recorded in the recipe.
+# unattended, so a `< x` bound is a finding, not a review decision. A new
+# major is reviewed when it arrives.
 versions.floor        = true
+versions.ceiling      = "none"
 ref                   = "immutable"
 url.scheme            = "https"
 lock                  = true
