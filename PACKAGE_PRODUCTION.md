@@ -582,7 +582,9 @@ Explicit decisions or exclusions:
   `v0.0.2`, and catalogue commit `a9fbb45`. The Debian reference and native
   builds close its generated C ABI and runtime tool dependencies, pass 1,067
   tests plus all-feature and ABI gates, and emit six strict-format runtime,
-  library, development, debug, and svctl artifacts. Its public checkout is
+  library, development, debug, and svctl artifacts. The broken ignored `out`
+  link to a retired validation worktree was removed, so those six artifacts
+  must be regenerated from the final public tag rather than reused. Its public checkout is
   ahead of `origin/main`; push the reviewed commits and moved local tag before
   generating the immutable remote lock and publishing.
 - `peios-dwe` and `peios-kernel-only` are intentionally non-public recipes.
@@ -631,10 +633,12 @@ Explicit decisions or exclusions:
   still waits on public Resolvd and Netd repositories so the remaining local
   libnetd edge can become an immutable Netd revision.
 - `timed` and `trustd` are locally production-ready at source commits
-  `c702252` and `0887b81`, with local tags `v0.1.1` and catalogue commits
+  `fa1679d` and `0887b81`, with local tags `v0.1.1` and catalogue commits
   `5b82f1a` and `20dfe9c`. Timed's follow-up removes 7,621 generated fuzz,
   corpus, and build files (about 596 MiB) while preserving all fuzz sources and
-  manifests; move its tag after the final Git dependency pins. Their complete
+  manifests, and requires the qualified `dev.peios.peiosutils` runtime rather
+  than its legacy capability name; move its tag after the final Git dependency
+  pins. Their complete
   native package families passed 117
   and 26 tests respectively, deterministic rebuilds, installed-service,
   hardening, debug/source, and strict-format gates. Neither source checkout has
