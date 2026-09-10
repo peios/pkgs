@@ -17,6 +17,7 @@ delegate = true
 [source.git]
 url = "https://github.com/peios/peinit.git"
 ref = "v{{version}}"
+tag_regex = '^v[0-9]+\.[0-9]+\.[0-9]+$'
 # v0.0.2 is the first immutable, self-contained production package family.
 # The floor is soft: future releases are discovered automatically.
 versions = ">=0.0.2"
