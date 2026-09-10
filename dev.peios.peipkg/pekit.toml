@@ -1,0 +1,19 @@
+# Peipkg owns the build, tests, package boundaries, debug payloads, and
+# licence-closure gate in its public source tree. This catalogue entry supplies
+# immutable release discovery and the qualified Peios package identity.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/peipkg.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft production floor: v0.1.2 is the first release whose delegated recipe
+# emits the qualified, independently installable production package family.
+versions  = ">= 0.1.2"
+
+# Local working copy for explicit development builds only. Release builds
+# always materialize the immutable public tag selected above.
+[source.local]
+path = "../../peipkg"
