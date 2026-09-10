@@ -1,0 +1,18 @@
+# Prelude is the Peios initramfs runtime (PID 1, seed-sd, and the hook logging
+# ABI). The public source release owns its hermetic build, package split,
+# tests, hardening gates, and source/debug artifacts; this catalogue entry
+# supplies immutable release discovery and the local qualification checkout.
+
+out_dir = "out"
+delegate = true
+
+[source.git]
+url       = "https://github.com/peios/prelude.git"
+ref       = "v{{version}}"
+# Soft production floor: earlier tags predate the qualified reverse-DNS
+# package family, vendored offline source closure, and release validation.
+versions  = ">= 0.0.3"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+
+[source.local]
+path = "../../prelude"
