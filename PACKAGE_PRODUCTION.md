@@ -15,10 +15,16 @@ later bootstrap/version lanes into their parent toolchain families and predate
 the Experimental migration trampoline; physical directory counts are now the
 authoritative inventory.
 
-The upstream/dependency code pass is complete, with the new IANA tzdata, musl
-sysroot, and Rust musl-target artifacts awaiting publication. The first-party
-implementation pass is also locally exhausted; the remaining work is the
-explicit product, provenance, push, and publication decisions recorded below.
+The upstream/dependency functional pass is complete, with the new IANA tzdata,
+musl sysroot, and Rust musl-target artifacts awaiting publication. A subsequent
+audit with Pekit `1ed76c7` found that the installed audit binaries were stale
+and had hidden 326 findings from the current workspace lint policy. The tree has
+now been remediated to **121 static-clean recipes out of 122**; the sole failure
+is the explicit delete-versus-test-only decision for obsolete `mockinit`.
+Versioned payload lint still requires a staged build and therefore remains part
+of each future build/publication gate rather than being inferred from this
+static result. The remaining first-party work is the explicit product,
+provenance, push, and publication decisions recorded below.
 
 ## First-party namespace and acceptance
 
@@ -51,8 +57,9 @@ A completed upstream package normally has all of the following:
 
 - reverse-DNS recipe and package names, with intentional migration
   `provides`/`replaces` metadata where an older unqualified name exists;
-- automatic upstream release discovery bounded by a documented soft minimum
-  and, where appropriate, a reviewed major-version ceiling;
+- automatic upstream release discovery bounded only by a documented soft
+  minimum; compatibility changes are caught by build/test gates rather than a
+  ceiling that silently stops unattended maintenance;
 - authenticated upstream source provenance with a full signer fingerprint
   wherever upstream signatures exist, plus a current lock;
 - workspace-inherited build environments and distribution hardening flags;
@@ -83,6 +90,16 @@ A completed upstream package normally has all of the following:
   `peios-dwe` and `peios-kernel-only` are intentionally private.
 - Repository after publishing and independently verifying Go 1.26.5:
   index version 217, with 867 active and 1,700 archived entries.
+- Current static recipe gate, using a freshly built Pekit `1ed76c7`: **121
+  succeeded, 1 failed, 0 skipped**. The failure is only `mockinit`; every recipe
+  intended for public production is static-clean. The earlier `pekit/out/pekit`
+  and PATH binaries predated the lint command and must not be used as evidence.
+- Eleven historical locks that predated their configured signature policies
+  have been authenticated at unchanged source hashes. Findutils, Debugedit, and
+  OpenSSL now retain both historical and current upstream signing keys. Pekit
+  `1ed76c7` also reads every independently armored key block in an authoritative
+  concatenated bundle, which was required to authenticate OpenSSL 3.5.7 without
+  bypassing key expiry.
 - Signing fingerprint:
   `63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602`.
 
@@ -549,7 +566,9 @@ Explicit decisions or exclusions:
   it as a production runtime would preserve temporary service and security
   assumptions that the real peinit has replaced. Decide whether to delete it
   from the public catalogue or retain it under a clearly test-only identity.
-- `netd` is locally productionized at source commit `7e258e4`. Its five-package
+- `netd` is locally productionized at source commits `7e258e4` and `301fdab`.
+  The follow-up removes two generated fuzz logs from the tracked source and
+  prevents their return. Its five-package
   runtime/debug family passed 87 release tests, strict Clippy, two independent
   deterministic builds, installed service/profile/state/manual gates, exact
   split-debug/source validation, complete licence collection, and native
@@ -557,7 +576,8 @@ Explicit decisions or exclusions:
   are gone: the two Rust sources are exact public revisions and native builds
   consume `dev.peios.libpeios-devel` 0.5.0. The source checkout still has no
   remote, so the catalogue intentionally remains local-only until a public
-  provenance home exists. Local tag `v0.1.1` points at the reviewed source.
+  provenance home exists. Move local tag `v0.1.1` to the final immutable
+  dependency graph before publication.
 - `peinit` is locally production-ready at source commit `490960c`, local tag
   `v0.0.2`, and catalogue commit `a9fbb45`. The Debian reference and native
   builds close its generated C ABI and runtime tool dependencies, pass 1,067
@@ -611,8 +631,11 @@ Explicit decisions or exclusions:
   still waits on public Resolvd and Netd repositories so the remaining local
   libnetd edge can become an immutable Netd revision.
 - `timed` and `trustd` are locally production-ready at source commits
-  `f6a5a33` and `0887b81`, with local tags `v0.1.1` and catalogue commits
-  `5b82f1a` and `20dfe9c`. Their complete native package families passed 117
+  `c702252` and `0887b81`, with local tags `v0.1.1` and catalogue commits
+  `5b82f1a` and `20dfe9c`. Timed's follow-up removes 7,621 generated fuzz,
+  corpus, and build files (about 596 MiB) while preserving all fuzz sources and
+  manifests; move its tag after the final Git dependency pins. Their complete
+  native package families passed 117
   and 26 tests respectively, deterministic rebuilds, installed-service,
   hardening, debug/source, and strict-format gates. Neither source checkout has
   a public remote; create the provenance homes before locking and publishing.
