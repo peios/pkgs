@@ -446,6 +446,34 @@ All nine signed artifacts passed `verify.sh` and canonical trust-aware archive
 verification. Full repository verification at index 214 reports 822 active
 and 1,614 archived entries with no problems. Catalogue commit: `a78d3b1`.
 
+## Experimental edition closure: 2026.8-11
+
+`dev.peios.peios-experimental` revision 11 closes every independent part of
+the current first-party identity transition. Its 55 direct release edges now
+contain 31 canonical `dev.peios.*` packages, 22 qualified upstream packages,
+and exactly two documented historical first-party identities: `peipkg` and
+`pnpd`. Prelude remains explicitly rooted in `initramfs` alongside the IRF
+kernel/module, fsbase, StrataFS-hook, and coldplug edges. Peinit, Netd and its
+operator, Resolvd and its operator/NSS shim, Trustd and its operator, Timed and
+its operator, and the production Installer/OOBE aggregate packages all use
+their qualified identities and audited release floors. The legacy Peipkg and
+PNPd entries are deliberately pinned to the latest published development
+baselines, 0.1.1-8 and 0.5.0-1 respectively, rather than accepting an older
+artifact while their independent legal and network-policy decisions remain
+open.
+
+The release-payload test now checks those first-party floors, rejects every
+retired unqualified service alias, and verifies the complete set of named-root
+placements in addition to parsing `os-release` and `release.toml`. Native and
+Debian-reference builds and tests pass, Pekit lint reports zero findings with
+one documented architecture exception, and the resulting 2026.8-11 archive
+passes the strict container verifier. The package is intentionally not ready
+to publish yet: an actual repository-resolver/compose gate must wait for the
+locally productionized Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer
+and OOBE artifacts to be published, and for the Peipkg licence and PNPd
+exposure decisions to close. Local catalogue branch:
+`production/experimental-closure`.
+
 ## Remaining current-pass recipes
 
 The native `dev.peios.kernel` and `org.golang.go` families are complete.
@@ -497,9 +525,12 @@ lanes. `mockinit` needs a catalogue-disposition choice; `peios-dwe` and
   security policy forbids repository publication; the latter is a kernel
   conformance fixture with no init or userspace. Keep both available to their
   controlled image/test workflows but out of the public repository.
-- `peios-experimental` carries an existing uncommitted 0.3.0-9 trust-floor
-  correction in the main worktree. Preserve it and defer the edition audit
-  until that concurrent change is ready to incorporate.
+- `dev.peios.peios-experimental` is locally closed at revision 2026.8-11. Its
+  native/reference recipe gates pass, but repository resolution cannot pass
+  until its unpublished first-party floors exist in the repository. Two direct
+  dependencies remain deliberately unqualified and blocking: Peipkg needs its
+  source-licence decisions, and PNPd needs a product/security disposition for
+  its current unauthenticated development listener.
 - `peipkg` is also blocked on the authenticated Go bootstrap. The clean public
   source requires Go but the native signed pool has no Go compiler, so its
   current package can only be reproduced with an undeclared host toolchain.

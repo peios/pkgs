@@ -1,0 +1,2 @@
+[allow]
+"package.architecture" = "The edition payload is architecture-neutral, but its explicit kernel and userspace closure is x86_64-only; marking the release noarch would advertise it for architectures it cannot resolve on"

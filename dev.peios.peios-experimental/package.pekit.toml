@@ -8,7 +8,12 @@ name         = "dev.peios.peios-experimental"
 # retains a bounded migration from the last unqualified package, follows every
 # already-qualified package by its canonical identity, owns its licence text,
 # and is correctly architecture-bound by its x86_64 dependency closure.
-version      = "{{version}}-10"
+# -11: close the first-party migration. Prelude, Peinit, Netd, Resolvd, Trustd,
+# Timed, Installer and OOBE now use their production reverse-DNS identities and
+# floors. Peipkg and PNPd remain on their historical names deliberately: their
+# independent legal and network-policy reviews are explicit release blockers,
+# not aliases silently blessed by this edition.
+version      = "{{version}}-11"
 architecture = "x86_64"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -28,7 +33,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # "some Peios"; depend on an edition to mean that edition.
 [provides]
 peios-release = "{{version}}"
-peios-experimental = "{{version}}-10"
+peios-experimental = "{{version}}-11"
 
 [replaces]
 peios-experimental = "<= 2026.8-9"
@@ -78,14 +83,18 @@ peios-experimental = "<= 2026.8-9"
 "dev.peios.peiosutils" = ">= 0.8.5-1"
 "dev.peios.libpeios"   = ">= 0.5.0-1"
 "org.git.kernel.dash"  = ">= 0.5.13.5-3"
-peipkg        = ">= 0.1.1"
+# These two historical identities are the only intentionally unqualified
+# first-party entries left in this release. Peipkg cannot move until its two
+# source-licence questions are resolved; use the latest audited/published
+# revision in the meantime rather than allowing an older development build.
+peipkg        = ">= 0.1.1-8"
 "dev.peios.peios-install" = ">= 0.3.0-8"
 
 # The installer proper: installerd (the engine, a SYSTEM service) and
 # install-tui (its terminal surface). Ships alongside peios-install, not
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
-"dev.peios.peios-installer" = ">= 0.1.0-17"
+"dev.peios.peios-installer" = ">= 0.1.1-18"
 
 # First-boot setup: oobed and its own terminal surface. A separate package
 # from the installer because the two have separate lifetimes -- an installed
@@ -94,11 +103,11 @@ peipkg        = ">= 0.1.1"
 #
 # It ships a seed master and nothing applies it here: `install_autoapply` in
 # release.toml is what opts it in, on the installed machine only.
-"dev.peios.oobe" = ">= 0.1.0-7"
+"dev.peios.oobe" = ">= 0.1.1-18"
 
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
-prelude = { constraint = ">= 0.0.1", root = "initramfs" }
-peinit  = ">= 0.0.1"
+"dev.peios.prelude" = { constraint = ">= 0.0.3-1", root = "initramfs" }
+"dev.peios.peinit"  = ">= 0.0.2-1"
 
 # Identity (PGSS Logon).
 "dev.peios.authd"       = ">= 0.0.14-1"
@@ -118,11 +127,11 @@ peinit  = ">= 0.0.1"
 # name resolution; net and resolv are their operator commands;
 # nss-peios-net is dlopened by glibc for host lookups, so like nss-peios
 # nothing depends on it and it must be listed.
-netd          = ">= 0.1.0"
-net           = ">= 0.1.0"
-resolvd       = ">= 0.1.0"
-resolv        = ">= 0.1.0"
-nss-peios-net = ">= 0.1.0"
+"dev.peios.netd"        = ">= 0.1.1-15"
+"dev.peios.net"         = ">= 0.1.1-15"
+"dev.peios.resolvd"     = ">= 0.1.0-7"
+"dev.peios.resolv"      = ">= 0.1.0-7"
+"dev.peios.resolvd-nss" = ">= 0.1.0-7"
 
 # Trust. trustd composes what this machine trusts from the roots
 # ca-certificates ships and the decisions under Machine\System\Trust, and
@@ -136,8 +145,8 @@ nss-peios-net = ">= 0.1.0"
 # numeric major is 2026 rather than 20260830. The old undotted floor was
 # satisfied only by the legacy package itself, so archiving that package left
 # this edition unresolvable (PEI-840).
-trustd = ">= 0.1.0"
-trust  = ">= 0.1.0"
+"dev.peios.trustd" = ">= 0.1.1-1"
+"dev.peios.trust"  = ">= 0.1.1-1"
 "org.mozilla.ca-certificates" = ">= 2026.09.06-1"
 
 # Time. timed is the only process permitted to set the clock; clock is its
@@ -145,16 +154,18 @@ trust  = ">= 0.1.0"
 # separate, future, unprivileged package which subscribes to timed for its
 # state, because the client holds the privilege and listens on nothing
 # while a server is exposed to the whole domain and needs no privilege.
-timed = ">= 0.1.0"
-clock = ">= 0.1.0"
+"dev.peios.timed" = ">= 0.1.1-1"
+"dev.peios.clock" = ">= 0.1.1-1"
 
 # The web session host.
 "dev.peios.atrium" = ">= 0.0.25-2"
 
 # The PNP viewer (PEI-598): network observation, starting as the packet
 # viewer. Experimental-edition development tooling; whether it survives into
-# production editions is a PNP-shipping decision.
-pnpd = ">= 0.1.0"
+# production editions, and whether its current unauthenticated development
+# listener is acceptable here, are explicit PNP-shipping decisions. Keep the
+# newest published ABI-4 build as the floor until that decision is made.
+pnpd = ">= 0.5.0-1"
 
 # Device firmware (PEI-466). Unconditional: see above.
 "org.kernel.linux-firmware-iwlwifi"         = ">= 20260810-3"
