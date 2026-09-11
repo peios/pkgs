@@ -1,0 +1,2 @@
+[allow]
+"source.versions.ceiling" = "This package is the authenticated pristine base for PKM's patch series; moving it is a coordinated kernel rebase, not an unattended source-package update"

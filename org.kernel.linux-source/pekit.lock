@@ -6,13 +6,8 @@
 schema = 1
 
 [[source]]
-  version = "1.26.5"
-  url = "https://go.dev/dl/go1.26.5.src.tar.gz"
-  sha256 = "495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42"
-  locked_at = "2026-09-09T23:03:20Z"
-
-[[source]]
-  version = "1.27.1"
-  url = "https://go.dev/dl/go1.27.1.src.tar.gz"
-  sha256 = "4e408abae126d916b6164627193f2c54f0e3ca1312d693b86db45f862ab238b1"
+  version = "7.0.9"
+  url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.0.9.tar.xz"
+  sha256 = "ac07acdf76cf4621cc5187a2670270a1a699533c8a6b225e4878c416ad83f1c4"
+  signature_key = "647f28654894e3bd457199be38dbbdc86092693e"
   locked_at = "2026-09-11T20:28:12Z"

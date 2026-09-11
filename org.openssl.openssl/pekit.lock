@@ -18,3 +18,10 @@ schema = 1
   sha256 = "a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2"
   signature_key = "b146647e45a7b33947ab226b2a2c87d161692d40"
   locked_at = "2026-09-05T04:34:47Z"
+
+[[source]]
+  version = "4.0.2"
+  url = "https://github.com/openssl/openssl/releases/download/openssl-4.0.2/openssl-4.0.2.tar.gz"
+  sha256 = "736b467530f916737b7031310ccb21d8218c6229e61e8e160cd1d3458cd543a8"
+  signature_key = "b146647e45a7b33947ab226b2a2c87d161692d40"
+  locked_at = "2026-09-11T20:28:12Z"

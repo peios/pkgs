@@ -1,0 +1,15 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.patch"
+description = "GNU utility for applying diff files"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"       = "usr/share/licenses/org.gnu.patch/"
+":usr/bin/patch"         = "usr/bin/patch"
+":usr/share/locale/**"   = "usr/share/locale"
+":usr/share/man/man1/**" = "usr/share/man/man1"

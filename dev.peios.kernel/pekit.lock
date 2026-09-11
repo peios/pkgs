@@ -6,13 +6,25 @@
 schema = 1
 
 [[source]]
+  version = "0.20.1-rc2"
+  ref = "v0.20.1-rc2"
+  commit = "a47c63854539fed12381307b3b3a74b6500fdf5c"
+  locked_at = "2026-09-11T19:21:28Z"
+
+[[source]]
   version = "0.20.1-rc13"
   ref = "v0.20.1-rc13"
   commit = "9c1d56c7ddf1d75356173815f973bf3b6329e00f"
   locked_at = "2026-09-09T21:46:30Z"
 
 [[source]]
-  version = "0.20.1-rc2"
-  ref = "v0.20.1-rc2"
-  commit = "a47c63854539fed12381307b3b3a74b6500fdf5c"
-  locked_at = "2026-09-11T19:21:28Z"
+  version = "0.20.1-rc14"
+  ref = "v0.20.1-rc14"
+  commit = "5bf7d01dab4d221e0674953f1abfd570deb5c607"
+  locked_at = "2026-09-11T20:07:09Z"
+
+[[source]]
+  version = "0.20.1-rc15"
+  ref = "v0.20.1-rc15"
+  commit = "77b93cb396e62415de8d41d3a21515b9c45c1121"
+  locked_at = "2026-09-11T20:43:20Z"

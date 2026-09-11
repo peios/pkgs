@@ -1,0 +1,62 @@
+# Authenticated pristine Linux source used as the immutable base for PKM.
+# This is deliberately version-pinned: the Peios kernel patch series is
+# derived against one exact upstream release and must be rebased deliberately.
+
+out_dir = "out"
+
+# The payload is itself the complete corresponding source, so emitting a
+# second automatic source package would duplicate roughly two GiB unpacked.
+[source_package]
+enabled = false
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/"
+extract     = true
+root        = "linux-{{version}}"
+file_regex  = 'linux-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+versions    = "= 7.0.9"
+
+# kernel.org signs the uncompressed tar stream. All official kernel tarball
+# releases since 4.18 use Greg Kroah-Hartman's release key.
+[source.url.signature]
+url          = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-{{version}}.tar.sign"
+of           = "decompressed"
+key_files    = ["keys/greg-kroah-hartman.asc"]
+fingerprints = ["647F28654894E3BD457199BE38DBBDC86092693E"]
+
+[build.main]
+command = '''
+set -eu
+DEST="$PEKIT_OUT/usr/src/linux-$PEKIT_VERSION"
+mkdir -p "$DEST"
+cp -aT . "$DEST"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"  = "*"
+"dev.peios.peiosutils" = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+SRC="$PEKIT_MAIN_OUT/usr/src/linux-$PEKIT_VERSION"
+test -f "$SRC/Makefile"
+test -f "$SRC/COPYING"
+test -f "$SRC/security/security.c"
+test -f "$SRC/include/linux/kernel.h"
+test "$(make -s -C "$SRC" kernelversion)" = "$PEKIT_VERSION"
+test ! -e "$SRC/.git"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.make"        = "*"
+
+[test.dependencies.apt]
+make = "*"

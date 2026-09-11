@@ -1,0 +1,7 @@
+[package]
+name        = "org.kernel.linux-source"
+description = "Authenticated pristine Linux kernel source tree"
+license     = "GPL-2.0-only"
+
+[files]
+":usr/src/linux-{{version}}/**" = "usr/src/linux-{{version}}"

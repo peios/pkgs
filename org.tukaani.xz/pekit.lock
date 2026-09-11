@@ -1,6 +1,7 @@
 # pekit.lock — machine-written by pekit; records pinned source inputs.
-# Do not edit by hand. To accept changed upstream bytes for a version, run:
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
 #   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
 
 schema = 1
 
@@ -10,3 +11,10 @@ schema = 1
   sha256 = "fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6"
   signature_key = "3690c240ce51b4670d30ad1c38ee757d69184620"
   locked_at = "2026-09-05T17:32:47Z"
+
+[[source]]
+  version = "5.8.4"
+  url = "https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.xz"
+  sha256 = "4ce24038fd4221e0d13bc1a2de7a4db56e90b92b3bf75321f6c14be73f65de4b"
+  signature_key = "3690c240ce51b4670d30ad1c38ee757d69184620"
+  locked_at = "2026-09-11T20:28:12Z"

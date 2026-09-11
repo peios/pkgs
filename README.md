@@ -305,6 +305,15 @@ and use `--env peipkg-net`; all compiler and test targets continue through the
 ordinary offline `peipkg` environment. Never give the whole build network
 access.
 
+If a delegated first-party recipe needs a remote upstream tree as a build
+input, package that tree separately under the upstream's qualified identity.
+The source recipe owns authenticated acquisition and a committed lock; the
+delegated recipe consumes its installed, versioned payload offline through an
+explicit Peipkg dependency. Pin the dependency exactly when local patches are
+derived against one specific upstream release, and document that coordinated
+rebase exception narrowly. Do not clone or download an undeclared tree from a
+build command.
+
 Use the inherited distribution flags. If an upstream build system ignores
 them, pass them through correctly or rely on toolchain defaults and verify the
 result. A justified package-specific exception belongs in the recipe and its

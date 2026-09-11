@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.patch-debuginfo"
+description = "GNU Patch - debugging symbols"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.patch" = "{{version}}-1"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/org.gnu.patch-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

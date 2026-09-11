@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.patch-debugsource"
+description = "GNU Patch - debug sources"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.patch-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:COPYING"                    = "usr/share/licenses/org.gnu.patch-debugsource/COPYING"
+":usr/src/debug/org.gnu.patch/**"    = "usr/src/debug/org.gnu.patch"
