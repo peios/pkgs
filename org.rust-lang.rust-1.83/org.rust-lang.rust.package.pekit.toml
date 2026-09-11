@@ -10,11 +10,11 @@ description  = "Programming-language compiler and toolchain suite"
 [replaces]
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-2"
-"org.rust-lang.cargo"       = "= {{version}}-2"
-"org.rust-lang.rustfmt"     = "= {{version}}-2"
-"org.rust-lang.rust-src"    = "= {{version}}-2"
-"org.rust-lang.rust-common" = "= {{version}}-2"
+"org.rust-lang.rustc"       = "= {{version}}-1"
+"org.rust-lang.cargo"       = "= {{version}}-1"
+"org.rust-lang.rustfmt"     = "= {{version}}-1"
+"org.rust-lang.rust-src"    = "= {{version}}-1"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 
 [files]
 "@source:README.md" = "usr/share/doc/org.rust-lang.rust/README.md"

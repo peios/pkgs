@@ -124,7 +124,7 @@ rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist"
 "org.kernel.kmod-devel"                 = ">= 34.2"
 "io.github.eudev-project.eudev-devel"  = ">= 3.2.14"
 "io.github.zlib-ng.zlib-ng-compat-devel"                            = ">= 2.3.3"
-"org.sourceware.debugedit"                                 = ">= 5.2-2"
+"org.sourceware.debugedit"                                 = ">= 5.2-1"
 "org.nixos.patchelf"                                  = ">= 0.19.1"
 
 [build.main.dependencies.apt]

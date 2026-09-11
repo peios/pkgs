@@ -3,7 +3,7 @@ name        = "org.sofproject.sof-firmware-debug"
 description = "Intel Sound Open Firmware DSP debugging data"
 
 [dependencies]
-"org.sofproject.sof-firmware" = "{{version}}-4"
+"org.sofproject.sof-firmware" = "{{version}}-1"
 
 [files]
 "@source:LICENCE.Intel"                          = "usr/share/licenses/org.sofproject.sof-firmware-debug/"

@@ -16,9 +16,9 @@ license     = "GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT"
 "org.git.kernel.dash"                     = "*"
 "org.gnu.glibc"                    = ">= 2.43"
 "org.gnu.grep"                     = "*"
-"org.gnu.gettext-libtextstyle" = "{{version}}-3"
+"org.gnu.gettext-libtextstyle" = "{{version}}-1"
 "dev.peios.peiosutils"                = "*"
-"org.gnu.gettext-common" = "{{version}}-3"
+"org.gnu.gettext-common" = "{{version}}-1"
 "org.gnu.sed"                      = "*"
 
 [files]

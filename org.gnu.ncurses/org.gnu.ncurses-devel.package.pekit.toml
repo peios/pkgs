@@ -9,7 +9,7 @@ description = "ncurses headers and development libraries"
 [replaces]
 
 [dependencies]
-"org.gnu.ncurses-libs" = "{{version}}-3"
+"org.gnu.ncurses-libs" = "{{version}}-1"
 
 [files]
 "@source:COPYING"                           = "usr/share/licenses/org.gnu.ncurses-devel/COPYING"

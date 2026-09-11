@@ -11,7 +11,7 @@ description = "Linux trace-event parsing plugins"
 
 [dependencies]
 "org.gnu.glibc"                        = ">= 2.43"
-"org.linux.traceevent-libs" = "{{version}}-2"
+"org.linux.traceevent-libs" = "{{version}}-1"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent/LGPL-2.1"

@@ -6,7 +6,7 @@ license     = "LGPL-2.1-only"
 [provides]
 
 [dependencies]
-"org.linux.traceevent-devel" = "{{version}}-2"
+"org.linux.traceevent-devel" = "{{version}}-1"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-static/LGPL-2.1"

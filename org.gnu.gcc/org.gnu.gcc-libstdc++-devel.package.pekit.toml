@@ -13,7 +13,7 @@ description = "GNU Standard C++ Library development files"
 [dependencies]
 # The dev .so symlink resolves into libstdc++'s versioned lib, and the headers
 # must match its ABI; pin the same upstream version.
-"org.gnu.gcc-libstdc++" = "{{version}}-2"
+"org.gnu.gcc-libstdc++" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libstdc++-devel/COPYING3"

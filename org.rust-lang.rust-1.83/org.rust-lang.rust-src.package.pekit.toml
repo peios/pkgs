@@ -5,8 +5,8 @@ description  = "Rust standard-library source for rust-analyzer and kernel builds
 [provides]
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-2"
-"org.rust-lang.rust-common" = "= {{version}}-2"
+"org.rust-lang.rustc"       = "= {{version}}-1"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 
 [files]
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rust-src"

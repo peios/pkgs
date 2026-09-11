@@ -11,7 +11,7 @@ license     = "LGPL-2.0-or-later"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc-libquadmath" = "{{version}}-2"
+"org.gnu.gcc-libquadmath" = "{{version}}-1"
 
 [files]
 "@source:libquadmath/COPYING.LIB" = "usr/share/licenses/org.gnu.gcc-libquadmath-devel/COPYING.LIB"

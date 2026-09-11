@@ -4,8 +4,8 @@ description = "libtracefs headers and shared-library development files"
 license     = "LGPL-2.1-only"
 
 [dependencies]
-"org.linux.tracefs"          = "{{version}}-2"
-"org.linux.traceevent-devel" = ">= 1.9.0-2, < 2"
+"org.linux.tracefs"          = "{{version}}-1"
+"org.linux.traceevent-devel" = ">= 1.9.0-1, < 2"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-devel/LGPL-2.1"

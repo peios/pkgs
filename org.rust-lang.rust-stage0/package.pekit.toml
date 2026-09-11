@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "org.rust-lang.rust-stage0"
-version      = "{{version}}-2"
+version      = "{{version}}-1"
 architecture = "x86_64"
 description  = "Authenticated compiler bootstrap seed for building rustc"
 # The upstream seed contains Rust/Cargo's statically linked crate set, Cargo's

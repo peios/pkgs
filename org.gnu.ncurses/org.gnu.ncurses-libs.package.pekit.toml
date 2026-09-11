@@ -4,7 +4,7 @@ description = "ncurses wide-character terminal runtime libraries"
 
 [dependencies]
 "org.gnu.glibc"                       = ">= 2.43"
-"org.gnu.ncurses-terminfo" = "{{version}}-3"
+"org.gnu.ncurses-terminfo" = "{{version}}-1"
 
 [files]
 "@source:COPYING"                              = "usr/share/licenses/org.gnu.ncurses-libs/COPYING"

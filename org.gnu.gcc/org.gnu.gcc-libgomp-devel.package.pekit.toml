@@ -12,7 +12,7 @@ description = "GCC OpenMP runtime development files"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc-libgomp" = "{{version}}-2"
+"org.gnu.gcc-libgomp" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libgomp-devel/COPYING3"

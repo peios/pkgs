@@ -14,7 +14,7 @@ license     = "LGPL-2.1-or-later AND BSD-2-Clause"
 [replaces]
 
 [dependencies]
-"io.github.besser82.libxcrypt" = "{{version}}-2"
+"io.github.besser82.libxcrypt" = "{{version}}-1"
 
 [files]
 "@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-devel/"

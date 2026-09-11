@@ -3,7 +3,7 @@
 format = "peipkg"
 
 [package]
-version      = "1.0.0-9"
+version      = "1.0.0-1"
 # The packages contain architecture-neutral documentation, but their dependency
 # contract selects the primary-architecture toolchain. Keeping the metas on the
 # primary architecture makes that choice explicit.

@@ -7,4 +7,4 @@
 # kernel capability with that same revision. Pekit derives the corresponding-source
 # description from this resolved version, so it must identify the -3 family too.
 [package]
-version = "{{version}}-3"
+version = "{{version}}-1"

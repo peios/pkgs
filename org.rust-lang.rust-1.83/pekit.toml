@@ -373,7 +373,7 @@ libssl-dev      = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++"       = "*"
-"org.rust-lang.rust-stage0" = "= 1.82.0-2"
+"org.rust-lang.rust-stage0" = "= 1.82.0-1"
 "org.python.python3"                      = "*"
 "org.llvm.llvm"                         = ">= 18.1.8, < 19"
 "org.llvm.llvm-devel"                = ">= 18.1.8, < 19"

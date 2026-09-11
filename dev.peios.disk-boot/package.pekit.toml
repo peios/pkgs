@@ -40,7 +40,7 @@ format = "peipkg"
 # port otherwise. Development boots that want serial add console=ttyS0
 # themselves (dist/release/Makefile, drive.py, provium). PEI-716.
 #
-# 1.0.0-9: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, matching
+# 1.0.0-1: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, matching
 # live-boot -16 — see that recipe for the full reasoning. The short version:
 # `ignore_loglevel` made printk ignore the loglevel filter entirely, so an
 # installed system booted at maximum kernel verbosity and peinit's own boot
@@ -49,13 +49,13 @@ format = "peipkg"
 # Debugging boots re-add the old pair through the UKI stub's SMBIOS channel,
 # which printk resolves last-wins. PEI-782.
 #
-# 1.0.0-10 is the production-qualified baseline. The package family moves to
+# 1.0.0-1 is the production-qualified baseline. The package family moves to
 # dev.peios.* and couples its two halves at the exact release, declares the
 # initramfs root and shell
 # contract explicitly, ships its licence, and tests the root-resolution,
 # filesystem-check, and mount outcomes. The hook also adopts the shared
 # prelude ABI-3 console format. The optional-fsck policy is unchanged.
-version      = "1.0.0-10"
+version      = "1.0.0-1"
 architecture = "x86_64"
 license      = "MIT"
 license_class = "free"

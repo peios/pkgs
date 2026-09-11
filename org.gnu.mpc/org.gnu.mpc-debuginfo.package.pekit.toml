@@ -7,7 +7,7 @@ description = "GNU MPC debugging symbols"
 [replaces]
 
 [dependencies]
-"org.gnu.mpc" = "{{version}}-2"
+"org.gnu.mpc" = "{{version}}-1"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

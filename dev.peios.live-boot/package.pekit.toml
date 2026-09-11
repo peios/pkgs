@@ -59,12 +59,12 @@ format = "peipkg"
 # cannot read back: the inherited SYSTEM and Administrators ACEs are a
 # non-empty DACL, and a token's default DACL is only consulted when inheritance
 # yields nothing at all.
-# 1.0.0-15: the shipped cmdline names no console. The kernel picks one the way
+# 1.0.0-1: the shipped cmdline names no console. The kernel picks one the way
 # it does on any distribution: tty0 on a machine with a display, the serial
 # port otherwise. Development boots that want serial add console=ttyS0
 # themselves (dist/release/Makefile, drive.py, provium). PEI-716.
 #
-# 1.0.0-16: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, so a shipped
+# 1.0.0-1: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, so a shipped
 # image boots at the verbosity every other distribution ships rather than at
 # maximum with the filter switched off. `ignore_loglevel` was the load-bearing
 # half: printk emits every message regardless of console_loglevel while it is
@@ -78,23 +78,23 @@ format = "peipkg"
 # accepted: the image ships no dmesg, so a kernel WARNING no longer reaches the
 # console. `loglevel=5` buys warnings back if that trade proves wrong. PEI-782.
 #
-# 1.0.0-17: the root-mount hook reports through hook-log.sh for the shared tag
+# 1.0.0-1: the root-mount hook reports through hook-log.sh for the shared tag
 # column. The "could not carry the medium into the new root" case becomes
 # [ WARN ] rather than an undifferentiated stderr line, which is what it has
 # always been: non-fatal. Requires prelude-hook-abi >= 3. PEI-783.
 #
-# 1.0.0-18: `panic=-1` comes off the line. It rebooted the machine the instant
+# 1.0.0-1: `panic=-1` comes off the line. It rebooted the machine the instant
 # the kernel panicked, so a reproducible boot failure on a live medium was a
 # reboot loop with the panic text never on screen long enough to read. Without
 # it the kernel default (panic=0) applies: halt with the panic visible, the
 # only useful outcome on a medium somebody is sitting in front of.
 #
-# 1.0.0-19 is the production-qualified baseline. The family moves to
+# 1.0.0-1 is the production-qualified baseline. The family moves to
 # dev.peios.* and couples its two halves at the exact release, declares the
 # initramfs root and shell
 # contract explicitly, ships its licence, and tests the medium-discovery and
 # mount outcomes.
-version      = "1.0.0-19"
+version      = "1.0.0-1"
 architecture = "x86_64"
 license      = "MIT"
 license_class = "free"

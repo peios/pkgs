@@ -8,7 +8,7 @@ license     = "Zlib"
 [replaces]
 
 [dependencies]
-"io.github.zlib-ng.zlib-ng-compat-devel" = "{{version}}-2"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "{{version}}-1"
 
 [files]
 "@source:LICENSE.md"                           = "usr/share/licenses/io.github.zlib-ng.zlib-ng-compat-static/"

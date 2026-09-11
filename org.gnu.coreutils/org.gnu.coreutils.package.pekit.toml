@@ -9,8 +9,8 @@ description = "GNU core utilities - bootstrap build-base userland"
 [provides]
 
 [dependencies]
-"org.gnu.coreutils-build-compat" = "{{version}}-3"
-"org.gnu.coreutils-common"       = "{{version}}-3"
+"org.gnu.coreutils-build-compat" = "{{version}}-1"
+"org.gnu.coreutils-common"       = "{{version}}-1"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils/"

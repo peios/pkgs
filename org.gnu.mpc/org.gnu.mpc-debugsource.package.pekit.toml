@@ -7,7 +7,7 @@ description = "GNU MPC debug sources"
 [replaces]
 
 [dependencies]
-"org.gnu.mpc-debuginfo" = "{{version}}-2"
+"org.gnu.mpc-debuginfo" = "{{version}}-1"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

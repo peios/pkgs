@@ -7,7 +7,7 @@ description = "GNU MPC development files"
 [replaces]
 
 [dependencies]
-"org.gnu.mpc"        = "{{version}}-2"
+"org.gnu.mpc"        = "{{version}}-1"
 "org.gnu.gmp-devel"  = ">= 6.3.0"
 "org.gnu.mpfr-devel" = ">= 4.2.2"
 

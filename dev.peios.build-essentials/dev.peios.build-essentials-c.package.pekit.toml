@@ -6,7 +6,7 @@ name        = "dev.peios.build-essentials-c"
 description = "Peios C build environment"
 
 [dependencies]
-"dev.peios.build-essentials" = "1.0.0-9"
+"dev.peios.build-essentials" = "1.0.0-1"
 "org.gnu.gcc"                 = ">= 16"
 "org.gnu.binutils"            = ">= 2.46"
 "org.gnu.glibc-devel"         = ">= 2.44"

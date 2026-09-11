@@ -10,7 +10,7 @@ description = "Terminal-information database and utilities"
 
 [dependencies]
 "org.gnu.glibc"                   = ">= 2.43"
-"org.gnu.ncurses-libs" = "{{version}}-3"
+"org.gnu.ncurses-libs" = "{{version}}-1"
 
 [files]
 "@source:COPYING"    = "usr/share/licenses/org.gnu.ncurses/COPYING"

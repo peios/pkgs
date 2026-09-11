@@ -8,7 +8,7 @@ license     = "0BSD"
 [replaces]
 
 [dependencies]
-"org.tukaani.xz-libs" = "{{version}}-2"
+"org.tukaani.xz-libs" = "{{version}}-1"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-devel/COPYING.0BSD"

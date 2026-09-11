@@ -11,7 +11,7 @@ description = "GCC atomic operations runtime development files"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc-libatomic" = "{{version}}-2"
+"org.gnu.gcc-libatomic" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libatomic-devel/COPYING3"

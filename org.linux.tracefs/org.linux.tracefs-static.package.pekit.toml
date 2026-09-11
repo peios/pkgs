@@ -6,8 +6,8 @@ license     = "LGPL-2.1-only"
 [provides]
 
 [dependencies]
-"org.linux.tracefs-devel" = "{{version}}-2"
-"org.linux.traceevent-static" = ">= 1.9.0-2, < 2"
+"org.linux.tracefs-devel" = "{{version}}-1"
+"org.linux.traceevent-static" = ">= 1.9.0-1, < 2"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-static/LGPL-2.1"

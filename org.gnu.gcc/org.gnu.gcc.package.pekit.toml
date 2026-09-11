@@ -53,8 +53,8 @@ path   = "/usr/bin/cc"
 [dependencies]
 # cc1 lives in cpp; as/ld come from org.gnu.binutils; the startup objects + libgcc are
 # the compiler's own runtime; compiling C needs the libc + kernel headers.
-"org.gnu.gcc-cpp" = "{{version}}-2"
-"org.gnu.gcc-libgcc" = "{{version}}-2"
+"org.gnu.gcc-cpp" = "{{version}}-1"
+"org.gnu.gcc-libgcc" = "{{version}}-1"
 "org.gnu.binutils" = ">= 2.46"
 "org.gnu.glibc-devel" = ">= 2.43"
 # The Linux UAPI, by its virtual name rather than the package's. The package
@@ -65,7 +65,7 @@ path   = "/usr/bin/cc"
 # GCC 16 injects -latomic_asneeded into every link by default
 # (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
 # script is part of the compiler's own contract, like libgcc.
-"org.gnu.gcc-libatomic-devel" = "{{version}}-2"
+"org.gnu.gcc-libatomic-devel" = "{{version}}-1"
 
 [files]
 # License texts (distro convention: /usr/share/licenses/<name>/).

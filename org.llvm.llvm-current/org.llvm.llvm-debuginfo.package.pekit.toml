@@ -4,8 +4,8 @@ description = "LLVM debugging symbols"
 license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 
 [dependencies]
-"org.llvm.llvm"       = "{{version}}-2"
-"org.llvm.llvm-libs"  = "{{version}}-2"
+"org.llvm.llvm"       = "{{version}}-1"
+"org.llvm.llvm-libs"  = "{{version}}-1"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-debuginfo/LICENSE.TXT"

@@ -5,7 +5,7 @@ description = "Rust standard libraries for static x86_64 Linux musl targets"
 [provides]
 
 [dependencies]
-"org.rust-lang.rust-common" = "= {{version}}-3"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 # Peios GCC injects an as-needed libatomic probe into static links. The target
 # is otherwise self-contained, but the driver must be able to resolve that
 # compiler-runtime archive when rustc invokes it for a final binary.

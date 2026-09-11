@@ -3,7 +3,7 @@
 name = "dev.peios.usbip-devel"
 
 [dependencies]
-"dev.peios.usbip" = "= {{version}}-3"
+"dev.peios.usbip" = "= {{version}}-1"
 
 [provides]
 

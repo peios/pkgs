@@ -5,8 +5,8 @@ description  = "Rust standard-library source for rust-analyzer and kernel builds
 [provides]
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-3"
-"org.rust-lang.rust-common" = "= {{version}}-3"
+"org.rust-lang.rustc"       = "= {{version}}-1"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 
 [files]
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-src/LICENSE-APACHE"

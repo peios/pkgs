@@ -18,7 +18,7 @@ license     = "(GPL-3.0-or-later WITH GCC-exception-3.1) AND GPL-3.0-or-later"
 # libstdc++ links libgcc_s (the unwinder) + glibc. libgcc is built from this same
 # GCC source, so pin its exact upstream version and recipe revision. The glibc
 # floor remains intentionally open to compatible updates.
-"org.gnu.gcc-libgcc" = "{{version}}-2"
+"org.gnu.gcc-libgcc" = "{{version}}-1"
 "org.gnu.glibc"      = ">= 2.43"
 
 [files]

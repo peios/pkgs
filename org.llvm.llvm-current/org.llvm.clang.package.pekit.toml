@@ -12,8 +12,8 @@ description = "C, C++, and Objective-C compiler"
 [replaces]
 
 [dependencies]
-"org.llvm.llvm"       = "{{version}}-2"
-"org.llvm.clang-libs" = "{{version}}-2"
+"org.llvm.llvm"       = "{{version}}-1"
+"org.llvm.clang-libs" = "{{version}}-1"
 
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang/LICENSE.TXT"

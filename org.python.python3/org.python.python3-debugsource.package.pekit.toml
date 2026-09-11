@@ -3,7 +3,7 @@ name        = "org.python.python3-debugsource"
 description = "Python 3 sources referenced by debugging information"
 
 [dependencies]
-"org.python.python3-debuginfo" = "{{version}}-4"
+"org.python.python3-debuginfo" = "{{version}}-1"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.python.python3-debugsource/LICENSE"

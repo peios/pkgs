@@ -3,7 +3,7 @@
 name = "dev.peios.perf-devel"
 
 [dependencies]
-"dev.peios.perf" = "= {{version}}-3"
+"dev.peios.perf" = "= {{version}}-1"
 
 [provides]
 

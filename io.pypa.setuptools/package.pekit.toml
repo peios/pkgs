@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "io.pypa.setuptools"
-version      = "{{version}}-2"
+version      = "{{version}}-1"
 # x86_64, not noarch: the one site-packages is inside the triplet directory.
 architecture = "x86_64"
 description  = "PEP 517 build backend for Python projects"

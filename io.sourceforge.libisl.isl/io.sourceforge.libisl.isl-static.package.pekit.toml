@@ -7,7 +7,7 @@ description = "Integer Set Library - static library"
 [provides]
 
 [dependencies]
-"io.sourceforge.libisl.isl-devel" = "{{version}}-2"
+"io.sourceforge.libisl.isl-devel" = "{{version}}-1"
 "org.gnu.gmp-static"                      = ">= 6.3.0"
 
 [files]

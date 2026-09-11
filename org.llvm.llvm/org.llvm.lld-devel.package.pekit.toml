@@ -3,7 +3,7 @@ name        = "org.llvm.lld-devel"
 description = "LLD development headers and CMake metadata"
 
 [dependencies]
-"org.llvm.llvm-devel" = "{{version}}-2"
+"org.llvm.llvm-devel" = "{{version}}-1"
 
 [files]
 "@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld-devel/LICENSE.TXT"

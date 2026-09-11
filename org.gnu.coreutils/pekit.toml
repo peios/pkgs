@@ -97,7 +97,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # Bootstrap the first non-overlapping compatibility split with the last signed
 # C build floor that carried full GNU Coreutils. Later build floors can consume
 # org.gnu.coreutils-build-compat without installing the overlapping utilities.
-"dev.peios.build-essentials-c" = "1.0.0-6"
+"dev.peios.build-essentials-c" = "1.0.0-1"
 # The upstream test harness and generated help/man machinery use Perl.
 "org.perl.perl" = "*"
 # The help/version regression exercises compressed-input dispatch.
@@ -217,7 +217,7 @@ rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "1.0.0-6"
+"dev.peios.build-essentials-c" = "1.0.0-1"
 "org.perl.perl" = "*"
 "org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"

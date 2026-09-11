@@ -27,7 +27,7 @@ name         = "dev.peios.peios-install"
 # peiosutils is a coreutils fork and never supplied grep.
 # -8: drop --no-preserve=xattrs,security from the copy, so -a means what it
 # says. It was a workaround for PEI-180 (source-side listxattr EOPNOTSUPP),
-# which is fixed in peiosutils 0.1.2-3; the policy half of the justification
+# which is fixed in peiosutils 0.1.2-1; the policy half of the justification
 # was never load-bearing, since no Peios tree carries a generic xattr.
 # -7: delete Machine\System\Services\lpsd-first-account from the registry
 # before the copy, so an installed system does not inherit the development
@@ -77,7 +77,7 @@ name         = "dev.peios.peios-install"
 # -8: qualify the package identity and runtime dependencies, fix preservation
 # of `part create`'s refusal
 # status, and add syntax plus destructive-guard tests to the staged payload.
-version      = "0.3.0-8"
+version      = "0.3.0-1"
 architecture = "x86_64"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"
@@ -96,12 +96,12 @@ homepage     = "https://github.com/peios/pkgs"
 # The script calls no other external command — deliberately. Peios ships no
 # grep and no gzip, so a check reaching for either exits 127 and passes
 # silently, which is how the "device is already mounted" guard managed to never
-# fire between 0.1.0-1 and 0.1.0-9.
+# fire between 0.1.0-1 and 0.1.0-1.
 [dependencies]
 sh = ">= 1"
 "dev.peios.peiosutils" = ">= 0.8.5-1"
 "net.sourceforge.e2fsprogs" = ">= 1.47.4"
-"io.github.dosfstools.dosfstools" = ">= 4.2-4"
+"io.github.dosfstools.dosfstools" = ">= 4.2-1"
 "dev.peios.peipkg" = ">= 0.1.3-1"
 
 [files]

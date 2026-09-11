@@ -3,8 +3,8 @@
 name = "dev.peios.thermal-engine"
 
 [dependencies]
-"dev.peios.libthermal" = "= {{version}}-3"
-"dev.peios.libthermal-tools" = "= {{version}}-3"
+"dev.peios.libthermal" = "= {{version}}-1"
+"dev.peios.libthermal-tools" = "= {{version}}-1"
 
 [provides]
 

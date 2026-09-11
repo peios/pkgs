@@ -15,7 +15,7 @@ description = "GNU Standard C++ Library static libraries"
 
 [dependencies]
 # Static linking also needs the headers + dev symlink.
-"org.gnu.gcc-libstdc++-devel" = "{{version}}-2"
+"org.gnu.gcc-libstdc++-devel" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libstdc++-static/COPYING3"

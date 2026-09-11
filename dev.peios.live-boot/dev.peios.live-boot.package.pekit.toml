@@ -12,7 +12,7 @@ description = "Live-medium boot support: kernel cmdline + initramfs root-mount h
 # (the table `root` field). Everything else about it — what it ships, what it
 # needs — the package itself declares.
 [dependencies]
-"dev.peios.live-boot-irf" = { constraint = "1.0.0-19", root = "initramfs" }
+"dev.peios.live-boot-irf" = { constraint = "1.0.0-1", root = "initramfs" }
 
 # The kernel cmdline, owned here. mkuki bakes it into the UKI's .cmdline at build
 # time, so it lives under usr/share as package data the builder reads, not a

@@ -6,7 +6,7 @@ description = "Clang shared runtime libraries"
 "org.gnu.glibc"                  = ">= 2.43"
 "org.gnu.gcc-libstdc++"            = ">= 16"
 "org.gnu.gcc-libgcc"                 = ">= 16"
-"org.llvm.llvm-libs"   = "{{version}}-2"
+"org.llvm.llvm-libs"   = "{{version}}-1"
 
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-libs/LICENSE.TXT"

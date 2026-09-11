@@ -5,7 +5,7 @@ description = "Rust standard libraries for x86_64-unknown-linux-gnu"
 [provides]
 
 [dependencies]
-"org.rust-lang.rust-common" = "= {{version}}-2"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 "org.gnu.glibc"                        = ">= 2.43"
 "org.gnu.gcc-libgcc"                       = ">= 16"
 

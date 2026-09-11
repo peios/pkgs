@@ -5,7 +5,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-2"
+version       = "{{version}}-1"
 architecture  = "x86_64"
 license       = "LGPL-2.1-only AND GPL-2.0-only"
 license_class = "free"

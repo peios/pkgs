@@ -5,7 +5,7 @@ description = "ncurses static libraries"
 [provides]
 
 [dependencies]
-"org.gnu.ncurses-devel" = "{{version}}-3"
+"org.gnu.ncurses-devel" = "{{version}}-1"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.ncurses-static/COPYING"

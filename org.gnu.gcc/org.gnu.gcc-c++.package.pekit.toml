@@ -20,10 +20,10 @@ license     = "GPL-3.0-or-later AND GFDL-1.3-no-invariants-or-later"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc"     = "{{version}}-2"
+"org.gnu.gcc"     = "{{version}}-1"
 # Compiling/linking C++ needs the standard-library headers + the libstdc++.so
 # dev symlink (which pulls libstdc++ runtime).
-"org.gnu.gcc-libstdc++-devel" = "{{version}}-2"
+"org.gnu.gcc-libstdc++-devel" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"              = "usr/share/licenses/org.gnu.gcc-c++/COPYING3"

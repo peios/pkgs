@@ -6,7 +6,7 @@ license     = "0BSD"
 [provides]
 
 [dependencies]
-"org.tukaani.xz-devel" = "{{version}}-2"
+"org.tukaani.xz-devel" = "{{version}}-1"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz-static/COPYING.0BSD"

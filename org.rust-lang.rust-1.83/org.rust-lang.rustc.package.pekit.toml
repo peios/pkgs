@@ -7,8 +7,8 @@ description = "Rust compiler and rustdoc documentation generator"
 [provides]
 
 [dependencies]
-"org.rust-lang.rust-std"    = "= {{version}}-2"
-"org.rust-lang.rust-common" = "= {{version}}-2"
+"org.rust-lang.rust-std"    = "= {{version}}-1"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 "org.gnu.glibc"                     = ">= 2.43"
 "org.gnu.gcc-libgcc"                    = ">= 16"
 "org.gnu.gcc-libstdc++"               = ">= 16"

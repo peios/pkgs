@@ -9,8 +9,8 @@ license     = "0BSD"
 
 [dependencies]
 "org.gnu.glibc"                    = ">= 2.43"
-"org.tukaani.xz-common" = "{{version}}-2"
-"org.tukaani.xz-libs"   = "{{version}}-2"
+"org.tukaani.xz-common" = "{{version}}-1"
+"org.tukaani.xz-libs"   = "{{version}}-1"
 
 [files]
 "@source:COPYING.0BSD" = "usr/share/licenses/org.tukaani.xz/COPYING.0BSD"

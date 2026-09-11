@@ -8,7 +8,7 @@ license     = "BSD-3-Clause OR GPL-2.0-only"
 [replaces]
 
 [dependencies]
-"com.facebook.zstd-libs" = "{{version}}-2"
+"com.facebook.zstd-libs" = "{{version}}-1"
 
 [files]
 "@source:LICENSE"                                  = "usr/share/licenses/com.facebook.zstd-devel/LICENSE"

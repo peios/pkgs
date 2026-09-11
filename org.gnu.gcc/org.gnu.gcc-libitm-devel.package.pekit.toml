@@ -11,7 +11,7 @@ description = "GCC transactional memory runtime development files"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc-libitm" = "{{version}}-2"
+"org.gnu.gcc-libitm" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libitm-devel/COPYING3"

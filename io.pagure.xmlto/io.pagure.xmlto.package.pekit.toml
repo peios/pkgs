@@ -23,7 +23,7 @@ description = "Convert DocBook XML to man pages and other formats"
 "org.gnu.glibc-bin"                    = "*"
 "org.gnome.libxslt-utils"      = ">= 1.1.45"
 "org.gnome.libxml2-utils"      = ">= 2.15.3"
-"org.docbook.docbook-xsl"      = ">= 1.79.2-4"
+"org.docbook.docbook-xsl"      = ">= 1.79.2-1"
 "org.oasis-open.docbook-xml"   = ">= 4.5"
 
 [files]

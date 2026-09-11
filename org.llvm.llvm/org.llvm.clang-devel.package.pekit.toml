@@ -3,8 +3,8 @@ name        = "org.llvm.clang-devel"
 description = "Clang development headers and CMake metadata"
 
 [dependencies]
-"org.llvm.clang-libs" = "{{version}}-2"
-"org.llvm.llvm-devel" = "{{version}}-2"
+"org.llvm.clang-libs" = "{{version}}-1"
+"org.llvm.llvm-devel" = "{{version}}-1"
 
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-devel/LICENSE.TXT"

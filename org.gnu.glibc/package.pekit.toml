@@ -7,7 +7,7 @@ format = "peipkg"
 [package]
 name         = "org.gnu.glibc"
 # -7 corrects the exact sibling constraints in the retained -6 publication.
-version      = "{{version}}-7"
+version      = "{{version}}-1"
 architecture = "x86_64"
 # Complete conservative source-family expression.  The principal library is
 # LGPL-2.1-or-later and the bundled programs are GPL-2.0-or-later; the remaining

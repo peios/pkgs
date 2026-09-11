@@ -8,7 +8,7 @@ license     = "LGPL-2.1-only"
 [replaces]
 
 [dependencies]
-"org.linux.traceevent-libs" = "{{version}}-2"
+"org.linux.traceevent-libs" = "{{version}}-1"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-devel/LGPL-2.1"

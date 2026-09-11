@@ -3,7 +3,7 @@
 name = "dev.peios.libthermal-devel"
 
 [dependencies]
-"dev.peios.libthermal" = "= {{version}}-3"
+"dev.peios.libthermal" = "= {{version}}-1"
 
 [provides]
 

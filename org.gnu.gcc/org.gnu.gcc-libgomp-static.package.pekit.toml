@@ -11,7 +11,7 @@ description = "GCC OpenMP runtime static library"
 [replaces]
 
 [dependencies]
-"org.gnu.gcc-libgomp-devel" = "{{version}}-2"
+"org.gnu.gcc-libgomp-devel" = "{{version}}-1"
 
 [files]
 "@source:COPYING3"        = "usr/share/licenses/org.gnu.gcc-libgomp-static/COPYING3"

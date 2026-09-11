@@ -3,7 +3,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-3"
+version       = "{{version}}-1"
 architecture  = "x86_64"
 license       = "BSD-4-Clause"
 license_class = "free"

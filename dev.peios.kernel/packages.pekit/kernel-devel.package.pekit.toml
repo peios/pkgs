@@ -3,7 +3,7 @@
 name = "dev.peios.kernel-devel"
 
 [dependencies]
-"dev.peios.kernel" = "= {{version}}-3"
+"dev.peios.kernel" = "= {{version}}-1"
 "dev.peios.build-essentials-c" = "*"
 
 [provides]

@@ -120,7 +120,7 @@ EOF
 # The build is small, but it is still hermetic: every command it executes is
 # present in both reference environments rather than inherited from the host.
 [build.dependencies.peipkg]
-"org.git.kernel.dash"    = ">= 0.5.13.5-3"
+"org.git.kernel.dash"    = ">= 0.5.13.5-1"
 "dev.peios.peiosutils"   = ">= 0.8.8-1"
 
 [build.dependencies.apt]
@@ -137,8 +137,8 @@ needs = ["main"]
 command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" python3 tests/test-release.py'
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = ">= 0.5.13.5-3"
-"org.python.python3" = ">= 3.14.7-4"
+"org.git.kernel.dash" = ">= 0.5.13.5-1"
+"org.python.python3" = ">= 3.14.7-1"
 
 [test.dependencies.apt]
 dash    = "*"

@@ -3,7 +3,7 @@
 name = "dev.peios.cpupower-libs-devel"
 
 [dependencies]
-"dev.peios.cpupower-libs" = "= {{version}}-3"
+"dev.peios.cpupower-libs" = "= {{version}}-1"
 
 [provides]
 

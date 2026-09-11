@@ -8,7 +8,7 @@ description = "Integer Set Library - development files"
 [provides]
 
 [dependencies]
-"io.sourceforge.libisl.isl" = "{{version}}-2"
+"io.sourceforge.libisl.isl" = "{{version}}-1"
 "org.gnu.gmp-devel"                 = ">= 6.3.0"
 
 [files]

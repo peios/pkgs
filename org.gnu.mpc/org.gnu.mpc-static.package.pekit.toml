@@ -7,7 +7,7 @@ description = "GNU MPC static library"
 [replaces]
 
 [dependencies]
-"org.gnu.mpc-devel"   = "{{version}}-2"
+"org.gnu.mpc-devel"   = "{{version}}-1"
 "org.gnu.mpfr-static" = ">= 4.2.2"
 "org.gnu.gmp-static"  = ">= 6.3.0"
 

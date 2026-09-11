@@ -9,7 +9,7 @@ description = "LLVM linker and compatible driver names"
 [replaces]
 
 [dependencies]
-"org.llvm.llvm-libs" = "{{version}}-2"
+"org.llvm.llvm-libs" = "{{version}}-1"
 
 [files]
 "@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld/LICENSE.TXT"

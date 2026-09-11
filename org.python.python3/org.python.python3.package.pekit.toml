@@ -6,12 +6,12 @@ description = "Python 3 interpreter and command-line tools"
 
 [provides]
 # Include the package revision so this canonical provider outranks the retained
-# 3.14.7-3 bootstrap artifact in mixed local pools.
+# 3.14.7-1 bootstrap artifact in mixed local pools.
 
 [replaces]
 
 [dependencies]
-"org.python.python3-libs" = "{{version}}-4"
+"org.python.python3-libs" = "{{version}}-1"
 
 [files]
 "@source:LICENSE"        = "usr/share/licenses/org.python.python3/LICENSE"

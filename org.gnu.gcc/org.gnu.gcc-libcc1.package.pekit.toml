@@ -24,8 +24,8 @@ license     = "GPL-3.0-or-later"
 
 [dependencies]
 # Links libstdc++ and libgcc_s of exactly this build.
-"org.gnu.gcc-libstdc++" = "{{version}}-2"
-"org.gnu.gcc-libgcc"    = "{{version}}-2"
+"org.gnu.gcc-libstdc++" = "{{version}}-1"
+"org.gnu.gcc-libgcc"    = "{{version}}-1"
 "org.gnu.glibc" = ">= 2.43"
 
 [files]

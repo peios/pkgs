@@ -11,7 +11,7 @@ license     = "GPL-2.0-or-later"
 "org.gnu.diffutils" = "*"
 "org.gnu.grep"      = "*"
 "org.gnu.sed"       = "*"
-"org.tukaani.xz"    = "{{version}}-2"
+"org.tukaani.xz"    = "{{version}}-1"
 
 [files]
 "@source:COPYING.GPLv2" = "usr/share/licenses/org.tukaani.xz-utils/COPYING.GPLv2"

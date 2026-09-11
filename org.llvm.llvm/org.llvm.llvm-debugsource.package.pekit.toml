@@ -4,7 +4,7 @@ description = "LLVM, Clang and LLD corresponding debug sources"
 license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 
 [dependencies]
-"org.llvm.llvm-debuginfo" = "{{version}}-2"
+"org.llvm.llvm-debuginfo" = "{{version}}-1"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-debugsource/LICENSE.TXT"

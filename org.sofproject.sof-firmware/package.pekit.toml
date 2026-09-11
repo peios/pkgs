@@ -1,7 +1,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-4"
+version       = "{{version}}-1"
 architecture  = "noarch"
 # Intel-signed DSP images under the SOF firmware release licence
 # (redistributable binary, no SPDX id); the topology files are BSD-3-Clause,

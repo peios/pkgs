@@ -7,7 +7,7 @@ name        = "org.sourceware.bzip2"
 description = "Block-sorting compression tools"
 
 [dependencies]
-"org.sourceware.bzip2-libs" = "{{version}}-3"
+"org.sourceware.bzip2-libs" = "{{version}}-1"
 # bzgrep and bzdiff are POSIX shell frontends over these standard tools.
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"

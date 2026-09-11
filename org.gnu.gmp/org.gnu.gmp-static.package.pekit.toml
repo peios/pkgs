@@ -7,7 +7,7 @@ description = "GNU Multiple Precision Arithmetic Library - static libraries"
 [provides]
 
 [dependencies]
-"org.gnu.gmp-devel" = "{{version}}-2"
+"org.gnu.gmp-devel" = "{{version}}-1"
 
 [files]
 ":usr/lib/x86_64-linux-peios/libgmp.a"   = "usr/lib/x86_64-linux-peios/libgmp.a"

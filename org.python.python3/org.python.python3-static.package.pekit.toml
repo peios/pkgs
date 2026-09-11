@@ -3,7 +3,7 @@ name        = "org.python.python3-static"
 description = "Python 3 static embedding library"
 
 [dependencies]
-"org.python.python3-devel" = "{{version}}-4"
+"org.python.python3-devel" = "{{version}}-1"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.python.python3-static/LICENSE"

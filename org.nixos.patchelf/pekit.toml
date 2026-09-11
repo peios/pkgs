@@ -80,7 +80,7 @@ rm -f "$PEKIT_OUT/.debug-list"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials" = "*"
 "org.gnu.gcc-c++"        = "*"
-"org.sourceware.debugedit"        = ">= 5.2-2"
+"org.sourceware.debugedit"        = ">= 5.2-1"
 "org.gnu.gzip"             = "*"
 "org.gnu.glibc-bin"        = "*"
 "org.gnu.bash"   = "*"

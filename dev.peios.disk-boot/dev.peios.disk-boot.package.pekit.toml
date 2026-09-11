@@ -9,7 +9,7 @@ description = "Peios installed-system boot support"
 # disk-boot-irf's home is the initramfs root, so this edge carries IN initramfs
 # (the table `root` field).
 [dependencies]
-"dev.peios.disk-boot-irf" = { constraint = "1.0.0-10", root = "initramfs" }
+"dev.peios.disk-boot-irf" = { constraint = "1.0.0-1", root = "initramfs" }
 
 # The cmdline TEMPLATE — deliberately not the finished article. It carries
 # everything an installed system needs except `root=`, which cannot be package

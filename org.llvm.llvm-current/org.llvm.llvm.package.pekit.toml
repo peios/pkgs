@@ -15,7 +15,7 @@ description = "Compiler infrastructure command-line tools"
 [replaces]
 
 [dependencies]
-"org.llvm.llvm-libs" = "{{version}}-2"
+"org.llvm.llvm-libs" = "{{version}}-1"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm/LICENSE.TXT"

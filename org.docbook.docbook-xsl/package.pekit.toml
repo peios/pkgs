@@ -1,7 +1,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-4"
+version       = "{{version}}-1"
 architecture  = "noarch"
 # The DocBook project's modified MIT grant adds attribution/advertising and
 # derived-stylesheet naming conditions, so it is not SPDX MIT. Fedora names

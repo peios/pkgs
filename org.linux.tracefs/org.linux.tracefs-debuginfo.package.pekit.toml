@@ -4,7 +4,7 @@ description = "libtracefs debugging symbols"
 license     = "LGPL-2.1-only"
 
 [dependencies]
-"org.linux.tracefs" = "{{version}}-2"
+"org.linux.tracefs" = "{{version}}-1"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-debuginfo/LGPL-2.1"

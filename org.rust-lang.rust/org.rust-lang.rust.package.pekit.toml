@@ -10,11 +10,11 @@ description  = "Programming-language compiler, package manager, formatter and so
 [replaces]
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-3"
-"org.rust-lang.cargo"       = "= {{version}}-3"
-"org.rust-lang.rustfmt"     = "= {{version}}-3"
-"org.rust-lang.rust-src"    = "= {{version}}-3"
-"org.rust-lang.rust-common" = "= {{version}}-3"
+"org.rust-lang.rustc"       = "= {{version}}-1"
+"org.rust-lang.cargo"       = "= {{version}}-1"
+"org.rust-lang.rustfmt"     = "= {{version}}-1"
+"org.rust-lang.rust-src"    = "= {{version}}-1"
+"org.rust-lang.rust-common" = "= {{version}}-1"
 
 [files]
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust/LICENSE-APACHE"

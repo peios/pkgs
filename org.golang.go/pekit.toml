@@ -130,8 +130,8 @@ rm -rf "$PEKIT_OUT/.gocache"
 '''
 
 [build.main.dependencies.peipkg]
-"org.golang.go-stage0-1.24"    = ">= 1.24.6-2"
-"dev.peios.build-essentials-c" = ">= 1.0.0-6"
+"org.golang.go-stage0-1.24"    = ">= 1.24.6-1"
+"dev.peios.build-essentials-c" = ">= 1.0.0-1"
 "org.gnu.bash"                  = "*"
 "org.debian.netbase"            = "*"
 "org.gnu.gzip"                  = "*"
@@ -234,7 +234,7 @@ find "$PACKAGED_GOROOT/bin" "$PACKAGED_GOROOT/pkg/tool/linux_amd64" \
 '''
 
 [test.dependencies.peipkg]
-"dev.peios.build-essentials-c" = ">= 1.0.0-6"
+"dev.peios.build-essentials-c" = ">= 1.0.0-1"
 "org.gnu.bash"                  = "*"
 "org.debian.netbase"            = "*"
 
