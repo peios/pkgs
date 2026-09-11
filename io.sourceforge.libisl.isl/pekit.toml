@@ -59,10 +59,6 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
 
 make -j"$(nproc)"
 
-# A wrong ISL answer can become a compiler miscompilation. Exercise the entire
-# upstream suite against this build tree rather than an older composed libisl.
-LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -j"$(nproc)" check
-
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
@@ -73,60 +69,7 @@ GDB_HELPER=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libisl.so.*-gdb.py' | LC_
 test "$(printf '%s\n' "$GDB_HELPER" | grep -c .)" -eq 1
 mv "$GDB_HELPER" "$GDBDIR/"
 
-# Assert the complete installed library contract before splitting debug data.
 ISL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libisl.so.23.*' | LC_ALL=C sort)
-test "$(printf '%s\n' "$ISL_SO" | grep -c .)" -eq 1
-test -L "$LIBDIR/libisl.so"
-test -L "$LIBDIR/libisl.so.23"
-test -s "$LIBDIR/libisl.a"
-test -f "$LIBDIR/pkgconfig/isl.pc"
-test -f "$INCLUDEDIR/isl/ctx.h"
-test -f "$INCLUDEDIR/isl/set.h"
-test -f "$INCLUDEDIR/isl/map.h"
-test -f "$PEKIT_OUT/usr/share/aclocal/isl_detect_clang.m4"
-test -f "$GDBDIR/$(basename "$GDB_HELPER")"
-
-# ISL 0.28 has libtool version-info 28:0:5, hence ABI/SONAME 23. Keep the
-# SONAME assertion as the automatic-update boundary for later 0.x releases.
-readelf -d "$ISL_SO" | grep -F 'Library soname: [libisl.so.23]'
-readelf -d "$ISL_SO" | grep -F 'Shared library: [libgmp.so.10]'
-PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --validate isl
-test "$(PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --modversion isl)" = "$PEKIT_VERSION"
-PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --libs isl | grep -Eq '(^|[[:space:]])-lisl([[:space:]]|$)'
-ar t "$LIBDIR/libisl.a" | grep -Fx 'isl_ctx.o'
-
-# Compile and run a representative installed C consumer. It applies a map to a
-# bounded set and checks the exact resulting set, through both shared and fully
-# static ISL/GMP linkage.
-SMOKE="$PEKIT_OUT/.isl-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/consumer.c" <<'EOF'
-#include <isl/ctx.h>
-#include <isl/map.h>
-#include <isl/set.h>
-
-int main(void)
-{
-  isl_ctx *ctx = isl_ctx_alloc();
-  isl_set *domain = isl_set_read_from_str(ctx, "{ [i] : 0 <= i <= 9 }");
-  isl_map *successor = isl_map_read_from_str(ctx,
-      "{ [i] -> [j] : j = i + 1 }");
-  isl_set *image = isl_set_apply(domain, successor);
-  isl_set *expected = isl_set_read_from_str(ctx, "{ [j] : 1 <= j <= 10 }");
-  int equal = isl_set_is_equal(image, expected);
-  isl_set_free(image);
-  isl_set_free(expected);
-  isl_ctx_free(ctx);
-  return equal == 1 ? 0 : 1;
-}
-EOF
-cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" -lisl -lgmp -o "$SMOKE/shared"
-LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios" "$SMOKE/shared"
-test -s /usr/lib/x86_64-linux-peios/libgmp.a
-cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libisl.a" \
-  /usr/lib/x86_64-linux-peios/libgmp.a -lm -o "$SMOKE/static"
-"$SMOKE/static"
 
 # Produce build-ID-indexed debug symbols and stage the exact corresponding
 # source paths referenced by the rewritten DWARF.
@@ -159,22 +102,6 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   mkdir -p "usr/src/debug/io.sourceforge.libisl.isl/$(dirname "$rel")"
   cp "$ROOT/$rel" "usr/src/debug/io.sourceforge.libisl.isl/$rel"
 done
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
-test -n "$(find usr/src/debug/io.sourceforge.libisl.isl -type f -print -quit)"
-readelf -S "usr/lib/debug/.build-id/$ID_DIR/$ID_FILE.debug" | grep -F '.debug_info'
-if readelf -S "$ISL_SO" | grep -F '.debug_info'; then exit 1; fi
-
-# Verify hardening and dynamic dependencies on the stripped object that ships.
-readelf -h "$ISL_SO" | grep -Eq 'Type:[[:space:]]+DYN'
-readelf -W -l "$ISL_SO" | grep 'GNU_STACK' | grep -F 'RW '
-readelf -W -l "$ISL_SO" | grep -F 'GNU_RELRO'
-readelf -d "$ISL_SO" | grep -F 'BIND_NOW'
-readelf -d "$ISL_SO" | grep -F 'RELR'
-readelf -n "$ISL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
-if readelf -d "$ISL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
-if readelf -d "$ISL_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
-
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
@@ -182,7 +109,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "dev.peios.build-essentials-c++"  = "*"
 "org.gnu.gmp-devel"      = "*"
 "org.gnu.gmp-static"     = "*"
-pkgconf                   = "*"
+"org.pkgconf.pkgconf"                   = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -192,17 +119,85 @@ debugedit       = "*"
 patchelf        = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -f "$PEKIT_MAIN_OUT/usr/include/isl/ctx.h"
-test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libisl.a"
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libisl.so.*
-test -e "$1"
+# A wrong ISL answer can become a compiler miscompilation. Exercise the entire
+# upstream suite against this build tree rather than an older composed libisl.
+cd "$PEKIT_MAIN_OUT"
+LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/.libs" make -j"$(nproc)" check
+STAGE="$PEKIT_MAIN_OUT"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$STAGE/usr/include"
+ISL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libisl.so.23.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$ISL_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libisl.so"
+test -L "$LIBDIR/libisl.so.23"
+test -s "$LIBDIR/libisl.a"
+test -f "$LIBDIR/pkgconfig/isl.pc"
+test -f "$INCLUDEDIR/isl/ctx.h"
+test -f "$INCLUDEDIR/isl/set.h"
+test -f "$INCLUDEDIR/isl/map.h"
+test -f "$STAGE/usr/share/aclocal/isl_detect_clang.m4"
+test -n "$(find "$STAGE/usr/share/gdb/auto-load/usr/lib/x86_64-linux-peios" -type f -name 'libisl.so.*-gdb.py' -print -quit)"
+readelf -d "$ISL_SO" | grep -F 'Library soname: [libisl.so.23]'
+readelf -d "$ISL_SO" | grep -F 'Shared library: [libgmp.so.10]'
+PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --validate isl
+test "$(PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --modversion isl)" = "$PEKIT_VERSION"
+PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig" pkg-config --libs isl | grep -Eq '(^|[[:space:]])-lisl([[:space:]]|$)'
+ar t "$LIBDIR/libisl.a" | grep -Fx 'isl_ctx.o'
+
+SMOKE="$PEKIT_OUT/isl-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <isl/ctx.h>
+#include <isl/map.h>
+#include <isl/set.h>
+int main(void) {
+  isl_ctx *ctx = isl_ctx_alloc();
+  isl_set *domain = isl_set_read_from_str(ctx, "{ [i] : 0 <= i <= 9 }");
+  isl_map *successor = isl_map_read_from_str(ctx, "{ [i] -> [j] : j = i + 1 }");
+  isl_set *image = isl_set_apply(domain, successor);
+  isl_set *expected = isl_set_read_from_str(ctx, "{ [j] : 1 <= j <= 10 }");
+  int equal = isl_set_is_equal(image, expected);
+  isl_set_free(image); isl_set_free(expected); isl_ctx_free(ctx);
+  return equal == 1 ? 0 : 1;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lisl -lgmp -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios" "$SMOKE/shared"
+test -s /usr/lib/x86_64-linux-peios/libgmp.a
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libisl.a" \
+  /usr/lib/x86_64-linux-peios/libgmp.a -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
+test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
+test -n "$(find "$STAGE/usr/src/debug/io.sourceforge.libisl.isl" -type f -print -quit)"
+readelf -S "$DEBUG" | grep -F '.debug_info'
+if readelf -S "$ISL_SO" | grep -F '.debug_info'; then exit 1; fi
+readelf -h "$ISL_SO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$ISL_SO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$ISL_SO" | grep -F 'GNU_RELRO'
+readelf -d "$ISL_SO" | grep -F 'BIND_NOW'
+readelf -d "$ISL_SO" | grep -F 'RELR'
+readelf -n "$ISL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$ISL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+if readelf -d "$ISL_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.gmp-devel" = "*"
+"org.gnu.gmp-static" = "*"
+"org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+libgmp-dev = "*"
+pkgconf = "*"
 dash = "*"

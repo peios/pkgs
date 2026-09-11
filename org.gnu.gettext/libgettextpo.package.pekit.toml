@@ -6,13 +6,11 @@ description = "GNU Gettext PO-file manipulation library"
 license     = "GPL-3.0-or-later"
 
 [provides]
-libgettextpo = "{{version}}"
 
 [replaces]
-libgettextpo = "<= {{version}}-2"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gettext-libgettextpo/COPYING"

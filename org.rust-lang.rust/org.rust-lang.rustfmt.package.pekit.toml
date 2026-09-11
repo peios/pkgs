@@ -3,13 +3,12 @@ name        = "org.rust-lang.rustfmt"
 description = "Rust source-code formatter and Cargo integration"
 
 [provides]
-rustfmt = "{{version}}-3"
 
 [dependencies]
 "org.rust-lang.rustc"       = "= {{version}}-3"
 "org.rust-lang.rust-common" = "= {{version}}-3"
-glibc                   = ">= 2.43"
-libgcc                  = ">= 16"
+"org.gnu.glibc"                   = ">= 2.43"
+"org.gnu.gcc-libgcc"                  = ">= 16"
 
 [files]
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rustfmt/LICENSE-APACHE"

@@ -72,15 +72,6 @@ sed 's/@USE_CFG_SUFFIX@/w6/g' "$SRC/man/man_db.renames.in" \
   --without-gpm
 
 make -j"$(nproc)"
-
-# The ordinary build compiles upstream's complete public test-program set.
-# Its aggregate check target additionally links private trace diagnostics which
-# are unavailable in the production no-trace configuration. The test-directory
-# header check is also broken for an out-of-tree build when its *.h glob is
-# empty, so run the useful generated/public header checks directly instead.
-make -C include check
-make -C progs check
-
 make install DESTDIR="$PEKIT_OUT"
 
 # The configured database paths are /etc/terminfo and /usr/share/terminfo.
@@ -89,8 +80,6 @@ make install DESTDIR="$PEKIT_OUT"
 rm -f "$PEKIT_OUT/usr/lib/terminfo"
 
 STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
-TERMINFO="$PEKIT_OUT/usr/share/terminfo"
-PCDIR="$STAGED_LIBDIR/pkgconfig"
 
 # ncursesw is deliberately the only curses ABI in Peios. Supply conventional
 # linker aliases and make direct -lncursesw consumers pull the split tinfo ABI.
@@ -99,71 +88,6 @@ printf '%s\n' 'INPUT(libncursesw.so.6 -ltinfo)' > "$STAGED_LIBDIR/libncursesw.so
 printf '%s\n' 'INPUT(-lncursesw)' > "$STAGED_LIBDIR/libcursesw.so"
 printf '%s\n' 'INPUT(-lncursesw)' > "$STAGED_LIBDIR/libcurses.so"
 printf '%s\n' 'INPUT(-ltinfo)' > "$STAGED_LIBDIR/libtermcap.so"
-
-# Assert the complete installed ABI and keep newly added upstream tools from
-# silently becoming unpackaged staging files.
-for stem in ncursesw panelw menuw formw tinfo tic; do
-  test -L "$STAGED_LIBDIR/lib$stem.so.6"
-  test -f "$STAGED_LIBDIR/lib$stem.a"
-  so=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name "lib$stem.so.6.*")
-  test "$(printf '%s\n' "$so" | grep -c .)" -eq 1
-  readelf -d "$so" | grep -F "Library soname: [lib$stem.so.6]"
-done
-test -f "$PCDIR/ncursesw.pc"
-test -f "$PCDIR/tinfo.pc"
-test -x "$PEKIT_OUT/usr/bin/ncursesw6-config"
-find "$PEKIT_OUT/usr/bin" -maxdepth 1 \( -type f -o -type l \) \
-  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.installed-tools"
-printf '%s\n' captoinfo clear infocmp infotocap ncursesw6-config reset tabs tic \
-  toe tput tset | LC_ALL=C sort > "$PEKIT_OUT/.expected-tools"
-diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
-test "$(find "$TERMINFO" -type f | wc -l)" -gt 2500
-
-NCURSES_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libncursesw.so.6.*')
-readelf -d "$NCURSES_SO" | grep -F 'Shared library: [libtinfo.so.6]'
-readelf --version-info "$NCURSES_SO" | grep -Fq 'NCURSES'
-
-# Exercise installed shared/static curses and terminfo interfaces without a
-# terminal or environment-sensitive database lookup. Root builds deliberately
-# ignore TERMINFO because root-environment support is disabled in this build.
-SMOKE="$PEKIT_OUT/.ncurses-smoke"
-mkdir -p "$SMOKE/db"
-cat > "$SMOKE/curses.c" <<'EOF'
-#include <curses.h>
-#include <string.h>
-
-int main(void)
-{
-  const char *version = curses_version();
-  const char *expanded = tparm("\033[%p1%dm", 31L);
-  return version != NULL && strstr(version, "ncurses 6.6") != NULL &&
-         expanded != NULL && strcmp(expanded, "\033[31m") == 0 ? 0 : 1;
-}
-EOF
-NCURSES_CFLAGS="-I$PEKIT_OUT/usr/include $(PKG_CONFIG_PATH="$PCDIR" \
-  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --cflags ncursesw)"
-NCURSES_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
-  pkgconf --libs ncursesw)
-NCURSES_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" \
-  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --static --libs ncursesw)
-cc $NCURSES_CFLAGS "$SMOKE/curses.c" -L"$STAGED_LIBDIR" \
-  $NCURSES_LIBS -o "$SMOKE/shared"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
-cc $NCURSES_CFLAGS "$SMOKE/curses.c" -L"$STAGED_LIBDIR" -Wl,-Bstatic \
-  $NCURSES_STATIC_LIBS -Wl,-Bdynamic -o "$SMOKE/static"
-"$SMOKE/static"
-
-cat > "$SMOKE/peios.terminfo" <<'EOF'
-peios-test|Peios packaging test terminal,
-  cols#80, lines#24, colors#8, pairs#64,
-  clear=\E[H\E[2J,
-EOF
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$PEKIT_OUT/usr/bin/tic" -x \
-  -o "$SMOKE/db" "$SMOKE/peios.terminfo"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$PEKIT_OUT/usr/bin/infocmp" \
-  -A "$SMOKE/db" peios-test | grep -F 'colors#8'
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$PEKIT_OUT/usr/bin/infocmp" \
-  -A "$TERMINFO" xterm-256color | grep -Eq 'colors#(256|0x100)'
 
 # Split build-ID-indexed debug data and stage every DWARF-referenced source.
 # Static archives retain code while dropping their debug sections.
@@ -198,10 +122,86 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel
   mkdir -p "usr/src/debug/org.gnu.ncurses/$(dirname "$rel")"
   cp "$ROOT/$rel" "usr/src/debug/org.gnu.ncurses/$rel"
 done
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -ge 10
-test -n "$(find usr/src/debug/org.gnu.ncurses -type f -print -quit)"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids"
+'''
 
-# Assert the properties of the stripped shared objects that will ship.
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+STAGED_LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+TERMINFO="$STAGE/usr/share/terminfo"
+PCDIR="$STAGED_LIBDIR/pkgconfig"
+SMOKE="$PEKIT_OUT/smoke"
+
+# Run the useful generated/public header and program checks. The aggregate
+# target links private trace diagnostics absent from the production build.
+make -C "$STAGE/include" check
+make -C "$STAGE/progs" check
+
+for stem in ncursesw panelw menuw formw tinfo tic; do
+  test -L "$STAGED_LIBDIR/lib$stem.so.6"
+  test -f "$STAGED_LIBDIR/lib$stem.a"
+  so=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name "lib$stem.so.6.*")
+  test "$(printf '%s\n' "$so" | grep -c .)" -eq 1
+  readelf -d "$so" | grep -F "Library soname: [lib$stem.so.6]"
+done
+test -f "$PCDIR/ncursesw.pc"
+test -f "$PCDIR/tinfo.pc"
+test -x "$STAGE/usr/bin/ncursesw6-config"
+"$STAGE/usr/bin/ncursesw6-config" --version | grep -Fx "$PEKIT_VERSION"
+find "$STAGE/usr/bin" -maxdepth 1 \( -type f -o -type l \) \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/installed-tools"
+printf '%s\n' captoinfo clear infocmp infotocap ncursesw6-config reset tabs tic \
+  toe tput tset | LC_ALL=C sort > "$PEKIT_OUT/expected-tools"
+diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
+test "$(find "$TERMINFO" -type f | wc -l)" -gt 2500
+
+NCURSES_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libncursesw.so.6.*')
+readelf -d "$NCURSES_SO" | grep -F 'Shared library: [libtinfo.so.6]'
+readelf --version-info "$NCURSES_SO" | grep -Fq 'NCURSES'
+
+mkdir -p "$SMOKE/db"
+cat > "$SMOKE/curses.c" <<'EOF'
+#include <curses.h>
+#include <string.h>
+int main(void) {
+  const char *version = curses_version();
+  const char *expanded = tparm("\033[%p1%dm", 31L);
+  return version != NULL && strstr(version, "ncurses ") != NULL &&
+         expanded != NULL && strcmp(expanded, "\033[31m") == 0 ? 0 : 1;
+}
+EOF
+NCURSES_CFLAGS="-I$STAGE/usr/include $(PKG_CONFIG_PATH="$PCDIR" \
+  PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --cflags ncursesw)"
+NCURSES_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$STAGE" \
+  pkgconf --libs ncursesw)
+NCURSES_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" \
+  PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --static --libs ncursesw)
+cc $NCURSES_CFLAGS "$SMOKE/curses.c" -L"$STAGED_LIBDIR" \
+  $NCURSES_LIBS -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc $NCURSES_CFLAGS "$SMOKE/curses.c" -L"$STAGED_LIBDIR" -Wl,-Bstatic \
+  $NCURSES_STATIC_LIBS -Wl,-Bdynamic -o "$SMOKE/static"
+"$SMOKE/static"
+
+cat > "$SMOKE/peios.terminfo" <<'EOF'
+peios-test|Peios packaging test terminal,
+  cols#80, lines#24, colors#8, pairs#64,
+  clear=\E[H\E[2J,
+EOF
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$STAGE/usr/bin/tic" -x \
+  -o "$SMOKE/db" "$SMOKE/peios.terminfo"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$STAGE/usr/bin/infocmp" \
+  -A "$SMOKE/db" peios-test | grep -F 'colors#8'
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$STAGE/usr/bin/infocmp" \
+  -A "$TERMINFO" xterm-256color | grep -Eq 'colors#(256|0x100)'
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -ge 10
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.ncurses" -type f -print -quit)"
 for elf in "$STAGED_LIBDIR"/lib*.so.6.*; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
@@ -212,17 +212,22 @@ for elf in "$STAGED_LIBDIR"/lib*.so.6.*; do
     readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   fi
 done
-
-rm -rf "$SMOKE"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
-  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.installed-tools" \
-  "$PEKIT_OUT/.expected-tools"
 '''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.pkgconf.pkgconf"          = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+gzip            = "*"
+pkgconf         = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-gzip               = "*"
-pkgconf            = "*"
+"org.gnu.gzip"               = "*"
+"org.pkgconf.pkgconf"            = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

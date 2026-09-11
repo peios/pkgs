@@ -3,14 +3,13 @@ name        = "org.gnu.gawk"
 description = "GNU pattern scanning and processing language"
 
 [provides]
-gawk = "{{version}}"
 awk  = "{{version}}"
 
 [dependencies]
-glibc                 = ">= 2.43"
-gmp                   = ">= 6.3.0"
-mpfr                  = ">= 4.2.2"
-dash                  = "*"
+"org.gnu.glibc"                 = ">= 2.43"
+"org.gnu.gmp"                   = ">= 6.3.0"
+"org.gnu.mpfr"                  = ">= 4.2.2"
+"org.git.kernel.dash"                  = "*"
 "org.gnu.gawk-common" = "{{version}}-1"
 
 [files]

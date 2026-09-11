@@ -3,12 +3,11 @@ name        = "org.rust-lang.rust-std"
 description = "Rust standard libraries for x86_64-unknown-linux-gnu"
 
 [provides]
-rust-std = "{{version}}-3"
 
 [dependencies]
 "org.rust-lang.rust-common" = "= {{version}}-3"
-glibc                        = ">= 2.43"
-libgcc                       = ">= 16"
+"org.gnu.glibc"                        = ">= 2.43"
+"org.gnu.gcc-libgcc"                       = ">= 16"
 
 [files]
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-std/LICENSE-APACHE"

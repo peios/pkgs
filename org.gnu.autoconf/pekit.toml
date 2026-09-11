@@ -34,10 +34,6 @@ SRC="$(pwd)"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
-# The release tarball is already bootstrapped, so the core suite has no
-# dependency cycle through Automake or Libtool. Their integration cases (and
-# Gettext's autopoint cases) skip cleanly when those optional tools are absent.
-make check
 make install DESTDIR="$PEKIT_OUT"
 # Peios does not currently ship an Info reader; the manual remains available
 # online and in the corresponding-source package.
@@ -47,8 +43,8 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.bash"           = "*"
-m4                       = ">= 1.4.16"
-perl                     = ">= 5.6"
+"org.gnu.m4"                       = ">= 1.4.16"
+"org.perl.perl"                     = ">= 5.6"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -57,16 +53,29 @@ m4    = ">= 1.4.16"
 perl  = ">= 5.6"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
 case "$("$PEKIT_MAIN_OUT/usr/bin/autoconf" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
+# The release tarball is already bootstrapped, so the core suite has no
+# dependency cycle through Automake or Libtool. Their integration cases (and
+# Gettext's autopoint cases) skip cleanly when those optional tools are absent.
+make check
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-"org.perl.perl" = "*"
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.bash"           = "*"
+"org.gnu.m4"                       = ">= 1.4.16"
+"org.perl.perl"                     = ">= 5.6"
 
 [test.dependencies.apt]
-dash = "*"
-perl = "*"
+build-essential = "*"
+bash  = "*"
+m4    = ">= 1.4.16"
+perl  = ">= 5.6"

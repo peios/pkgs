@@ -6,11 +6,9 @@ name        = "io.github.thom311.libnl"
 description = "Netlink protocol libraries"
 
 [provides]
-libnl  = "{{version}}"
-libnl3 = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl/"

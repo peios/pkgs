@@ -13,14 +13,9 @@
 # anything set here; the root only supplies what neither does — like the
 # publish target, which upstreams don't know about.
 #
-# [[publish.<type>]] — where built packages are published. An array of
-# typed targets. `localdir` copies the .peipkg into a local repo directory
-# (path is relative to this workspace root).
-#   future targets, e.g.:  [[publish.r2]] \n bucket = "..." \n remote = "..."
-[[publish.localdir]]
-path = "_pkgsOut_"
-
-# Complete signed package repository. Individual recipes inherit this target;
+# Complete signed package repository. Individual recipes inherit this sole
+# production target; per-recipe out/ trees remain the regeneratable staging
+# area, so publication does not duplicate every artifact into a flat pool.
 # the keyring selects environment-specific key custody without putting a key
 # path or private material in version control.
 [publish.peipkg]

@@ -63,18 +63,32 @@ rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
   "$PEKIT_OUT$PREFIX/bin/rust-gdbgui" \
   "$PEKIT_OUT$PREFIX/bin/rust-lldb"
 
-# Assert the bootstrap contract at the installed prefix. This catches a lock
-# or recipe edit that would otherwise let x.py begin a many-hour build with a
-# seed different from the one required by Rust 1.83.
-test "$("$PEKIT_OUT$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
-test "$("$PEKIT_OUT$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rustc"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-cargo"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials" = "*"
 
 [build.main.dependencies.apt]
+build-essential = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+PREFIX="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/rust-stage0"
+
+# Catch a lock or recipe edit before Rust 1.83 begins its self-hosted build
+# with a seed different from its authoritative stage0 requirement.
+test "$("$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$("$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test -f "$PREFIX/lib/rustlib/manifest-rustc"
+test -f "$PREFIX/lib/rustlib/manifest-cargo"
+test -f "$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials" = "*"
+
+[test.dependencies.apt]
 build-essential = "*"

@@ -3,6 +3,5 @@
 name = "dev.peios.kernel"
 
 [provides]
-"linux-kernel" = "7.0.9"
 
 [replaces]

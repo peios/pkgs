@@ -42,11 +42,9 @@ license     = "GPL-3.0-or-later AND (GPL-3.0-or-later WITH GCC-exception-3.1) AN
 # distros add it — and like `sh` it's a contended name a future clang
 # could claim, so it's a role, not a shipped file.
 [provides]
-gcc = "{{version}}-2"
 cc = "1"
 
 [replaces]
-gcc = "<= {{version}}-1"
 
 [claims.provides.cc.usrbin]
 target = "/usr/bin/gcc"
@@ -63,7 +61,7 @@ path   = "/usr/bin/cc"
 # that ships it is versioned on pkm's SemVer (the PKM/KACS ABI), which says
 # nothing about which Linux syscalls exist; `linux-kernel-headers` is the
 # Linux scale, published as a versioned provide for exactly this.
-"linux-kernel-headers" = ">= 6.16"
+"dev.peios.kernel-headers" = ">= 6.16"
 # GCC 16 injects -latomic_asneeded into every link by default
 # (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
 # script is part of the compiler's own contract, like libgcc.

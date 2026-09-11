@@ -23,7 +23,7 @@ name        = "net.sourceforge.e2fsprogs"
 description = "Ext2/3/4 filesystem utilities"
 
 [dependencies]
-glibc      = ">= 2.43"
+"org.gnu.glibc"      = ">= 2.43"
 "net.sourceforge.e2fsprogs-libcom-err" = "{{version}}-1"
 "net.sourceforge.e2fsprogs-libss"      = "{{version}}-1"
 "net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"

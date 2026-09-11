@@ -3,10 +3,8 @@ name        = "org.gnu.mpc-devel"
 description = "GNU MPC development files"
 
 [provides]
-"mpc-devel" = "{{version}}-2"
 
 [replaces]
-"mpc-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.mpc"        = "{{version}}-2"

@@ -40,6 +40,27 @@ cd "$PEKIT_OUT"
   --infodir=/usr/share/info
 make -j"$(nproc)"
 
+make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+"""
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.texinfo" = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+test "$(printf '%s\n' 'scale=4; 1/8' | "$BIN/bc")" = .1250
+test "$(printf '%s\n' '16i FF p' | "$BIN/dc")" = 255
+
+# Run the upstream release suite from the explicit package gate.
+SRC="$(pwd)"
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
 # Upstream's Automake `make check` target only rebuilds the programs, so run
 # the shipped mathematical corpus and focused command-line regressions here.
 make check
@@ -62,27 +83,16 @@ if printf '1+1\n' | "$PEKIT_OUT/bc/bc" > /dev/full 2>/dev/null; then
   exit 1
 fi
 
-make install DESTDIR="$PEKIT_OUT"
-rm -rf "$PEKIT_OUT/usr/share/info"
-"""
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "*"
-texinfo = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-BIN="$PEKIT_MAIN_OUT/usr/bin"
-test "$(printf '%s\n' 'scale=4; 1/8' | "$BIN/bc")" = .1250
-test "$(printf '%s\n' '16i FF p' | "$BIN/dc")" = 255
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.texinfo" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+texinfo = "*"
 dash = "*"
 
 [build.main.dependencies.apt]

@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libstdc++-devel"
 description = "GNU Standard C++ Library development files"
 
 [provides]
-"libstdc++-devel" = "{{version}}-2"
 
 [replaces]
-"libstdc++-devel" = "<= {{version}}-1"
 
 [dependencies]
 # The dev .so symlink resolves into libstdc++'s versioned lib, and the headers

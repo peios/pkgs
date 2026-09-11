@@ -3,9 +3,6 @@ name        = "com.xxhash.xxhash-static"
 description = "xxHash static library"
 license     = "BSD-2-Clause"
 
-[provides]
-"xxhash-static" = "{{version}}-1"
-
 [dependencies]
 "com.xxhash.xxhash-devel" = "{{version}}-1"
 

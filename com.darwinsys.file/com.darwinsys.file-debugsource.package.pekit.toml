@@ -6,4 +6,5 @@ description = "file and libmagic - debug sources"
 "com.darwinsys.file-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING"   = "usr/share/licenses/com.darwinsys.file-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

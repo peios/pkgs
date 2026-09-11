@@ -6,13 +6,11 @@ description = "GNU text styling library"
 license     = "GPL-3.0-or-later"
 
 [provides]
-libtextstyle = "{{version}}"
 
 [replaces]
-libtextstyle = "<= {{version}}-2"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:libtextstyle/COPYING" = "usr/share/licenses/org.gnu.gettext-libtextstyle/COPYING"

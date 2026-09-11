@@ -1,3 +1,2 @@
 [allow]
 "source.versions.ceiling" = "LLVM 18 is the deliberately frozen kernel-toolchain lane selected by PKM; the rolling compiler lane is org.llvm.llvm-current"
-"build.test" = "The LLVM, Clang, and LLD suites plus staged compiler/linker probes run inside build.main so package and publish fail closed"

@@ -4,7 +4,6 @@ architecture = "noarch"
 description  = "libxml2 API documentation and release notes"
 
 [provides]
-"libxml2-doc" = "{{version}}-1"
 
 [files]
 "@source:Copyright"                     = "usr/share/licenses/org.gnome.libxml2-doc/"

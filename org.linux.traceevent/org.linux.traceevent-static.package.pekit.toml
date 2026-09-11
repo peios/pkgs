@@ -4,7 +4,6 @@ description = "libtraceevent static library"
 license     = "LGPL-2.1-only"
 
 [provides]
-"libtraceevent-static" = "{{version}}-2"
 
 [dependencies]
 "org.linux.traceevent-devel" = "{{version}}-2"

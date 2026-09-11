@@ -4,13 +4,12 @@ architecture = "noarch"
 description  = "GNU gzip non-interactive shell utilities"
 
 [provides]
-"gzip-utils" = "{{version}}"
 
 [dependencies]
-dash                = "*"
-grep                = "*"
-sed                 = "*"
-"org.gnu.coreutils" = "*"
+"org.git.kernel.dash"                = "*"
+"org.gnu.grep"                = "*"
+"org.gnu.sed"                 = "*"
+"dev.peios.peiosutils" = "*"
 "org.gnu.diffutils" = "*"
 "org.gnu.gzip"      = "{{version}}-1"
 

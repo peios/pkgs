@@ -10,10 +10,8 @@ name        = "org.gnu.gcc-libgomp"
 description = "GCC OpenMP runtime library (libgomp.so.1)"
 
 [provides]
-libgomp = "{{version}}-2"
 
 [replaces]
-libgomp = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"

@@ -1,10 +1,24 @@
 #!/usr/bin/sh
-printf '%s\n' "$*" > "$PEIOS_COLDPLUG_TEST_LOG"
+printf '%s\n' "$*" >> "$PEIOS_COLDPLUG_TEST_LOG"
 status=${PEIOS_COLDPLUG_MODPROBE_STATUS:-0}
 if [ "$status" -eq 0 ]; then
+    child_loaded=
+    if [ -n "${PEIOS_COLDPLUG_SECOND_ALIAS:-}" ]; then
+        marker="$PEIOS_COLDPLUG_TEST_ROOT/tmp/second-alias-created"
+        if [ -e "$marker" ]; then
+            child_loaded=1
+        else
+            printf '%s\n' "$PEIOS_COLDPLUG_SECOND_ALIAS" > \
+                "$PEIOS_COLDPLUG_TEST_ROOT/sys/bus/usb/devices/child/modalias"
+            : > "$marker"
+        fi
+    fi
     {
         printf '%s\n' 'existing 1 0 - Live 0x0'
         printf '%s\n' 'newmodule 1 0 - Live 0x0'
+        if [ -n "$child_loaded" ]; then
+            printf '%s\n' 'childmodule 1 0 - Live 0x0'
+        fi
     } > "$PEIOS_COLDPLUG_TEST_ROOT/proc/modules"
 fi
 exit "$status"

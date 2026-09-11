@@ -5,10 +5,9 @@ name        = "com.darwinsys.file"
 description = "Identify file formats from their content"
 
 [provides]
-file = "{{version}}"
 
 [dependencies]
-glibc                         = ">= 2.43"
+"org.gnu.glibc"                         = ">= 2.43"
 "com.darwinsys.file-libmagic" = "{{version}}-1"
 
 [files]

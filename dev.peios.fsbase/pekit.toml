@@ -98,19 +98,20 @@ for d in $irf_only; do mkdir -p "$PEKIT_OUT/irf/$d"; done
 # composed root.
 [build.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
-"org.gnu.coreutils" = "*"  # build deps are compose GOALS: name-only, no provides resolution
+"dev.peios.peiosutils" = "*"  # build deps are compose GOALS: name-only, no provides resolution
 
 [build.dependencies.apt]
 dash      = "*"
 coreutils = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" tests/test-fsbase.sh'
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
-"org.gnu.coreutils"    = ">= 9.11"
+"dev.peios.peiosutils"    = ">= 9.11"
 
 [test.dependencies.apt]
 dash      = "*"

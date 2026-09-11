@@ -6,10 +6,8 @@ description  = "Programming-language compiler, package manager, formatter and so
 [provides]
 # Include the package revision so this canonical suite outranks the retained
 # monolithic rust 1.83.0-1 artifact in mixed local pools.
-rust = "{{version}}-3"
 
 [replaces]
-rust = "<= {{version}}-3"
 
 [dependencies]
 "org.rust-lang.rustc"       = "= {{version}}-3"

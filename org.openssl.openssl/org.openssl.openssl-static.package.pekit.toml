@@ -3,7 +3,6 @@ name        = "org.openssl.openssl-static"
 description = "OpenSSL static cryptography and TLS libraries"
 
 [provides]
-"openssl-static" = "{{version}}"
 
 [dependencies]
 "org.openssl.openssl-devel" = "{{version}}-1"

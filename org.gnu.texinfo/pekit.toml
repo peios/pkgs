@@ -51,29 +51,6 @@ cd "$PEKIT_OUT"
 make -C tta -j"$(nproc)"
 make -C Pod-Simple-Texinfo -j"$(nproc)"
 
-# Run the complete converter/module suites. Peios does not yet package the
-# optional Test::Deep module. If it is absent on the native rung, accept only
-# that suite's exact single missing-module error after every other TAP test
-# has completed; Debian carries Test::Deep and must pass without this branch.
-if ! make -C tta/perl -j"$(nproc)" check; then
-  actual=$(find tta/perl -name '*.trs' -type f | while IFS= read -r result; do
-    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
-    printf '%s\n' "${result#tta/perl/}"
-  done | LC_ALL=C sort)
-  expected='t/z_misc/test_sort.trs'
-  [ "$actual" = "$expected" ]
-  grep -F "Can't locate Test/Deep.pm" \
-    tta/perl/t/z_misc/test_sort.log
-  grep -Fqx 'ERROR: t/z_misc/test_sort.t - exited with status 2' \
-    tta/perl/t/z_misc/test_sort.log
-fi
-# The ordinary command suite covers every converter mode enabled by this
-# package. Upstream's opt-in all-checks target additionally forces integrations
-# with TeX and third-party syntax highlighters, plus XS-only collation cases;
-# those are deliberately outside this pure-Perl package's feature boundary.
-make -C tta/tests -j"$(nproc)" check
-make -C Pod-Simple-Texinfo -j"$(nproc)" check
-
 # Install only the converter programs and their architecture-independent
 # runtime. util install-data supplies texinfo.dtd and htmlxref metadata; the
 # two po trees supply converter and generated-document translations.
@@ -93,10 +70,41 @@ install -m 0644 "$SRC/man/pod2texi.1" \
   "$PEKIT_OUT/usr/share/man/man1/pod2texi.1"
 install -m 0644 "$SRC/man/texinfo.5" \
   "$PEKIT_OUT/usr/share/man/man5/texinfo.5"
+"""
 
-BIN="$PEKIT_OUT/usr/bin"
-SMOKE="$PEKIT_OUT/.texinfo-smoke"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin"
+SMOKE="$PEKIT_OUT/smoke"
 mkdir -p "$SMOKE"
+
+# Run the complete converter/module suites. Peios does not yet package the
+# optional Test::Deep module. If it is absent on the native rung, accept only
+# that suite's exact single missing-module error after every other TAP test
+# has completed; Debian carries Test::Deep and must pass without this branch.
+if ! make -C "$STAGE/tta/perl" -j"$(nproc)" check; then
+  actual=$(find "$STAGE/tta/perl" -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result#"$STAGE/tta/perl"/}"
+  done | LC_ALL=C sort)
+  expected='t/z_misc/test_sort.trs'
+  [ "$actual" = "$expected" ]
+  grep -F "Can't locate Test/Deep.pm" \
+    "$STAGE/tta/perl/t/z_misc/test_sort.log"
+  grep -Fqx 'ERROR: t/z_misc/test_sort.t - exited with status 2' \
+    "$STAGE/tta/perl/t/z_misc/test_sort.log"
+fi
+# The ordinary command suite covers every converter mode enabled by this
+# package. Upstream's opt-in all-checks target additionally forces integrations
+# with TeX and third-party syntax highlighters, plus XS-only collation cases;
+# those are deliberately outside this pure-Perl package's feature boundary.
+make -C "$STAGE/tta/tests" -j"$(nproc)" check
+make -C "$STAGE/Pod-Simple-Texinfo" -j"$(nproc)" check
+
 test -x "$BIN/texi2any"
 test -x "$BIN/pod2texi"
 test -L "$BIN/makeinfo"
@@ -105,10 +113,9 @@ test "$(readlink "$BIN/makeinfo")" = texi2any
 "$BIN/pod2texi" --version | head -1 | grep -Fx 'pod2texi 0.01'
 
 # Exercise the staged converter in its principal text, HTML, DocBook, XML
-# and Info output modes. Generated smoke output stays private to the build;
-# the package itself must never own the system Info directory.
+# and Info output modes.
 cat > "$SMOKE/sample.texi" <<'EOF'
-\\input texinfo
+\input texinfo
 @setfilename sample.info
 @settitle Texinfo smoke
 @node Top
@@ -153,25 +160,40 @@ grep -F '@strong{ready}' "$SMOKE/sample-pod.texi"
 for forbidden in info install-info texindex texi2dvi texi2pdf pdftexi2dvi; do
   test ! -e "$BIN/$forbidden"
 done
-test ! -e "$PEKIT_OUT/usr/share/info"
-test ! -e "$PEKIT_OUT/usr/share/info/dir"
+test ! -e "$STAGE/usr/share/info"
+test ! -e "$STAGE/usr/share/info/dir"
 command -v file >/dev/null
-if find "$PEKIT_OUT/usr" -type f -exec file {} + | grep -F ': ELF '; then
+if find "$STAGE/usr" -type f -exec file {} + | grep -F ': ELF '; then
   exit 1
 fi
-test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f \
+test -n "$(find "$STAGE/usr/share/locale" -type f \
   -name 'texinfo.mo' -print -quit)"
-test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f \
+test -n "$(find "$STAGE/usr/share/locale" -type f \
   -name 'texinfo_document.mo' -print -quit)"
-find "$PEKIT_OUT/usr/bin" -type f -exec perl -c {} \\;
-rm -rf "$SMOKE"
-"""
+find "$STAGE/usr/bin" -type f -exec perl -c {} \;
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"com.darwinsys.file"           = "*"
+"org.gnu.glibc-langpack-en"    = ">= 2.43"
+"org.gnu.glibc-langpack-fr"    = ">= 2.43"
+"org.gnu.gettext"              = "*"
+"org.perl.perl"                = "*"
+
+[test.dependencies.apt]
+build-essential   = "*"
+file              = "*"
+gettext           = "*"
+libtest-deep-perl = "*"
+locales-all       = "*"
+perl              = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"   = "*"
 "com.darwinsys.file" = "*"
-glibc-langpack-en    = ">= 2.43"
-glibc-langpack-fr    = ">= 2.43"
+"org.gnu.glibc-langpack-en"    = ">= 2.43"
+"org.gnu.glibc-langpack-fr"    = ">= 2.43"
 "org.gnu.gettext" = "*"
 "org.perl.perl"    = "*"
 

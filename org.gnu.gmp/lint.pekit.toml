@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "Upstream arithmetic tests plus staged C and C++ shared/static ABI probes run inside build.main so package and publish fail closed"

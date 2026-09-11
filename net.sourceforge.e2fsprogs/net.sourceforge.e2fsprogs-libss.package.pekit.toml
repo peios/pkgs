@@ -6,7 +6,7 @@ description = "Subsystem command-parsing runtime library (libss)"
 license     = "MIT"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:NOTICE" = "usr/share/licenses/net.sourceforge.e2fsprogs-libss/"

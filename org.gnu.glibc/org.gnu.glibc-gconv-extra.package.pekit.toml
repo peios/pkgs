@@ -34,10 +34,8 @@ name        = "org.gnu.glibc-gconv-extra"
 description = "GNU C Library - additional charset conversion modules"
 
 [provides]
-"glibc-gconv-extra" = "{{version}}-5"
 
 [replaces]
-"glibc-gconv-extra" = "<= {{version}}-4"
 
 [dependencies]
 # Loadable modules of the runtime's iconv machinery: keep the module registry,

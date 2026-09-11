@@ -49,7 +49,6 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 # xsltproc path by building the two man pages upstream added to the 10.2.1
 # sdist for distributors. Peios build roots expose the catalog at its package
 # path while Debian-family build roots use the conventional /etc path.
-python3 -m asciidoc.asciidoc --doctest
 MAN="$PEKIT_OUT/usr/share/man/man1"
 mkdir -p "$MAN"
 if [ -f /usr/etc/xml/catalog ]; then
@@ -70,10 +69,10 @@ done
 """
 
 [build.main.dependencies.peipkg]
-dash                 = "*"
-"org.gnu.coreutils" = "*"
-python3              = ">= 3.14, < 3.15"
-"python3-setuptools" = "*"
+"org.git.kernel.dash"                 = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3"              = ">= 3.14, < 3.15"
+"io.pypa.setuptools" = "*"
 "org.gnome.libxslt-utils"    = "*"
 "org.gnome.libxml2-utils"    = "*"
 "org.docbook.docbook-xsl"    = "*"
@@ -88,16 +87,32 @@ docbook-xsl        = "*"
 docbook-xml        = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
 test -x "$PEKIT_MAIN_OUT/usr/bin/asciidoc"
 test -x "$PEKIT_MAIN_OUT/usr/bin/a2x"
 test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/asciidoc.1"
+
+# Run the upstream release suite from the explicit package gate.
+python3 -m asciidoc.asciidoc --doctest
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"org.git.kernel.dash"                 = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3"              = ">= 3.14, < 3.15"
+"io.pypa.setuptools" = "*"
+"org.gnome.libxslt-utils"    = "*"
+"org.gnome.libxml2-utils"    = "*"
+"org.docbook.docbook-xsl"    = "*"
+"org.oasis-open.docbook-xml" = "*"
 
 [test.dependencies.apt]
-dash = "*"
+python3            = "*"
+python3-setuptools = "*"
+xsltproc           = "*"
+libxml2-utils      = "*"
+docbook-xsl        = "*"
+docbook-xml        = "*"

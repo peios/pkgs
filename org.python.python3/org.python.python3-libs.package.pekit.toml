@@ -6,8 +6,8 @@ description = "Python 3 standard library and shared runtime"
 "python(abi)" = "3.14"
 
 [dependencies]
-glibc                = ">= 2.43"
-ca-certificates      = "*"
+"org.gnu.glibc"                = ">= 2.43"
+"org.mozilla.ca-certificates"      = "*"
 "org.debian.netbase" = "*"
 
 [files]

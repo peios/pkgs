@@ -4,11 +4,11 @@ description = "LLVM shared runtime libraries"
 license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 
 [dependencies]
-glibc       = ">= 2.43"
-"libstdc++" = ">= 16"
-libgcc      = ">= 16"
-zlib        = ">= 2.3.3"
-libzstd     = ">= 1.5.7"
+"org.gnu.glibc"       = ">= 2.43"
+"org.gnu.gcc-libstdc++" = ">= 16"
+"org.gnu.gcc-libgcc"      = ">= 16"
+"io.github.zlib-ng.zlib-ng-compat"        = ">= 2.3.3"
+"com.facebook.zstd-libs"     = ">= 1.5.7"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-libs/LICENSE.TXT"

@@ -4,10 +4,8 @@ description = "libtraceevent headers and shared-library development files"
 license     = "LGPL-2.1-only"
 
 [provides]
-"libtraceevent-devel" = "{{version}}-2"
 
 [replaces]
-"libtraceevent-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.linux.traceevent-libs" = "{{version}}-2"

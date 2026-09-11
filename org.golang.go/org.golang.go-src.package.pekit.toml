@@ -3,7 +3,6 @@ name         = "org.golang.go-src"
 description  = "Go standard-library and toolchain sources required by the Go command"
 
 [provides]
-go-src = "{{version}}-1"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.golang.go-src/LICENSE"

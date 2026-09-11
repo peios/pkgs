@@ -6,7 +6,6 @@ architecture = "noarch"
 description  = "file - compiled file-format identification database"
 
 [provides]
-libmagic-mgc = "{{version}}"
 
 [files]
 "@source:COPYING"        = "usr/share/licenses/com.darwinsys.file-magic/"

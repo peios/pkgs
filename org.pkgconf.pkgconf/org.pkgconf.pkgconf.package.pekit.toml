@@ -8,14 +8,11 @@ name        = "org.pkgconf.pkgconf"
 description = "Compiler and linker metadata toolkit"
 
 [provides]
-pkgconf      = "{{version}}"
-pkg-config   = "{{version}}"
 
 [replaces]
-pkgconf = ">= 0"
 
 [dependencies]
-glibc                    = ">= 2.43"
+"org.gnu.glibc"                    = ">= 2.43"
 "org.pkgconf.libpkgconf" = "{{version}}-1"
 
 [files]

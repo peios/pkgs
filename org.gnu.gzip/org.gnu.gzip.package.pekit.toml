@@ -3,11 +3,10 @@ name        = "org.gnu.gzip"
 description = "GNU DEFLATE compression and decompression tools"
 
 [provides]
-gzip = "{{version}}"
 
 [dependencies]
-dash                  = "*"
-glibc                 = ">= 2.43"
+"org.git.kernel.dash"                  = "*"
+"org.gnu.glibc"                 = ">= 2.43"
 "org.gnu.gzip-common" = "{{version}}-1"
 
 [files]

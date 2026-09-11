@@ -5,11 +5,10 @@ name        = "org.nixos.patchelf"
 description = "ELF interpreter, run-path and dependency editor"
 
 [provides]
-patchelf = "{{version}}"
 
 [dependencies]
-glibc        = ">= 2.43"
-"libstdc++" = ">= 16"
+"org.gnu.glibc"        = ">= 2.43"
+"org.gnu.gcc-libstdc++" = ">= 16"
 
 [files]
 "@source:COPYING"                         = "usr/share/licenses/org.nixos.patchelf/"

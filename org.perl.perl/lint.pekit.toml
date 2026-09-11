@@ -1,3 +1,2 @@
 [allow]
 "source.signature.required" = "CPAN publishes Sigstore bundles rather than OpenPGP signatures; Pekit cannot yet verify their identities and transparency proofs, so the immutable lock remains the acceptance gate"
-"build.test" = "The upstream Perl/core-module suite and staged interpreter, XS, compression, threading, and embedding probes run inside build.main so package and publish fail closed"

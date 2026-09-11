@@ -5,13 +5,11 @@ name        = "org.gnu.ncurses"
 description = "Terminal-information database and utilities"
 
 [provides]
-ncurses = "{{version}}-3"
 
 [replaces]
-ncurses = "<= {{version}}-2"
 
 [dependencies]
-glibc                   = ">= 2.43"
+"org.gnu.glibc"                   = ">= 2.43"
 "org.gnu.ncurses-libs" = "{{version}}-3"
 
 [files]

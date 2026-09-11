@@ -12,10 +12,8 @@ name        = "org.gnu.glibc-debugsource"
 description = "GNU C Library - debug sources"
 
 [provides]
-"glibc-debugsource" = "{{version}}-5"
 
 [replaces]
-"glibc-debugsource" = "<= {{version}}-4"
 
 [dependencies]
 "org.gnu.glibc-debuginfo" = "{{version}}-7"

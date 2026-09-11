@@ -6,8 +6,6 @@ name        = "io.github.thom311.libnl-devel"
 description = "Netlink protocol libraries - development files"
 
 [provides]
-libnl-devel  = "{{version}}"
-libnl3-devel = "{{version}}"
 
 [dependencies]
 "io.github.thom311.libnl"       = "{{version}}-1"

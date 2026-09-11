@@ -13,10 +13,8 @@ name        = "org.gnu.glibc-devel"
 description = "GNU C Library - development headers and libraries"
 
 [provides]
-"glibc-devel" = "{{version}}-5"
 
 [replaces]
-"glibc-devel" = "<= {{version}}-4"
 
 [dependencies]
 # The dev .so symlinks and the libc.so linker script resolve into glibc's

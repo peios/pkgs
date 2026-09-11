@@ -3,7 +3,6 @@ name        = "org.kernel.libcap-static"
 description = "Linux POSIX capabilities static libraries"
 
 [provides]
-libcap-static = "{{version}}"
 
 [dependencies]
 "org.kernel.libcap-devel" = "{{version}}-2"

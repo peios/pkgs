@@ -19,10 +19,8 @@ description = "GCC support library for GDB's compile command"
 license     = "GPL-3.0-or-later"
 
 [provides]
-libcc1 = "{{version}}-2"
 
 [replaces]
-libcc1 = "<= {{version}}-1"
 
 [dependencies]
 # Links libstdc++ and libgcc_s of exactly this build.

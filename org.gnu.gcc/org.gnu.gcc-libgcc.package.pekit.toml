@@ -13,10 +13,8 @@ name        = "org.gnu.gcc-libgcc"
 description = "GCC low-level runtime library (libgcc_s.so.1)"
 
 [provides]
-libgcc = "{{version}}-2"
 
 [replaces]
-libgcc = "<= {{version}}-1"
 
 [dependencies]
 # Floor = the glibc we build & test against (Peios ships only 2.43); >= so a

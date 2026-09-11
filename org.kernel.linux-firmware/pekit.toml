@@ -35,19 +35,19 @@ out_dir = "out"
 enabled = false
 
 [source.url]
-url         = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.xz"
+url         = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{major}}{{minor}}{{patch}}.tar.xz"
 listing_url = "https://cdn.kernel.org/pub/linux/kernel/firmware/"
 extract     = true
-root        = "linux-firmware-{{version}}"
-file_regex  = '^linux-firmware-[0-9]{8}\.tar\.xz$'
+root        = "linux-firmware-{{major}}{{minor}}{{patch}}"
+file_regex  = 'linux-firmware-(?P<major>[0-9]{4})(?P<minor>[0-9]{2})(?P<patch>[0-9]{2})\.tar\.xz'
 # Soft maintenance floor: follow new dated upstream releases automatically;
 # the generated ownership/licence gate below stops any unreviewed new family.
-versions    = ">= 20260810"
+versions    = ">= 2026.08.10"
 
 # kernel.org publishes linux-firmware-YYYYMMDD.tar.sign over the xz-decoded
 # tar stream. Pin Josh Boyer's complete primary-key fingerprint.
 [source.url.signature]
-url          = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{version}}.tar.sign"
+url          = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-{{major}}{{minor}}{{patch}}.tar.sign"
 of           = "decompressed"
 key_files    = ["keys/josh-boyer.asc"]
 fingerprints = ["4CDE8575E547BF835FE15807A31B6BD72486CFD6"]
@@ -62,8 +62,8 @@ verify_command = "python3 tools/gen-members.py --check"
 # dash: the composed peipkg root has no shell unless a stage asks for one
 # (the same gap as PEI-489), and pekit runs the command through /usr/bin/sh.
 [gen.members.dependencies.peipkg]
-dash    = "*"
-python3 = "*"
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
 
 [gen.members.dependencies.apt]
 python3 = "*"
@@ -91,15 +91,60 @@ du -sm "$PEKIT_OUT"/family/* | sort -rn
 # grep and sed for what that script shells out to (install, realpath, find,
 # grep, sed). The peipkg root has nothing a stage does not name.
 [build.main.dependencies.peipkg]
-dash          = "*"
-python3       = "*"
-zstd          = "*"
-"org.gnu.coreutils" = "*"
-findutils     = "*"
-grep          = "*"
-sed           = "*"
+"org.git.kernel.dash"     = "*"
+"org.python.python3"      = "*"
+"com.facebook.zstd"       = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils"       = "*"
+"org.gnu.grep"            = "*"
+"org.gnu.sed"             = "*"
 
 [build.main.dependencies.apt]
 python3   = "*"
 zstd      = "*"
 coreutils = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+
+# Re-run the release-accounting policy independently of the transformation:
+# every WHENCE entry must be assigned, licences must match, and no relative
+# link may cross a package-family boundary.
+python3 "$PEKIT_RECIPE_ROOT/tools/sort-firmware.py" \
+  --families "$PEKIT_RECIPE_ROOT/families.toml" \
+  --source "$(pwd)" \
+  --check
+
+ROOT="$PEKIT_MAIN_OUT/family"
+test -d "$ROOT"
+test ! -e "$PEKIT_MAIN_OUT/stage"
+test -n "$(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+
+for family in "$ROOT"/*; do
+  test -d "$family/usr/lib/firmware"
+  test -n "$(find "$family/usr/lib/firmware" \( -type f -o -type l \) -print -quit)"
+  test -n "$(find "$family/usr/share/licenses" -type f -print -quit)"
+done
+
+# Validate every compressed blob and every post-split symlink in the exact
+# staged family trees that package selection will consume.
+find "$ROOT" -type f -name '*.zst' -exec zstd -q -t {} +
+broken=$(find "$ROOT" -xtype l -print)
+test -z "$broken"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"     = "*"
+"org.python.python3"      = "*"
+"dev.peios.peiosutils"    = "*"
+"org.gnu.findutils"       = "*"
+"com.facebook.zstd"       = "*"
+
+[test.dependencies.apt]
+python3   = "*"
+zstd      = "*"
+coreutils = "*"
+findutils = "*"

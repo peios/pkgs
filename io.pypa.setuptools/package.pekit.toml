@@ -14,14 +14,6 @@ license      = "MIT AND Apache-2.0 AND (Apache-2.0 OR BSD-2-Clause) AND LGPL-3.0
 license_class = "free"
 homepage     = "https://setuptools.pypa.io/"
 
-[provides]
-# Preserve the bootstrap-era identity while downstream recipes migrate to the
-# authenticated reverse-DNS name.
-"python3-setuptools" = "{{version}}-2"
-
-[replaces]
-"python3-setuptools" = "<= {{version}}-1"
-
 [dependencies]
 # Bytecode and the site-packages path are bound to Python's feature version.
 "org.python.python3" = ">= 3.14, < 3.15"

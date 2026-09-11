@@ -18,8 +18,8 @@ description = "GNU Next Generation Profiler for analysing application performanc
 # Programs and libraries built against this binutils; libgprofng links libbfd.
 "org.gnu.binutils" = "{{version}}"
 # gprofng is C++, and gprofng-display-html is an installed Perl program.
-"libstdc++" = "*"
-perl = ">= 5.6"
+"org.gnu.gcc-libstdc++" = "*"
+"org.perl.perl" = ">= 5.6"
 
 [files]
 # Drivers plus the gp-* compatibility names. Those five are symlinks onto the

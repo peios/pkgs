@@ -19,15 +19,14 @@ homepage     = "https://www.gnu.org/software/bash/"
 # `sh` provider for POSIX scripts; consumers that explicitly want an
 # interactive shell depend on `ish` and receive /usr/bin/ish.
 [provides]
-ish = "1"
 
 [claims.provides.ish.usrbin]
 target = "/usr/bin/bash"
 path   = "/usr/bin/ish"
 
 [dependencies]
-glibc = ">= 2.43"
-libncurses = ">= 6.6"
+"org.gnu.glibc" = ">= 2.43"
+"org.gnu.ncurses-libs" = ">= 6.6"
 
 [files]
 "@source:COPYING"      = "usr/share/licenses/org.gnu.bash/"

@@ -8,9 +8,9 @@
 # pekit fetches the tag matching --version and borrows the source's own build +
 # package definitions; a bare `pekit package` on this member builds the whole
 # family, the same way the gcc/glibc members fan a single source into many
-# packages. The workspace root's [[publish.localdir]] merges in underneath as
-# the publish target (root < source < member), so built .peipkgs land in
-# pkgsOut/ like everything else.
+# packages. The workspace root's publish.peipkg target merges in underneath
+# (root < source < member), so publication updates the signed repository like
+# every other production package.
 #
 # Two things this source needs that a plain delegate (loregd, prelude) does not:
 #

@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libatomic-static"
 description = "GCC atomic operations runtime static library"
 
 [provides]
-"libatomic-static" = "{{version}}-2"
 
 [replaces]
-"libatomic-static" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libatomic-devel" = "{{version}}-2"

@@ -3,7 +3,6 @@ name        = "org.python.python3-devel"
 description = "Python 3 headers, embedding library and build metadata"
 
 [provides]
-python3-devel = "{{version}}"
 
 [dependencies]
 "org.python.python3-libs" = "{{version}}-4"

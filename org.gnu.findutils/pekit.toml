@@ -46,19 +46,6 @@ cd "$PEKIT_OUT"
   --without-selinux
 
 make -j"$(nproc)"
-# The package suite and the 424-test Gnulib suite run in full. One aggregate
-# help/version probe invokes the unshipped locate command, whose startup tries
-# to drop group privileges. Pekit's single-ID namespace deliberately cannot do
-# that; accept only this exact environment failure and its exact diagnostic.
-if ! make -j"$(nproc)" check; then
-  actual=$(find . -name '*.trs' -type f | while IFS= read -r result; do
-    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
-    printf '%s\n' "${result#./}"
-  done | LC_ALL=C sort)
-  [ "$actual" = tests/misc/help-version.trs ]
-  grep -F "locate: 'failed to drop group privileges': Operation not permitted" \
-    tests/test-suite.log
-fi
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios currently has no Info reader. It also has no locate database service;
@@ -72,40 +59,6 @@ rm -f "$PEKIT_OUT/usr/bin/locate" "$PEKIT_OUT/usr/bin/updatedb" \
       "$PEKIT_OUT/usr/share/man/man1/updatedb.1" \
       "$PEKIT_OUT/usr/share/man/man5/locatedb.5"
 find "$PEKIT_OUT/usr/share/man" -depth -type d -empty -delete
-test "$(find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f | wc -l)" -eq 2
-test -x "$PEKIT_OUT/usr/bin/find"
-test -x "$PEKIT_OUT/usr/bin/xargs"
-
-# Exercise path selection, printf formatting, NUL-safe handoff and xargs's
-# argument grouping through the staged binaries.
-BIN="$PEKIT_OUT/usr/bin"
-SMOKE="$PEKIT_OUT/.findutils-smoke"
-mkdir -p "$SMOKE/tree/a" "$SMOKE/tree/b"
-printf '%s\n' alpha > "$SMOKE/tree/a/one.txt"
-printf '%s\n' beta > "$SMOKE/tree/b/two.log"
-printf '%s\n' gamma > "$SMOKE/tree/b/three.txt"
-"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -printf '%f\n' \
-  | sort > "$SMOKE/found"
-printf '%s\n' one.txt three.txt > "$SMOKE/expected"
-cmp "$SMOKE/expected" "$SMOKE/found"
-"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -print0 \
-  | "$BIN/xargs" -0 -n1 basename | sort > "$SMOKE/xargs"
-cmp "$SMOKE/expected" "$SMOKE/xargs"
-printf '%s\\0' "$SMOKE/tree/a" "$SMOKE/tree/b" > "$SMOKE/roots"
-"$BIN/find" -files0-from "$SMOKE/roots" -maxdepth 0 -printf '%f\n' \
-  | sort > "$SMOKE/roots-found"
-printf '%s\n' a b > "$SMOKE/roots-expected"
-cmp "$SMOKE/roots-expected" "$SMOKE/roots-found"
-
-for elf in "$BIN/find" "$BIN/xargs"; do
-  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-done
-rm -rf "$SMOKE"
 
 # Conventional build-ID debuginfo and the exact DWARF-referenced sources.
 cd "$PEKIT_OUT"
@@ -139,7 +92,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-perl               = "*"
+"org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -148,21 +101,64 @@ patchelf        = "*"
 perl            = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
+# The package suite and the 424-test Gnulib suite run in full. One aggregate
+# help/version probe invokes the unshipped locate command, whose startup tries
+# to drop group privileges. Pekit's single-ID namespace deliberately cannot do
+# that; accept only this exact environment failure and its exact diagnostic.
+cd "$PEKIT_MAIN_OUT"
+if ! make -j"$(nproc)" check; then
+  actual=$(find . -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+    printf '%s\n' "${result#./}"
+  done | LC_ALL=C sort)
+  [ "$actual" = tests/misc/help-version.trs ]
+  grep -F "locate: 'failed to drop group privileges': Operation not permitted" \
+    tests/test-suite.log
+fi
 BIN="$PEKIT_MAIN_OUT/usr/bin"
-TMP="$PEKIT_OUT/findutils-test"
-mkdir -p "$TMP/tree/a" "$TMP/tree/b"
-: > "$TMP/tree/a/one"
-: > "$TMP/tree/b/two"
-test "$("$BIN/find" "$TMP/tree" -type f -printf x)" = xx
+SMOKE="$PEKIT_OUT/findutils-test"
+test "$(find "$BIN" -maxdepth 1 -type f | wc -l)" -eq 2
+test -x "$BIN/find"
+test -x "$BIN/xargs"
+mkdir -p "$SMOKE/tree/a" "$SMOKE/tree/b"
+printf '%s\n' alpha > "$SMOKE/tree/a/one.txt"
+printf '%s\n' beta > "$SMOKE/tree/b/two.log"
+printf '%s\n' gamma > "$SMOKE/tree/b/three.txt"
+"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -printf '%f\n' | sort > "$SMOKE/found"
+printf '%s\n' one.txt three.txt > "$SMOKE/expected"
+cmp "$SMOKE/expected" "$SMOKE/found"
+"$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -print0 \
+  | "$BIN/xargs" -0 -n1 basename | sort > "$SMOKE/xargs"
+cmp "$SMOKE/expected" "$SMOKE/xargs"
+printf '%s\\0' "$SMOKE/tree/a" "$SMOKE/tree/b" > "$SMOKE/roots"
+"$BIN/find" -files0-from "$SMOKE/roots" -maxdepth 0 -printf '%f\n' | sort > "$SMOKE/roots-found"
+printf '%s\n' a b > "$SMOKE/roots-expected"
+cmp "$SMOKE/roots-expected" "$SMOKE/roots-found"
+for elf in "$BIN/find" "$BIN/xargs"; do
+  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.perl.perl" = "*"
 "org.git.kernel.dash" = "*"
-"org.gnu.coreutils" = "*"
+"dev.peios.peiosutils" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+debugedit = "*"
+patchelf = "*"
+perl = "*"
 coreutils = "*"
 dash = "*"

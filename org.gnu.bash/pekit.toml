@@ -49,7 +49,6 @@ cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --without-bash-malloc
 make -j"$(nproc)"
-make tests
 make install DESTDIR="$PEKIT_OUT"
 # Interpreter only: drop the loadable-builtin apparatus (lib/bash + headers
 # + bash.pc), the bashbug mailer script, and info/doc trees.
@@ -60,8 +59,8 @@ rm -rf "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/include" \
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-gettext = "*"
-ncurses-devel = ">= 6.6"
+"org.gnu.gettext" = "*"
+"org.gnu.ncurses-devel" = ">= 6.6"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -69,16 +68,26 @@ gettext = "*"
 libncurses-dev = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
 BASH="$PEKIT_MAIN_OUT/usr/bin/bash"
 test "$("$BASH" --noprofile --norc -c 'a=(zero one two); printf %s "${a[2]}"')" = two
 case "$("$BASH" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
+make tests
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.ncurses-devel" = ">= 6.6"
 
 [test.dependencies.apt]
-dash = "*"
+build-essential = "*"
+gettext = "*"
+libncurses-dev = "*"

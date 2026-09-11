@@ -10,10 +10,8 @@ name        = "org.gnu.gcc-libstdc++-static"
 description = "GNU Standard C++ Library static libraries"
 
 [provides]
-"libstdc++-static" = "{{version}}-2"
 
 [replaces]
-"libstdc++-static" = "<= {{version}}-1"
 
 [dependencies]
 # Static linking also needs the headers + dev symlink.

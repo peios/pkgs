@@ -7,7 +7,6 @@ name        = "org.gnu.coreutils"
 description = "GNU core utilities - bootstrap build-base userland"
 
 [provides]
-coreutils = "{{version}}"
 
 [dependencies]
 "org.gnu.coreutils-build-compat" = "{{version}}-3"

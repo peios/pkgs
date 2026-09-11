@@ -18,6 +18,11 @@ license_class = true
 homepage      = "https"
 description   = 80
 dependencies  = "consistent"
+references    = "reverse-dns"
+# Unqualified names are reserved for genuine interchangeable interfaces, not
+# compatibility aliases for concrete packages. Structured capabilities such as
+# pkgconfig(foo), python(abi), and ELF SONAMEs are recognised automatically.
+virtual_capabilities = ["awk", "cc", "init", "prelude-hook-abi", "registryd", "sh"]
 architecture  = "consistent"
 
 [source]

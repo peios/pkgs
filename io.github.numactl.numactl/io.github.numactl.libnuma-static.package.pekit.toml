@@ -4,11 +4,10 @@ description = "NUMA policy static library"
 license     = "LGPL-2.1-only AND GPL-2.0-only"
 
 [provides]
-"libnuma-static" = "{{version}}"
 
 [dependencies]
 "io.github.numactl.libnuma-devel" = "{{version}}-1"
-"libatomic-static"                 = "*"
+"org.gnu.gcc-libatomic-static"                 = "*"
 
 [files]
 "@source:LICENSE.GPL2"                   = "usr/share/licenses/io.github.numactl.libnuma-static/"

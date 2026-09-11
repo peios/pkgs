@@ -36,8 +36,53 @@ CONVERTER="$TOOLS/certdata-to-pem.py"
 DEST="$PEKIT_OUT/usr/share/ca-certificates/mozilla.crt"
 TMP="$PEKIT_OUT/.conversion"
 
-# Sparse-source and provenance gates: the fixed moving ref must materialise
-# exactly the selected file, and its source manifest must bind those bytes.
+test -f "$CERTDATA"
+
+mkdir -p "$(dirname "$DEST")" "$TMP"
+SOURCE="Firefox release branch certdata.txt snapshot $PEKIT_VERSION"
+python3 "$CONVERTER" "$CERTDATA" -o "$TMP/bundle.pem" \
+  --stats "$TMP/stats.json" --floor 100 --source "$SOURCE"
+
+python3 - "$TMP/bundle.pem" "$DEST" <<'PY'
+from pathlib import Path
+import sys
+
+source, destination = Path(sys.argv[1]), Path(sys.argv[2])
+destination.write_bytes(source.read_bytes())
+destination.chmod(0o644)
+PY
+rm -rf "$TMP"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.gnu.findutils"     = "*"
+"org.python.python3"    = "*"
+"dev.peios.peiosutils"               = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+dash      = "*"
+findutils = "*"
+python3   = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+export PYTHONDONTWRITEBYTECODE=1
+
+TRACKED=security/nss/lib/ckfw/builtins/certdata.txt
+CERTDATA="$PEKIT_SOURCE_ROOT/$TRACKED"
+TOOLS="$PEKIT_RECIPE_ROOT/packages.pekit/tools"
+CONVERTER="$TOOLS/certdata-to-pem.py"
+DEST="$PEKIT_MAIN_OUT/usr/share/ca-certificates/mozilla.crt"
+TMP="$PEKIT_OUT/conversion"
+SOURCE="Firefox release branch certdata.txt snapshot $PEKIT_VERSION"
+mkdir -p "$TMP"
+
+# The sparse moving-ref source and manifest must bind exactly the bytes tested.
 test -f "$CERTDATA"
 test "$(find "$PEKIT_SOURCE_ROOT" -type f | wc -l)" -eq 1
 test "$(find "$PEKIT_SOURCE_ROOT" -type l | wc -l)" -eq 0
@@ -66,21 +111,16 @@ assert manifest["provenance_ref"] == (
 )
 PY
 
-# Generated fixtures exercise both selection semantics and malformed/duplicate
-# fail-closed paths before real trust data is touched.
 python3 "$TOOLS/test_certdata_to_pem.py" -v
-
-mkdir -p "$(dirname "$DEST")" "$TMP"
-SOURCE="Firefox release branch certdata.txt snapshot $PEKIT_VERSION"
 python3 "$CONVERTER" "$CERTDATA" -o "$TMP/first.pem" \
   --stats "$TMP/first.json" --floor 100 --source "$SOURCE"
 python3 "$CONVERTER" "$CERTDATA" -o "$TMP/second.pem" \
   --stats "$TMP/second.json" --floor 100 --source "$SOURCE"
+cmp "$TMP/first.pem" "$TMP/second.pem"
+cmp "$TMP/first.json" "$TMP/second.json"
+cmp "$TMP/first.pem" "$DEST"
 
-# Validate exact PEM/header/fingerprint/count relationships and load the whole
-# result through Python's OpenSSL-backed certificate store.
-python3 - "$TMP/first.pem" "$TMP/first.json" "$TMP/second.pem" \
-  "$TMP/second.json" "$PEKIT_VERSION" <<'PY'
+python3 - "$DEST" "$TMP/first.json" "$PEKIT_VERSION" <<'PY'
 import base64
 import hashlib
 import json
@@ -90,10 +130,7 @@ import ssl
 import sys
 
 bundle, stats_path = Path(sys.argv[1]), Path(sys.argv[2])
-second_bundle, second_stats = Path(sys.argv[3]), Path(sys.argv[4])
-version = sys.argv[5]
-assert bundle.read_bytes() == second_bundle.read_bytes()
-assert stats_path.read_bytes() == second_stats.read_bytes()
+version = sys.argv[3]
 text = bundle.read_text(encoding="utf-8", errors="strict")
 stats = json.loads(stats_path.read_text())
 assert stats["certificates"] == stats["trust_objects"]
@@ -102,7 +139,6 @@ assert stats["certificates"] == (
 )
 assert stats["trusted"] >= 100
 assert f"# Source: Firefox release branch certdata.txt snapshot {version}\n" in text
-
 records = re.findall(
     r"^# ([^\r\n]+)\n# SHA-256 ([0-9a-f]{64})\n"
     r"-----BEGIN CERTIFICATE-----\n([A-Za-z0-9+/=\n]+)"
@@ -118,7 +154,6 @@ for label, claimed, body in records:
     assert claimed == actual
     fingerprints.append(actual)
 assert len(fingerprints) == len(set(fingerprints))
-
 context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 context.load_verify_locations(cafile=str(bundle))
 store = context.cert_store_stats()
@@ -127,30 +162,18 @@ assert store["x509_ca"] == stats["trusted"]
 assert len(context.get_ca_certs(binary_form=True)) == stats["trusted"]
 PY
 
-python3 - "$TMP/first.pem" "$DEST" <<'PY'
-from pathlib import Path
-import sys
-
-source, destination = Path(sys.argv[1]), Path(sys.argv[2])
-destination.write_bytes(source.read_bytes())
-destination.chmod(0o644)
-PY
-rm -rf "$TMP"
 test "$(stat -c '%a' "$DEST")" = 644
-
-# Nothing besides the one compatibility payload may escape staging.
-actual=$(find "$PEKIT_OUT" -type f -printf '%P\n' | LC_ALL=C sort)
+actual=$(find "$PEKIT_MAIN_OUT" -type f -printf '%P\n' | LC_ALL=C sort)
 test "$actual" = usr/share/ca-certificates/mozilla.crt
 '''
 
-[build.main.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+[test.dependencies.peipkg]
+"org.git.kernel.dash"   = "*"
 "org.gnu.findutils"     = "*"
 "org.python.python3"    = "*"
-"dev.peios.peiosutils"               = "*"
+"dev.peios.peiosutils"  = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 coreutils = "*"
-dash      = "*"
 findutils = "*"
 python3   = "*"

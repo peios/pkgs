@@ -8,10 +8,8 @@ license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
 
 [provides]
-"firmware-intel-sound" = "{{version}}-3"
 
 [replaces]
-"firmware-intel-sound" = "<= {{version}}-2"
 
 [files]
 ":family/intel-sound/usr/lib/firmware/**"   = "usr/lib/firmware"

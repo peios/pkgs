@@ -6,7 +6,6 @@ architecture = "noarch"
 description  = "Perl 5 architecture-independent core modules"
 
 [provides]
-perl-modules = "{{version}}"
 
 [files]
 "@source:Copying"     = "usr/share/licenses/org.perl.perl-modules/Copying"

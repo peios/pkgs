@@ -74,14 +74,6 @@ grep -Fx '#define HAVE_BLKID 1' config.h
 grep -Fx '#define HAVE_KMOD 1' config.h
 make -j"$(nproc)"
 
-# Run upstream's rules suite. Its syntax checker has a historical /usr/bin/python
-# shebang; Peios intentionally names Python 3 explicitly. udev-test.pl creates
-# a nested mount namespace, which is unavailable inside Pekit's build sandbox;
-# staged command, hwdb and ABI probes below cover executable behavior there.
-sed -i '1s|^#!/usr/bin/python$|#!/usr/bin/python3|' \
-  "$SRC/test/rule-syntax-check.py"
-TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check TESTS=rules-test.sh
-
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
 
@@ -97,7 +89,6 @@ rm -f "$PEKIT_OUT/usr/include/udev.h" "$PEKIT_OUT/usr/share/pkgconfig/udev.pc"
 install -d "$PEKIT_OUT/usr/etc/udev"
 LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$PEKIT_OUT/usr/bin/udevadm" hwdb --update \
   --root="$PEKIT_OUT" -o /usr/etc/udev/hwdb.bin
-test -s "$PEKIT_OUT/usr/etc/udev/hwdb.bin"
 mv "$PEKIT_OUT/etc/udev/udev.conf" "$PEKIT_OUT/usr/etc/udev/udev.conf"
 mv "$PEKIT_OUT/etc/udev/hwdb.d" "$PEKIT_OUT/usr/etc/udev/hwdb.d"
 rm -rf "$PEKIT_OUT/etc"
@@ -123,17 +114,10 @@ for f in "$RULES"/*.rules; do
   name=$(basename "$f" .rules)
   case " $keep " in *" $name "*) ;; *) rm -f "$f" ;; esac
 done
-for name in $keep; do
-  [ -f "$RULES/$name.rules" ] || { echo "kept rule missing from payload: $name" >&2; exit 1; }
-done
 # 50-peios-default.rules, udev-coldplug and eudev-service.reg are recipe
 # payload, mapped straight from src/ by the package manifest.
 # No rule shipped here may assign DAC: it would be inert under KACS and
 # misleading to read.
-if grep -l 'MODE=\\|GROUP=\\|OWNER=' "$RULES"/*.rules; then
-  echo "rules carrying MODE=/GROUP=/OWNER= — not shipped on Peios" >&2
-  exit 1
-fi
 
 # Do not ship helpers with no retained rule or Peios consumer.
 rm -f \
@@ -142,43 +126,6 @@ rm -f \
   "$PEKIT_OUT$LIBDIR/udev/fido_id" \
   "$PEKIT_OUT$LIBDIR/udev/mtd_probe" \
   "$PEKIT_OUT$LIBDIR/udev/v4l_id"
-
-# Exercise the staged command, generated hardware database and public ABI.
-BINDIR="$PEKIT_OUT/usr/bin"
-STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BINDIR/udevadm" --version \
-  | grep -E '^[0-9]+$'
-UDEV_HWDB_BIN="$PEKIT_OUT/usr/etc/udev/hwdb.bin" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BINDIR/udevadm" hwdb \
-  --test='pci:v00000000d00000000sv00000000sd00000000bc01sc01i00' \
-  | grep -F 'ID_PCI_CLASS_FROM_DATABASE=Mass storage controller'
-
-SMOKE="$PEKIT_OUT/.eudev-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/libudev.c" <<'EOF'
-#include <libudev.h>
-
-int main(void) {
-  struct udev *udev = udev_new();
-  if (!udev) return 1;
-  udev_unref(udev);
-  return 0;
-}
-EOF
-cc ${CFLAGS:-} -I"$PEKIT_OUT/usr/include" -L"$STAGED_LIBDIR" \
-  -Wl,-rpath-link,"$STAGED_LIBDIR" ${LDFLAGS:-} \
-  -o "$SMOKE/libudev" "$SMOKE/libudev.c" -ludev
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libudev"
-
-# Preserve the workspace hardening contract and forbid build-tree loader
-# paths before splitting debug data and stripping the shipped ELF files.
-find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$f" | grep -F 'BIND_NOW'
-  if readelf -d "$f" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-done
-rm -rf "$SMOKE"
 
 # Conventional build-id debug packages. Rewrite source paths to the canonical
 # package namespace before producing detached symbols and stripping payloads.
@@ -212,21 +159,21 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"  = "*"
-gperf                = "*"
-pkgconf              = "*"
-kmod-devel           = "*"
+"org.gnu.gperf"                = "*"
+"org.pkgconf.pkgconf"              = "*"
+"org.kernel.kmod-devel"           = "*"
 "org.kernel.libblkid-devel" = "*"
 # libtool's configure shells out to file(1); absent, the run dies mid-way.
-file                  = "*"
-perl                  = "*"
-python3               = "*"
-tar                   = "*"
-xz                    = "*"
+"com.darwinsys.file"                  = "*"
+"org.perl.perl"                  = "*"
+"org.python.python3"               = "*"
+"org.gnu.tar"                   = "*"
+"org.tukaani.xz"                    = "*"
 # This is build-only bootstrap tooling: build-essentials-c already composes
 # the GNU implementation into the build root. The shipped eudev package below
 # depends on Peios's peiosutils instead.
-"org.gnu.coreutils"  = "*"
-debugedit             = "*"
+"dev.peios.peiosutils"  = "*"
+"org.sourceware.debugedit"             = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -243,18 +190,99 @@ coreutils      = "*"
 debugedit      = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/udevadm"
-test -s "$PEKIT_MAIN_OUT/usr/etc/udev/hwdb.bin"
-test -f "$PEKIT_MAIN_OUT/usr/include/libudev.h"
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libudev.so.*
+# Run upstream's rules suite. Its syntax checker has a historical /usr/bin/python
+# shebang; Peios intentionally names Python 3 explicitly. udev-test.pl creates
+# a nested mount namespace, which is unavailable inside Pekit's test sandbox;
+# staged command, hwdb and ABI probes below cover executable behavior there.
+sed -i '1s|^#!/usr/bin/python$|#!/usr/bin/python3|' \
+  "$PEKIT_SOURCE_ROOT/test/rule-syntax-check.py"
+cd "$PEKIT_MAIN_OUT"
+TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check TESTS=rules-test.sh
+STAGE="$PEKIT_MAIN_OUT"
+BINDIR="$STAGE/usr/bin"
+STAGED_LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+test -x "$BINDIR/udevadm"
+test -s "$STAGE/usr/etc/udev/hwdb.bin"
+test -f "$STAGE/usr/include/libudev.h"
+set -- "$STAGED_LIBDIR"/libudev.so.*
 test -e "$1"
+RULES="$STAGED_LIBDIR/udev/rules.d"
+keep="60-autosuspend 60-block 60-cdrom_id 60-evdev 60-input-id 60-persistent-input
+      60-persistent-storage 60-sensor 60-serial 70-joystick 70-mouse 70-touchpad
+      75-net-description 78-sound-card 80-drivers 80-net-name-slot"
+keep=$(printf '%s' "$keep" | tr '\n' ' ')
+for name in $keep; do
+  [ -f "$RULES/$name.rules" ] || {
+    echo "kept rule missing from payload: $name" >&2
+    exit 1
+  }
+done
+if grep -l 'MODE=\\|GROUP=\\|OWNER=' "$RULES"/*.rules; then
+  echo "rules carrying MODE=/GROUP=/OWNER= — not shipped on Peios" >&2
+  exit 1
+fi
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BINDIR/udevadm" --version | grep -E '^[0-9]+$'
+UDEV_HWDB_BIN="$STAGE/usr/etc/udev/hwdb.bin" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BINDIR/udevadm" hwdb \
+  --test='pci:v00000000d00000000sv00000000sd00000000bc01sc01i00' \
+  | grep -F 'ID_PCI_CLASS_FROM_DATABASE=Mass storage controller'
+
+SMOKE="$PEKIT_OUT/eudev-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/libudev.c" <<'EOF'
+#include <libudev.h>
+
+int main(void) {
+  struct udev *udev = udev_new();
+  if (!udev) return 1;
+  udev_unref(udev);
+  return 0;
+}
+EOF
+cc ${CFLAGS:-} -I"$STAGE/usr/include" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" ${LDFLAGS:-} \
+  -o "$SMOKE/libudev" "$SMOKE/libudev.c" -ludev
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libudev"
+
+find "$STAGE/usr" -type f ! -type l | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$f" | grep -F 'BIND_NOW'
+  if readelf -d "$f" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gperf" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.kernel.kmod-devel" = "*"
+"org.kernel.libblkid-devel" = "*"
+"com.darwinsys.file" = "*"
+"org.perl.perl" = "*"
+"org.python.python3" = "*"
+"org.gnu.tar" = "*"
+"org.tukaani.xz" = "*"
+"dev.peios.peiosutils" = "*"
+"org.sourceware.debugedit" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 dash = "*"
+gperf = "*"
+pkg-config = "*"
+libkmod-dev = "*"
+libblkid-dev = "*"
+file = "*"
+perl = "*"
+python3 = "*"
+tar = "*"
+xz-utils = "*"
+coreutils = "*"
+debugedit = "*"

@@ -6,7 +6,6 @@ description = "Dynamic-language interpreter and core command-line utilities"
 "org.perl.libperl" = "{{version}}-1"
 
 [provides]
-perl = "{{version}}"
 
 [files]
 "@source:Copying" = "usr/share/licenses/org.perl.perl/Copying"

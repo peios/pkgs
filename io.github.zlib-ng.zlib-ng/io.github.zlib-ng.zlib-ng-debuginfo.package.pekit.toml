@@ -4,10 +4,8 @@ description = "zlib-ng and zlib-compatible library debugging symbols"
 license     = "Zlib"
 
 [provides]
-zlib-debuginfo = "{{version}}-2"
 
 [replaces]
-zlib-debuginfo = "<= {{version}}-1"
 
 [dependencies]
 "io.github.zlib-ng.zlib-ng"        = "{{version}}-2"

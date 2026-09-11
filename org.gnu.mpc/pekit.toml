@@ -46,60 +46,9 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
 
 make -j"$(nproc)"
 
-# Correct rounding is the product, and GCC folds constants through this
-# library. Force tests to load the just-built library rather than any MPC
-# already present in the composed build root.
-LD_LIBRARY_PATH="$PEKIT_OUT/src/.libs" make -j"$(nproc)" check
-
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 rm -rf "$PEKIT_OUT/usr/share/info"
-
-LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
-INCLUDEDIR="$PEKIT_OUT/usr/include"
-PCDIR="$LIBDIR/pkgconfig"
-MPC_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libmpc.so.*' | LC_ALL=C sort)
-test "$(printf '%s\n' "$MPC_SO" | grep -c .)" -eq 1
-test -L "$LIBDIR/libmpc.so"
-test -L "$LIBDIR/libmpc.so.3"
-test -f "$LIBDIR/libmpc.a"
-test -f "$PCDIR/mpc.pc"
-readelf -d "$MPC_SO" | grep -Eq 'SONAME.*[[]libmpc[.]so[.]3[]]'
-grep -F 'Version: ' "$PCDIR/mpc.pc" | grep -F "$PEKIT_VERSION"
-grep -F 'Requires.private: mpfr >= 4.1.0, gmp >= 5.0.0' "$PCDIR/mpc.pc"
-
-# Exercise the installed header and both linkage modes. (3+4i)^2 is exactly
-# -7+24i, so this checks the public MPC/MPFR/GMP interface without tolerances.
-SMOKE="$PEKIT_OUT/.mpc-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/smoke.c" <<'EOF'
-#include <mpc.h>
-
-int main(void)
-{
-  mpc_t input;
-  mpc_t result;
-  mpc_init2(input, 128);
-  mpc_init2(result, 128);
-  mpc_set_ui_ui(input, 3, 4, MPC_RNDNN);
-  mpc_mul(result, input, input, MPC_RNDNN);
-  int ok = mpc_cmp_si_si(result, -7, 24) == 0;
-  mpc_clear(result);
-  mpc_clear(input);
-  return ok ? 0 : 1;
-}
-EOF
-MPC_CFLAGS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
-  pkgconf --cflags mpc)
-MPC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
-  pkgconf --libs mpc)
-MPC_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" \
-  pkgconf --static --libs mpc)
-cc $MPC_CFLAGS "$SMOKE/smoke.c" $MPC_LIBS -o "$SMOKE/shared"
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
-cc $MPC_CFLAGS "$SMOKE/smoke.c" -Wl,-Bstatic $MPC_STATIC_LIBS \
-  -Wl,-Bdynamic -lm -o "$SMOKE/static"
-"$SMOKE/static"
 
 # Split build-ID-indexed debug data and stage the exact sources referenced by
 # the rewritten DWARF paths. Static archives retain code but drop debug data.
@@ -134,18 +83,76 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   cp "$ROOT/$rel" "usr/src/debug/org.gnu.mpc/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-rm -rf "$SMOKE"
+'''
 
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
-test -n "$(find usr/src/debug/org.gnu.mpc -type f -print -quit)"
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c"   = "*"
+"org.gnu.gmp-devel"  = "*"
+"org.gnu.gmp-static" = "*"
+"org.gnu.mpfr-devel" = "*"
+"org.gnu.mpfr-static" = "*"
+"org.pkgconf.pkgconf"              = "*"
 
-# Assert the properties of the stripped shared object that will ship.
+[build.main.dependencies.apt]
+build-essential = "*"
+libgmp-dev      = "*"
+libmpfr-dev     = "*"
+debugedit       = "*"
+patchelf        = "*"
+pkgconf         = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$STAGE/usr/include"
+PCDIR="$LIBDIR/pkgconfig"
+SMOKE="$PEKIT_OUT/smoke"
+MPC_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libmpc.so.*' | LC_ALL=C sort)
+
+LD_LIBRARY_PATH="$STAGE/src/.libs" make -C "$STAGE" -j"$(nproc)" check
+
+test "$(printf '%s\n' "$MPC_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libmpc.so"
+test -L "$LIBDIR/libmpc.so.3"
+test -f "$LIBDIR/libmpc.a"
+test -f "$PCDIR/mpc.pc"
+readelf -d "$MPC_SO" | grep -Eq 'SONAME.*[[]libmpc[.]so[.]3[]]'
+grep -F 'Version: ' "$PCDIR/mpc.pc" | grep -F "$PEKIT_VERSION"
+grep -F 'Requires.private: mpfr >= 4.1.0, gmp >= 5.0.0' "$PCDIR/mpc.pc"
+
+mkdir -p "$SMOKE"
+cat > "$SMOKE/smoke.c" <<'EOF'
+#include <mpc.h>
+int main(void) {
+  mpc_t input, result;
+  mpc_init2(input, 128);
+  mpc_init2(result, 128);
+  mpc_set_ui_ui(input, 3, 4, MPC_RNDNN);
+  mpc_mul(result, input, input, MPC_RNDNN);
+  int ok = mpc_cmp_si_si(result, -7, 24) == 0;
+  mpc_clear(result);
+  mpc_clear(input);
+  return ok ? 0 : 1;
+}
+EOF
+MPC_CFLAGS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --cflags mpc)
+MPC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --libs mpc)
+MPC_STATIC_LIBS=$(PKG_CONFIG_PATH="$PCDIR" PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --static --libs mpc)
+cc $MPC_CFLAGS "$SMOKE/smoke.c" $MPC_LIBS -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared"
+cc $MPC_CFLAGS "$SMOKE/smoke.c" -Wl,-Bstatic $MPC_STATIC_LIBS \
+  -Wl,-Bdynamic -lm -o "$SMOKE/static"
+"$SMOKE/static"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.mpc" -type f -print -quit)"
 readelf -W -l "$MPC_SO" | grep -F 'GNU_RELRO'
 readelf -d "$MPC_SO" | grep -F 'BIND_NOW'
 readelf -W -l "$MPC_SO" | grep -E 'GNU_STACK.*RW '
-# Debian's GCC 14 CRT objects do not retain an aggregate CET property note in
-# the linked DSO even though every MPC object carries IBT and SHSTK. Peios'
-# compiler does retain it, so make the shipped native result the hard gate.
 if cc --version | head -1 | grep -Fq 'Peios'; then
   readelf -n "$MPC_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 fi
@@ -156,18 +163,22 @@ readelf -d "$MPC_SO" | grep -F 'Shared library: [libc.so.6]'
 if readelf -d "$MPC_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
 '''
 
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c"   = "*"
-"org.gnu.gmp-devel"  = "*"
-"org.gnu.gmp-static" = "*"
-"org.gnu.mpfr-devel" = "*"
-"org.gnu.mpfr-static" = "*"
-pkgconf              = "*"
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gmp-devel"            = "*"
+"org.gnu.gmp-static"           = "*"
+"org.gnu.mpfr-devel"           = "*"
+"org.gnu.mpfr-static"          = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
 libgmp-dev      = "*"
 libmpfr-dev     = "*"
-debugedit       = "*"
-patchelf        = "*"
 pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"

@@ -132,6 +132,7 @@ coreutils = "*"
 # policy seeds, accidental autoapply reclassification, and a broken compat
 # symlink before an edition artifact is signed.
 [test]
+gate = true
 needs = ["main"]
 command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" python3 tests/test-release.py'
 

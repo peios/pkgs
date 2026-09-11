@@ -34,13 +34,6 @@ SRC="$(pwd)"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
-# The core suite exercises generated C and C++ projects. Optional integrations
-# for tools such as Libtool, Gettext, DejaGnu and Vala skip cleanly when those
-# tools are absent, avoiding bootstrap cycles in the package set.
-# Peipkg builds in a rootless UID namespace whose apparent root cannot restore
-# arbitrary archive owners. Avoid GNU tar's root-only owner preservation while
-# the suite unpacks its prebuilt amhello fixture.
-TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 # Peios does not currently ship an Info reader; the manual and other upstream
 # documentation remain available in the corresponding-source package.
@@ -50,10 +43,10 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.bash"           = "*"
-gzip                     = "*"
+"org.gnu.gzip"                     = "*"
 "org.gnu.autoconf"      = ">= 2.72"
-perl                     = ">= 5.6"
-tar                      = "*"
+"org.perl.perl"                     = ">= 5.6"
+"org.gnu.tar"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -64,17 +57,36 @@ perl           = ">= 5.6"
 tar            = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
+# The core suite exercises generated C and C++ projects. Optional integrations
+# for tools such as Libtool, Gettext, DejaGnu and Vala skip cleanly when those
+# tools are absent, avoiding bootstrap cycles in the package set.
+# Peipkg builds in a rootless UID namespace whose apparent root cannot restore
+# arbitrary archive owners. Avoid GNU tar's root-only owner preservation while
+# the suite unpacks its prebuilt amhello fixture.
+cd "$PEKIT_MAIN_OUT"
+TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
 case "$("$PEKIT_MAIN_OUT/usr/bin/automake" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 test -x "$PEKIT_MAIN_OUT/usr/bin/aclocal"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.bash" = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.autoconf" = ">= 2.72"
 "org.git.kernel.dash" = "*"
 "org.perl.perl" = "*"
+"org.gnu.tar" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+bash = "*"
+gzip = "*"
+autoconf = ">= 2.72"
 dash = "*"
 perl = "*"
+tar = "*"

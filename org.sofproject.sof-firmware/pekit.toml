@@ -52,8 +52,6 @@ done
 find "$dest" -type d -name community -prune -exec rm -rf {} +
 find "$dest" -name 'sof-imx*' -delete
 find "$dest" -name 'sof-mt[0-9]*' -delete
-left=$(find "$dest" -path '*community*' -o -name 'sof-imx*' -o -name 'sof-mt[0-9]*')
-[ -z "$left" ] || { echo "sof-firmware: not dropped:" "$left" >&2; exit 1; }
 
 # Compress regular files, then repoint every non-directory symlink at the .zst
 # name. Transforming every link unconditionally makes link chains independent
@@ -66,8 +64,31 @@ find "$dest" -type l | while read -r l; do
   ln -sfn "$t.zst" "$l.zst"
   rm -f "$l"
 done
-broken=$(find "$dest" -xtype l)
-[ -z "$broken" ] || { echo "sof-firmware: broken symlinks:" "$broken" >&2; exit 1; }
+du -sm "$dest"
+'''
+
+# TCB-signed like linux-firmware (PEI-493): sidecar per blob and
+# topology, symlinks skipped.
+[build.main.sign.pip]
+"usr/lib/firmware/**" = "tcb.priv"
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"          = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils"     = "*"
+"com.facebook.zstd"          = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+findutils = "*"
+zstd      = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+dest="$PEKIT_MAIN_OUT/usr/lib/firmware/intel"
 
 # Freeze the expected production inventory without pinning exact counts: new
 # hardware should flow through automatically, while a release that silently
@@ -78,23 +99,23 @@ broken=$(find "$dest" -xtype l)
 [ "$(find "$dest" -type f -name '*.ldc.zst' | wc -l)" -ge 5 ]
 [ -z "$(find "$dest" -type f ! -name '*.zst' -print -quit)" ]
 find "$dest" -type f -name '*.zst' -exec zstd -q -t {} +
+test -z "$(find "$dest" -xtype l -print)"
 test -L "$dest/sof-ace-tplg"
 test "$(readlink "$dest/sof-ace-tplg")" = sof-ipc4-tplg
-du -sm "$dest"
+
+# Development/community, non-x86 and bundled host-tool payloads are outside
+# this package's deliberate production surface.
+test -z "$(find "$dest" -path '*community*' -o -name 'sof-imx*' -o -name 'sof-mt[0-9]*')"
+test ! -e "$PEKIT_MAIN_OUT/usr/bin"
 '''
 
-# TCB-signed like linux-firmware (PEI-493): sidecar per blob and
-# topology, symlinks skipped.
-[build.main.sign.pip]
-"usr/lib/firmware/**" = "tcb.priv"
+[test.dependencies.peipkg]
+"org.git.kernel.dash"    = "*"
+"dev.peios.peiosutils"   = "*"
+"org.gnu.findutils"      = "*"
+"com.facebook.zstd"      = "*"
 
-[build.main.dependencies.peipkg]
-dash          = "*"
-"org.gnu.coreutils" = "*"
-findutils     = "*"
-zstd          = "*"
-
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 coreutils = "*"
 findutils = "*"
 zstd      = "*"

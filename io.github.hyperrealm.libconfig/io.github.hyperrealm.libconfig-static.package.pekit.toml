@@ -5,7 +5,6 @@ name        = "io.github.hyperrealm.libconfig-static"
 description = "libconfig - static libraries"
 
 [provides]
-libconfig-static = "{{version}}"
 
 [dependencies]
 "io.github.hyperrealm.libconfig-devel" = "{{version}}-1"

@@ -3,7 +3,6 @@ name        = "org.jedsoft.slang-static"
 description = "S-Lang static library"
 
 [provides]
-"slang-static" = "{{version}}"
 
 [dependencies]
 "org.jedsoft.slang-devel" = "{{version}}-1"

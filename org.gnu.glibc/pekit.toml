@@ -87,8 +87,6 @@ LIBDIR=/usr/lib/$TRIPLET
 STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
 DEBUG_DEST=/usr/src/debug/org.gnu.glibc
 BUILD="$PEKIT_OUT/build"
-REPRO_ROOT="$PEKIT_OUT/repro-root"
-SMOKE="$PEKIT_OUT/.glibc-smoke"
 
 for tool in makeinfo msgfmt debugedit readelf objcopy strip; do
   command -v "$tool" >/dev/null || { echo "missing required glibc build tool: $tool" >&2; exit 1; }
@@ -181,6 +179,188 @@ grep -Eq '^S\["TEST_CXX"\]=".+"$' config.status
 echo 'rootsbindir=/usr/bin' > configparms
 echo 'sbindir=/usr/bin' >> configparms
 make -j"$JOBS"
+
+# Build the manual and install the complete unstripped tree. Upstream, ABI,
+# policy, and reproducibility validation runs from test.main after the debug
+# split below, so package and publish treat it as an explicit release gate.
+make -j"$JOBS" info
+make install DESTDIR="$PEKIT_OUT"
+
+# Validate every shipped dynamic ELF/module, scrub build paths from DWARF,
+# split debug out (build-id indexed), and strip the binaries (~5x smaller).
+# Per ELF: debugedit rewrites the build-tree comp_dir prefix ($ROOT) to a stable
+# /usr/src/debug/org.gnu.glibc (otherwise the .debug leak the builder's homedir — same
+# class of leak as rpath — and source paths don't resolve on a target) and lists
+# the sources it references; objcopy then splits the clean DWARF into
+# /usr/lib/debug/.build-id/ and strip removes it. Build-id notes come from the
+# toolchain. Static archives and relocatable link inputs get --strip-debug
+# (keeping the symtab so they still link; they have no build-id to index).
+# Then the referenced sources are copied under
+# /usr/src/debug/org.gnu.glibc. (org.gnu.glibc-debuginfo packages
+# /usr/lib/debug; org.gnu.glibc-debugsource packages /usr/src/debug.)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+: > "$PEKIT_OUT/.elfs"
+: > "$PEKIT_OUT/.inodes"
+cd "$PEKIT_OUT"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  inode=$(stat -c '%d:%i' "$f")
+  if grep -Fxq "$inode" "$PEKIT_OUT/.inodes"; then
+    continue
+  fi
+  printf '%s\n' "$inode" >> "$PEKIT_OUT/.inodes"
+  case "$f" in
+    *.a)
+      if readelf -h "$f" >/dev/null 2>&1; then
+        strip --strip-debug "$f"
+      elif ar t "$f" >/dev/null 2>&1; then
+        strip --strip-debug "$f"
+      elif grep -q 'GNU ld script' "$f"; then
+        : # libm.a is a textual linker script, despite its suffix.
+      else
+        echo "glibc: unrecognized static-library payload: $f" >&2
+        exit 1
+      fi
+      if grep -aF "$ROOT" "$f" >/dev/null; then
+        echo "glibc: build path remains in static-library payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+    *.o)
+      strip --strip-debug "$f"
+      if grep -aF "$ROOT" "$f" >/dev/null; then
+        echo "glibc: build path remains in relocatable payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+  esac
+  if ! readelf -h "$f" >/dev/null 2>&1; then
+    continue
+  fi
+
+  # glibc owns its stack-protector exceptions internally, but every installed
+  # executable and DSO must still be PIE/DYN with RELRO, immediate binding, a
+  # non-executable stack, CET IBT+SHSTK, a build ID, and no text relocations. A
+  # few interdependent gconv modules intentionally use $ORIGIN; no other
+  # runtime path is allowed.
+  readelf -h "$f" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$f" | grep -F 'GNU_RELRO' >/dev/null
+  readelf -W -l "$f" | grep -E 'GNU_STACK.*RW ' >/dev/null
+  readelf -d "$f" | grep -F 'BIND_NOW' >/dev/null
+  readelf -n "$f" | grep -F 'x86 feature: IBT, SHSTK' >/dev/null
+  if readelf -d "$f" | grep -q 'TEXTREL'; then
+    echo "glibc: text relocation in $f" >&2
+    exit 1
+  fi
+  runpath=$(readelf -d "$f" | sed -n 's/.*Library r[^:]*: \[\(.*\)\]/\1/p')
+  if [ -n "$runpath" ]; then
+    case "$f:$runpath" in
+      usr/lib/x86_64-linux-peios/gconv/*.so:'$ORIGIN') ;;
+      *) echo "glibc: unexpected runtime path in $f: $runpath" >&2; exit 1;;
+    esac
+  fi
+
+  : > "$PEKIT_OUT/.dl"
+  if readelf -W -S "$f" | grep -q '\.debug_info'; then
+    debugedit -b "$ROOT" -d "$DEBUG_DEST" \
+      -l "$PEKIT_OUT/.dl" -n "$f"
+    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  fi
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -z "$bid" ]; then
+    echo "glibc: missing build ID in $f" >&2
+    exit 1
+  fi
+  printf '%s %s\n' "$bid" "$f" >> "$PEKIT_OUT/.buildids"
+  printf '%s\n' "$f" >> "$PEKIT_OUT/.elfs"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  debug="usr/lib/debug/.build-id/$p2/$rest.debug"
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "$debug"
+  chmod 0644 "$debug"
+  readelf -n "$debug" | grep -F "Build ID: $bid" >/dev/null
+  if grep -aF "$ROOT" "$debug" >/dev/null; then
+    echo "glibc: build path remains in debug payload for $f" >&2
+    exit 1
+  fi
+  strip "$f"
+  if readelf -W -S "$f" | grep -q '\.debug_info'; then
+    echo "glibc: DWARF remains in stripped payload $f" >&2
+    exit 1
+  fi
+  if grep -aF "$ROOT" "$f" >/dev/null; then
+    echo "glibc: build path remains in stripped payload $f" >&2
+    exit 1
+  fi
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */|*/\<built-in\>) continue;; esac
+  case "$rel" in
+    # gperf's generated headers use basename-only #line directives.  The same
+    # charmap header is compiled from iconv and locale, so DWARF quite
+    # legitimately names these three compilation-directory-relative aliases
+    # even though the canonical release-archive inputs live in locale/programs.
+    # Keep the aliases at the paths DWARF references, but accept no generic
+    # missing-source fallback.
+    source/iconv/charmap-kw.gperf|source/locale/charmap-kw.gperf)
+      origin="$SRC/locale/programs/charmap-kw.gperf" ;;
+    source/locale/locfile-kw.gperf)
+      origin="$SRC/locale/programs/locfile-kw.gperf" ;;
+    source/*) origin="$SRC/${rel#source/}" ;;
+    build/*) origin="$BUILD/${rel#build/}" ;;
+    *) echo "glibc: unexpected debug source namespace: $rel" >&2; exit 1;;
+  esac
+  if [ ! -f "$origin" ]; then
+    echo "glibc: debug source listed by debugedit is missing: $rel" >&2
+    exit 1
+  fi
+  mkdir -p "usr/src/debug/org.gnu.glibc/$(dirname "$rel")"
+  cp "$origin" "usr/src/debug/org.gnu.glibc/$rel"
+done
+test -n "$(find usr/lib/debug -type f -name '*.debug' -print -quit)"
+test -n "$(find usr/src/debug/org.gnu.glibc -type f -print -quit)"
+ELF_COUNT=$(wc -l < "$PEKIT_OUT/.elfs")
+BUILD_ID_COUNT=$(cut -d' ' -f1 "$PEKIT_OUT/.buildids" | LC_ALL=C sort -u | wc -l)
+test "$ELF_COUNT" -ge 250
+test "$BUILD_ID_COUNT" -eq "$ELF_COUNT"
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.inodes"
+'''
+
+[test.main]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+PEKIT_TEST_OUT="$PEKIT_OUT"
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
+BUILD="$PEKIT_OUT/build"
+SMOKE="$PEKIT_TEST_OUT/glibc-smoke"
+FIRST_REPRO_ROOT="$PEKIT_TEST_OUT/repro-root-1"
+SECOND_REPRO_ROOT="$PEKIT_TEST_OUT/repro-root-2"
+JOBS=$(nproc)
+MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
+[ "$MEM_JOBS" -lt "$JOBS" ] && JOBS=$MEM_JOBS
+[ "$JOBS" -gt 4 ] && JOBS=4
+[ "$JOBS" -lt 1 ] && JOBS=1
+mkdir -p "$SMOKE"
+cleanup()
+{
+  rm -f "$STAGED_LIBDIR/libnss_peios.so.2" \
+    "$STAGED_LIBDIR/libnss_peios_net.so.2"
+}
+trap cleanup EXIT
+cd "$BUILD"
 
 # Run every applicable upstream suite, including NSS, headers, ABI, networking,
 # internationalisation, RPC and legacy lookup coverage. nscd is not built.
@@ -316,7 +496,7 @@ awk -F: '/^(PASS|UNSUPPORTED|XFAIL):/ { count[$1]++ } \
 # normalized manifest of the complete install tree.  This covers every shipped
 # main/bin/devel/static/doc/gconv payload rather than sampling a few binaries;
 # paths, modes, symlink targets and regular-file bytes must all match.
-make install DESTDIR="$REPRO_ROOT"
+make install DESTDIR="$FIRST_REPRO_ROOT"
 make clean
 make -j"$JOBS"
 # The default build omits the manual.  Upstream `make clean` removes generated
@@ -326,9 +506,9 @@ make -j"$JOBS"
 # documented package as well as the binaries.
 rm -f "$BUILD/manual/stamp-pkgvers"
 make -j"$JOBS" info
-make install DESTDIR="$PEKIT_OUT"
+make install DESTDIR="$SECOND_REPRO_ROOT"
 manifest_index=0
-for root in "$REPRO_ROOT" "$PEKIT_OUT"; do
+for root in "$FIRST_REPRO_ROOT" "$SECOND_REPRO_ROOT"; do
   manifest_index=$((manifest_index + 1))
   manifest="$SMOKE/installed-$manifest_index.manifest"
   (
@@ -347,7 +527,7 @@ for root in "$REPRO_ROOT" "$PEKIT_OUT"; do
 done
 cmp "$SMOKE/installed-1.manifest" "$SMOKE/installed-2.manifest"
 rm -f "$SMOKE/installed-1.manifest" "$SMOKE/installed-2.manifest"
-rm -rf "$REPRO_ROOT"
+rm -rf "$FIRST_REPRO_ROOT" "$SECOND_REPRO_ROOT"
 
 # Freeze the installed loader, sonames and public symbol-version surface before
 # splitting debug information.  These checks intentionally fail closed when a
@@ -1110,152 +1290,41 @@ if LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/static-nss"; then
   exit 1
 fi
 
-# Validate every shipped dynamic ELF/module, scrub build paths from DWARF,
-# split debug out (build-id indexed), and strip the binaries (~5x smaller).
-# Per ELF: debugedit rewrites the build-tree comp_dir prefix ($ROOT) to a stable
-# /usr/src/debug/org.gnu.glibc (otherwise the .debug leak the builder's homedir — same
-# class of leak as rpath — and source paths don't resolve on a target) and lists
-# the sources it references; objcopy then splits the clean DWARF into
-# /usr/lib/debug/.build-id/ and strip removes it. Build-id notes come from the
-# toolchain. Static archives and relocatable link inputs get --strip-debug
-# (keeping the symtab so they still link; they have no build-id to index).
-# Then the referenced sources are copied under
-# /usr/src/debug/org.gnu.glibc. (org.gnu.glibc-debuginfo packages
-# /usr/lib/debug; org.gnu.glibc-debugsource packages /usr/src/debug.)
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-: > "$PEKIT_OUT/.elfs"
-: > "$PEKIT_OUT/.inodes"
-cd "$PEKIT_OUT"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  inode=$(stat -c '%d:%i' "$f")
-  if grep -Fxq "$inode" "$PEKIT_OUT/.inodes"; then
-    continue
-  fi
-  printf '%s\n' "$inode" >> "$PEKIT_OUT/.inodes"
-  case "$f" in
-    *.a)
-      if readelf -h "$f" >/dev/null 2>&1; then
-        strip --strip-debug "$f"
-      elif ar t "$f" >/dev/null 2>&1; then
-        strip --strip-debug "$f"
-      elif grep -q 'GNU ld script' "$f"; then
-        : # libm.a is a textual linker script, despite its suffix.
-      else
-        echo "glibc: unrecognized static-library payload: $f" >&2
-        exit 1
-      fi
-      if grep -aF "$ROOT" "$f" >/dev/null; then
-        echo "glibc: build path remains in static-library payload $f" >&2
-        exit 1
-      fi
-      continue
-      ;;
-    *.o)
-      strip --strip-debug "$f"
-      if grep -aF "$ROOT" "$f" >/dev/null; then
-        echo "glibc: build path remains in relocatable payload $f" >&2
-        exit 1
-      fi
-      continue
-      ;;
-  esac
-  if ! readelf -h "$f" >/dev/null 2>&1; then
-    continue
-  fi
-
-  # glibc owns its stack-protector exceptions internally, but every installed
-  # executable and DSO must still be PIE/DYN with RELRO, immediate binding, a
-  # non-executable stack, CET IBT+SHSTK, a build ID, and no text relocations. A
-  # few interdependent gconv modules intentionally use $ORIGIN; no other
-  # runtime path is allowed.
-  readelf -h "$f" | grep -Eq 'Type:[[:space:]]+DYN'
-  readelf -W -l "$f" | grep -F 'GNU_RELRO' >/dev/null
-  readelf -W -l "$f" | grep -E 'GNU_STACK.*RW ' >/dev/null
-  readelf -d "$f" | grep -F 'BIND_NOW' >/dev/null
-  readelf -n "$f" | grep -F 'x86 feature: IBT, SHSTK' >/dev/null
-  if readelf -d "$f" | grep -q 'TEXTREL'; then
-    echo "glibc: text relocation in $f" >&2
-    exit 1
-  fi
-  runpath=$(readelf -d "$f" | sed -n 's/.*Library r[^:]*: \[\(.*\)\]/\1/p')
-  if [ -n "$runpath" ]; then
-    case "$f:$runpath" in
-      usr/lib/x86_64-linux-peios/gconv/*.so:'$ORIGIN') ;;
-      *) echo "glibc: unexpected runtime path in $f: $runpath" >&2; exit 1;;
-    esac
-  fi
-
-  : > "$PEKIT_OUT/.dl"
-  if readelf -W -S "$f" | grep -q '\.debug_info'; then
-    debugedit -b "$ROOT" -d "$DEBUG_DEST" \
-      -l "$PEKIT_OUT/.dl" -n "$f"
-    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  fi
-  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -z "$bid" ]; then
-    echo "glibc: missing build ID in $f" >&2
-    exit 1
-  fi
-  printf '%s %s\n' "$bid" "$f" >> "$PEKIT_OUT/.buildids"
-  printf '%s\n' "$f" >> "$PEKIT_OUT/.elfs"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  debug="usr/lib/debug/.build-id/$p2/$rest.debug"
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "$debug"
-  chmod 0644 "$debug"
-  readelf -n "$debug" | grep -F "Build ID: $bid" >/dev/null
-  if grep -aF "$ROOT" "$debug" >/dev/null; then
-    echo "glibc: build path remains in debug payload for $f" >&2
-    exit 1
-  fi
-  strip "$f"
-  if readelf -W -S "$f" | grep -q '\.debug_info'; then
-    echo "glibc: DWARF remains in stripped payload $f" >&2
-    exit 1
-  fi
-  if grep -aF "$ROOT" "$f" >/dev/null; then
-    echo "glibc: build path remains in stripped payload $f" >&2
-    exit 1
-  fi
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */|*/\<built-in\>) continue;; esac
-  case "$rel" in
-    # gperf's generated headers use basename-only #line directives.  The same
-    # charmap header is compiled from iconv and locale, so DWARF quite
-    # legitimately names these three compilation-directory-relative aliases
-    # even though the canonical release-archive inputs live in locale/programs.
-    # Keep the aliases at the paths DWARF references, but accept no generic
-    # missing-source fallback.
-    source/iconv/charmap-kw.gperf|source/locale/charmap-kw.gperf)
-      origin="$SRC/locale/programs/charmap-kw.gperf" ;;
-    source/locale/locfile-kw.gperf)
-      origin="$SRC/locale/programs/locfile-kw.gperf" ;;
-    source/*) origin="$SRC/${rel#source/}" ;;
-    build/*) origin="$BUILD/${rel#build/}" ;;
-    *) echo "glibc: unexpected debug source namespace: $rel" >&2; exit 1;;
-  esac
-  if [ ! -f "$origin" ]; then
-    echo "glibc: debug source listed by debugedit is missing: $rel" >&2
-    exit 1
-  fi
-  mkdir -p "usr/src/debug/org.gnu.glibc/$(dirname "$rel")"
-  cp "$origin" "usr/src/debug/org.gnu.glibc/$rel"
-done
-test -n "$(find usr/lib/debug -type f -name '*.debug' -print -quit)"
-test -n "$(find usr/src/debug/org.gnu.glibc -type f -print -quit)"
-ELF_COUNT=$(wc -l < "$PEKIT_OUT/.elfs")
-BUILD_ID_COUNT=$(cut -d' ' -f1 "$PEKIT_OUT/.buildids" | LC_ALL=C sort -u | wc -l)
-test "$ELF_COUNT" -ge 250
-test "$BUILD_ID_COUNT" -eq "$ELF_COUNT"
 rm -rf "$SMOKE"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
-  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.inodes"
 '''
+
+[test.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+# Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
+# it to legacy GCC, while qualified GCC can satisfy the same provide later.
+"org.gnu.gcc-c++"                  = "*"
+# The native static C++ test links this prior-GCC archive against the new libc.a;
+# it deliberately does not pull the previous glibc-static into the build root.
+"org.gnu.gcc-libstdc++-static"         = "*"
+# Peios GCC injects -latomic_asneeded into links; its static archive is split
+# from libstdc++-static and is required by the same native static C++ test.
+"org.gnu.gcc-libatomic-static"         = "*"
+"org.gnu.bash"             = "*"
+"org.gnu.bison"            = "*"
+"org.gnu.gawk"             = "*"
+"org.gnu.gettext"          = "*"
+"org.gnu.gzip"             = "*"
+"org.gnu.texinfo"          = "*"
+"org.perl.perl"            = "*"
+"org.python.python3"       = "*"
+"org.sourceware.debugedit" = "*"
+
+[test.main.dependencies.apt]
+build-essential = "*"
+bison = "*"
+gawk = "*"
+python3 = "*"
+perl = "*"
+texinfo = "*"
+gettext = "*"
+debugedit = "*"
+linux-libc-dev = "*"
+gzip = "*"
 
 # Build deps. glibc is autotools (gcc + g++ + make) but pulls in a wider host set than
 # the bignums: bison (parser gen), gawk (its scripts need GNU awk specifically),
@@ -1267,13 +1336,13 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 "dev.peios.build-essentials-c" = "*"
 # Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
 # it to legacy GCC, while qualified GCC can satisfy the same provide later.
-"gcc-c++"                  = "*"
+"org.gnu.gcc-c++"                  = "*"
 # The native static C++ test links this prior-GCC archive against the new libc.a;
 # it deliberately does not pull the previous glibc-static into the build root.
-"libstdc++-static"         = "*"
+"org.gnu.gcc-libstdc++-static"         = "*"
 # Peios GCC injects -latomic_asneeded into links; its static archive is split
 # from libstdc++-static and is required by the same native static C++ test.
-"libatomic-static"         = "*"
+"org.gnu.gcc-libatomic-static"         = "*"
 "org.gnu.bash"             = "*"
 "org.gnu.bison"            = "*"
 "org.gnu.gawk"             = "*"
@@ -1324,6 +1393,35 @@ MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
 make -C "$PEKIT_MAIN_OUT/build" -j"$JOBS" \
   localedata/install-locale-files DESTDIR="$PEKIT_OUT"
 
+# Validation and full-corpus reproducibility are handled by test.locale.
+'''
+
+# Build deps. Re-runs make in main's already-configured glibc tree to compile the
+# per-locale data with the localedef built there — needs the same gcc + make.
+[build.locale.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+
+[build.locale.dependencies.apt]
+build-essential = "*"
+
+[test.locale]
+needs = ["main", "locale"]
+gate = true
+command = '''
+set -eu
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+MAIN_LIBDIR="$PEKIT_MAIN_OUT$LIBDIR"
+LOADER="$MAIN_LIBDIR/ld-linux-x86-64.so.2"
+LOCALE="$PEKIT_MAIN_OUT/usr/bin/locale"
+LOCALEDIR="$PEKIT_LOCALE_OUT$LIBDIR/locale"
+SMOKE="$PEKIT_OUT/locale-smoke"
+JOBS=$(nproc)
+MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
+[ "$MEM_JOBS" -lt "$JOBS" ] && JOBS=$MEM_JOBS
+[ "$JOBS" -gt 4 ] && JOBS=4
+[ "$JOBS" -lt 1 ] && JOBS=1
+mkdir -p "$SMOKE"
 # Validate the complete per-locale install and exercise a newly added 2.44
 # locale so an accidentally stale or partial locale build cannot pass.
 test -d "$LOCALEDIR/C.utf8"
@@ -1367,10 +1465,8 @@ rm -f "$LOCALEDIR.manifest" "$REPRO_LOCALE_ROOT$LIBDIR/locale.manifest"
 rm -rf "$SMOKE"
 '''
 
-# Build deps. Re-runs make in main's already-configured glibc tree to compile the
-# per-locale data with the localedef built there — needs the same gcc + make.
-[build.locale.dependencies.peipkg]
+[test.locale.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 
-[build.locale.dependencies.apt]
+[test.locale.dependencies.apt]
 build-essential = "*"

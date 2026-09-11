@@ -36,9 +36,8 @@ XSL="$BASE/xsl-stylesheets-$PEKIT_VERSION-nons"
 CURRENT="$BASE/xsl-stylesheets"
 DOC="$PEKIT_OUT/usr/share/doc/org.docbook.docbook-xsl"
 LICENSES="$PEKIT_OUT/usr/share/licenses/org.docbook.docbook-xsl"
-SMOKE="$PEKIT_OUT/.docbook-xsl-smoke"
 
-mkdir -p "$XSL" "$DOC" "$LICENSES" "$SMOKE"
+mkdir -p "$XSL" "$DOC" "$LICENSES"
 cp -a "$SRC"/. "$XSL/"
 
 # Ship the complete stylesheet surface rather than only the formats Peios
@@ -105,9 +104,38 @@ cat > "$PEKIT_OUT/usr/etc/xml/catalog" <<'EOF'
 </catalog>
 EOF
 
-# A future upstream release must preserve every canonical lookup. Test both
-# URI and system resolution, "current" and exact-version identifiers, and the
-# modern CDN plus compatibility namespace.
+# Data payloads have no ELF hardening surface. Make their byte/permission
+# determinism explicit instead: no build detritus or bundled binaries remain,
+# directories are 0755, ordinary data 0644, and rebuilding the file inventory
+# from the same locked source yields the same sorted digest list.
+find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
+find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils" = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+findutils = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+BASE="$PEKIT_MAIN_OUT/usr/share/xml/docbook"
+XSL="$BASE/xsl-stylesheets"
+SMOKE="$PEKIT_OUT/docbook-xsl-smoke"
+mkdir -p "$SMOKE"
+test -L "$XSL"
+test -s "$XSL/html/docbook.xsl"
+test -s "$XSL/manpages/docbook.xsl"
+test -s "$XSL/VERSION"
+
+# Preserve every canonical offline lookup.
 for identifier in \
   "http://cdn.docbook.org/release/xsl-nons/current/manpages/docbook.xsl" \
   "https://cdn.docbook.org/release/xsl-nons/$PEKIT_VERSION/html/docbook.xsl" \
@@ -121,8 +149,6 @@ do
   }
 done
 
-# Validate one representative DocBook 4.5 refentry and transform it through
-# the HTML, XHTML, XSL-FO, and manpage entry points without network access.
 cat > "$SMOKE/peios-docbook.xml" <<'EOF'
 <?xml version="1.0"?>
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
@@ -133,7 +159,6 @@ cat > "$SMOKE/peios-docbook.xml" <<'EOF'
   <refsect1><title>Description</title><para>Offline transform smoke test.</para></refsect1>
 </refentry>
 EOF
-
 if test -f /usr/share/xml/docbook/schema/dtd/4.5/catalog.xml; then
   DTD_CATALOG=/usr/share/xml/docbook/schema/dtd/4.5/catalog.xml
 elif test -f /etc/xml/catalog; then
@@ -143,7 +168,6 @@ else
   exit 1
 fi
 XML_CATALOG_FILES="$DTD_CATALOG" xmllint --nonet --noout --valid "$SMOKE/peios-docbook.xml"
-
 XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
   --output "$SMOKE/peios-docbook.html" "$XSL/html/docbook.xsl" "$SMOKE/peios-docbook.xml"
 XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
@@ -152,18 +176,11 @@ XML_CATALOG_FILES="$DTD_CATALOG" xsltproc --nonet \
   --output "$SMOKE/peios-docbook.fo" "$XSL/fo/docbook.xsl" "$SMOKE/peios-docbook.xml"
 (cd "$SMOKE" && XML_CATALOG_FILES="$DTD_CATALOG" \
   xsltproc --nonet "$XSL/manpages/docbook.xsl" peios-docbook.xml)
-
 grep -q 'Offline transform smoke test' "$SMOKE/peios-docbook.html"
 grep -q 'Offline transform smoke test' "$SMOKE/peios-docbook.xhtml"
 grep -q 'fo:root' "$SMOKE/peios-docbook.fo"
 test -s "$SMOKE/peios-docbook.1"
 
-# Data payloads have no ELF hardening surface. Make their byte/permission
-# determinism explicit instead: no build detritus or bundled binaries remain,
-# directories are 0755, ordinary data 0644, and rebuilding the file inventory
-# from the same locked source yields the same sorted digest list.
-find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
-find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
 test -z "$(find "$XSL" -type f \( -name '*.jar' -o -name '*.class' \) -print -quit)"
 find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.one"
 find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.two"
@@ -171,37 +188,22 @@ cmp "$SMOKE/inventory.one" "$SMOKE/inventory.two"
 rm -rf "$SMOKE"
 '''
 
-[build.main.dependencies.peipkg]
-dash                           = "*"
-"org.gnu.coreutils"            = "*"
-findutils                      = "*"
-grep                           = "*"
-"org.gnu.diffutils"            = "*"
-"org.gnome.libxml2-utils"      = "*"
-"org.gnome.libxslt-utils"      = "*"
-"org.oasis-open.docbook-xml"  = ">= 4.5"
-
-[build.main.dependencies.apt]
-coreutils     = "*"
-findutils     = "*"
-grep          = "*"
-diffutils     = "*"
-libxml2-utils = "*"
-xsltproc      = "*"
-docbook-xml   = ">= 4.5"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-ROOT="$PEKIT_MAIN_OUT/usr/share/xml/docbook/xsl-stylesheets"
-test -s "$ROOT/html/docbook.xsl"
-test -s "$ROOT/manpages/docbook.xsl"
-test -s "$ROOT/VERSION"
-'''
-
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnome.libxml2-utils" = "*"
+"org.gnome.libxslt-utils" = "*"
+"org.oasis-open.docbook-xml" = ">= 4.5"
 
 [test.dependencies.apt]
 dash = "*"
+coreutils = "*"
+findutils = "*"
+grep = "*"
+diffutils = "*"
+libxml2-utils = "*"
+xsltproc = "*"
+docbook-xml = ">= 4.5"

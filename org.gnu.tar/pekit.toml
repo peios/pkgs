@@ -56,63 +56,13 @@ cd "$PEKIT_OUT"
 # Peios has no Info reader. MAKEINFO=true preserves that policy without
 # introducing Texinfo solely to regenerate a payload removed after install.
 make -j"$(nproc)" MAKEINFO=true
-make -j"$(nproc)" check MAKEINFO=true
 make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
 rm -rf "$PEKIT_OUT/usr/share/info"
 
 # rmt is deliberately not built: Peios does not ship the tape-era remote
 # magtape server. The explicit configure path above means tar can still target
 # a separately managed implementation in the future without owning it here.
-test ! -e "$PEKIT_OUT/usr/libexec/rmt"
-test ! -e "$PEKIT_OUT/usr/share/man/man8/rmt.8"
-
-# Exercise the staged executable across archive creation, inspection,
-# extraction, links, updates, deletion and reproducible POSIX archives.
 BIN="$PEKIT_OUT/usr/bin/tar"
-SMOKE="$PEKIT_OUT/.tar-smoke"
-mkdir -p "$SMOKE/source/sub" "$SMOKE/extract"
-printf '%s\n' 'archive payload' > "$SMOKE/source/file"
-printf '%s\n' 'nested payload' > "$SMOKE/source/sub/nested"
-ln "$SMOKE/source/file" "$SMOKE/source/hard"
-ln -s sub/nested "$SMOKE/source/link"
-
-"$BIN" -cf "$SMOKE/archive.tar" -C "$SMOKE/source" .
-"$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'
-"$BIN" -xf "$SMOKE/archive.tar" -C "$SMOKE/extract"
-cmp "$SMOKE/source/file" "$SMOKE/extract/file"
-cmp "$SMOKE/source/sub/nested" "$SMOKE/extract/sub/nested"
-[ "$(readlink "$SMOKE/extract/link")" = sub/nested ]
-[ "$(stat -c %i "$SMOKE/extract/file")" = "$(stat -c %i "$SMOKE/extract/hard")" ]
-
-printf '%s\n' 'updated payload' > "$SMOKE/source/file"
-"$BIN" -rf "$SMOKE/archive.tar" -C "$SMOKE/source" file
-"$BIN" --delete -f "$SMOKE/archive.tar" ./sub/nested
-if "$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'; then exit 1; fi
-
-for archive in deterministic-a.tar deterministic-b.tar; do
-  LC_ALL=C "$BIN" \
-    --format=posix \
-    --sort=name \
-    --mtime=@0 \
-    --owner=0 \
-    --group=0 \
-    --numeric-owner \
-    --pax-option=delete=atime,delete=ctime \
-    -cf "$SMOKE/$archive" -C "$SMOKE/source" .
-done
-cmp "$SMOKE/deterministic-a.tar" "$SMOKE/deterministic-b.tar"
-
-"$BIN" --version | head -n 1 | grep -F "$PEKIT_VERSION"
-test -f "$PEKIT_OUT/usr/share/man/man1/tar.1"
-find "$PEKIT_OUT/usr/share/locale" -name tar.mo -type f | grep -q .
-
-# Enforce the workspace ELF hardening contract and emit conventional build-ID
-# debuginfo plus the exact source files referenced by the binary's DWARF.
-readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
-readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
-readelf -d "$BIN" | grep -F 'BIND_NOW'
-readelf -d "$BIN" | grep -F 'RELR'
-if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 
 cd "$PEKIT_OUT"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -136,9 +86,80 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
       mkdir -p "usr/src/debug/org.gnu.tar/$(dirname "$rel")"
       cp "$ROOT/$rel" "usr/src/debug/org.gnu.tar/$rel"
     done
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.srclist"
 """
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/tar"
+SMOKE="$PEKIT_OUT/smoke"
+
+make -C "$STAGE" -j"$(nproc)" check MAKEINFO=true
+test ! -e "$STAGE/usr/libexec/rmt"
+test ! -e "$STAGE/usr/share/man/man8/rmt.8"
+
+mkdir -p "$SMOKE/source/sub" "$SMOKE/extract"
+printf '%s\n' 'archive payload' > "$SMOKE/source/file"
+printf '%s\n' 'nested payload' > "$SMOKE/source/sub/nested"
+ln "$SMOKE/source/file" "$SMOKE/source/hard"
+ln -s sub/nested "$SMOKE/source/link"
+"$BIN" -cf "$SMOKE/archive.tar" -C "$SMOKE/source" .
+"$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'
+"$BIN" -xf "$SMOKE/archive.tar" -C "$SMOKE/extract"
+cmp "$SMOKE/source/file" "$SMOKE/extract/file"
+cmp "$SMOKE/source/sub/nested" "$SMOKE/extract/sub/nested"
+[ "$(readlink "$SMOKE/extract/link")" = sub/nested ]
+[ "$(stat -c %i "$SMOKE/extract/file")" = "$(stat -c %i "$SMOKE/extract/hard")" ]
+
+printf '%s\n' 'updated payload' > "$SMOKE/source/file"
+"$BIN" -rf "$SMOKE/archive.tar" -C "$SMOKE/source" file
+"$BIN" --delete -f "$SMOKE/archive.tar" ./sub/nested
+if "$BIN" -tf "$SMOKE/archive.tar" | grep -Fx './sub/nested'; then exit 1; fi
+
+for archive in deterministic-a.tar deterministic-b.tar; do
+  LC_ALL=C "$BIN" --format=posix --sort=name --mtime=@0 --owner=0 --group=0 \
+    --numeric-owner --pax-option=delete=atime,delete=ctime \
+    -cf "$SMOKE/$archive" -C "$SMOKE/source" .
+done
+cmp "$SMOKE/deterministic-a.tar" "$SMOKE/deterministic-b.tar"
+
+"$BIN" --version | head -n 1 | grep -F "$PEKIT_VERSION"
+test -f "$STAGE/usr/share/man/man1/tar.1"
+find "$STAGE/usr/share/locale" -name tar.mo -type f | grep -q .
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
+test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
+readelf -S "$DEBUG" 2>/dev/null | grep -F '.debug_info'
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.tar" -type f -print -quit)"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.bash"                 = "*"
+"org.gnu.gettext"              = "*"
+"org.gnu.gzip"                 = "*"
+"org.sourceware.bzip2"         = "*"
+"org.tukaani.xz"               = "*"
+"com.facebook.zstd"            = "*"
+"org.perl.perl"                = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+bash            = "*"
+bzip2           = "*"
+gettext         = "*"
+gzip            = "*"
+perl            = "*"
+xz-utils        = "*"
+zstd            = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"      = "*"
@@ -150,7 +171,7 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.sourceware.bzip2" = "*"
 "org.tukaani.xz"       = "*"
 "com.facebook.zstd"    = "*"
-perl                    = "*"
+"org.perl.perl"                    = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

@@ -82,10 +82,95 @@ LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
   FIND=/bin/find
 make -j"$(nproc)"
 # Upstream's complete xmlif conditional-processing regression suite.
-make check
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/doc"
 
+# xmlif is the sole ELF. Split its build-ID debug data and retain every
+# DWARF-referenced source in the canonical debugsource package.
+ELF="$PEKIT_OUT/usr/bin/xmlif"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+patchelf --remove-rpath "$ELF" 2>/dev/null || true
+
+debugedit -b "$ROOT" -d /usr/src/debug/io.pagure.xmlto \
+  -l "$PEKIT_OUT/.dl" -n "$ELF"
+bid=$(readelf -n "$ELF" | sed -n \
+  's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$ELF" \
+  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+strip "$ELF"
+
+tr '\0' '\n' < "$PEKIT_OUT/.dl" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$ROOT/$rel" || continue
+      mkdir -p "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$(dirname "$rel")"
+      cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$rel"
+    done
+rm -f "$PEKIT_OUT/.dl"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"                 = "*"
+# build-essentials-c supplies the GNU Coreutils build baseline.  Do not add
+# peiosutils here as well: both intentionally own the POSIX core-tool paths.
+# The installed xmlto package still depends on Peios's runtime userland.
+"org.gnu.grep"       = "*"
+"org.gnu.sed"        = "*"
+"org.gnu.findutils"  = "*"
+"org.gnu.bash"       = "*"
+"dev.peios.build-essentials-c"   = "*"
+"org.gnu.make"       = "*"
+"org.gnu.autoconf"   = "*"
+"org.gnu.automake"   = "*"
+"org.gnu.libtool"    = "*"
+"org.gnu.m4"         = "*"
+"org.perl.perl"      = "*"
+"org.sourceware.debugedit"             = "*"
+"org.nixos.patchelf"              = "*"
+# The runtime chain is needed while xmlto builds its own manual pages.
+"org.kernel.util-linux-getopt" = "*"
+"org.gnome.libxslt-utils"       = "*"
+"org.gnome.libxml2-utils"       = "*"
+"org.docbook.docbook-xsl"        = "*"
+"org.oasis-open.docbook-xml"     = "*"
+"org.gnu.glibc-bin"                      = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+autoconf        = "*"
+automake        = "*"
+libtool         = "*"
+xsltproc        = "*"
+libxml2-utils   = "*"
+docbook-xsl     = "*"
+docbook-xml     = "*"
+debugedit       = "*"
+patchelf        = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+test -x "$PEKIT_MAIN_OUT/usr/bin/xmlto"
+test -x "$PEKIT_MAIN_OUT/usr/bin/xmlif"
+test -d "$PEKIT_MAIN_OUT/usr/share/xmlto/format"
+test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/xmlto.1"
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
+make check
+
+# Exercise the exact staged DocBook-to-manpage toolchain.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
 # Prove the toolchain end to end rather than only that it compiled: render a
 # DocBook manpage document to troff, through the same catalog and stylesheets
 # a consumer will use.
@@ -108,13 +193,9 @@ test -s peios-smoke.1 || { echo "xmlto: produced no man page" >&2; exit 1; }
 grep -q 'peios-smoke' peios-smoke.1 || { echo "xmlto: man page has no content" >&2; exit 1; }
 echo "xmlto: rendered DocBook to troff ($(wc -c < peios-smoke.1) bytes)"
 "$PEKIT_OUT/usr/bin/xmlto" --version | grep -F "xmlto version $PEKIT_VERSION"
-rm -f smoke.xml peios-smoke.1
 
-# xmlif is the sole ELF. Split its build-ID debug data and retain every
-# DWARF-referenced source in the canonical debugsource package.
 ELF="$PEKIT_OUT/usr/bin/xmlif"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-patchelf --remove-rpath "$ELF" 2>/dev/null || true
 readelf -h "$ELF" | grep -E 'Type:[[:space:]]+DYN'
 readelf -W -l "$ELF" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$ELF" | grep -F 'GNU_RELRO'
@@ -122,35 +203,17 @@ readelf -d "$ELF" | grep -F 'BIND_NOW'
 readelf -d "$ELF" | grep -F 'RELR'
 readelf -n "$ELF" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$ELF" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-
-debugedit -b "$ROOT" -d /usr/src/debug/io.pagure.xmlto \
-  -l "$PEKIT_OUT/.dl" -n "$ELF"
-bid=$(readelf -n "$ELF" | sed -n \
-  's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$ELF" \
-  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-strip "$ELF"
 if strings "$ELF" | grep -F "$ROOT"; then exit 1; fi
-
-tr '\0' '\n' < "$PEKIT_OUT/.dl" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$ROOT/$rel" || continue
-      mkdir -p "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$(dirname "$rel")"
-      cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto/$rel"
-    done
+set -- "$PEKIT_OUT"/usr/lib/debug/.build-id/*/*.debug
+test "$#" -eq 1
+readelf -S "$1" | grep -F '.debug_info'
 test -n "$(find "$PEKIT_OUT/usr/src/debug/io.pagure.xmlto" -type f -print -quit)"
-rm -f "$PEKIT_OUT/.dl"
+rm -f smoke.xml peios-smoke.1
+
 '''
 
-[build.main.dependencies.peipkg]
-dash                 = "*"
+[test.dependencies.peipkg]
+"org.git.kernel.dash"                 = "*"
 # build-essentials-c supplies the GNU Coreutils build baseline.  Do not add
 # peiosutils here as well: both intentionally own the POSIX core-tool paths.
 # The installed xmlto package still depends on Peios's runtime userland.
@@ -165,17 +228,17 @@ dash                 = "*"
 "org.gnu.libtool"    = "*"
 "org.gnu.m4"         = "*"
 "org.perl.perl"      = "*"
-debugedit             = "*"
-patchelf              = "*"
-# The runtime chain, present here because the build smoke-tests it.
+"org.sourceware.debugedit"             = "*"
+"org.nixos.patchelf"              = "*"
+# The runtime chain is exercised by the staged end-to-end test gate.
 "org.kernel.util-linux-getopt" = "*"
 "org.gnome.libxslt-utils"       = "*"
 "org.gnome.libxml2-utils"       = "*"
 "org.docbook.docbook-xsl"        = "*"
 "org.oasis-open.docbook-xml"     = "*"
-"glibc-bin"                      = "*"
+"org.gnu.glibc-bin"                      = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
 autoconf        = "*"
 automake        = "*"
@@ -186,19 +249,3 @@ docbook-xsl     = "*"
 docbook-xml     = "*"
 debugedit       = "*"
 patchelf        = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/xmlto"
-test -x "$PEKIT_MAIN_OUT/usr/bin/xmlif"
-test -d "$PEKIT_MAIN_OUT/usr/share/xmlto/format"
-test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/xmlto.1"
-'''
-
-[test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-dash = "*"

@@ -1,13 +1,13 @@
 #!/bin/sh
 # Rung 2 of the PEI-126 self-host ladder: run a pekit target inside a
-# pristine root composed entirely from our own signed pool.
+# pristine root composed entirely from our own signed repository.
 #
 # pekit invokes this through peipkg.env.pekit.toml's [wrap]; $1 is the
 # fully assembled target script (export prelude + target command). The
 # root is the dependency closure of exactly what the recipe declares
 # (PEKIT_DEPENDENCIES, one "name constraint" per line) plus fsbase as
-# the skeleton ground — peipkg-compose resolves it offline from
-# _pkgsOut_, materialising claims (dash's /usr/bin/sh) and the usr-merge
+# the skeleton ground — peipkg-compose resolves it offline from the signed
+# _peipkgRepo_, materialising claims (dash's /usr/bin/sh) and the usr-merge
 # intrinsic. bwrap then maps the host build identity to the fixed,
 # unprivileged peibuild identity and binds the workspace at its host path,
 # keeping every literal PEKIT_* path in the script valid inside. Presenting
@@ -19,14 +19,23 @@
 set -eu
 script=${1:?missing wrapped command}
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
-pool="$PEKIT_WORKSPACE_ROOT/_pkgsOut_"
+repo="$PEKIT_WORKSPACE_ROOT/_peipkgRepo_"
+# Repository trust is intentionally pinned out of band. Update this only as
+# part of an explicit repository-key rotation ceremony.
+repo_anchor=63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602
+
+[ -f "$repo/repo.json" ] || {
+  echo "peiroot: signed package repository is missing: $repo" >&2
+  exit 1
+}
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/peiroot.XXXXXX")
 trap 'rm -rf "$work"' EXIT INT TERM
 
 {
   printf 'schema = 1\narch = "x86_64"\nsource_date = "2026-01-01T00:00:00Z"\n'
-  printf 'local_packages = ["%s/*.peipkg"]\n' "$pool"
+  printf '[[repository]]\nname = "peios"\nbase_url = "file://%s"\n' "$repo"
+  printf 'priority = 10\nsignature_policy = "required"\ntrust_anchors = ["%s"]\n' "$repo_anchor"
   printf '[[package]]\nname = "dev.peios.fsbase"\nversion = "*"\n'
   printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | while read -r name constraint; do
     [ -n "$name" ] || continue

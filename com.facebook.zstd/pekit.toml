@@ -83,12 +83,6 @@ cmake -S "$SRC/build/cmake" -B "$BUILD" \
   -DZSTD_LZ4_SUPPORT=OFF
 
 cmake --build "$BUILD" -j"$(nproc)"
-
-# Debian's production package uses this complete CMake suite. It covers the
-# CLI corpus, fullbench, fuzzer, and streaming state-machine test; gate the
-# current count so a future configure regression cannot silently drop tests.
-test "$(ctest --test-dir "$BUILD" -N | sed -n 's/^Total Tests: //p')" -eq 4
-ctest --test-dir "$BUILD" --output-on-failure
 DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
 
 # zstdless advertises a pager which Peios cannot yet provide. zstdgrep is kept
@@ -98,8 +92,102 @@ rm -f "$PREFIX/bin/zstdless" "$PREFIX/share/man/man1/zstdless.1"
 sed -i "1s/zstd 1\.5\.6/zstd $PEKIT_VERSION/" \
   "$PREFIX/share/man/man1/zstd.1"
 sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PREFIX/bin/zstdgrep"
-test "$(sed -n '1p' "$PREFIX/bin/zstdgrep")" = '#!/usr/bin/sh'
 
+# Ship each command's manual with its owning binary package. Upstream does not
+# provide a pzstd manual or a zstdmt alias, so supply those here and normalize
+# every page to reproducible gzip output.
+MANDIR="$PREFIX/share/man/man1"
+install -Dm0644 "$PEKIT_RECIPE_ROOT/man/pzstd.1" "$MANDIR/pzstd.1"
+rm -f "$MANDIR/unzstd.1" "$MANDIR/zstdcat.1"
+gzip -9n "$MANDIR/zstd.1" "$MANDIR/zstdgrep.1" "$MANDIR/pzstd.1"
+ln -s zstd.1.gz "$MANDIR/unzstd.1.gz"
+ln -s zstd.1.gz "$MANDIR/zstdcat.1.gz"
+ln -s zstd.1.gz "$MANDIR/zstdmt.1.gz"
+
+# Static archives retain symbols but not duplicate DWARF. Split every shipped
+# ELF by build ID and retain exactly the source files referenced by its DWARF.
+strip --strip-debug "$LIBDIR/libzstd.a"
+
+cd "$PEKIT_OUT"
+: > "$PEKIT_OUT/.source-list"
+: > "$PEKIT_OUT/.build-ids"
+ELFS="usr/bin/zstd usr/bin/pzstd usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION"
+for elf in $ELFS; do
+  test -f "$elf"
+  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
+    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
+  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
+  build_id=$(readelf -n "$elf" | \
+    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$build_id"
+  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
+  first=$(printf %s "$build_id" | cut -c1-2)
+  rest=$(printf %s "$build_id" | cut -c3-)
+  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
+  test ! -e "$debug_file"
+  mkdir -p "$(dirname "$debug_file")"
+  objcopy --only-keep-debug "$elf" "$debug_file"
+  chmod 0644 "$debug_file"
+  strip "$elf"
+done
+
+: > "$PEKIT_OUT/.expected-debugsource"
+tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      test -n "$rel" || continue
+      case "$rel" in */) continue;; esac
+      test -f "$DEBUG_ROOT/$rel" || continue
+      destination="usr/src/debug/com.facebook.zstd/$rel"
+      mkdir -p "$(dirname "$destination")"
+      cp "$DEBUG_ROOT/$rel" "$destination"
+      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
+    done
+LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
+  -o "$PEKIT_OUT/.expected-debugsource"
+rm -f "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
+  "$PEKIT_OUT/.debugedit-list"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++"                    = "*"
+"org.cmake.cmake"                         = "*"
+"org.sourceware.debugedit"                                 = "*"
+"org.pkgconf.pkgconf"                                   = "*"
+"org.gnu.gzip"                              = "*"
+"org.tukaani.xz-devel"                   = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake           = "*"
+debugedit       = "*"
+gzip            = "*"
+liblzma-dev     = "*"
+pkgconf         = "*"
+zlib1g-dev      = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+TRIPLET=x86_64-linux-peios
+LIBDIR="$PREFIX/lib/$TRIPLET"
+BIN="$PREFIX/bin"
+SMOKE="$PEKIT_OUT/smoke"
+DEBUG_ROOT=$(dirname "$(dirname "$STAGE")")
+mkdir -p "$SMOKE"
+
+# Debian's production package uses this complete CMake suite. It covers the
+# CLI corpus, fullbench, fuzzer, and streaming state-machine test; gate the
+# current count so a future configure regression cannot silently drop tests.
+test "$(ctest --test-dir "$BUILD" -N | sed -n 's/^Total Tests: //p')" -eq 4
+ctest --test-dir "$BUILD" --output-on-failure
+
+test "$(sed -n '1p' "$BIN/zstdgrep")" = '#!/usr/bin/sh'
 test "$(readlink "$LIBDIR/libzstd.so")" = libzstd.so.1
 test "$(readlink "$LIBDIR/libzstd.so.1")" = "libzstd.so.$PEKIT_VERSION"
 test -f "$LIBDIR/libzstd.so.$PEKIT_VERSION"
@@ -107,10 +195,16 @@ test -f "$LIBDIR/libzstd.a"
 test -f "$LIBDIR/pkgconfig/libzstd.pc"
 test -f "$LIBDIR/cmake/zstd/zstdConfig.cmake"
 
+MANDIR="$PREFIX/share/man/man1"
+test -s "$MANDIR/zstd.1.gz"
+test -s "$MANDIR/zstdgrep.1.gz"
+test -s "$MANDIR/pzstd.1.gz"
+test "$(readlink "$MANDIR/unzstd.1.gz")" = zstd.1.gz
+test "$(readlink "$MANDIR/zstdcat.1.gz")" = zstd.1.gz
+test "$(readlink "$MANDIR/zstdmt.1.gz")" = zstd.1.gz
+gzip -cd "$MANDIR/pzstd.1.gz" | grep -F '.TH PZSTD 1'
+
 # Exercise formats and safety behavior through the staged installed CLI.
-BIN="$PREFIX/bin"
-SMOKE="$PEKIT_OUT/.zstd-smoke"
-mkdir -p "$SMOKE"
 export PATH="$BIN:$PATH"
 export LD_LIBRARY_PATH="$LIBDIR"
 printf '%s\n' alpha beta 'literal[1]' > "$SMOKE/plain"
@@ -183,67 +277,23 @@ cc "$SMOKE/api.c" -I"$PREFIX/include" "$LIBDIR/libzstd.a" \
 grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/lib/CMakeFiles/libzstd_shared.dir/flags.make"
 grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/contrib/pzstd/CMakeFiles/pzstd.dir/flags.make"
 
-# Static archives retain symbols but not duplicate DWARF. Split every shipped
-# ELF by build ID and retain exactly the source files referenced by its DWARF.
-# Binutils itself links libzstd: never let strip/debugedit mmap the staged
-# libzstd which the pipeline is about to rewrite in place.
-unset LD_LIBRARY_PATH
-strip --strip-debug "$LIBDIR/libzstd.a"
+# Verify debug/source extraction and static archive stripping.
 if readelf -SW "$LIBDIR/libzstd.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
-
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.source-list"
-: > "$PEKIT_OUT/.build-ids"
-ELFS="usr/bin/zstd usr/bin/pzstd usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION"
-for elf in $ELFS; do
-  test -f "$elf"
-  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
-    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
-  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
-  build_id=$(readelf -n "$elf" | \
-    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$build_id"
-  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
-  first=$(printf %s "$build_id" | cut -c1-2)
-  rest=$(printf %s "$build_id" | cut -c3-)
-  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
-  test ! -e "$debug_file"
-  mkdir -p "$(dirname "$debug_file")"
-  objcopy --only-keep-debug "$elf" "$debug_file"
-  chmod 0644 "$debug_file"
-  strip "$elf"
-done
-
-: > "$PEKIT_OUT/.expected-debugsource"
-tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$DEBUG_ROOT/$rel" || continue
-      destination="usr/src/debug/com.facebook.zstd/$rel"
-      mkdir -p "$(dirname "$destination")"
-      cp "$DEBUG_ROOT/$rel" "$destination"
-      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
-    done
-LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
-  -o "$PEKIT_OUT/.expected-debugsource"
-find usr/src/debug/com.facebook.zstd -type f -printf '%p\n' \
-  | LC_ALL=C sort > "$PEKIT_OUT/.actual-debugsource"
-diff -u "$PEKIT_OUT/.expected-debugsource" "$PEKIT_OUT/.actual-debugsource"
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" | wc -l)" -eq 3
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 3
-test -n "$(find usr/src/debug/com.facebook.zstd -type f -print -quit)"
-for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
-  readelf -S "$debug_file" | grep -F '.debug_info'
+(cd "$STAGE" && find usr/src/debug/com.facebook.zstd -type f -printf '%p\n' \
+  | LC_ALL=C sort) > "$SMOKE/actual-debugsource"
+diff -u "$STAGE/.expected-debugsource" "$SMOKE/actual-debugsource"
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$STAGE/usr/src/debug/com.facebook.zstd" -type f -print -quit)"
+for debug_file in $(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$debug_file" 2>/dev/null | grep -F '.debug_info'
 done
 
 # Enforce ABI and hardening policy after the final strip operation. The CLI's
 # external formats are intentional; every other DT_NEEDED entry is rejected.
-readelf -d "usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION" \
-  | grep -F 'Library soname: [libzstd.so.1]'
-nm -D --defined-only "usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION" \
-  | grep -E '[[:space:]]ZSTD_compress$'
-for elf in $ELFS; do
+LIB="$LIBDIR/libzstd.so.$PEKIT_VERSION"
+readelf -d "$LIB" | grep -F 'Library soname: [libzstd.so.1]'
+nm -D --defined-only "$LIB" | grep -E '[[:space:]]ZSTD_compress$'
+for elf in "$BIN/zstd" "$BIN/pzstd" "$LIB"; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
@@ -260,42 +310,24 @@ for elf in $ELFS; do
         esac
       done
 done
-
-rm -rf "$BUILD" "$SMOKE"
-rm -f "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
-  "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.expected-debugsource" \
-  "$PEKIT_OUT/.actual-debugsource"
-'''
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c++"                    = "*"
-"org.cmake.cmake"                         = "*"
-debugedit                                 = "*"
-pkgconf                                   = "*"
-"org.tukaani.xz-devel"                   = "*"
-"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-cmake           = "*"
-debugedit       = "*"
-liblzma-dev     = "*"
-pkgconf         = "*"
-zlib1g-dev      = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/zstd"
-test -x "$PEKIT_MAIN_OUT/usr/bin/pzstd"
-test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libzstd.a"
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libzstd.so.*
-test -e "$1"
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"dev.peios.build-essentials-c++"            = "*"
+"org.cmake.cmake"                           = "*"
+"org.pkgconf.pkgconf"                       = "*"
+"org.tukaani.xz-devel"                      = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel"    = "*"
+"org.gnu.gzip"                              = "*"
+"org.tukaani.xz"                            = "*"
+"org.gnu.tar"                               = "*"
 
 [test.dependencies.apt]
-dash = "*"
+build-essential = "*"
+cmake           = "*"
+liblzma-dev     = "*"
+pkgconf         = "*"
+zlib1g-dev      = "*"
+gzip            = "*"
+xz-utils        = "*"
+tar             = "*"

@@ -103,67 +103,8 @@ cd "$PEKIT_OUT"
   --without-crond-dir --without-systemd-unit-dir --without-udev-rules-dir \
   --enable-elf-shlibs --disable-nls
 make -j"$(nproc)"
-make check
 make install DESTDIR="$PEKIT_OUT"
 make install-libs DESTDIR="$PEKIT_OUT"
-
-# Exercise both Peios-specific behavior patches, not merely upstream's stock
-# suite.  The helper creates the portable user.peios.sd staging xattr and also
-# computes the expected binary descriptors independently through libpeios.
-export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-SMOKE="$PEKIT_OUT/.peios-sd-smoke"
-mkdir -p "$SMOKE/tree/dir"
-touch "$SMOKE/tree/file"
-cc -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
-  "$PEKIT_RECIPE_ROOT/tests/sd-fixture.c" -lpeios
-
-ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)'
-CHILD_SDDL='O:BAG:BAD:(A;;GR;;;BA)'
-printf '%s\n' "$ROOT_SDDL" > "$SMOKE/root.sddl"
-"$SMOKE/sd-fixture" parse "$ROOT_SDDL" "$SMOKE/root.expected"
-"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/dir"
-"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/file"
-"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 1 \
-  "$SMOKE/dir.expected"
-"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 0 \
-  "$SMOKE/file.expected"
-
-truncate -s 32M "$SMOKE/file-option.img"
-misc/mke2fs -q -t ext4 -d "$SMOKE/tree" \
-  -E "root_sd_file=$SMOKE/root.sddl" "$SMOKE/file-option.img"
-debugfs/debugfs -R \
-  "ea_get <2> security.peios.sd -f $SMOKE/root.actual" \
-  "$SMOKE/file-option.img"
-debugfs/debugfs -R \
-  "ea_get /lost+found security.peios.sd -f $SMOKE/lost.actual" \
-  "$SMOKE/file-option.img"
-debugfs/debugfs -R \
-  "ea_get /dir security.peios.sd -f $SMOKE/dir.actual" \
-  "$SMOKE/file-option.img"
-debugfs/debugfs -R \
-  "ea_get /file security.peios.sd -f $SMOKE/file.actual" \
-  "$SMOKE/file-option.img"
-cmp "$SMOKE/root.expected" "$SMOKE/root.actual"
-cmp "$SMOKE/root.expected" "$SMOKE/lost.actual"
-cmp "$SMOKE/dir.expected" "$SMOKE/dir.actual"
-cmp "$SMOKE/file.expected" "$SMOKE/file.actual"
-
-# Cover the inline option separately; root_sd_file above also proves trailing
-# newline handling.  A malformed descriptor must be rejected rather than
-# silently creating an unstamped filesystem.
-truncate -s 32M "$SMOKE/inline-option.img"
-misc/mke2fs -q -t ext4 -E "root_sddl=$ROOT_SDDL" \
-  "$SMOKE/inline-option.img"
-debugfs/debugfs -R \
-  "ea_get <2> security.peios.sd -f $SMOKE/inline.actual" \
-  "$SMOKE/inline-option.img"
-cmp "$SMOKE/root.expected" "$SMOKE/inline.actual"
-truncate -s 32M "$SMOKE/invalid.img"
-if misc/mke2fs -q -t ext4 -E root_sddl=not-sddl "$SMOKE/invalid.img"; then
-  echo "mke2fs accepted an invalid root_sddl" >&2
-  exit 1
-fi
-rm -rf "$SMOKE"
 
 # Drop libtool archives (hardcoded paths + overlink; DT_NEEDED supersedes).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
@@ -241,8 +182,8 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # objcopy/readelf come with binutils) the command below invokes.
 "dev.peios.build-essentials-c" = "*"
 # makeinfo, for doc/libext2fs.info (claimed as usr/share/info/**).
-texinfo = "*"
-pkgconf = "*"
+"org.gnu.texinfo" = "*"
+"org.pkgconf.pkgconf" = "*"
 # The Peios patches call peios_sddl_parse_sd() / peios_sd_reinherit(), so the
 # build needs libpeios's headers and dev symlink; -devel pulls kernel-headers
 # for the <pkm/*.h> those headers include. This replaces the vendored deps/
@@ -255,15 +196,16 @@ pkgconf = "*"
 # its feature probes; declare all four instead of inheriting them accidentally
 # from a developer's build root.
 "org.sourceware.bzip2" = "*"
-gzip = "*"
-tar = "*"
-which = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.tar" = "*"
+"org.gnu.which" = "*"
 
 # No [build.main.dependencies.apt]: this recipe is rung-2 only. Debian has no
 # libpeios, so the apt provider cannot satisfy the patchset's link dependency
 # — the same reason `kernel` is peipkg-only. Build it with --env peipkg.
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
@@ -273,6 +215,73 @@ output=$("$BIN/mke2fs" -V 2>&1)
 case "$output" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 test -x "$BIN/e2fsck"
 test -x "$BIN/debugfs"
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
+make check
+
+# Exercise the Peios filesystem-SD extensions from the explicit gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT"
+# Exercise both Peios-specific behavior patches, not merely upstream's stock
+# suite.  The helper creates the portable user.peios.sd staging xattr and also
+# computes the expected binary descriptors independently through libpeios.
+export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+SMOKE="$PEKIT_OUT/.peios-sd-smoke"
+mkdir -p "$SMOKE/tree/dir"
+touch "$SMOKE/tree/file"
+cc -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
+  "$PEKIT_RECIPE_ROOT/tests/sd-fixture.c" -lpeios
+
+ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)'
+CHILD_SDDL='O:BAG:BAD:(A;;GR;;;BA)'
+printf '%s\n' "$ROOT_SDDL" > "$SMOKE/root.sddl"
+"$SMOKE/sd-fixture" parse "$ROOT_SDDL" "$SMOKE/root.expected"
+"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/dir"
+"$SMOKE/sd-fixture" stage "$CHILD_SDDL" "$SMOKE/tree/file"
+"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 1 \
+  "$SMOKE/dir.expected"
+"$SMOKE/sd-fixture" inherit "$ROOT_SDDL" "$CHILD_SDDL" 0 \
+  "$SMOKE/file.expected"
+
+truncate -s 32M "$SMOKE/file-option.img"
+misc/mke2fs -q -t ext4 -d "$SMOKE/tree" \
+  -E "root_sd_file=$SMOKE/root.sddl" "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get <2> security.peios.sd -f $SMOKE/root.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /lost+found security.peios.sd -f $SMOKE/lost.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /dir security.peios.sd -f $SMOKE/dir.actual" \
+  "$SMOKE/file-option.img"
+debugfs/debugfs -R \
+  "ea_get /file security.peios.sd -f $SMOKE/file.actual" \
+  "$SMOKE/file-option.img"
+cmp "$SMOKE/root.expected" "$SMOKE/root.actual"
+cmp "$SMOKE/root.expected" "$SMOKE/lost.actual"
+cmp "$SMOKE/dir.expected" "$SMOKE/dir.actual"
+cmp "$SMOKE/file.expected" "$SMOKE/file.actual"
+
+# Cover the inline option separately; root_sd_file above also proves trailing
+# newline handling.  A malformed descriptor must be rejected rather than
+# silently creating an unstamped filesystem.
+truncate -s 32M "$SMOKE/inline-option.img"
+misc/mke2fs -q -t ext4 -E "root_sddl=$ROOT_SDDL" \
+  "$SMOKE/inline-option.img"
+debugfs/debugfs -R \
+  "ea_get <2> security.peios.sd -f $SMOKE/inline.actual" \
+  "$SMOKE/inline-option.img"
+cmp "$SMOKE/root.expected" "$SMOKE/inline.actual"
+truncate -s 32M "$SMOKE/invalid.img"
+if misc/mke2fs -q -t ext4 -E root_sddl=not-sddl "$SMOKE/invalid.img"; then
+  echo "mke2fs accepted an invalid root_sddl" >&2
+  exit 1
+fi
+rm -rf "$SMOKE"
+
 '''
 
 [test.dependencies.peipkg]

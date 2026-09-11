@@ -7,7 +7,6 @@ name        = "org.kernel.libcap-tools"
 description = "Linux POSIX capabilities command-line tools"
 
 [provides]
-libcap-tools = "{{version}}"
 
 [dependencies]
 "org.kernel.libcap" = "{{version}}-2"

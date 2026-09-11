@@ -5,15 +5,10 @@ name        = "org.git.kernel.dash"
 description = "Small POSIX-compliant system shell"
 license     = "BSD-3-Clause"
 
-# Preserve the retired package name during the reverse-DNS migration. Dash is
-# Peios's selected POSIX `sh` provider; /bin resolves through usr-merge, so the
-# role needs to materialise only /usr/bin/sh.
+# Dash is Peios's selected POSIX `sh` provider. /bin resolves through
+# usr-merge, so the role needs to materialise only /usr/bin/sh.
 [provides]
-dash = "{{version}}-3"
 sh   = "1"
-
-[replaces]
-dash = "<= {{version}}-2"
 
 [claims.provides.sh.usrbin]
 target = "/usr/bin/dash"

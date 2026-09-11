@@ -79,15 +79,6 @@ cd "$PEKIT_OUT"
   --enable-cxx \
   --enable-fat
 
-# GMP 6.3's fat-build setup can leak the detected build CPU into longlong.h,
-# enabling BMI2/MULX in generic code even though the runtime dispatcher is
-# meant to make the result portable. An explicit generic tuple prevents that;
-# reject any future configure change that reintroduces a specific CPU macro.
-grep -Eq 'Host type:[[:space:]]+x86_64-pc-linux-gnu' config.log
-test "$(grep '^#define HAVE_HOST_CPU_' config.h \
-  | grep -Fv '#define HAVE_HOST_CPU_FAMILY_x86_64 1' \
-  | wc -l)" -eq 0
-
 # libtool appends -Wl,--as-needed AFTER the libraries on the link line, where
 # it has no effect on anything preceding it. Fedora and Arch both rewrite the
 # generated libtool for this; move the flag onto the compiler driver so it
@@ -99,19 +90,6 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
     -i libtool
 
 make -s -j"$(nproc)"
-
-# gmp is a correctness-critical library that gcc folds constants with, so the
-# suite is not optional. Fedora, Debian and Arch all run it.
-#
-# LD_LIBRARY_PATH is load-bearing, not belt-and-braces. The libtool rewrite
-# above strips the rpath libtool would otherwise bake into the test binaries,
-# so without it they resolve libgmp.so.10 from the composed root — meaning they
-# exercise the PREVIOUSLY PUBLISHED library, not the one just built, and pass
-# while proving nothing about it. Fedora's gmp.spec exports the same variable
-# in %check (as `pwd`/.libs) for precisely this reason; taking their sed
-# without their export is how this recipe first shipped a green suite that had
-# never touched the new code.
-LD_LIBRARY_PATH="$PEKIT_OUT/.libs" make -s -j"$(nproc)" check
 
 make install DESTDIR="$PEKIT_OUT"
 
@@ -125,61 +103,6 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 # Validate both installed public interfaces against the staged shared and
 # static libraries. The upstream suite exercises the build tree; these tests
 # catch an install layout, linker-name or libgmpxx dependency regression.
-LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
-INCLUDEDIR="$PEKIT_OUT/usr/include"
-GMP_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmp.so.*' | LC_ALL=C sort)
-GMPXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmpxx.so.*' | LC_ALL=C sort)
-test "$(printf '%s\n' "$GMP_SO" | grep -c .)" -eq 1
-test "$(printf '%s\n' "$GMPXX_SO" | grep -c .)" -eq 1
-test -L "$LIBDIR/libgmp.so"
-test -L "$LIBDIR/libgmp.so.10"
-test -L "$LIBDIR/libgmpxx.so"
-test -L "$LIBDIR/libgmpxx.so.4"
-test -f "$LIBDIR/pkgconfig/gmp.pc"
-test -f "$LIBDIR/pkgconfig/gmpxx.pc"
-readelf -d "$GMP_SO" | grep -Eq 'SONAME.*[[]libgmp[.]so[.]10[]]'
-readelf -d "$GMPXX_SO" | grep -Eq 'SONAME.*[[]libgmpxx[.]so[.]4[]]'
-
-SMOKE="$PEKIT_OUT/.gmp-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/c.c" <<'EOF'
-#include <gmp.h>
-
-int main(void)
-{
-  mpz_t value;
-  mpz_init_set_ui(value, 2);
-  mpz_pow_ui(value, value, 256);
-  int ok = mpz_sizeinbase(value, 2) == 257 && mpz_tstbit(value, 256);
-  mpz_clear(value);
-  return ok ? 0 : 1;
-}
-EOF
-cat > "$SMOKE/cxx.cc" <<'EOF'
-#include <gmpxx.h>
-
-int main()
-{
-  mpz_class base = 2;
-  mpz_class value;
-  mpz_pow_ui(value.get_mpz_t(), base.get_mpz_t(), 128);
-  return value.get_str() == "340282366920938463463374607431768211456"
-    ? 0 : 1;
-}
-EOF
-cc "$SMOKE/c.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" -lgmp -o "$SMOKE/c-shared"
-g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" -lgmpxx -lgmp -o "$SMOKE/cxx-shared"
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
-cc "$SMOKE/c.c" -I"$INCLUDEDIR" "$LIBDIR/libgmp.a" \
-  -o "$SMOKE/c-static"
-g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" \
-  "$LIBDIR/libgmpxx.a" "$LIBDIR/libgmp.a" -o "$SMOKE/cxx-static"
-"$SMOKE/c-static"
-"$SMOKE/cxx-static"
-
 # Produce build-ID-indexed debug files and the exact DWARF-referenced source.
 # Static archives have no build ID, so retain code while dropping their debug.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -213,21 +136,6 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   mkdir -p "usr/src/debug/org.gnu.gmp/$(dirname "$rel")"
   cp "$ROOT/$rel" "usr/src/debug/org.gnu.gmp/$rel"
 done
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
-test -n "$(find usr/src/debug/org.gnu.gmp -type f -print -quit)"
-
-# Assert the properties of the stripped objects that will actually ship.
-for elf in "$GMP_SO" "$GMPXX_SO"; do
-  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*SHSTK'
-  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
-done
-
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
@@ -240,7 +148,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file" = "*"
-m4 = "*"
+"org.gnu.m4" = "*"
 "org.gnu.bison" = "*"
 
 [build.main.dependencies.apt]
@@ -250,3 +158,94 @@ m4 = "*"
 bison = "*"
 debugedit = "*"
 patchelf = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$STAGE/usr/include"
+SMOKE="$PEKIT_OUT/smoke"
+GMP_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmp.so.*' | LC_ALL=C sort)
+GMPXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libgmpxx.so.*' | LC_ALL=C sort)
+
+grep -Eq 'Host type:[[:space:]]+x86_64-pc-linux-gnu' "$STAGE/config.log"
+test "$(grep '^#define HAVE_HOST_CPU_' "$STAGE/config.h" \
+  | grep -Fv '#define HAVE_HOST_CPU_FAMILY_x86_64 1' | wc -l)" -eq 0
+LD_LIBRARY_PATH="$STAGE/.libs" make -C "$STAGE" -s -j"$(nproc)" check
+
+test "$(printf '%s\n' "$GMP_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$GMPXX_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libgmp.so"
+test -L "$LIBDIR/libgmp.so.10"
+test -L "$LIBDIR/libgmpxx.so"
+test -L "$LIBDIR/libgmpxx.so.4"
+test -f "$LIBDIR/pkgconfig/gmp.pc"
+test -f "$LIBDIR/pkgconfig/gmpxx.pc"
+readelf -d "$GMP_SO" | grep -Eq 'SONAME.*[[]libgmp[.]so[.]10[]]'
+readelf -d "$GMPXX_SO" | grep -Eq 'SONAME.*[[]libgmpxx[.]so[.]4[]]'
+
+mkdir -p "$SMOKE"
+cat > "$SMOKE/c.c" <<'EOF'
+#include <gmp.h>
+int main(void) {
+  mpz_t value;
+  mpz_init_set_ui(value, 2);
+  mpz_pow_ui(value, value, 256);
+  int ok = mpz_sizeinbase(value, 2) == 257 && mpz_tstbit(value, 256);
+  mpz_clear(value);
+  return ok ? 0 : 1;
+}
+EOF
+cat > "$SMOKE/cxx.cc" <<'EOF'
+#include <gmpxx.h>
+int main() {
+  mpz_class base = 2, value;
+  mpz_pow_ui(value.get_mpz_t(), base.get_mpz_t(), 128);
+  return value.get_str() == "340282366920938463463374607431768211456" ? 0 : 1;
+}
+EOF
+cc "$SMOKE/c.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lgmp -o "$SMOKE/c-shared"
+g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lgmpxx -lgmp -o "$SMOKE/cxx-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
+cc "$SMOKE/c.c" -I"$INCLUDEDIR" "$LIBDIR/libgmp.a" -o "$SMOKE/c-static"
+g++ "$SMOKE/cxx.cc" -I"$INCLUDEDIR" \
+  "$LIBDIR/libgmpxx.a" "$LIBDIR/libgmp.a" -o "$SMOKE/cxx-static"
+"$SMOKE/c-static"
+"$SMOKE/cxx-static"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.gmp" -type f -print -quit)"
+for elf in "$GMP_SO" "$GMPXX_SO"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"com.darwinsys.file"             = "*"
+"org.gnu.m4"                     = "*"
+"org.gnu.bison"                  = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.findutils"              = "*"
+"org.gnu.grep"                   = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+file            = "*"
+m4              = "*"
+bison           = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"

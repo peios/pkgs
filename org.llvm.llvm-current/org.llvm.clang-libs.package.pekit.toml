@@ -3,9 +3,9 @@ name        = "org.llvm.clang-libs"
 description = "Clang shared runtime libraries"
 
 [dependencies]
-glibc                  = ">= 2.43"
-"libstdc++"            = ">= 16"
-libgcc                 = ">= 16"
+"org.gnu.glibc"                  = ">= 2.43"
+"org.gnu.gcc-libstdc++"            = ">= 16"
+"org.gnu.gcc-libgcc"                 = ">= 16"
 "org.llvm.llvm-libs"   = "{{version}}-2"
 
 [files]

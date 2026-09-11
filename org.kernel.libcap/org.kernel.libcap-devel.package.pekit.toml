@@ -8,7 +8,6 @@ name        = "org.kernel.libcap-devel"
 description = "Linux POSIX capabilities development files"
 
 [provides]
-libcap-devel = "{{version}}"
 
 [dependencies]
 "org.kernel.libcap" = "{{version}}-2"

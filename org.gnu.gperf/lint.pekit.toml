@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The upstream suite and a compiled generated-hash-table integration test run inside build.main so package and publish fail closed"

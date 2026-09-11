@@ -15,10 +15,8 @@ description = "GCC debugging symbols"
 license     = "GPL-3.0-or-later AND (GPL-3.0-or-later WITH GCC-exception-3.1) AND LGPL-2.0-or-later AND LGPL-2.1-or-later"
 
 [provides]
-"gcc-debuginfo" = "{{version}}-2"
 
 [replaces]
-"gcc-debuginfo" = "<= {{version}}-1"
 
 [dependencies]
 # Symbols match a specific build by build-id; pin the exact matching GCC

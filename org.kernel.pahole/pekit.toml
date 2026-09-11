@@ -48,94 +48,7 @@ DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
 rm -f "$PEKIT_OUT/usr/bin/ostra-cg"
 rm -rf "$PEKIT_OUT/usr/share/dwarves/runtime/python"
 
-# Assert the complete installed suite. Keep the two upstream shell utilities
-# and their runtime material; their interpreters/tools are explicit runtime
-# dependencies of org.kernel.pahole rather than hidden assumptions.
 BIN="$PEKIT_OUT/usr/bin"
-find "$BIN" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort \
-  > "$PEKIT_OUT/.installed-tools"
-printf '%s\n' \
-  btfdiff codiff ctracer dtagnames fullcircle pahole pdwtags pfunct pglobal \
-  prefcnt scncopy syscse | LC_ALL=C sort > "$PEKIT_OUT/.expected-tools"
-diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
-while IFS= read -r tool; do
-  test -x "$BIN/$tool"
-done < "$PEKIT_OUT/.expected-tools"
-
-test -f "$PEKIT_OUT/usr/share/man/man1/pahole.1"
-test -f "$PEKIT_OUT/usr/share/dwarves/runtime/Makefile"
-test -f "$PEKIT_OUT/usr/share/dwarves/runtime/ctracer_relay.c"
-
-# libdwarves is a public ABI in both Fedora and Debian. Require all three
-# SONAME-1 libraries, development links and the published header set.
-for library in libdwarves libdwarves_emit libdwarves_reorganize; do
-  real="$STAGED_LIBDIR/$library.so.1.0.0"
-  test -f "$real"
-  test -L "$STAGED_LIBDIR/$library.so.1"
-  test -L "$STAGED_LIBDIR/$library.so"
-  test "$(readlink "$STAGED_LIBDIR/$library.so.1")" = "$library.so.1.0.0"
-  test "$(readlink "$STAGED_LIBDIR/$library.so")" = "$library.so.1"
-  readelf -d "$real" | grep -F "Library soname: [$library.so.1]"
-done
-test "$(find "$PEKIT_OUT/usr/include/dwarves" -maxdepth 1 -type f | wc -l)" -eq 14
-if find "$STAGED_LIBDIR" -maxdepth 1 -name 'libdwarves*.a' | grep -q .; then
-  exit 1
-fi
-
-# Exercise the installed executable against real DWARF, then encode and read
-# BTF. This is the package's kernel-facing contract, not merely a --version
-# smoke test.
-SMOKE="$PEKIT_OUT/.pahole-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/layout.c" <<'EOF'
-struct pekit_layout {
-  char lead;
-  unsigned long value;
-  unsigned short tail;
-};
-
-volatile struct pekit_layout pekit_layout_instance;
-
-int main(void)
-{
-  return pekit_layout_instance.lead;
-}
-EOF
-cc -g -O2 "$SMOKE/layout.c" -o "$SMOKE/layout"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" --version 2>&1 | \
-  grep -F "v$PEKIT_VERSION"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -C pekit_layout \
-  "$SMOKE/layout" > "$SMOKE/dwarf-layout"
-grep -F 'struct pekit_layout {' "$SMOKE/dwarf-layout"
-grep -F 'value;' "$SMOKE/dwarf-layout"
-
-cp "$SMOKE/layout" "$SMOKE/layout-btf"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -J "$SMOKE/layout-btf"
-readelf -W -S "$SMOKE/layout-btf" | grep -F '.BTF'
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -F btf -C pekit_layout \
-  "$SMOKE/layout-btf" > "$SMOKE/btf-layout"
-grep -F 'struct pekit_layout {' "$SMOKE/btf-layout"
-grep -F 'value;' "$SMOKE/btf-layout"
-
-# Compile and run a consumer through the installed public headers and shared
-# development links. A header payload that cannot build is not a devel ABI.
-cat > "$SMOKE/libdwarves.c" <<'EOF'
-#include <dwarves/dwarves.h>
-
-int main(void)
-{
-  if (dwarves__init() != 0)
-    return 1;
-  dwarves__exit();
-  return 0;
-}
-EOF
-# The public headers intentionally use the Linux-style GNU typeof extension.
-cc -std=gnu17 -Wall -Wextra -Werror "$SMOKE/libdwarves.c" \
-  -I"$PEKIT_OUT/usr/include" -L"$STAGED_LIBDIR" \
-  -Wl,-rpath-link,"$STAGED_LIBDIR" -ldwarves -ldw -lelf -lz \
-  -o "$SMOKE/libdwarves"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libdwarves"
 
 # Produce conventional build-ID-indexed debuginfo and exact debug sources.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -166,16 +79,84 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
     mkdir -p "usr/src/debug/org.kernel.pahole/$(dirname "$source")"
     cp "$ROOT/$source" "usr/src/debug/org.kernel.pahole/$source"
   done
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 13
-test -n "$(find usr/src/debug/org.kernel.pahole -type f -print -quit)"
+rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.elf-list" \
+  "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools" \
+  "$PEKIT_OUT/.srclist"
+'''
 
-# Assert inherited Peios hardening on every shipped ELF: ten compiled tools and
-# three libraries. Shell programs are naturally excluded by readelf.
-: > "$PEKIT_OUT/.elf-list"
-find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort | \
-  while IFS= read -r file; do
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin"
+STAGED_LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+
+find "$BIN" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort \
+  > "$PEKIT_OUT/installed-tools"
+printf '%s\n' \
+  btfdiff codiff ctracer dtagnames fullcircle pahole pdwtags pfunct pglobal \
+  prefcnt scncopy syscse | LC_ALL=C sort > "$PEKIT_OUT/expected-tools"
+diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
+while IFS= read -r tool; do test -x "$BIN/$tool"; done < "$PEKIT_OUT/expected-tools"
+test -f "$STAGE/usr/share/man/man1/pahole.1"
+test -f "$STAGE/usr/share/dwarves/runtime/Makefile"
+test -f "$STAGE/usr/share/dwarves/runtime/ctracer_relay.c"
+
+for library in libdwarves libdwarves_emit libdwarves_reorganize; do
+  real="$STAGED_LIBDIR/$library.so.1.0.0"
+  test -f "$real"
+  test -L "$STAGED_LIBDIR/$library.so.1"
+  test -L "$STAGED_LIBDIR/$library.so"
+  test "$(readlink "$STAGED_LIBDIR/$library.so.1")" = "$library.so.1.0.0"
+  test "$(readlink "$STAGED_LIBDIR/$library.so")" = "$library.so.1"
+  readelf -d "$real" | grep -F "Library soname: [$library.so.1]"
+done
+test "$(find "$STAGE/usr/include/dwarves" -maxdepth 1 -type f | wc -l)" -eq 14
+if find "$STAGED_LIBDIR" -maxdepth 1 -name 'libdwarves*.a' | grep -q .; then exit 1; fi
+
+mkdir -p "$SMOKE"
+cat > "$SMOKE/layout.c" <<'EOF'
+struct pekit_layout { char lead; unsigned long value; unsigned short tail; };
+volatile struct pekit_layout pekit_layout_instance;
+int main(void) { return pekit_layout_instance.lead; }
+EOF
+cc -g -O2 "$SMOKE/layout.c" -o "$SMOKE/layout"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" --version 2>&1 | grep -F "v$PEKIT_VERSION"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -C pekit_layout \
+  "$SMOKE/layout" > "$SMOKE/dwarf-layout"
+grep -F 'struct pekit_layout {' "$SMOKE/dwarf-layout"
+grep -F 'value;' "$SMOKE/dwarf-layout"
+cp "$SMOKE/layout" "$SMOKE/layout-btf"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -J "$SMOKE/layout-btf"
+readelf -W -S "$SMOKE/layout-btf" | grep -F '.BTF'
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN/pahole" -F btf -C pekit_layout \
+  "$SMOKE/layout-btf" > "$SMOKE/btf-layout"
+grep -F 'struct pekit_layout {' "$SMOKE/btf-layout"
+grep -F 'value;' "$SMOKE/btf-layout"
+
+cat > "$SMOKE/libdwarves.c" <<'EOF'
+#include <dwarves/dwarves.h>
+int main(void) {
+  if (dwarves__init() != 0) return 1;
+  dwarves__exit();
+  return 0;
+}
+EOF
+cc -std=gnu17 -Wall -Wextra -Werror "$SMOKE/libdwarves.c" \
+  -I"$STAGE/usr/include" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -ldwarves -ldw -lelf -lz \
+  -o "$SMOKE/libdwarves"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libdwarves"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 13
+test -n "$(find "$STAGE/usr/src/debug/org.kernel.pahole" -type f -print -quit)"
+: > "$PEKIT_OUT/elf-list"
+find "$BIN" "$STAGED_LIBDIR" -type f | LC_ALL=C sort | while IFS= read -r file; do
   readelf -h "$file" >/dev/null 2>&1 || continue
-  printf '%s\n' "$file" >> "$PEKIT_OUT/.elf-list"
+  printf '%s\n' "$file" >> "$PEKIT_OUT/elf-list"
   readelf -h "$file" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$file" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$file" | grep -F 'GNU_RELRO'
@@ -186,21 +167,28 @@ find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort | \
   fi
   if readelf -d "$file" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
-test "$(wc -l < "$PEKIT_OUT/.elf-list")" -eq 13
-
-rm -rf "$SMOKE" "$BUILD"
-rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.elf-list" \
-  "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools" \
-  "$PEKIT_OUT/.srclist"
+test "$(wc -l < "$PEKIT_OUT/elf-list")" -eq 13
 '''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c"               = "*"
+"org.sourceware.elfutils-devel"              = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel"     = "*"
+"org.llvm.llvm"                              = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+libdw-dev       = "*"
+zlib1g-dev      = "*"
+llvm            = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"                 = "*"
 "org.cmake.cmake"                 = "*"
 "org.sourceware.elfutils-devel"   = "*"
-"zlib-devel"                      = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel"                      = "*"
 "org.gnu.bash"                    = "*"
-llvm                              = "*"
+"org.llvm.llvm"                              = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

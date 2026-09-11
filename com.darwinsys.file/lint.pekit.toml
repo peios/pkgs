@@ -1,0 +1,8 @@
+[allow]
+# file and libmagic are one upstream source and intentionally share one
+# build-ID symbol package, matching the normal source-package debuginfo model.
+"elf.debuginfo" = "com.darwinsys.file-debuginfo owns symbols for every ELF emitted by the file source family"
+
+# The linker input and pkg-config metadata live under the x86_64 Peios ABI
+# directory and depend exactly on the matching architecture-specific runtime.
+"package.architecture" = "com.darwinsys.file-devel is tied to the x86_64 ABI directory and libmagic runtime"

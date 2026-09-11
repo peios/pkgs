@@ -6,8 +6,7 @@ format = "peipkg"
 
 [package]
 name         = "org.gnu.glibc"
-# -7 corrects the exact sibling constraints in the retained -6 publication;
-# every legacy <= -4 split remains a migration provide.
+# -7 corrects the exact sibling constraints in the retained -6 publication.
 version      = "{{version}}-7"
 architecture = "x86_64"
 # Complete conservative source-family expression.  The principal library is

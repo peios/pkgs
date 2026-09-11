@@ -7,13 +7,10 @@ description = "GNU Gettext project integration and development files"
 license     = "GPL-3.0-or-later AND LGPL-2.1-or-later"
 
 [provides]
-"libasprintf-devel" = "{{version}}"
-"libgettextpo-devel" = "{{version}}"
-"libtextstyle-devel" = "{{version}}"
 
 [dependencies]
-dash              = "*"
-gzip              = "*"
+"org.git.kernel.dash"              = "*"
+"org.gnu.gzip"              = "*"
 "org.gnu.gettext-libasprintf"  = "{{version}}-3"
 "org.gnu.gettext-libgettextpo" = "{{version}}-3"
 "org.gnu.gettext-libtextstyle" = "{{version}}-3"
@@ -23,9 +20,9 @@ gzip              = "*"
 "org.gnu.diffutils" = "*"
 "org.gnu.findutils" = "*"
 "org.gnu.gettext"   = "{{version}}-3"
-grep              = "*"
-sed               = "*"
-tar               = "*"
+"org.gnu.grep"              = "*"
+"org.gnu.sed"               = "*"
+"org.gnu.tar"               = "*"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gettext-devel/COPYING"

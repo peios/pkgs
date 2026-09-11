@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The data-only trust store has no executable upstream suite; build.main verifies Mozilla policy extraction, certificate parsing, distrust filtering, bundle consistency, and installed lookup"

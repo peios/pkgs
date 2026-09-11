@@ -8,10 +8,8 @@ license       = "LicenseRef-AMD-Firmware"
 license_class = "firmware"
 
 [provides]
-"firmware-amd-platform" = "{{version}}-3"
 
 [replaces]
-"firmware-amd-platform" = "<= {{version}}-2"
 
 [files]
 ":family/amd-platform/usr/lib/firmware/**"   = "usr/lib/firmware"

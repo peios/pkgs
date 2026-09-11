@@ -1,0 +1,14 @@
+format = "peipkg"
+
+[package]
+name          = "cz.ucw.pciids"
+version       = "{{version}}-1"
+architecture  = "noarch"
+description   = "PCI vendor, device, subsystem and class identifier database"
+license       = "GPL-2.0-or-later OR BSD-3-Clause"
+license_class = "free"
+homepage      = "https://pci-ids.ucw.cz/"
+
+[files]
+":usr/share/pci.ids"                         = "usr/share/pci.ids"
+":usr/share/licenses/cz.ucw.pciids/LICENSE" = "usr/share/licenses/cz.ucw.pciids/LICENSE"

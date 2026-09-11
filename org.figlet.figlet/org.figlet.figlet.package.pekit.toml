@@ -9,13 +9,12 @@ name        = "org.figlet.figlet"
 description = "Terminal banner-text renderer and font catalogue"
 
 [provides]
-figlet = "{{version}}"
 
 [dependencies]
-glibc               = ">= 2.43"
+"org.gnu.glibc"               = ">= 2.43"
 sh                  = ">= 1"
-"org.gnu.coreutils" = "*"
-sed                 = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.sed"                 = "*"
 
 [files]
 "@source:LICENSE"      = "usr/share/licenses/org.figlet.figlet/"

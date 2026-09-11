@@ -18,7 +18,7 @@ license      = "GPL-2.0-or-later"
 homepage     = "https://asciidoc-py.github.io/"
 
 [dependencies]
-python3 = ">= 3.14, < 3.15"
+"org.python.python3" = ">= 3.14, < 3.15"
 # a2x renders man pages with xsltproc over the DocBook stylesheets; both are
 # needed at run time, not merely to build this package.
 "org.gnome.libxslt-utils"       = ">= 1.1.45"

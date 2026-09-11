@@ -1,4 +1,3 @@
 [allow]
 "source.discovery" = "Rust 1.83.0 is the exact compiler selected by PKM's kernel toolchain lock, not the rolling userspace Rust lane"
 "source.versions.ceiling" = "The exact Rust 1.83.0 constraint is a deliberate kernel-toolchain pin; moving it requires a coordinated PKM transition"
-"build.test" = "The self-hosted compiler and installed-tree validation run inside build.main so package and publish fail closed"

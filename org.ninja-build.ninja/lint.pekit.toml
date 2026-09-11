@@ -1,2 +1,0 @@
-[allow]
-"build.test" = "Bootstrap self-hosting, applicable upstream Python regressions, and staged build-graph probes run inside build.main so package and publish fail closed"

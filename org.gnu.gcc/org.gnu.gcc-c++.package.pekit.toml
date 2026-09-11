@@ -16,10 +16,8 @@ description = "GNU C++ compiler"
 license     = "GPL-3.0-or-later AND GFDL-1.3-no-invariants-or-later"
 
 [provides]
-"gcc-c++" = "{{version}}-2"
 
 [replaces]
-"gcc-c++" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc"     = "{{version}}-2"

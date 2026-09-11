@@ -6,8 +6,6 @@ description = "NUMA policy library development files"
 license     = "LGPL-2.1-only AND GPL-2.0-only AND LicenseRef-Linux-man-pages-copyleft"
 
 [provides]
-"libnuma-devel" = "{{version}}"
-"numactl-devel" = "{{version}}"
 
 [dependencies]
 "io.github.numactl.libnuma" = "{{version}}-1"

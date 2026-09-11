@@ -5,14 +5,8 @@
 name        = "org.sourceware.bzip2-libs"
 description = "bzip2 - libbz2 runtime library"
 
-[provides]
-# The retired monolithic package also carries this SONAME. A versioned
-# capability makes the canonical split runtime the deterministic provider.
-"libbz2.so.1" = "{{version}}"
-"libbz2.so.1.0" = "{{version}}"
-
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:LICENSE"                          = "usr/share/licenses/org.sourceware.bzip2-libs/"

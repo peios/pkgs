@@ -8,11 +8,11 @@ name        = "org.gnu.bison"
 description = "GNU Bison - parser generator and yacc-compatible frontend"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 # The yacc compatibility frontend is an installed POSIX shell script.
-dash = "*"
+"org.git.kernel.dash" = "*"
 # Bison executes m4 whenever it expands a parser skeleton.
-m4 = ">= 1.4"
+"org.gnu.m4" = ">= 1.4"
 
 [files]
 "@source:COPYING"                      = "usr/share/licenses/org.gnu.bison/"

@@ -3,12 +3,11 @@ name        = "org.kernel.libdwarves"
 description = "DWARF and BTF processing runtime libraries"
 
 [provides]
-libdwarves = "{{version}}"
 
 [dependencies]
-glibc                            = ">= 2.43"
+"org.gnu.glibc"                            = ">= 2.43"
 "org.sourceware.elfutils-libs"  = ">= 0.196"
-zlib                             = ">= 2.3.3"
+"io.github.zlib-ng.zlib-ng-compat"                             = ">= 2.3.3"
 
 [files]
 "@source:COPYING"                     = "usr/share/licenses/org.kernel.libdwarves/"

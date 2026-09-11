@@ -5,20 +5,18 @@ name        = "org.kernel.pahole"
 description = "DWARF and BTF inspection and encoding tools"
 
 [provides]
-pahole  = "{{version}}"
-dwarves = "{{version}}"
 
 [dependencies]
-glibc                            = ">= 2.43"
+"org.gnu.glibc"                            = ">= 2.43"
 "org.kernel.libdwarves"         = "{{version}}-1"
 "org.sourceware.elfutils-libs"  = ">= 0.196"
 "org.gnu.bash"                  = "*"
-"org.gnu.coreutils"             = "*"
+"dev.peios.peiosutils"             = "*"
 "org.gnu.diffutils"             = "*"
 "org.gnu.grep"                  = "*"
-sed                              = "*"
-gcc                              = "*"
-llvm                             = "*"
+"org.gnu.sed"                              = "*"
+"org.gnu.gcc"                              = "*"
+"org.llvm.llvm"                             = "*"
 
 [files]
 "@source:COPYING"                     = "usr/share/licenses/org.kernel.pahole/"

@@ -8,17 +8,15 @@ name        = "org.samba.rsync"
 description = "Fast incremental file-transfer utility"
 
 [provides]
-rsync = "{{version}}-1"
 
 [replaces]
-rsync = "< {{version}}-1"
 
 [dependencies]
-glibc                    = ">= 2.43"
-libzstd                  = ">= 1.5.7"
+"org.gnu.glibc"                    = ">= 2.43"
+"com.facebook.zstd-libs"                  = ">= 1.5.7"
 "org.openssl.libcrypto" = ">= 3.5"
-xxhash                   = ">= 0.8.3"
-zlib                     = ">= 2.3.3"
+"com.xxhash.xxhash"                   = ">= 0.8.3"
+"io.github.zlib-ng.zlib-ng-compat"                     = ">= 2.3.3"
 
 [files]
 "@source:COPYING"                   = "usr/share/licenses/org.samba.rsync/"

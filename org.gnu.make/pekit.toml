@@ -49,77 +49,11 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 
 make -j"$(nproc)"
 
-# GNU Make's Perl harness covers the parser, dependency graph, jobserver,
-# implicit rules, archives and loadable-module API. Require the positive
-# completion summary as well as the target's exit status so a skipped harness
-# cannot masquerade as a successful test run.
-make check
-test -s test-suite.log
-grep -Eq '^[0-9]+ Tests? in [0-9]+ Categor(y|ies) Complete .* No Failures' test-suite.log
-
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios does not currently ship an Info reader. Keep the command manual and
 # translated diagnostics, but omit orphaned Info and package documentation.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
-
-test -x "$BIN"
-test -f "$PEKIT_OUT/usr/include/gnumake.h"
-test -f "$PEKIT_OUT/usr/share/man/man1/make.1"
-test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'make.mo' -print -quit)"
-test "$(find "$PEKIT_OUT/usr/bin" -type f | wc -l)" -eq 1
-
-# Exercise the staged executable as a real build driver. No SHELL assignment
-# is supplied: successful recipes prove the Peios /usr/bin/sh default patch.
-SMOKE="$PEKIT_OUT/.make-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/Makefile" <<'EOF'
-.PHONY: all
-all: result
-
-result: left right | ordered
-	printf '%s\\n' 'left right' > $@
-
-left right:
-	printf '%s\\n' '$@' > $@
-
-ordered:
-	printf '%s\\n' ordered > $@
-EOF
-"$BIN" --no-builtin-rules -j2 -C "$SMOKE" all
-test "$(cat "$SMOKE/result")" = "left right"
-"$BIN" --no-builtin-rules -q -C "$SMOKE" all
-"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
-  | grep -E '(^| )jobserver( |$)'
-"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
-  | grep -E '(^| )load( |$)'
-
-# Compile and load a minimal external module against the installed gnumake.h.
-# This validates the small public extension ABI that intentionally stays in
-# the main package, matching GNU Make packaging practice.
-cat > "$SMOKE/smoke.c" <<'EOF'
-#include <gnumake.h>
-
-int plugin_is_GPL_compatible;
-
-int
-smoke_gmk_setup (gmk_floc *location)
-{
-  (void) location;
-  gmk_eval ("PLUGIN_OK := yes", 0);
-  return 1;
-}
-EOF
-cc -fPIC -shared -I"$PEKIT_OUT/usr/include" \
-  -o "$SMOKE/smoke.so" "$SMOKE/smoke.c"
-cat > "$SMOKE/Plugin.mk" <<'EOF'
-load ./smoke.so
-all:
-	@printf '%s\\n' '$(PLUGIN_OK)'
-EOF
-test "$(cd "$SMOKE" && "$BIN" --no-builtin-rules -f Plugin.mk all)" = yes
-"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
-rm -rf "$SMOKE"
 
 # Split the shipped ELF by build ID, normalize its DWARF paths to the
 # canonical package namespace and retain every referenced source file.
@@ -148,30 +82,113 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
 strip usr/bin/make
 rm -f "$PEKIT_OUT/.srclist"
 
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
-test "$(find usr/src/debug/org.gnu.make -type f | wc -l)" -gt 20
-
-# Assert the exact stripped payload that will ship.
-readelf -h usr/bin/make | grep -Eq 'Type:[[:space:]]+DYN'
-readelf -W -l usr/bin/make | grep 'GNU_STACK' | grep -F 'RW '
-readelf -W -l usr/bin/make | grep -F 'GNU_RELRO'
-readelf -d usr/bin/make | grep -F 'BIND_NOW'
-readelf -d usr/bin/make | grep -F 'RELR'
-readelf -n usr/bin/make | grep -E 'x86 feature:.*IBT.*SHSTK'
-if readelf -d usr/bin/make | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
-usr/bin/make --version | head -1 | grep -F "$PEKIT_VERSION"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-debugedit          = "*"
-gettext            = "*"
-patchelf           = "*"
-perl               = "*"
+"org.sourceware.debugedit"          = "*"
+"org.gnu.gettext"            = "*"
+"org.nixos.patchelf"           = "*"
+"org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"
 patchelf        = "*"
+perl            = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = """
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/make"
+SMOKE="$PEKIT_OUT/smoke"
+ROOT=$(dirname "$(dirname "$STAGE")")
+cd "$STAGE"
+
+# GNU Make's Perl harness covers the parser, dependency graph, jobserver,
+# implicit rules, archives and loadable-module API. Require the positive
+# completion summary as well as the target's exit status so a skipped harness
+# cannot masquerade as a successful test run.
+make check
+test -s test-suite.log
+grep -Eq '^[0-9]+ Tests? in [0-9]+ Categor(y|ies) Complete .* No Failures' test-suite.log
+
+test -x "$BIN"
+test -f "$STAGE/usr/include/gnumake.h"
+test -f "$STAGE/usr/share/man/man1/make.1"
+test -n "$(find "$STAGE/usr/share/locale" -type f -name 'make.mo' -print -quit)"
+test "$(find "$STAGE/usr/bin" -type f | wc -l)" -eq 1
+
+# Exercise the staged executable as a real build driver. No SHELL assignment
+# is supplied: successful recipes prove the Peios /usr/bin/sh default patch.
+mkdir -p "$SMOKE"
+cat > "$SMOKE/Makefile" <<'EOF'
+.PHONY: all
+all: result
+
+result: left right | ordered
+	printf '%s\\n' 'left right' > $@
+
+left right:
+	printf '%s\\n' '$@' > $@
+
+ordered:
+	printf '%s\\n' ordered > $@
+EOF
+"$BIN" --no-builtin-rules -j2 -C "$SMOKE" all
+test "$(cat "$SMOKE/result")" = "left right"
+"$BIN" --no-builtin-rules -q -C "$SMOKE" all
+"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
+  | grep -E '(^| )jobserver( |$)'
+"$BIN" -f /dev/null --eval 'print:;@printf "%s\\n" "$(.FEATURES)"' print \
+  | grep -E '(^| )load( |$)'
+
+cat > "$SMOKE/smoke.c" <<'EOF'
+#include <gnumake.h>
+int plugin_is_GPL_compatible;
+int smoke_gmk_setup (gmk_floc *location)
+{
+  (void) location;
+  gmk_eval ("PLUGIN_OK := yes", 0);
+  return 1;
+}
+EOF
+cc -fPIC -shared -I"$STAGE/usr/include" \
+  -o "$SMOKE/smoke.so" "$SMOKE/smoke.c"
+cat > "$SMOKE/Plugin.mk" <<'EOF'
+load ./smoke.so
+all:
+	@printf '%s\\n' '$(PLUGIN_OK)'
+EOF
+test "$(cd "$SMOKE" && "$BIN" --no-builtin-rules -f Plugin.mk all)" = yes
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find "$STAGE/usr/src/debug/org.gnu.make" -type f | wc -l)" -gt 20
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+if strings "$BIN" | grep -F "$ROOT"; then exit 1; fi
+"""
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.perl.perl"                = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"
 perl            = "*"

@@ -3,7 +3,6 @@ name        = "org.gnu.cpio"
 description = "GNU cpio archive copier"
 
 [provides]
-cpio = "{{version}}"
 
 [dependencies]
 "org.gnu.cpio-common" = "{{version}}-1"

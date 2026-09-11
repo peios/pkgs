@@ -4,11 +4,10 @@ description  = "OpenSSL certificate-management Perl utilities"
 architecture = "noarch"
 
 [provides]
-"openssl-perl" = "{{version}}"
 
 [dependencies]
 "org.openssl.openssl" = "{{version}}-1"
-perl                    = "*"
+"org.perl.perl"                    = "*"
 
 [files]
 "@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl-perl/"

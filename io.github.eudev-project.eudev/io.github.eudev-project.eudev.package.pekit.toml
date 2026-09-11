@@ -15,9 +15,9 @@ name        = "io.github.eudev-project.eudev"
 description = "Device manager for uevents, coldplug, and stable device names"
 
 [dependencies]
-glibc                                         = ">= 2.43"
+"org.gnu.glibc"                                         = ">= 2.43"
 "io.github.eudev-project.eudev-libudev"      = "{{version}}-4"
-libkmod                                       = ">= 33"
+"org.kernel.kmod-libs"                                       = ">= 33"
 "org.kernel.libblkid"                        = ">= 2.42.3"
 sh                                            = ">= 1"
 # udev-coldplug uses uname, sleep, mkdir, dirname and mknod. Peiosutils is

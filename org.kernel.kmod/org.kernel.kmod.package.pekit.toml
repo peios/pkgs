@@ -9,10 +9,9 @@ description = "Kernel module management tools (depmod, modprobe, ...)"
 license     = "GPL-2.0-or-later"
 
 [provides]
-kmod = "{{version}}"
 
 [dependencies]
-glibc                  = ">= 2.43"
+"org.gnu.glibc"                  = ">= 2.43"
 "org.kernel.kmod-libs" = "{{version}}-2"
 
 [files]

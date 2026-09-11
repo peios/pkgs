@@ -16,14 +16,23 @@
 set -eu
 script=${1:?missing wrapped command}
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
-pool="$PEKIT_WORKSPACE_ROOT/_pkgsOut_"
+repo="$PEKIT_WORKSPACE_ROOT/_peipkgRepo_"
+# Repository trust is intentionally pinned out of band. Keep this equal to the
+# generic _peiroot_ anchor during an explicit repository-key rotation.
+repo_anchor=63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602
+
+[ -f "$repo/repo.json" ] || {
+  echo "peiroot: signed package repository is missing: $repo" >&2
+  exit 1
+}
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/peiroot.XXXXXX")
 trap 'rm -rf "$work"' EXIT INT TERM
 
 {
   printf 'schema = 1\narch = "x86_64"\nsource_date = "2026-01-01T00:00:00Z"\n'
-  printf 'local_packages = ["%s/*.peipkg"]\n' "$pool"
+  printf '[[repository]]\nname = "peios"\nbase_url = "file://%s"\n' "$repo"
+  printf 'priority = 10\nsignature_policy = "required"\ntrust_anchors = ["%s"]\n' "$repo_anchor"
   printf '[[package]]\nname = "dev.peios.fsbase"\nversion = "*"\n'
   printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | while read -r name constraint; do
     [ -n "$name" ] || continue

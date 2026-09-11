@@ -5,8 +5,6 @@ name        = "com.darwinsys.file-devel"
 description = "file - libmagic header, linker input and pkg-config metadata"
 
 [provides]
-file-devel     = "{{version}}"
-libmagic-devel = "{{version}}"
 
 [dependencies]
 "com.darwinsys.file-libmagic" = "{{version}}-1"

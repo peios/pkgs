@@ -6,10 +6,8 @@ name        = "io.github.besser82.libxcrypt-debuginfo"
 description = "Modern password-hashing library debugging symbols"
 
 [provides]
-libxcrypt-debuginfo = "{{version}}-2"
 
 [replaces]
-libxcrypt-debuginfo = "<= {{version}}-1"
 
 [dependencies]
 "io.github.besser82.libxcrypt"        = "{{version}}-2"

@@ -8,10 +8,8 @@ license       = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND Licen
 license_class = "firmware"
 
 [provides]
-"firmware-audio-codecs" = "{{version}}-3"
 
 [replaces]
-"firmware-audio-codecs" = "<= {{version}}-2"
 
 [files]
 ":family/audio-codecs/usr/lib/firmware/**"   = "usr/lib/firmware"

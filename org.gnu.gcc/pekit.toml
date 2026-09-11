@@ -302,6 +302,200 @@ make -j"$JOBS" \
   BOOT_LDFLAGS="$LDFLAGS $CET_LDFLAGS" \
   CPPFLAGS_FOR_TARGET="$TARGET_SYSINC"
 
+
+make install DESTDIR="$PEKIT_OUT"
+
+# GCC may still drop the target runtime libs in the multilib os-dir
+# ($LIBDIR/../lib64); relocate into the triplet dir so they resolve on Peios and
+# the debug-split below (which walks the install tree) processes them.
+if [ -d "$PEKIT_OUT/usr/lib/lib64" ]; then
+  for f in "$PEKIT_OUT/usr/lib/lib64/"*; do
+    # A link script/archive symlink can become dangling after its target is
+    # moved earlier in glob order. Preserve symlinks rather than letting -e
+    # skip them and leaving an unowned /usr/lib/lib64 tree behind.
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    mv "$f" "$PEKIT_OUT$LIBDIR/"
+  done
+  rmdir "$PEKIT_OUT/usr/lib/lib64"
+fi
+# Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED win).
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+
+# libstdc++'s gdb pretty-printer installs beside the library, where gdb never
+# looks; move it under the auto-load tree (keyed by the library's install
+# path), exactly as the isl recipe does with its own. Left in place it is
+# simply dropped — it matches no package glob.
+if ls "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py >/dev/null 2>&1; then
+  mkdir -p "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR"
+  mv "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR/"
+fi
+
+# Info's generated `dir` index is host-global mutable state, not package
+# payload. Claim only the versioned/compressed manuals and fail if install
+# layout ever changes so the doc split cannot silently become empty.
+rm -f "$PEKIT_OUT/usr/share/info/dir"
+
+
+# GCC records five generated/pre-generated inputs as build/gcc basenames even
+# though release tarballs keep their canonical copies below source/gcc[/cp].
+# Materialize those exact aliases before debugedit so the debugsource collector
+# remains fail-closed for every real path it is asked to package.
+for mapping in \
+  "gcc/cp/cfns.gperf:cfns.gperf" \
+  "gcc/gengtype-lex.cc:gengtype-lex.cc" \
+  "gcc/gengtype-lex.l:gengtype-lex.l" \
+  "gcc/cp/metafns.gperf:metafns.gperf" \
+  "gcc/cp/std-name-hint.gperf:std-name-hint.gperf"
+do
+  source_path=${mapping%%:*}
+  build_name=${mapping#*:}
+  test -f "$SRC/$source_path"
+  if [ ! -f "$PEKIT_OUT/build/gcc/$build_name" ]; then
+    install -m 0644 "$SRC/$source_path" "$PEKIT_OUT/build/gcc/$build_name"
+  fi
+done
+
+# Post-install debug pipeline over the WHOLE install tree (compiler binaries +
+# runtime libs). Scrub any stray rpath, scrub DWARF build paths
+# (-> /usr/src/debug/org.gnu.gcc), split debug build-id-indexed, strip, stage the
+# referenced sources. Static *.a get --strip-debug (no build-id to index).
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.elf-inodes"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  # GCC installs several driver aliases as hardlinks. Process each underlying
+  # inode once: a second objcopy after the first path has been stripped would
+  # overwrite the build-ID file with a symbol-poor copy while retaining the
+  # same build ID. GNU strip updates hardlinked inodes in place; the final
+  # whole-tree scan below verifies every alias is in fact stripped.
+  inode=$(stat -Lc '%d:%i' -- "$f") || {
+    echo "gcc: cannot identify installed payload inode: $f" >&2
+    exit 1
+  }
+  if grep -Fxq "$inode" "$PEKIT_OUT/.elf-inodes"; then
+    continue
+  fi
+  printf '%s\n' "$inode" >> "$PEKIT_OUT/.elf-inodes"
+  case "$f" in
+    *.a|*.o)
+      strip --strip-debug "$f"
+      if readelf -SW "$f" 2>/dev/null | grep -q '[.]debug_info'; then
+        echo "gcc: debug information remains in static ELF payload $f" >&2
+        exit 1
+      fi
+      continue
+      ;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  if readelf -d "$f" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then
+    patchelf --remove-rpath "$f"
+    if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then
+      echo "gcc: failed to remove runtime search path from $f" >&2
+      exit 1
+    fi
+  fi
+  : > "$PEKIT_OUT/.dl"
+  if readelf -SW "$f" | grep -q '[.]debug_info'; then
+    debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gcc \
+      -l "$PEKIT_OUT/.dl" -n "$f"
+    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  fi
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid" || { echo "gcc: installed ELF has no build ID: $f" >&2; exit 1; }
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+  if readelf -SW "$f" | grep -q '[.]debug_info'; then
+    echo "gcc: debug information remains in stripped ELF $f" >&2
+    exit 1
+  fi
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in
+    */) continue;;
+    '<built-in>'|*/'<built-in>'|'<command-line>'|*/'<command-line>') continue;;
+  esac
+  if [ ! -f "$ROOT/$rel" ]; then
+    echo "gcc: debugedit listed missing source: $ROOT/$rel" >&2
+    exit 1
+  fi
+  mkdir -p "usr/src/debug/org.gnu.gcc/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.gcc/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
+
+"""
+
+# Build deps. Native self-build: the c++ floor supplies the compiler, make,
+# binutils, and the debug-split tools; flex + bison cover any generated parser
+# refresh required by a release; the bignum -devel packages and zlib-devel are what
+# cc1 compiles and links against — all from our own pool.
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"io.github.westes.flex" = "*"
+"org.gnu.bison" = "*"
+"org.gnu.gmp-devel" = "*"
+"org.gnu.mpfr-devel" = "*"
+"org.gnu.mpc-devel" = "*"
+"io.sourceforge.libisl.isl-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.darwinsys.file" = "*"
+# gcc's bootstrap copies fixed headers between stages via tar.
+"org.gnu.tar" = "*"
+# Builds the shipped Info manuals. DejaGNU/Expect are not yet packaged for
+# Peios; the recipe records that native exception at the regression gate.
+"org.gnu.texinfo" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+flex = "*"
+bison = "*"
+libgmp-dev = "*"
+libmpfr-dev = "*"
+libmpc-dev = "*"
+libisl-dev = "*"
+zlib1g-dev = "*"
+debugedit = "*"
+patchelf = "*"
+texinfo = "*"
+file = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+SRC="$PEKIT_SOURCE_ROOT"
+TRIPLET=x86_64-linux-peios
+LIBDIR=/usr/lib/$TRIPLET
+
+# Reference Debian tests need the host multiarch headers and crt objects. A
+# native Peios gate uses only the staged Peios compiler and canonical paths.
+TARGET_SYSINC=
+DEJAGNU_TOOL_OPT=
+unset LIBRARY_PATH
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
+  HOST_MULTIARCH=$(cc -print-multiarch)
+  TARGET_SYSINC="-isystem /usr/include/$HOST_MULTIARCH"
+  DEJAGNU_TOOL_OPT="--tool_opts=-isystem/usr/include/$HOST_MULTIARCH"
+  if [ -f "/usr/lib/$HOST_MULTIARCH/crti.o" ]; then
+    export LIBRARY_PATH="/usr/lib/$HOST_MULTIARCH"
+  fi
+fi
+CET_LDFLAGS=
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  CET_LDFLAGS="-Wl,-z,cet-report=error,-z,ibtplt"
+fi
+GCC_DIR="${PEKIT_OUT%%/out/*}"
+
+cd "$PEKIT_OUT/build"
+
 # GCC's own DejaGNU suites are the regression gate on reference builders.
 # Peios does not yet package DejaGNU/Expect, so the native composition records
 # that explicit infrastructure exception and relies on the identical locked
@@ -417,37 +611,6 @@ else
   echo "gcc: DejaGNU unavailable in the native Peios build root; Debian regression results are authoritative" >&2
 fi
 
-make install DESTDIR="$PEKIT_OUT"
-
-# GCC may still drop the target runtime libs in the multilib os-dir
-# ($LIBDIR/../lib64); relocate into the triplet dir so they resolve on Peios and
-# the debug-split below (which walks the install tree) processes them.
-if [ -d "$PEKIT_OUT/usr/lib/lib64" ]; then
-  for f in "$PEKIT_OUT/usr/lib/lib64/"*; do
-    # A link script/archive symlink can become dangling after its target is
-    # moved earlier in glob order. Preserve symlinks rather than letting -e
-    # skip them and leaving an unowned /usr/lib/lib64 tree behind.
-    [ -e "$f" ] || [ -L "$f" ] || continue
-    mv "$f" "$PEKIT_OUT$LIBDIR/"
-  done
-  rmdir "$PEKIT_OUT/usr/lib/lib64"
-fi
-# Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED win).
-find "$PEKIT_OUT/usr" -name '*.la' -delete
-
-# libstdc++'s gdb pretty-printer installs beside the library, where gdb never
-# looks; move it under the auto-load tree (keyed by the library's install
-# path), exactly as the isl recipe does with its own. Left in place it is
-# simply dropped — it matches no package glob.
-if ls "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py >/dev/null 2>&1; then
-  mkdir -p "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR"
-  mv "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR/"
-fi
-
-# Info's generated `dir` index is host-global mutable state, not package
-# payload. Claim only the versioned/compressed manuals and fail if install
-# layout ever changes so the doc split cannot silently become empty.
-rm -f "$PEKIT_OUT/usr/share/info/dir"
 test -n "$(find "$PEKIT_OUT/usr/share/info" -maxdepth 1 -type f -name '*.info*' -print -quit)"
 test ! -e "$PEKIT_OUT/usr/share/info/dir"
 
@@ -669,98 +832,7 @@ test -f "$GCCLIB/include/quadmath.h"
 test -f "$PEKIT_OUT$LIBDIR/libstdc++.modules.json"
 rm -rf "$SMOKE"
 
-# GCC records five generated/pre-generated inputs as build/gcc basenames even
-# though release tarballs keep their canonical copies below source/gcc[/cp].
-# Materialize those exact aliases before debugedit so the debugsource collector
-# remains fail-closed for every real path it is asked to package.
-for mapping in \
-  "gcc/cp/cfns.gperf:cfns.gperf" \
-  "gcc/gengtype-lex.cc:gengtype-lex.cc" \
-  "gcc/gengtype-lex.l:gengtype-lex.l" \
-  "gcc/cp/metafns.gperf:metafns.gperf" \
-  "gcc/cp/std-name-hint.gperf:std-name-hint.gperf"
-do
-  source_path=${mapping%%:*}
-  build_name=${mapping#*:}
-  test -f "$SRC/$source_path"
-  if [ ! -f "$PEKIT_OUT/build/gcc/$build_name" ]; then
-    install -m 0644 "$SRC/$source_path" "$PEKIT_OUT/build/gcc/$build_name"
-  fi
-done
-
-# Post-install debug pipeline over the WHOLE install tree (compiler binaries +
-# runtime libs). Scrub any stray rpath, scrub DWARF build paths
-# (-> /usr/src/debug/org.gnu.gcc), split debug build-id-indexed, strip, stage the
-# referenced sources. Static *.a get --strip-debug (no build-id to index).
 cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.elf-inodes"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  # GCC installs several driver aliases as hardlinks. Process each underlying
-  # inode once: a second objcopy after the first path has been stripped would
-  # overwrite the build-ID file with a symbol-poor copy while retaining the
-  # same build ID. GNU strip updates hardlinked inodes in place; the final
-  # whole-tree scan below verifies every alias is in fact stripped.
-  inode=$(stat -Lc '%d:%i' -- "$f") || {
-    echo "gcc: cannot identify installed payload inode: $f" >&2
-    exit 1
-  }
-  if grep -Fxq "$inode" "$PEKIT_OUT/.elf-inodes"; then
-    continue
-  fi
-  printf '%s\n' "$inode" >> "$PEKIT_OUT/.elf-inodes"
-  case "$f" in
-    *.a|*.o)
-      strip --strip-debug "$f"
-      if readelf -SW "$f" 2>/dev/null | grep -q '[.]debug_info'; then
-        echo "gcc: debug information remains in static ELF payload $f" >&2
-        exit 1
-      fi
-      continue
-      ;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  if readelf -d "$f" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then
-    patchelf --remove-rpath "$f"
-    if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then
-      echo "gcc: failed to remove runtime search path from $f" >&2
-      exit 1
-    fi
-  fi
-  : > "$PEKIT_OUT/.dl"
-  if readelf -SW "$f" | grep -q '[.]debug_info'; then
-    debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gcc \
-      -l "$PEKIT_OUT/.dl" -n "$f"
-    cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  fi
-  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid" || { echo "gcc: installed ELF has no build ID: $f" >&2; exit 1; }
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$f"
-  if readelf -SW "$f" | grep -q '[.]debug_info'; then
-    echo "gcc: debug information remains in stripped ELF $f" >&2
-    exit 1
-  fi
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in
-    */) continue;;
-    '<built-in>'|*/'<built-in>'|'<command-line>'|*/'<command-line>') continue;;
-  esac
-  if [ ! -f "$ROOT/$rel" ]; then
-    echo "gcc: debugedit listed missing source: $ROOT/$rel" >&2
-    exit 1
-  fi
-  mkdir -p "usr/src/debug/org.gnu.gcc/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.gnu.gcc/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 test -n "$(find usr/lib/debug/.build-id -type f -name '*.debug' -print -quit)"
 test -n "$(find usr/src/debug/org.gnu.gcc -type f -print -quit)"
 # Every installed ELF that is not an explicit relocatable/static-archive
@@ -939,60 +1011,27 @@ find usr \\( -type f -o -type l \\) | LC_ALL=C sort | while IFS= read -r path; d
     exit 1
   fi
 done
-"""
 
-# Build deps. Native self-build: the c++ floor supplies the compiler, make,
-# binutils, and the debug-split tools; flex + bison cover any generated parser
-# refresh required by a release; the bignum -devel packages and zlib-devel are what
-# cc1 compiles and links against — all from our own pool.
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c++" = "*"
-"io.github.westes.flex" = "*"
-"org.gnu.bison" = "*"
-"org.gnu.gmp-devel" = "*"
-"org.gnu.mpfr-devel" = "*"
-"org.gnu.mpc-devel" = "*"
-"io.sourceforge.libisl.isl-devel" = "*"
-"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
-"com.darwinsys.file" = "*"
-# gcc's bootstrap copies fixed headers between stages via tar.
-"org.gnu.tar" = "*"
-# Builds the shipped Info manuals. DejaGNU/Expect are not yet packaged for
-# Peios; the recipe records that native exception at the regression gate.
-"org.gnu.texinfo" = "*"
+rm -rf "$PEKIT_MAIN_OUT/build"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-flex = "*"
-bison = "*"
-libgmp-dev = "*"
-libmpfr-dev = "*"
-libmpc-dev = "*"
-libisl-dev = "*"
-zlib1g-dev = "*"
-debugedit = "*"
-patchelf = "*"
-texinfo = "*"
-dejagnu = "*"
-file = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-STAGE="$PEKIT_MAIN_OUT"
-TMP="$PEKIT_OUT/gcc-test"
-mkdir -p "$TMP"
-printf '%s\n' 'int answer(void) { return 42; }' > "$TMP/main.c"
-PATH="$STAGE/usr/bin:$PATH" "$STAGE/usr/bin/gcc" -c "$TMP/main.c" -o "$TMP/main.o"
-test -s "$TMP/main.o"
-case "$("$STAGE/usr/bin/gcc" -dumpmachine)" in x86_64-*-linux-peios) ;; *) exit 1;; esac
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "org.gnu.binutils" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.gawk" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.sed" = "*"
 
 [test.dependencies.apt]
 binutils = "*"
+build-essential = "*"
+coreutils = "*"
 dash = "*"
+findutils = "*"
+gawk = "*"
+grep = "*"
+sed = "*"
+dejagnu = "*"

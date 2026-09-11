@@ -38,12 +38,6 @@ export LDFLAGS="$LDFLAGS_COMMON"
   "-DCMAKE_MODULE_LINKER_FLAGS=$LDFLAGS_COMMON"
 make -j"$(nproc)"
 
-# Fast, dependency-closed upstream core coverage. The complete 600+ test set
-# probes optional generators, toolchains, networks, and host facilities that
-# intentionally are not part of this bootstrap environment.
-"$BUILD/bin/ctest" -j"$(nproc)" --output-on-failure \
-  -R '^(SystemInformationNew|kwsys\\.|kwiml\\.test|CMake\\.Copyright|CommandLineTest|StringFileTest|MathTest|Simple|COnly|CxxOnly|TryCompile)$'
-
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/doc" "$PEKIT_OUT/usr/share/doc"
 
@@ -62,6 +56,70 @@ find "$SRC/Licenses" "$SRC/Utilities" -type f \
   done
 cp -a "$LICENSEDIR" "$PEKIT_OUT/usr/share/licenses/org.cmake.cmake-data"
 
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr/bin -type f ! -type l | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.cmake.cmake/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.cmake.cmake/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libssl-dev      = "*"
+debugedit       = "*"
+patchelf        = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+CMAKE="$PEKIT_MAIN_OUT/usr/bin/cmake"
+output=$("$CMAKE" --version)
+case "$output" in "cmake version $PEKIT_VERSION"*) ;; *) exit 1;; esac
+test "$("$CMAKE" -E echo staged-contract)" = staged-contract
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+BUILD="$PEKIT_OUT/build"
+cd "$BUILD"
+# Fast, dependency-closed upstream core coverage. The complete 600+ test set
+# probes optional generators, toolchains, networks, and host facilities that
+# intentionally are not part of this bootstrap environment.
+"$BUILD/bin/ctest" -j"$(nproc)" --output-on-failure \
+  -R '^(SystemInformationNew|kwsys\\.|kwiml\\.test|CMake\\.Copyright|CommandLineTest|StringFileTest|MathTest|Simple|COnly|CxxOnly|TryCompile)$'
+
+
+# Exercise and audit the exact installed toolchain after staging.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+BUILD="$PEKIT_OUT/build"
 # Exercise the installed cmake/ctest/cpack triplet against a real C project.
 SMOKE="$PEKIT_OUT/.cmake-smoke"
 mkdir -p "$SMOKE/src"
@@ -100,59 +158,17 @@ for tool in cmake ctest cpack; do
   if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
 
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr/bin -type f ! -type l | while IFS= read -r f; do
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.cmake.cmake/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.cmake.cmake/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-rm -rf "$SMOKE" "$BUILD"
-"""
+rm -rf "$PEKIT_MAIN_OUT/.cmake-smoke" "$PEKIT_MAIN_OUT/build"
+'''
 
-[build.main.dependencies.peipkg]
+[test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
-openssl-devel = "*"
-debugedit = "*"
-patchelf = "*"
+"org.openssl.openssl-devel" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
 libssl-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-CMAKE="$PEKIT_MAIN_OUT/usr/bin/cmake"
-output=$("$CMAKE" --version)
-case "$output" in "cmake version $PEKIT_VERSION"*) ;; *) exit 1;; esac
-test "$("$CMAKE" -E echo staged-contract)" = staged-contract
-'''
-
-[test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-dash = "*"

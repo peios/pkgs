@@ -47,17 +47,6 @@ make -C "$SRC" O="$BUILD" -j"$JOBS" \
   pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig \
   completion_dir=/usr/share/bash-completion/completions
 
-# The upstream CUnit suite requires a writable, mounted tracefs and exercises
-# the live host kernel, which hermetic Pekit builders deliberately do not
-# expose. Debian still compiles and executes the runner's argument path; the
-# staged shared/static test below covers deterministic userspace APIs in both
-# Debian and native Peios environments without mutating kernel tracing state.
-if pkgconf --exists cunit; then
-  make -C "$SRC" O="$BUILD" -j1 test
-  "$BUILD/utest/trace-utest" --help >/dev/null
-else
-  echo 'CUnit unavailable; running maintained hermetic tests only' >&2
-fi
 
 make -C "$SRC" O="$BUILD" -j1 \
   DESTDIR="$PEKIT_OUT/" prefix=/usr \
@@ -124,155 +113,9 @@ install -d "$PREFIX/share/doc"
 mv "$PREFIX/share/doc/libtracefs-doc" \
   "$PREFIX/share/doc/org.linux.tracefs"
 
-# Freeze the complete installed surface. Documentation automatically follows
-# additions, while ABI/header/completion changes require explicit review.
-test "$(find "$PREFIX/include/tracefs" -mindepth 1 -maxdepth 1 -type f \
-  -printf '%f\n')" = tracefs.h
-find "$LIBDIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
-  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-libs"
-printf '%s\n' libtracefs.a libtracefs.so libtracefs.so.1 \
-  "libtracefs.so.$PEKIT_VERSION" | LC_ALL=C sort \
-  > "$PEKIT_OUT/.expected-libs"
-diff -u "$PEKIT_OUT/.expected-libs" "$PEKIT_OUT/.actual-libs"
-test -s "$COMPLETION"
-test "$(find "$(dirname "$COMPLETION")" -mindepth 1 -maxdepth 1 \
-  -type f -printf '%f\n')" = tracefs_sql.bash
-test "$(readlink "$LIBDIR/libtracefs.so")" = libtracefs.so.1
-test "$(readlink "$LIBDIR/libtracefs.so.1")" = \
-  "libtracefs.so.$PEKIT_VERSION"
-test "$(find "$LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" \
-  = libtracefs.pc
-
-for txt in "$SRC"/Documentation/libtracefs*.txt; do
-  page=$(basename "$txt" .txt)
-  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
-done
-for txt in "$SRC"/Documentation/libtracefs*.txt.1; do
-  page=$(basename "$txt" .txt.1)
-  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
-done
-find "$DOCSRC/Documentation" -maxdepth 1 -type f -name '*.3' \
-  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.expected-man3"
-find "$PREFIX/share/man/man3" -maxdepth 1 \( -type f -o -type l \) \
-  -name '*.3' -printf '%f\n' | LC_ALL=C sort \
-  > "$PEKIT_OUT/.actual-man3"
-test -s "$PEKIT_OUT/.expected-man3"
-diff -u "$PEKIT_OUT/.expected-man3" "$PEKIT_OUT/.actual-man3"
-find "$DOCSRC/Documentation" -maxdepth 1 -type f -name '*.1' \
-  ! -name '*.txt.1' \
-  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/.expected-man1"
-find "$PREFIX/share/man/man1" -maxdepth 1 \( -type f -o -type l \) \
-  -name '*.1' -printf '%f\n' | LC_ALL=C sort \
-  > "$PEKIT_OUT/.actual-man1"
-test -s "$PEKIT_OUT/.expected-man1"
-diff -u "$PEKIT_OUT/.expected-man1" "$PEKIT_OUT/.actual-man1"
-
-# Rebuild all code from a clean output tree and require byte identity. Reusing
-# the same O= path avoids treating debug comp_dir differences as nondeterminism.
-make -C "$SRC" O="$BUILD" clean
-make -C "$SRC" O="$BUILD" -j"$JOBS" \
-  prefix=/usr \
-  libdir=/usr/lib/x86_64-linux-peios \
-  libdir_relative=lib/x86_64-linux-peios \
-  includedir=/usr/include/tracefs \
-  includedir_relative=include/tracefs \
-  pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig \
-  completion_dir=/usr/share/bash-completion/completions
-cmp "$LIBDIR/libtracefs.a" "$BUILD/lib/libtracefs.a"
-cmp "$LIBDIR/libtracefs.so.$PEKIT_VERSION" \
-  "$BUILD/lib/libtracefs.so.$PEKIT_VERSION"
-
-LIBSO="$LIBDIR/libtracefs.so.$PEKIT_VERSION"
-readelf -d "$LIBSO" | grep -F 'Library soname: [libtracefs.so.1]'
-readelf --dyn-syms -W "$LIBSO" | grep -E ' tracefs_instance_alloc(@|$)'
-
-unset PKG_CONFIG_LIBDIR PKG_CONFIG_SYSROOT_DIR
-export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
-pkgconf --validate libtracefs
-test "$(pkgconf --modversion libtracefs)" = "$PEKIT_VERSION"
-pkgconf --libs libtracefs | grep -Eq '(^|[[:space:]])-ltracefs([[:space:]]|$)'
-pkgconf --cflags libtracefs | grep -F '/usr/include/tracefs'
-grep -F 'libdir=${prefix}/lib/x86_64-linux-peios' \
-  "$LIBDIR/pkgconfig/libtracefs.pc"
-grep -F 'Requires: libtraceevent > 1.8' \
-  "$LIBDIR/pkgconfig/libtracefs.pc"
-
-# Exercise deterministic public APIs through the staged shared and static
-# link surfaces without requiring privileged access to the host tracefs.
-SMOKE="$PEKIT_OUT/.tracefs-smoke"
-mkdir -p "$SMOKE/trace/instances/peios"
-cat > "$SMOKE/consumer.c" <<'EOF'
-#include <tracefs.h>
-#include <stdlib.h>
-#include <string.h>
-
-int main(int argc, char **argv)
-{
-  struct tracefs_dynevent *probe;
-  struct tracefs_instance *instance;
-  enum tracefs_dynevent_type type;
-  char *system = NULL, *event = NULL, *prefix = NULL;
-  char *address = NULL, *format = NULL, *path = NULL;
-  char **list = NULL;
-  int ret = 1;
-
-  if (argc != 2)
-    return 2;
-  instance = tracefs_instance_alloc(argv[1], "peios");
-  if (instance == NULL || strcmp(tracefs_instance_get_name(instance), "peios"))
-    goto out;
-  path = tracefs_instance_get_file(instance, "trace");
-  if (path == NULL || strstr(path, "/instances/peios/trace") == NULL)
-    goto out;
-  tracefs_put_tracing_file(path);
-  path = NULL;
-
-  list = tracefs_list_add(list, "alpha");
-  list = tracefs_list_add(list, "beta");
-  if (list == NULL || tracefs_list_size(list) != 2 || strcmp(list[1], "beta"))
-    goto out;
-  if (tracefs_option_id("event-fork") != TRACEFS_OPTION_EVENT_FORK ||
-      strcmp(tracefs_option_name(TRACEFS_OPTION_EVENT_FORK), "event-fork"))
-    goto out;
-
-  probe = tracefs_kprobe_alloc(NULL, "peios_probe", "do_sys_open",
-                              "fd=%ax");
-  if (probe == NULL)
-    goto out;
-  type = tracefs_dynevent_info(probe, &system, &event, &prefix,
-                               &address, &format);
-  if (type != TRACEFS_DYNEVENT_KPROBE || strcmp(system, "kprobes") ||
-      strcmp(event, "peios_probe") || strcmp(prefix, "p") ||
-      strcmp(address, "do_sys_open") || strcmp(format, "fd=%ax")) {
-    tracefs_dynevent_free(probe);
-    goto out;
-  }
-  tracefs_dynevent_free(probe);
-  ret = 0;
-out:
-  free(system);
-  free(event);
-  free(prefix);
-  free(address);
-  free(format);
-  tracefs_put_tracing_file(path);
-  tracefs_list_free(list);
-  tracefs_instance_free(instance);
-  return ret;
-}
-EOF
-
-cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
-  -I"$PREFIX/include/tracefs" $(pkgconf --cflags libtraceevent) \
-  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -ltracefs \
-  $(pkgconf --libs libtraceevent) -lpthread -o "$SMOKE/shared"
-LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-  "$SMOKE/shared" "$SMOKE/trace"
-cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
-  -I"$PREFIX/include/tracefs" $(pkgconf --cflags libtraceevent) \
-  "$LIBDIR/libtracefs.a" $(pkgconf --libs libtraceevent) -lpthread \
-  -o "$SMOKE/static"
-"$SMOKE/static" "$SMOKE/trace"
+mkdir -p "$PEKIT_OUT/.repro"
+cp "$LIBDIR/libtracefs.a" \
+  "$LIBDIR/libtracefs.so.$PEKIT_VERSION" "$PEKIT_OUT/.repro/"
 
 # Split build-ID debug data and corresponding sources without duplicating
 # debug sections in the runtime package.
@@ -303,54 +146,181 @@ tr '\0' '\n' < "$PEKIT_OUT/.debug-list" | LC_ALL=C sort -u | \
     mkdir -p "usr/src/debug/org.linux.tracefs/$(dirname "$source")"
     cp "$ROOT/$source" "usr/src/debug/org.linux.tracefs/$source"
   done
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
-test -n "$(find usr/src/debug/org.linux.tracefs -type f -print -quit)"
-readelf -S "usr/lib/debug/.build-id/$first/$rest.debug" | grep -F '.debug_info'
-
-# Enforce the final ABI, hardening, dependency and path-leak contract.
-readelf -h "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -Eq 'Type:[[:space:]]+DYN'
-readelf -W -l "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep 'GNU_STACK' | grep -F 'RW '
-readelf -W -l "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F 'GNU_RELRO'
-readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F 'BIND_NOW'
-readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F 'RELR'
-readelf -n "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -E 'x86 feature:.*IBT.*SHSTK'
-if readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-    grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-test "$(readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -c 'Shared library:')" -eq 2
-readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F 'Shared library: [libtraceevent.so.1]'
-readelf -d "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F 'Shared library: [libc.so.6]'
-if strings "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  grep -F "$ROOT"; then exit 1; fi
-
-rm -rf "$BUILD" "$DOCSRC" "$SMOKE" "$XMLTO_COMPAT"
-rm -f "$PEKIT_OUT/.actual-libs" "$PEKIT_OUT/.expected-libs" \
-  "$PEKIT_OUT/.actual-man1" "$PEKIT_OUT/.expected-man1" \
-  "$PEKIT_OUT/.actual-man3" "$PEKIT_OUT/.expected-man3" \
-  "$PEKIT_OUT/.debug-list"
+rm -f "$PEKIT_OUT/.debug-list"
 '''
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+SRC="$(pwd)"
+STAGE="$PEKIT_MAIN_OUT"
+ROOT=$(dirname "$(dirname "$STAGE")")
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+COMPLETION="$PREFIX/share/bash-completion/completions/tracefs_sql.bash"
+SMOKE="$PEKIT_OUT/smoke"
+JOBS=2
+export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+
+if pkgconf --exists cunit; then
+  make -C "$SRC" O="$BUILD" -j1 test
+  "$BUILD/utest/trace-utest" --help >/dev/null
+else
+  echo 'CUnit unavailable; running maintained hermetic tests only' >&2
+fi
+
+test "$(find "$PREFIX/include/tracefs" -mindepth 1 -maxdepth 1 \
+  -type f -printf '%f\n')" = tracefs.h
+find "$LIBDIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
+  -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-libs"
+printf '%s\n' libtracefs.a libtracefs.so libtracefs.so.1 \
+  "libtracefs.so.$PEKIT_VERSION" | LC_ALL=C sort > "$PEKIT_OUT/expected-libs"
+diff -u "$PEKIT_OUT/expected-libs" "$PEKIT_OUT/actual-libs"
+test -s "$COMPLETION"
+test "$(find "$(dirname "$COMPLETION")" -mindepth 1 -maxdepth 1 \
+  -type f -printf '%f\n')" = tracefs_sql.bash
+test "$(readlink "$LIBDIR/libtracefs.so")" = libtracefs.so.1
+test "$(readlink "$LIBDIR/libtracefs.so.1")" = "libtracefs.so.$PEKIT_VERSION"
+test "$(find "$LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" = libtracefs.pc
+
+for txt in "$SRC"/Documentation/libtracefs*.txt; do
+  page=$(basename "$txt" .txt)
+  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
+done
+for txt in "$SRC"/Documentation/libtracefs*.txt.1; do
+  page=$(basename "$txt" .txt.1)
+  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
+done
+for section in 3 1; do
+  find "$STAGE/doc-src/Documentation" -maxdepth 1 -type f -name "*.$section" \
+    ! -name '*.txt.1' -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/expected-man$section"
+  find "$PREFIX/share/man/man$section" -maxdepth 1 \( -type f -o -type l \) \
+    -name "*.$section" -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-man$section"
+  test -s "$PEKIT_OUT/expected-man$section"
+  diff -u "$PEKIT_OUT/expected-man$section" "$PEKIT_OUT/actual-man$section"
+done
+
+make -C "$SRC" O="$BUILD" clean
+make -C "$SRC" O="$BUILD" -j"$JOBS" \
+  prefix=/usr libdir=/usr/lib/x86_64-linux-peios \
+  libdir_relative=lib/x86_64-linux-peios \
+  includedir=/usr/include/tracefs includedir_relative=include/tracefs \
+  pkgconfig_dir=/usr/lib/x86_64-linux-peios/pkgconfig \
+  completion_dir=/usr/share/bash-completion/completions
+cmp "$STAGE/.repro/libtracefs.a" "$BUILD/lib/libtracefs.a"
+cmp "$STAGE/.repro/libtracefs.so.$PEKIT_VERSION" \
+  "$BUILD/lib/libtracefs.so.$PEKIT_VERSION"
+
+LIBSO="$LIBDIR/libtracefs.so.$PEKIT_VERSION"
+readelf -d "$LIBSO" | grep -F 'Library soname: [libtracefs.so.1]'
+readelf --dyn-syms -W "$LIBSO" | grep -E ' tracefs_instance_alloc(@|$)'
+unset PKG_CONFIG_LIBDIR PKG_CONFIG_SYSROOT_DIR
+export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
+pkgconf --validate libtracefs
+test "$(pkgconf --modversion libtracefs)" = "$PEKIT_VERSION"
+pkgconf --libs libtracefs | grep -Eq '(^|[[:space:]])-ltracefs([[:space:]]|$)'
+pkgconf --cflags libtracefs | grep -F '/usr/include/tracefs'
+grep -F 'libdir=${prefix}/lib/x86_64-linux-peios' "$LIBDIR/pkgconfig/libtracefs.pc"
+grep -F 'Requires: libtraceevent > 1.8' "$LIBDIR/pkgconfig/libtracefs.pc"
+
+mkdir -p "$SMOKE/trace/instances/peios"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <tracefs.h>
+#include <stdlib.h>
+#include <string.h>
+int main(int argc, char **argv) {
+  struct tracefs_dynevent *probe; struct tracefs_instance *instance;
+  enum tracefs_dynevent_type type;
+  char *system = NULL, *event = NULL, *prefix = NULL;
+  char *address = NULL, *format = NULL, *path = NULL; char **list = NULL;
+  int ret = 1;
+  if (argc != 2) return 2;
+  instance = tracefs_instance_alloc(argv[1], "peios");
+  if (!instance || strcmp(tracefs_instance_get_name(instance), "peios")) goto out;
+  path = tracefs_instance_get_file(instance, "trace");
+  if (!path || !strstr(path, "/instances/peios/trace")) goto out;
+  tracefs_put_tracing_file(path); path = NULL;
+  list = tracefs_list_add(list, "alpha"); list = tracefs_list_add(list, "beta");
+  if (!list || tracefs_list_size(list) != 2 || strcmp(list[1], "beta")) goto out;
+  if (tracefs_option_id("event-fork") != TRACEFS_OPTION_EVENT_FORK ||
+      strcmp(tracefs_option_name(TRACEFS_OPTION_EVENT_FORK), "event-fork")) goto out;
+  probe = tracefs_kprobe_alloc(NULL, "peios_probe", "do_sys_open", "fd=%ax");
+  if (!probe) goto out;
+  type = tracefs_dynevent_info(probe, &system, &event, &prefix, &address, &format);
+  if (type != TRACEFS_DYNEVENT_KPROBE || strcmp(system, "kprobes") ||
+      strcmp(event, "peios_probe") || strcmp(prefix, "p") ||
+      strcmp(address, "do_sys_open") || strcmp(format, "fd=%ax")) {
+    tracefs_dynevent_free(probe); goto out;
+  }
+  tracefs_dynevent_free(probe); ret = 0;
+out:
+  free(system); free(event); free(prefix); free(address); free(format);
+  tracefs_put_tracing_file(path); tracefs_list_free(list);
+  tracefs_instance_free(instance); return ret;
+}
+EOF
+cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  -I"$PREFIX/include/tracefs" $(pkgconf --cflags libtraceevent) \
+  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -ltracefs \
+  $(pkgconf --libs libtraceevent) -lpthread -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  "$SMOKE/shared" "$SMOKE/trace"
+cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
+  -I"$PREFIX/include/tracefs" $(pkgconf --cflags libtraceevent) \
+  "$LIBDIR/libtracefs.a" $(pkgconf --libs libtraceevent) -lpthread \
+  -o "$SMOKE/static"
+"$SMOKE/static" "$SMOKE/trace"
+
+DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
+test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
+test -n "$(find "$STAGE/usr/src/debug/org.linux.tracefs" -type f -print -quit)"
+readelf -S "$DEBUG" 2>/dev/null | grep -F '.debug_info'
+readelf -h "$LIBSO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$LIBSO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$LIBSO" | grep -F 'GNU_RELRO'
+readelf -d "$LIBSO" | grep -F 'BIND_NOW'
+readelf -d "$LIBSO" | grep -F 'RELR'
+readelf -n "$LIBSO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$LIBSO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+test "$(readelf -d "$LIBSO" | grep -c 'Shared library:')" -eq 2
+readelf -d "$LIBSO" | grep -F 'Shared library: [libtraceevent.so.1]'
+readelf -d "$LIBSO" | grep -F 'Shared library: [libc.so.6]'
+if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.make"                 = "*"
+"org.gnu.bash"                 = "*"
+"org.linux.traceevent-devel"   = ">= 1.9.0-2, < 2"
+"org.pkgconf.pkgconf"          = "*"
+
+[test.dependencies.apt]
+bash              = "*"
+build-essential   = "*"
+libcunit1-dev     = "*"
+libtraceevent-dev = "*"
+pkgconf           = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"              = "*"
-debugedit                           = "*"
-findutils                           = "*"
+"org.sourceware.debugedit"                           = "*"
+"org.gnu.findutils"                           = "*"
 "org.gnu.grep"                    = "*"
 "io.github.asciidoc-py.asciidoc" = "*"
-make                                = "*"
+"org.gnu.make"                                = "*"
 "org.gnu.bash"                    = "*"
 "org.linux.traceevent-devel"      = ">= 1.9.0-2, < 2"
 "org.gnu.which"                   = "*"
-patchelf                            = "*"
-pkgconf                             = "*"
-sed                                 = "*"
+"org.nixos.patchelf"                            = "*"
+"org.pkgconf.pkgconf"                             = "*"
+"org.gnu.sed"                                 = "*"
 
 [build.main.dependencies.apt]
 asciidoc          = "*"

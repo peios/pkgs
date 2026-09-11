@@ -17,9 +17,9 @@ homepage     = "https://www.gnu.org/software/automake/"
 
 [dependencies]
 "org.gnu.autoconf" = ">= 2.72"
-gzip               = "*"
-perl               = ">= 5.6"
-tar                = "*"
+"org.gnu.gzip"               = "*"
+"org.perl.perl"               = ">= 5.6"
+"org.gnu.tar"                = "*"
 
 [files]
 "@source:COPYING*"          = "usr/share/licenses/org.gnu.automake/"

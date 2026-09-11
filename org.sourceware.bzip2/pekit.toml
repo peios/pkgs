@@ -45,10 +45,10 @@ cc $CFLAGS_COMMON -fPIC $LDFLAGS_COMMON -shared -Wl,-soname,libbz2.so.1 \
 cc $CFLAGS_COMMON $LDFLAGS_COMMON -o bzip2-shared bzip2.c \
   "./libbz2.so.$PEKIT_VERSION"
 
-# Rebuild ordinary objects without PIC, exercise upstream's reference vectors,
-# and retain the resulting static archive and recovery tool.
+# Rebuild ordinary objects without PIC and retain the resulting static archive
+# and recovery tool. The upstream reference vectors run in the gate below.
 rm -f ./*.o
-make -j"$(nproc)" \
+make -j"$(nproc)" libbz2.a bzip2 bzip2recover \
   SHELL=/usr/bin/sh \
   CFLAGS="$CFLAGS_COMMON" \
   LDFLAGS="$LDFLAGS_COMMON"
@@ -102,32 +102,6 @@ ln -s bzgrep.1 "$MANDIR/bzegrep.1"
 ln -s bzgrep.1 "$MANDIR/bzfgrep.1"
 install -m 0644 manual.html manual.pdf "$DOCDIR/"
 
-# Installed CLI and ABI integration gate.
-readelf -d "$LIBDIR/libbz2.so.$PEKIT_VERSION" | grep -F 'Library soname: [libbz2.so.1]'
-test "$(readlink "$LIBDIR/libbz2.so.1.0")" = "libbz2.so.$PEKIT_VERSION"
-SMOKE="$PEKIT_OUT/.bzip2-smoke"
-mkdir -p "$SMOKE"
-printf '%s\n' 'Peios bzip2 round-trip' > "$SMOKE/input"
-LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -9c "$SMOKE/input" > "$SMOKE/input.bz2"
-LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -dc "$SMOKE/input.bz2" > "$SMOKE/output"
-cmp "$SMOKE/input" "$SMOKE/output"
-printf '%s\n' \
-  '#include <bzlib.h>' \
-  '#include <string.h>' \
-  'int main(void) {' \
-  '  char in[] = "libbz2 integration"; char compressed[128]; char out[128];' \
-  '  unsigned int clen = sizeof compressed, olen = sizeof out;' \
-  '  if (BZ2_bzBuffToBuffCompress(compressed, &clen, in, strlen(in) + 1, 9, 0, 30) != BZ_OK) return 1;' \
-  '  if (BZ2_bzBuffToBuffDecompress(out, &olen, compressed, clen, 0, 0) != BZ_OK) return 2;' \
-  '  return strcmp(in, out) != 0;' \
-  '}' > "$SMOKE/libbz2.c"
-cc -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
-  -o "$SMOKE/libbz2" "$SMOKE/libbz2.c" -lbz2
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libbz2"
-head -1 "$BINDIR/bzgrep" | grep -Fx '#!/usr/bin/sh'
-head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
-rm -rf "$SMOKE"
-
 # Distribution debug split: scrub build paths, index detached symbols by GNU
 # build ID, strip installed ELF payloads, and retain referenced source files.
 cd "$PEKIT_OUT"
@@ -160,7 +134,6 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   cp "$ROOT/$rel" "usr/src/debug/org.sourceware.bzip2/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-rm -rf "$PEKIT_OUT/build"
 """
 
 [build.main.dependencies.peipkg]
@@ -170,3 +143,62 @@ rm -rf "$PEKIT_OUT/build"
 build-essential = "*"
 debugedit      = "*"
 patchelf       = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+BINDIR="$STAGE/usr/bin"
+SMOKE="$PEKIT_OUT/smoke"
+
+# Upstream's complete 1.0.x verification is its reference-vector target.
+make -C "$BUILD" test
+
+readelf -d "$LIBDIR/libbz2.so.$PEKIT_VERSION" | grep -F 'Library soname: [libbz2.so.1]'
+test "$(readlink "$LIBDIR/libbz2.so.1.0")" = "libbz2.so.$PEKIT_VERSION"
+mkdir -p "$SMOKE"
+printf '%s\n' 'Peios bzip2 round-trip' > "$SMOKE/input"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -9c "$SMOKE/input" > "$SMOKE/input.bz2"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/bzip2" -dc "$SMOKE/input.bz2" > "$SMOKE/output"
+cmp "$SMOKE/input" "$SMOKE/output"
+cat > "$SMOKE/libbz2.c" <<'EOF'
+#include <bzlib.h>
+#include <string.h>
+int main(void) {
+  char in[] = "libbz2 integration", compressed[128], out[128];
+  unsigned int clen = sizeof compressed, olen = sizeof out;
+  if (BZ2_bzBuffToBuffCompress(compressed, &clen, in, strlen(in) + 1, 9, 0, 30) != BZ_OK) return 1;
+  if (BZ2_bzBuffToBuffDecompress(out, &olen, compressed, clen, 0, 0) != BZ_OK) return 2;
+  return strcmp(in, out) != 0;
+}
+EOF
+cc -I"$STAGE/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
+  -o "$SMOKE/libbz2" "$SMOKE/libbz2.c" -lbz2
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libbz2"
+head -1 "$BINDIR/bzgrep" | grep -Fx '#!/usr/bin/sh'
+head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
+
+test -n "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
+test -n "$(find "$STAGE/usr/src/debug/org.sourceware.bzip2" -type f -print -quit)"
+for elf in "$BINDIR/bzip2" "$BINDIR/bzip2recover" "$LIBDIR/libbz2.so.$PEKIT_VERSION"; do
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"

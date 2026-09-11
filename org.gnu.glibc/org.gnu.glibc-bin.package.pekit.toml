@@ -29,10 +29,8 @@ name        = "org.gnu.glibc-bin"
 description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 locale"
 
 [provides]
-"glibc-bin" = "{{version}}-5"
 
 [replaces]
-"glibc-bin" = "<= {{version}}-4"
 
 [dependencies]
 # The programs and their locale/getconf data are one tested family unit with

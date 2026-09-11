@@ -4,14 +4,10 @@
 name        = "cz.ucw.libpci-static"
 description = "pciutils - static libpci library"
 
-[provides]
-"libpci-static"     = "{{version}}"
-"pciutils-static"   = "{{version}}"
-
 [dependencies]
 "cz.ucw.libpci-devel"                   = "{{version}}-1"
 "io.github.eudev-project.eudev-devel" = ">= 3.2.14"
-"zlib-devel"                            = ">= 2.3.3"
+"io.github.zlib-ng.zlib-ng-compat-devel"                            = ">= 2.3.3"
 
 [files]
 "@source:COPYING"                            = "usr/share/licenses/cz.ucw.libpci-static/"

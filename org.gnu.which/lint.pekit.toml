@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The upstream check target and staged path-resolution matrix run inside build.main so package and publish fail closed"

@@ -4,10 +4,9 @@ description = "XZ-aware grep and file-comparison shell utilities"
 license     = "GPL-2.0-or-later"
 
 [provides]
-"xz-utils" = "{{version}}-2"
 
 [dependencies]
-dash                = "*"
+"org.git.kernel.dash"                = "*"
 "dev.peios.peiosutils"          = "*"
 "org.gnu.diffutils" = "*"
 "org.gnu.grep"      = "*"

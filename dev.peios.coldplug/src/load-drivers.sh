@@ -37,38 +37,72 @@ if [ ! -d "$module_root" ]; then
 fi
 
 sys_bus=$(root_path /sys/bus)
-aliases=$(
-    for dev in "$sys_bus"/*/devices/*; do
-        [ -r "$dev/modalias" ] || continue
-        cat "$dev/modalias"
-    done | sort -u
-)
-if [ -z "$aliases" ]; then
-    log_skip "no modaliases under /sys/bus; nothing to load"
-    exit 69
-fi
-
 tmp_root=$(root_path /tmp)
 work=$(mktemp -d "$tmp_root/load-drivers.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 before="$work/before"
 after="$work/after"
+seen="$work/seen"
+current="$work/current"
+pending="$work/pending"
 proc_modules=$(root_path /proc/modules)
+: > "$seen"
 cut -d' ' -f1 "$proc_modules" | sort > "$before"
 
-# -a loads every argument and continues through aliases that resolve to no
-# module; -b honours the blacklist; -q suppresses normal unmatched aliases.
-# Modaliases contain glob metacharacters by design. Disable pathname expansion
-# only while expanding the newline-delimited list so those bytes reach modprobe
-# literally instead of matching a coincidentally named file in the hook's cwd.
-set -f
-# shellcheck disable=SC2086
-modprobe -a -b -q $aliases || true
-set +f
+# Loading a bus driver may enumerate another bus and expose a second wave of
+# modaliases (a modular USB controller revealing a USB storage device, for
+# example). There is no hotplug daemon in the initramfs to catch that wave, so
+# rescan until the set has stayed quiet for a short bounded settling window.
+quiet_limit=${PEIOS_COLDPLUG_QUIET_SCANS:-5}
+scan_limit=${PEIOS_COLDPLUG_SCAN_LIMIT:-50}
+for value in "$quiet_limit" "$scan_limit"; do
+    case "$value" in
+        *[!0-9]*|""|0) log_fail "invalid scan bound '$value'"; exit 2 ;;
+    esac
+done
+unset value
+
+quiet=0
+scans=0
+while [ "$scans" -lt "$scan_limit" ]; do
+    for dev in "$sys_bus"/*/devices/*; do
+        [ -r "$dev/modalias" ] || continue
+        cat "$dev/modalias"
+    done | sort -u > "$current"
+    comm -13 "$seen" "$current" > "$pending"
+
+    if [ -s "$pending" ]; then
+        aliases=$(cat "$pending")
+        # -a loads every argument and continues through aliases that resolve to
+        # no module; -b honours the blacklist; -q suppresses normal unmatched
+        # aliases. Modaliases contain glob metacharacters by design, so disable
+        # pathname expansion while expanding this newline-delimited set.
+        set -f
+        # shellcheck disable=SC2086
+        modprobe -a -b -q $aliases || true
+        set +f
+        cat "$current" > "$seen"
+        quiet=0
+    else
+        quiet=$((quiet + 1))
+        [ "$quiet" -ge "$quiet_limit" ] && break
+        sleep 0.1
+    fi
+    scans=$((scans + 1))
+done
+
+if [ "$scans" -ge "$scan_limit" ]; then
+    log_warn "modalias scan reached its $scan_limit-round bound"
+fi
+
+if [ ! -s "$seen" ]; then
+    log_skip "no modaliases under /sys/bus; nothing to load"
+    exit 69
+fi
 
 cut -d' ' -f1 "$proc_modules" | sort > "$after"
 loaded=$(comm -13 "$before" "$after" | tr '\n' ' ')
-n=$(printf '%s\n' "$aliases" | wc -l)
+n=$(wc -l < "$seen")
 if [ -n "$loaded" ]; then
     log_ok "$n aliases; loaded: $loaded"
 else

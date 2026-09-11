@@ -3,7 +3,6 @@ name        = "org.gnu.diffutils"
 description = "GNU file comparison utilities"
 
 [provides]
-diffutils = "{{version}}"
 
 [dependencies]
 "org.gnu.diffutils-common" = "{{version}}-1"

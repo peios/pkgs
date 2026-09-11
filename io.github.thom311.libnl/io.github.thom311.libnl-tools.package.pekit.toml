@@ -9,11 +9,10 @@ name        = "io.github.thom311.libnl-tools"
 description = "Netlink protocol command-line tools"
 
 [provides]
-libnl-tools = "{{version}}"
 
 [dependencies]
 "io.github.thom311.libnl" = "{{version}}-1"
-glibc                      = ">= 2.43"
+"org.gnu.glibc"                      = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl-tools/"

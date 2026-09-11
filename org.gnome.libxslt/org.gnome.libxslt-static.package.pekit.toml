@@ -3,7 +3,6 @@ name        = "org.gnome.libxslt-static"
 description = "libxslt and libexslt static libraries"
 
 [provides]
-"libxslt-static" = "{{version}}-1"
 
 [dependencies]
 "org.gnome.libxslt-devel" = "{{version}}-1"

@@ -45,6 +45,9 @@ run_hook() {
         PEIOS_COLDPLUG_TEST_ROOT="$root" \
         PEIOS_COLDPLUG_TEST_LOG="$case_dir/modprobe.args" \
         PEIOS_COLDPLUG_MODPROBE_STATUS="${mock_status:-0}" \
+        PEIOS_COLDPLUG_SECOND_ALIAS="${second_alias:-}" \
+        PEIOS_COLDPLUG_QUIET_SCANS=1 \
+        PEIOS_COLDPLUG_SCAN_LIMIT=10 \
         PATH="$tools" \
         "$hook" 2>&1
     )
@@ -91,12 +94,33 @@ assert_status 0
     fail "modprobe arguments were not literal, sorted and unique"
 assert_output 'OK load-drivers: 2 aliases; loaded: newmodule'
 
+# A driver loaded for the first wave may expose another bus device. The hook
+# must rescan and load that child's alias because no hotplug daemon is running.
+new_case
+enable_modprobe
+mkdir -p "$root/lib/modules/test-release" \
+    "$root/sys/bus/pci/devices/parent" "$root/sys/bus/usb/devices/child"
+printf '%s\n' 'pci:parent' > "$root/sys/bus/pci/devices/parent/modalias"
+printf '%s\n' 'existing 1 0 - Live 0x0' > "$root/proc/modules"
+second_alias='usb:child'
+run_hook
+second_alias=
+assert_status 0
+expected=$(printf '%s\n%s' '-a -b -q pci:parent' '-a -b -q usb:child')
+[ "$(cat "$case_dir/modprobe.args")" = "$expected" ] ||
+    fail "newly enumerated alias was not loaded"
+assert_output 'OK load-drivers: 2 aliases; loaded: childmodule newmodule'
+
 # A module refusing to load is reported by the downstream root-mount result,
 # not promoted to an unrelated coldplug boot failure.
+new_case
+enable_modprobe
+mkdir -p "$root/lib/modules/test-release" "$root/sys/bus/pci/devices/a"
+printf '%s\n' 'pci:refused' > "$root/sys/bus/pci/devices/a/modalias"
 mock_status=1
 printf '%s\n' 'existing 1 0 - Live 0x0' > "$root/proc/modules"
 run_hook
 assert_status 0
-assert_output 'OK load-drivers: 2 aliases; nothing new to load'
+assert_output 'OK load-drivers: 1 aliases; nothing new to load'
 
 printf '%s\n' 'coldplug hook tests passed'

@@ -157,31 +157,6 @@ sed -i "s/__PERL_API__/$API/" Makefile
 # link must exist before make first runs it to generate the remaining tree.
 ln -s libperl.so "libperl.so.$API"
 
-# Make the distribution policy observable and fail early if Configure ever
-# stops honouring it.
-grep -Fx "useithreads='define'" config.sh
-grep -Fx "usemultiplicity='define'" config.sh
-grep -Fx "useshrplib='true'" config.sh
-grep -Fx "default_inc_excludes_dot='define'" config.sh
-grep -Fx "cryptlib=''" config.sh
-grep -Fx "d_crypt='undef'" config.sh
-grep -Fx "d_crypt_r='undef'" config.sh
-grep -Fx "privlib='/usr/share/perl5/$API'" config.sh
-grep -Fx "archlib='$LIBDIR/perl5/$API'" config.sh
-grep -Fx "libpth='$LIBDIR /usr/lib'" config.sh
-grep -Fx "glibpth='$LIBDIR /usr/lib'" config.sh
-grep -Fx "plibpth='$LIBDIR /usr/lib'" config.sh
-grep -Fx "incpth='/usr/include'" config.sh
-grep -Fx "libc='$LIBDIR/libc.so.6'" config.sh
-grep -Fx "locincpth=''" config.sh
-grep -Fx "loclibpth=''" config.sh
-grep -Fx "libsdirs=''" config.sh
-grep -Fx "libsfound=''" config.sh
-grep -Fx "libspath='$LIBDIR /usr/lib'" config.sh
-grep -Fx "timeincl='/usr/include/sys/time.h '" config.sh
-grep '^ccflags=' config.sh | grep -F '_FORTIFY_SOURCE=3'
-grep '^ldflags=' config.sh | grep -F -- '-z,now'
-
 export BUILD_ZLIB=0
 export ZLIB_INCLUDE=/usr/include
 export ZLIB_LIB="$DEPLIBDIR"
@@ -196,18 +171,6 @@ export BZIP2_LIB="$DEPLIBDIR"
 BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
 make -j"$(nproc)" LDLIBPTH="$BUILD_LDLIBPTH"
 
-# Upstream's complete suite, excluding only the packaging-inappropriate
-# porting tests selected by upstream's documented switch. The native Peipkg
-# rung also has an intentionally empty network namespace: use upstream's
-# NO_NETWORK_TESTING contract there, extended by our small patch to the IO and
-# raw-ICMP tests which otherwise mistake namespace uid 0 for network access.
-# The Debian reference rung retains the complete loopback/network suite.
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-  export NO_NETWORK_TESTING=1
-fi
-PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \\
-  make LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
-
 make LDLIBPTH="$BUILD_LDLIBPTH" install DESTDIR="$PEKIT_OUT"
 
 ARCHROOT="$PEKIT_OUT$LIBDIR/perl5/$API"
@@ -217,15 +180,6 @@ CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
 # Config is consumed by ExtUtils when future XS modules are built. It must
 # describe the Peios target, never the Debian reference builder or Pekit's
 # disposable staging path.
-if grep -E -- 'x86_64-linux-gnu|/usr/local/include|-L/usr/local/lib' $CONFIG_FILES; then
-  echo "host search path leaked into installed Perl Config" >&2
-  exit 1
-fi
-if grep -F "$PEKIT_OUT" $CONFIG_FILES; then
-  echo "build path leaked into installed Perl Config" >&2
-  exit 1
-fi
-
 # Fedora/Debian-class shared-library layout: full-version real object, stable
 # major.minor SONAME link, and development-only unversioned links. Keep the
 # CORE link because ExtUtils and embedding consumers derive it from Config.
@@ -250,45 +204,6 @@ find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
     patchelf --remove-rpath "$f"
   fi
 done
-
-# Exercise the staged interpreter, threads and the two system-compression XS
-# modules before stripping. Compiled @INC paths point at the final root, so
-# PERL5LIB supplies the equivalent staged locations for this build-time probe.
-STAGED_PERL5LIB="$PEKIT_OUT/usr/share/perl5/$API:$ARCHROOT"
-LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" PERL5LIB="$STAGED_PERL5LIB" \\
-  "$PEKIT_OUT/usr/bin/perl" -MConfig -Mthreads \\
-  -MCompress::Raw::Zlib -MCompress::Raw::Bzip2 -e '
-    die "wrong API path" unless $Config::Config{privlib} eq "/usr/share/perl5/'"$API"'";
-    die "threads disabled" unless $Config::Config{useithreads} eq "define";
-    my $t = threads->create(sub { 42 });
-    die "thread failed" unless $t->join == 42;
-  '
-
-# Compile and execute a minimal embedding consumer against the staged public
-# headers and stable libperl ABI.
-SMOKE="$PEKIT_OUT/.perl-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/embed.c" <<'EOF'
-#include <EXTERN.h>
-#include <perl.h>
-
-int main(int argc, char **argv, char **env) {
-    PerlInterpreter *perl;
-    PERL_SYS_INIT3(&argc, &argv, &env);
-    perl = perl_alloc();
-    if (!perl) return 1;
-    perl_construct(perl);
-    perl_destruct(perl);
-    perl_free(perl);
-    PERL_SYS_TERM();
-    return 0;
-}
-EOF
-gcc ${CFLAGS:-} -I"$PEKIT_OUT/devel$LIBDIR/perl5/$API/CORE" \\
-  ${LDFLAGS:-} -L"$PEKIT_OUT$LIBDIR" -Wl,-rpath-link,"$PEKIT_OUT$LIBDIR" \\
-  -o "$SMOKE/embed" "$SMOKE/embed.c" -l:libperl.so.$API -ldl -lm -lpthread
-LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR" "$SMOKE/embed"
-rm -rf "$SMOKE"
 
 # Conventional build-ID debug packages. Rewrite source paths to the canonical
 # package namespace, split symbols, then stage exactly the referenced sources.
@@ -327,19 +242,98 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r r
   mkdir -p "usr/src/debug/org.perl.perl/$(dirname "$rel")"
   cp "$BUILD/$rel" "usr/src/debug/org.perl.perl/$rel"
 done
-# Debug outputs are part of the package-family contract, not best-effort
-# decoration. Catch a future debugedit/toolchain incompatibility here instead
-# of letting Pekit fail later with an opaque empty-member error.
-find usr/lib/debug -type f -name '*.debug' -print -quit | grep -q .
-find usr/src/debug/org.perl.perl -type f -print -quit | grep -q .
-perl_bid=$(readelf -n usr/bin/perl | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+rm -f "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+if [ -d /usr/lib/x86_64-linux-peios ]; then
+  DEPLIBDIR=/usr/lib/x86_64-linux-peios
+else
+  DEPLIBDIR=/usr/lib/x86_64-linux-gnu
+fi
+V=$(awk '$1=="#define" && $2=="PERL_REVISION"{r=$3} $1=="#define" && $2=="PERL_VERSION"{v=$3} $1=="#define" && $2=="PERL_SUBVERSION"{s=$3} END{print r"."v"."s}' "$BUILD/patchlevel.h")
+API=$(printf '%s\n' "$V" | awk -F. '{print $1"."$2}')
+BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
+
+# Confirm Configure retained the target policy.
+for setting in \
+  "useithreads='define'" "usemultiplicity='define'" "useshrplib='true'" \
+  "default_inc_excludes_dot='define'" "cryptlib=''" "d_crypt='undef'" \
+  "d_crypt_r='undef'" "privlib='/usr/share/perl5/$API'" \
+  "archlib='$LIBDIR/perl5/$API'" "libpth='$LIBDIR /usr/lib'" \
+  "glibpth='$LIBDIR /usr/lib'" "plibpth='$LIBDIR /usr/lib'" \
+  "incpth='/usr/include'" "libc='$LIBDIR/libc.so.6'" "locincpth=''" \
+  "loclibpth=''" "libsdirs=''" "libsfound=''" \
+  "libspath='$LIBDIR /usr/lib'" "timeincl='/usr/include/sys/time.h '"; do
+  grep -Fx "$setting" "$BUILD/config.sh"
+done
+grep '^ccflags=' "$BUILD/config.sh" | grep -F '_FORTIFY_SOURCE=3'
+grep '^ldflags=' "$BUILD/config.sh" | grep -F -- '-z,now'
+
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+  export NO_NETWORK_TESTING=1
+fi
+PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \
+  make -C "$BUILD" LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
+
+ARCHROOT="$STAGE$LIBDIR/perl5/$API"
+CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
+if grep -E -- 'x86_64-linux-gnu|/usr/local/include|-L/usr/local/lib' $CONFIG_FILES; then
+  echo "host search path leaked into installed Perl Config" >&2
+  exit 1
+fi
+if grep -F "$STAGE" $CONFIG_FILES; then
+  echo "build path leaked into installed Perl Config" >&2
+  exit 1
+fi
+
+STAGED_PERL5LIB="$STAGE/usr/share/perl5/$API:$ARCHROOT"
+LD_LIBRARY_PATH="$STAGE$LIBDIR" PERL5LIB="$STAGED_PERL5LIB" \
+  "$STAGE/usr/bin/perl" -MConfig -Mthreads \
+  -MCompress::Raw::Zlib -MCompress::Raw::Bzip2 -e '
+    die "wrong API path" unless $Config::Config{privlib} eq "/usr/share/perl5/'"$API"'";
+    die "threads disabled" unless $Config::Config{useithreads} eq "define";
+    my $t = threads->create(sub { 42 });
+    die "thread failed" unless $t->join == 42;
+  '
+
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/embed.c" <<'EOF'
+#include <EXTERN.h>
+#include <perl.h>
+int main(int argc, char **argv, char **env) {
+    PerlInterpreter *perl;
+    PERL_SYS_INIT3(&argc, &argv, &env);
+    perl = perl_alloc();
+    if (!perl) return 1;
+    perl_construct(perl); perl_destruct(perl); perl_free(perl);
+    PERL_SYS_TERM();
+    return 0;
+}
+EOF
+gcc ${CFLAGS:-} -I"$STAGE/devel$LIBDIR/perl5/$API/CORE" \
+  ${LDFLAGS:-} -L"$STAGE$LIBDIR" -Wl,-rpath-link,"$STAGE$LIBDIR" \
+  -o "$SMOKE/embed" "$SMOKE/embed.c" -l:libperl.so.$API -ldl -lm -lpthread
+LD_LIBRARY_PATH="$STAGE$LIBDIR" "$SMOKE/embed"
+
+find "$STAGE/usr/lib/debug" -type f -name '*.debug' -print -quit | grep -q .
+find "$STAGE/usr/src/debug/org.perl.perl" -type f -print -quit | grep -q .
+perl_bid=$(readelf -n "$STAGE/usr/bin/perl" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
 perl_p2=$(printf %s "$perl_bid" | cut -c1-2)
 perl_rest=$(printf %s "$perl_bid" | cut -c3-)
-readelf -SW "usr/lib/debug/.build-id/$perl_p2/$perl_rest.debug" | grep -F '.debug_info'
-rm -f "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+readelf -SW "$STAGE/usr/lib/debug/.build-id/$perl_p2/$perl_rest.debug" 2>/dev/null \
+  | grep -F '.debug_info'
 
-# Final loader/hardening gates apply to the actual shipped ELF set.
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' | while IFS= read -r f; do
+find "$STAGE/usr" -type f ! -type l -not -path '*/usr/lib/debug/*' | \
+while IFS= read -r f; do
   readelf -h "$f" >/dev/null 2>&1 || continue
   readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -d "$f" | grep -F 'BIND_NOW'
@@ -349,17 +343,26 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' | while IFS= read -r f; 
     exit 1
   fi
 done
-readelf -d "$PEKIT_OUT$LIBDIR/libperl.so.$V" \\
-  | grep -F "Library soname: [libperl.so.$API]"
+readelf -d "$STAGE$LIBDIR/libperl.so.$V" | grep -F "Library soname: [libperl.so.$API]"
+'''
 
-rm -rf "$BUILD"
-"""
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c"             = "*"
+"org.debian.netbase"                       = ">= 6.6"
+"io.github.zlib-ng.zlib-ng-compat-devel"   = ">= 2.3.3"
+"org.sourceware.bzip2-devel"               = ">= 1.0.8"
+
+[test.dependencies.apt]
+build-essential = "*"
+zlib1g-dev      = "*"
+libbz2-dev      = "*"
+netbase         = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"             = "*"
-debugedit                      = ">= 5.2"
+"org.sourceware.debugedit"                      = ">= 5.2"
 "org.debian.netbase"          = ">= 6.6"
-zlib-devel                     = ">= 2.3.3"
+"io.github.zlib-ng.zlib-ng-compat-devel"                     = ">= 2.3.3"
 "org.nixos.patchelf"          = ">= 0.19.1"
 "org.sourceware.bzip2-devel"  = ">= 1.0.8"
 

@@ -31,9 +31,6 @@ cd "$PEKIT_OUT"
   --libdir=/usr/lib/x86_64-linux-peios \
   --enable-shared --enable-static --disable-nls
 make -j"$(nproc)"
-# This includes Flex's C, C++, reentrant, Bison-interoperability, tables,
-# pthread and self-hosted scanner cases.
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios has no Info reader. Keep the command manual, but do not ship orphaned
@@ -43,69 +40,9 @@ find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -name '*.la' -delete
 
 BIN="$PEKIT_OUT/usr/bin/flex"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
-test "$(readlink "$PEKIT_OUT/usr/bin/flex++")" = flex
-test "$(readlink "$LIBDIR/libfl.so")" = libfl.so.2.0.0
-test "$(readlink "$LIBDIR/libfl.so.2")" = libfl.so.2.0.0
-
-# Exercise the staged generator, its m4 runtime, generated C and C++ scanners,
-# and libfl's public link interface. These probes test installed interfaces,
-# rather than merely rerunning in-tree test binaries.
-SMOKE="$PEKIT_OUT/.flex-smoke"
-mkdir -p "$SMOKE"
-printf '%s\n' \
-  '%option noyywrap nodefault' \
-  '%%' \
-  '[0-9]+ { printf("N:%s\\n", yytext); }' \
-  '[[:space:]]+ ;' \
-  '. return 2;' \
-  '%%' \
-  'int main(void) { return yylex(); }' > "$SMOKE/scanner.l"
-"$BIN" --warn -o "$SMOKE/scanner.c" "$SMOKE/scanner.l"
-cc -Werror -o "$SMOKE/scanner" "$SMOKE/scanner.c"
-printf '%s\n' '12 34' | "$SMOKE/scanner" > "$SMOKE/c.out"
-printf '%s\n' N:12 N:34 > "$SMOKE/c.expected"
-cmp "$SMOKE/c.expected" "$SMOKE/c.out"
-
-printf '%s\n' \
-  '%option c++ noyywrap nodefault' \
-  '%%' \
-  '[a-z]+ { std::cout << "W:" << YYText() << std::endl; }' \
-  '[[:space:]]+ ;' \
-  '. return 2;' \
-  '%%' > "$SMOKE/scanner.ll"
-printf '%s\n' \
-  '#include <FlexLexer.h>' \
-  'int main(void) { yyFlexLexer scanner; return scanner.yylex(); }' \
-  > "$SMOKE/cxx-main.cc"
-"$PEKIT_OUT/usr/bin/flex++" --warn -o "$SMOKE/scanner.cc" "$SMOKE/scanner.ll"
-c++ -Werror -I"$PEKIT_OUT/usr/include" -o "$SMOKE/scanner-cxx" \
-  "$SMOKE/scanner.cc" "$SMOKE/cxx-main.cc"
-printf '%s\n' 'alpha beta' | "$SMOKE/scanner-cxx" > "$SMOKE/cxx.out"
-printf '%s\n' W:alpha W:beta > "$SMOKE/cxx.expected"
-cmp "$SMOKE/cxx.expected" "$SMOKE/cxx.out"
-
-printf '%s\n' \
-  '%%' \
-  '[a-z]+ ECHO;' \
-  '[[:space:]]+ ECHO;' \
-  '%%' > "$SMOKE/libfl.l"
-"$BIN" --warn -o "$SMOKE/libfl.c" "$SMOKE/libfl.l"
-cc -Werror -o "$SMOKE/libfl" "$SMOKE/libfl.c" \
-  -L"$LIBDIR" -Wl,-rpath,"$LIBDIR" -lfl
-printf '%s\n' libfl | "$SMOKE/libfl" > "$SMOKE/libfl.out"
-printf '%s\n' libfl > "$SMOKE/libfl.expected"
-cmp "$SMOKE/libfl.expected" "$SMOKE/libfl.out"
-
-"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
 for elf in "$BIN" "$LIBDIR/libfl.so.2.0.0"; do
   patchelf --remove-rpath "$elf" 2>/dev/null || true
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
-rm -rf "$SMOKE"
 
 # Conventional build-ID debuginfo and exact DWARF-referenced sources for both
 # the generator and libfl runtime.
@@ -139,7 +76,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.bison" = "*"
-m4 = "*"
+"org.gnu.m4" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -149,16 +86,73 @@ m4 = "*"
 patchelf = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/flex"
-test -f "$PEKIT_MAIN_OUT/usr/include/FlexLexer.h"
-test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libfl.a"
+# This includes Flex's C, C++, reentrant, Bison-interoperability, tables,
+# pthread and self-hosted scanner cases.
+cd "$PEKIT_MAIN_OUT"
+make -j"$(nproc)" check
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/flex"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+test -x "$BIN"
+test -f "$STAGE/usr/include/FlexLexer.h"
+test -f "$LIBDIR/libfl.a"
+test "$(readlink "$STAGE/usr/bin/flex++")" = flex
+test "$(readlink "$LIBDIR/libfl.so")" = libfl.so.2.0.0
+test "$(readlink "$LIBDIR/libfl.so.2")" = libfl.so.2.0.0
+
+SMOKE="$PEKIT_OUT/flex-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' '%option noyywrap nodefault' '%%' \
+  '[0-9]+ { printf("N:%s\\n", yytext); }' '[[:space:]]+ ;' '. return 2;' \
+  '%%' 'int main(void) { return yylex(); }' > "$SMOKE/scanner.l"
+"$BIN" --warn -o "$SMOKE/scanner.c" "$SMOKE/scanner.l"
+cc -Werror -o "$SMOKE/scanner" "$SMOKE/scanner.c"
+printf '%s\n' '12 34' | "$SMOKE/scanner" > "$SMOKE/c.out"
+printf '%s\n' N:12 N:34 > "$SMOKE/c.expected"
+cmp "$SMOKE/c.expected" "$SMOKE/c.out"
+
+printf '%s\n' '%option c++ noyywrap nodefault' '%%' \
+  '[a-z]+ { std::cout << "W:" << YYText() << std::endl; }' \
+  '[[:space:]]+ ;' '. return 2;' '%%' > "$SMOKE/scanner.ll"
+printf '%s\n' '#include <FlexLexer.h>' \
+  'int main(void) { yyFlexLexer scanner; return scanner.yylex(); }' > "$SMOKE/cxx-main.cc"
+"$STAGE/usr/bin/flex++" --warn -o "$SMOKE/scanner.cc" "$SMOKE/scanner.ll"
+c++ -Werror -I"$STAGE/usr/include" -o "$SMOKE/scanner-cxx" \
+  "$SMOKE/scanner.cc" "$SMOKE/cxx-main.cc"
+printf '%s\n' 'alpha beta' | "$SMOKE/scanner-cxx" > "$SMOKE/cxx.out"
+printf '%s\n' W:alpha W:beta > "$SMOKE/cxx.expected"
+cmp "$SMOKE/cxx.expected" "$SMOKE/cxx.out"
+
+printf '%s\n' '%%' '[a-z]+ ECHO;' '[[:space:]]+ ECHO;' '%%' > "$SMOKE/libfl.l"
+"$BIN" --warn -o "$SMOKE/libfl.c" "$SMOKE/libfl.l"
+cc -Werror -o "$SMOKE/libfl" "$SMOKE/libfl.c" \
+  -L"$LIBDIR" -Wl,-rpath,"$LIBDIR" -lfl
+printf '%s\n' libfl | "$SMOKE/libfl" > "$SMOKE/libfl.out"
+printf '%s\n' libfl > "$SMOKE/libfl.expected"
+cmp "$SMOKE/libfl.expected" "$SMOKE/libfl.out"
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+for elf in "$BIN" "$LIBDIR/libfl.so.2.0.0"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.bison" = "*"
+"org.gnu.m4" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+bison = "*"
+m4 = "*"
 dash = "*"

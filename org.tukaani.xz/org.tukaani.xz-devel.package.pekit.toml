@@ -4,10 +4,8 @@ description = "XZ Utils liblzma headers and shared-library link metadata"
 license     = "0BSD"
 
 [provides]
-"xz-devel" = "{{version}}-2"
 
 [replaces]
-"xz-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.tukaani.xz-libs" = "{{version}}-2"

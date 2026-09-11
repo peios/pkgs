@@ -4,7 +4,6 @@ description  = "S-Lang programming and interpreter documentation"
 architecture = "noarch"
 
 [provides]
-"slang-doc" = "{{version}}"
 
 [files]
 "@source:COPYING"                     = "usr/share/licenses/org.jedsoft.slang-doc/"

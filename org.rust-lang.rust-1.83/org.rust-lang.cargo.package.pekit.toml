@@ -5,14 +5,13 @@ name        = "org.rust-lang.cargo"
 description = "Package manager and build tool for Rust"
 
 [provides]
-cargo = "{{version}}-2"
 
 [dependencies]
 "org.rust-lang.rustc"       = "= {{version}}-2"
 "org.rust-lang.rust-common" = "= {{version}}-2"
-glibc                   = ">= 2.43"
-libgcc                  = ">= 16"
-zlib                    = ">= 2.3.3"
+"org.gnu.glibc"                   = ">= 2.43"
+"org.gnu.gcc-libgcc"                  = ">= 16"
+"io.github.zlib-ng.zlib-ng-compat"                    = ">= 2.3.3"
 "org.openssl.libssl"    = ">= 3.5"
 "org.openssl.libcrypto" = ">= 3.5"
 

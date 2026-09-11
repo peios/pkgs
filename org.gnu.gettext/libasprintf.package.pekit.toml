@@ -6,13 +6,11 @@ description = "GNU autosprintf shared library"
 license     = "LGPL-2.1-or-later"
 
 [provides]
-libasprintf = "{{version}}"
 
 [replaces]
-libasprintf = "<= {{version}}-2"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:gettext-runtime/libasprintf/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext-libasprintf/COPYING.LIB"

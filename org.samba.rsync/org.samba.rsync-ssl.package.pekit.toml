@@ -9,7 +9,7 @@ description  = "rsync - TLS transport wrapper"
 architecture = "noarch"
 
 [dependencies]
-ca-certificates       = "*"
+"org.mozilla.ca-certificates"       = "*"
 "org.gnu.bash"        = "*"
 "org.openssl.openssl" = "*"
 "org.samba.rsync"     = "{{version}}-1"

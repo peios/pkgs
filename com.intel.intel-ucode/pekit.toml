@@ -34,137 +34,13 @@ DEST="$PEKIT_OUT/++/intel-ucode/kernel/x86/microcode"
 LICENSE_DIR="$PEKIT_OUT/usr/share/licenses/com.intel.intel-ucode"
 DOC_DIR="$PEKIT_OUT/usr/share/doc/com.intel.intel-ucode"
 FILE_LIST="$PEKIT_OUT/.intel-ucode-files"
-HEADER_TMP="$PEKIT_OUT/.intel-microcode-header"
-RECORD_TMP="$PEKIT_OUT/.intel-microcode-record"
 BLOB="$DEST/GenuineIntel.bin"
 BLOB_CHECK="$PEKIT_OUT/.GenuineIntel.bin.check"
+VALIDATOR="$PEKIT_RECIPE_ROOT/tools/validate-intel-ucode.sh"
 
 fail_microcode() {
   printf '%s\n' "intel microcode validation failed: $*" >&2
   exit 1
-}
-
-validate_checksum_region() {
-  region_file="$1"
-  region_offset="$2"
-  region_size="$3"
-  dd if="$region_file" of="$RECORD_TMP" bs=4 skip=$((region_offset / 4)) \
-    count=$((region_size / 4)) status=none
-  test "$(wc -c < "$RECORD_TMP")" -eq "$region_size" || return 1
-  od -An -v -tu4 -w4 "$RECORD_TMP" \
-    | awk '{ sum += $1; while (sum >= 4294967296) sum -= 4294967296 }
-           END { exit(sum == 0 ? 0 : 1) }'
-}
-
-# Intel update files may contain multiple records. Validate each record's
-# header, optional extended-signature table, declared sizes and little-endian
-# 32-bit additive checksums. Current Intel data uses formerly-reserved main
-# header words, so those words are intentionally left opaque, as Linux does.
-validate_microcode_file() {
-  file="$1"
-  file_size="$(wc -c < "$file")"
-  test "$file_size" -gt 0 || fail_microcode "$file is empty"
-  test $((file_size % 4)) -eq 0 \
-    || fail_microcode "$file is not a sequence of 32-bit words"
-
-  offset=0
-  records=0
-  while test "$offset" -lt "$file_size"; do
-    remaining=$((file_size - offset))
-    test "$remaining" -ge 48 \
-      || fail_microcode "$file has a truncated header at byte $offset"
-
-    dd if="$file" of="$HEADER_TMP" bs=4 skip=$((offset / 4)) count=12 status=none
-    set -- $(od -An -v -tu4 "$HEADER_TMP")
-    test "$#" -eq 12 \
-      || fail_microcode "$file has an unreadable header at byte $offset"
-
-    header_version="$1"
-    update_revision="$2"
-    processor_signature="$4"
-    main_checksum="$5"
-    loader_revision="$6"
-    processor_flags="$7"
-    data_size="$8"
-    total_size="$9"
-
-    test "$header_version" -eq 1 \
-      || fail_microcode "$file record at byte $offset has header version $header_version"
-    test "$loader_revision" -eq 1 \
-      || fail_microcode "$file record at byte $offset has loader revision $loader_revision"
-    test "$update_revision" -ne 0 \
-      || fail_microcode "$file record at byte $offset has revision zero"
-    test "$processor_signature" -ne 0 \
-      || fail_microcode "$file record at byte $offset has processor signature zero"
-    if test "$data_size" -eq 0; then
-      test "$total_size" -eq 0 \
-        || fail_microcode "$file legacy record at byte $offset has an inconsistent total size"
-      record_size=2048
-      base_size=2048
-      extension_size=0
-    else
-      test $((data_size % 4)) -eq 0 \
-        || fail_microcode "$file record at byte $offset has an unaligned data size"
-      test "$total_size" -ge $((48 + data_size)) \
-        || fail_microcode "$file record at byte $offset is smaller than its data"
-      test $((total_size % 1024)) -eq 0 \
-        || fail_microcode "$file record at byte $offset is not 1-KiB aligned"
-      record_size="$total_size"
-      base_size=$((48 + data_size))
-      extension_size=$((record_size - base_size))
-    fi
-
-    test "$record_size" -le "$remaining" \
-      || fail_microcode "$file record at byte $offset overruns the file"
-    if test "$extension_size" -gt 0; then
-      test "$extension_size" -ge 20 \
-        || fail_microcode "$file record at byte $offset has a truncated extended-signature header"
-      test $(((extension_size - 20) % 12)) -eq 0 \
-        || fail_microcode "$file record at byte $offset has a malformed extended-signature table"
-      extension_offset=$((offset + base_size))
-      dd if="$file" of="$HEADER_TMP" bs=4 skip=$((extension_offset / 4)) \
-        count=5 status=none
-      set -- $(od -An -v -tu4 "$HEADER_TMP")
-      test "$#" -eq 5 \
-        || fail_microcode "$file record at byte $offset has an unreadable extended-signature header"
-      signature_count="$1"
-      test "$signature_count" -eq $(((extension_size - 20) / 12)) \
-        || fail_microcode "$file record at byte $offset has an inconsistent extended-signature count"
-      test "$3" -eq 0 -a "$4" -eq 0 -a "$5" -eq 0 \
-        || fail_microcode "$file record at byte $offset has nonzero extended-signature reserved fields"
-      # Match Linux's per-entry validation as well as the table checksum. Each
-      # alternate signature replaces the main header's signature, platform
-      # flags and checksum, so those three dwords must retain the same sum.
-      main_signature_sum=$(((processor_signature + processor_flags + main_checksum) % 4294967296))
-      signature_index=0
-      while test "$signature_index" -lt "$signature_count"; do
-        signature_offset=$((extension_offset + 20 + signature_index * 12))
-        dd if="$file" of="$HEADER_TMP" bs=4 skip=$((signature_offset / 4)) \
-          count=3 status=none
-        set -- $(od -An -v -tu4 "$HEADER_TMP")
-        test "$#" -eq 3 \
-          || fail_microcode "$file record at byte $offset has an unreadable extended signature"
-        extended_signature_sum=$((($1 + $2 + $3) % 4294967296))
-        test "$extended_signature_sum" -eq "$main_signature_sum" \
-          || fail_microcode "$file record at byte $offset has a bad extended-signature checksum"
-        signature_index=$((signature_index + 1))
-      done
-      validate_checksum_region "$file" "$offset" "$base_size" \
-        || fail_microcode "$file record at byte $offset has a bad update checksum"
-      validate_checksum_region "$file" "$extension_offset" "$extension_size" \
-        || fail_microcode "$file record at byte $offset has a bad extended-signature checksum"
-    else
-      validate_checksum_region "$file" "$offset" "$record_size" \
-        || fail_microcode "$file record at byte $offset has a bad 32-bit checksum"
-    fi
-
-    offset=$((offset + record_size))
-    records=$((records + 1))
-  done
-
-  test "$offset" -eq "$file_size" \
-    || fail_microcode "$file did not end on a record boundary"
-  printf 'validated %s (%s records)\n' "$file" "$records"
 }
 
 mkdir -p "$DEST" "$LICENSE_DIR" "$DOC_DIR"
@@ -184,7 +60,7 @@ while IFS= read -r file; do
       ;;
     *) fail_microcode "$file is outside the production microcode directory" ;;
   esac
-  validate_microcode_file "$file"
+  sh "$VALIDATOR" "$file"
 done < "$FILE_LIST"
 
 # Build twice from the sorted manifest and compare their SHA-256 digests. This
@@ -197,7 +73,7 @@ test -s "$BLOB"
 test "$(sha256sum "$BLOB" | awk '{ print $1 }')" = \
      "$(sha256sum "$BLOB_CHECK" | awk '{ print $1 }')" \
   || fail_microcode "independent deterministic concatenations differ"
-validate_microcode_file "$BLOB"
+sh "$VALIDATOR" "$BLOB"
 
 test -f "$SRC/license" || fail_microcode "upstream license is missing"
 test -f "$SRC/README.md" || fail_microcode "upstream README.md is missing"
@@ -206,16 +82,16 @@ test -f "$SRC/security.md" || fail_microcode "upstream security.md is missing"
 cp "$SRC/license" "$LICENSE_DIR/LICENSE"
 cp "$SRC/README.md" "$SRC/releasenote.md" "$SRC/security.md" "$DOC_DIR/"
 
-rm -f "$FILE_LIST" "$HEADER_TMP" "$RECORD_TMP" "$BLOB_CHECK"
+rm -f "$FILE_LIST" "$BLOB_CHECK"
 """
 
 # The peipkg build root contains only declared tools. Apt retains a usable
 # bootstrap/development path; production inherits the workspace peipkg env.
 [build.main.dependencies.peipkg]
-dash                = "*"
-"org.gnu.coreutils" = "*"
-findutils           = "*"
-"org.gnu.gawk"      = "*"
+"org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.gawk" = "*"
 
 [build.main.dependencies.apt]
 dash      = "*"
@@ -224,15 +100,62 @@ findutils = "*"
 gawk      = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -s "$PEKIT_MAIN_OUT/++/intel-ucode/kernel/x86/microcode/GenuineIntel.bin"
-test -d "$PEKIT_MAIN_OUT/usr/share/licenses/com.intel.intel-ucode"
+SRC="$PEKIT_SOURCE_ROOT"
+BLOB="$PEKIT_MAIN_OUT/++/intel-ucode/kernel/x86/microcode/GenuineIntel.bin"
+VALIDATOR="$PEKIT_RECIPE_ROOT/tools/validate-intel-ucode.sh"
+WORK="$PEKIT_OUT/intel-ucode-gate"
+FILE_LIST="$WORK/files"
+EXPECTED="$WORK/GenuineIntel.bin"
+
+mkdir -p "$WORK"
+find "$SRC/intel-ucode" -maxdepth 1 -type f \
+  -name '[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]' \
+  -print | LC_ALL=C sort > "$FILE_LIST"
+test -s "$FILE_LIST"
+test "$(wc -l < "$FILE_LIST")" -eq \
+     "$(find "$SRC/intel-ucode" -maxdepth 1 -type f -print | wc -l)"
+
+: > "$EXPECTED"
+while IFS= read -r file; do
+  sh "$VALIDATOR" "$file"
+  cat "$file" >> "$EXPECTED"
+done < "$FILE_LIST"
+cmp "$EXPECTED" "$BLOB"
+sh "$VALIDATOR" "$BLOB"
+
+# Prove the validator fails closed rather than merely accepting today's input.
+# The first byte is the low byte of header_version (normally 1); zeroing it
+# must make the staged container invalid before any checksum ambiguity arises.
+CORRUPT="$WORK/GenuineIntel.corrupt.bin"
+cp "$BLOB" "$CORRUPT"
+dd if=/dev/zero of="$CORRUPT" bs=1 seek=0 count=1 conv=notrunc status=none
+if sh "$VALIDATOR" "$CORRUPT" >"$WORK/corrupt.log" 2>&1; then
+  echo "intel-ucode: validator accepted a corrupted header" >&2
+  exit 1
+fi
+grep -F 'header version 0' "$WORK/corrupt.log"
+
+test -s "$PEKIT_MAIN_OUT/usr/share/licenses/com.intel.intel-ucode/LICENSE"
+test -s "$PEKIT_MAIN_OUT/usr/share/doc/com.intel.intel-ucode/README.md"
+test -s "$PEKIT_MAIN_OUT/usr/share/doc/com.intel.intel-ucode/releasenote.md"
+test -s "$PEKIT_MAIN_OUT/usr/share/doc/com.intel.intel-ucode/security.md"
+rm -rf "$WORK"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.gawk" = "*"
 
 [test.dependencies.apt]
 dash = "*"
+coreutils = "*"
+diffutils = "*"
+findutils = "*"
+gawk = "*"

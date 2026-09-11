@@ -78,15 +78,6 @@ gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/go.1" \
 gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/gofmt.1" \
   > "$PEKIT_OUT/usr/share/man/man1/gofmt.1.gz"
 
-export PATH="$GOROOT/bin:$PATH"
-export GOROOT
-test "$(go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
-test "$(go env GOROOT)" = "$GOROOT"
-test "$(go env GOOS)" = linux
-test "$(go env GOARCH)" = amd64
-test -x "$GOROOT/pkg/tool/linux_amd64/compile"
-test -d "$GOROOT/src/runtime"
-
 # As with the bootstrap seed, Go's source tree contains foreign ELF samples
 # for debug-package tests. They are not runtime payload and must not create
 # dependencies for the independently packaged source tree.
@@ -135,7 +126,6 @@ while IFS= read -r elf; do
   ! readelf -dW "$elf" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'
   ! grep -aF "$SRC" "$elf" "$debug" >/dev/null
 done
-test -n "$(find "$PEKIT_OUT/debug/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
 rm -rf "$PEKIT_OUT/.gocache"
 '''
 
@@ -154,6 +144,7 @@ binutils        = "*"
 gzip            = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
@@ -167,6 +158,8 @@ export GOMAXPROCS="${PEKIT_GO_JOBS:-2}"
 
 test "$(go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
 test "$(go env GOROOT)" = "$DIST_GOROOT"
+test "$(go env GOOS)" = linux
+test "$(go env GOARCH)" = amd64
 test -x "$PACKAGED_GOROOT/pkg/tool/linux_amd64/compile"
 test -d "$PACKAGED_GOROOT/src/runtime"
 
@@ -224,6 +217,20 @@ test "$($SMOKE/a/hello)" = peios-go-ok
 a_sum=$(sha256sum "$SMOKE/a/hello"); a_sum=${a_sum%% *}
 b_sum=$(sha256sum "$SMOKE/b/hello"); b_sum=${b_sum%% *}
 test "$a_sum" = "$b_sum"
+
+# Validate the split-symbol payload and every stripped executable after staging.
+DEBUG_ROOT="$PEKIT_MAIN_OUT/debug/usr/lib/debug/.build-id"
+test -n "$(find "$DEBUG_ROOT" -type f -name '*.debug' -print -quit)"
+for debug in $(find "$DEBUG_ROOT" -type f -name '*.debug'); do
+  readelf -sW "$debug" | grep 'FUNC' >/dev/null
+done
+find "$PACKAGED_GOROOT/bin" "$PACKAGED_GOROOT/pkg/tool/linux_amd64" \
+  -type f -perm -0100 -print | while IFS= read -r elf; do
+    readelf -h "$elf" >/dev/null 2>&1 || continue
+    readelf -S "$elf" | grep -F '.gnu_debuglink'
+    if readelf -dW "$elf" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+    if grep -aF "$DIST_GOROOT" "$elf" >/dev/null; then exit 1; fi
+  done
 '''
 
 [test.dependencies.peipkg]

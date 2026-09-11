@@ -46,10 +46,6 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
   --disable-silent-rules
 
 make -j"$(nproc)"
-# Release 2.25 has no dedicated test cases, but its Automake check target is
-# still the complete upstream verification entry point and will pick up tests
-# added by a future automatically selected 2.x release.
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios currently has no Info reader. The corresponding-source package retains
@@ -58,22 +54,76 @@ make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/info"
 
 BIN="$PEKIT_OUT/usr/bin/which"
-SMOKE="$PEKIT_OUT/.which-smoke"
+
+# Enforce the inherited distribution hardening and runtime-closure contract
+# on the sole installed ELF before creating conventional build-ID debuginfo.
+patchelf --remove-rpath "$BIN" 2>/dev/null || true
+patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
+
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.which \
+  -l "$PEKIT_OUT/.srclist" -n usr/bin/which
+bid=$(readelf -n usr/bin/which \
+  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug usr/bin/which \
+  "usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+strip usr/bin/which
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
+  | while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      case "$rel" in */) continue;; esac
+      [ -f "$ROOT/$rel" ] || continue
+      mkdir -p "usr/src/debug/org.gnu.which/$(dirname "$rel")"
+      cp "$ROOT/$rel" "usr/src/debug/org.gnu.which/$rel"
+    done
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+# The installed binary is C-only, but upstream's cwm4 configure layer invokes
+# AC_PROG_CXX and tests C++ warning flags even for this package.
+"dev.peios.build-essentials-c++" = "*"
+"org.sourceware.debugedit"              = "*"
+"org.nixos.patchelf"               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/which"
+SMOKE="$PEKIT_OUT/smoke"
+ROOT=$(dirname "$(dirname "$STAGE")")
+cd "$STAGE"
+
+# This release has no dedicated cases, but the upstream check target is the
+# stable entry point that will pick up tests in future automatically selected
+# releases.
+make -j"$(nproc)" check
+
 mkdir -p "$SMOKE/a" "$SMOKE/b"
 test -x "$BIN"
-
-# Validate PATH order, --all, executable filtering and explicit paths using
-# only controlled staged fixtures rather than whichever commands the builder
-# happens to expose.
-printf '%s\\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/a/tool"
-printf '%s\\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/b/tool"
-printf '%s\\n' 'not executable' > "$SMOKE/a/hidden"
+printf '%s\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/a/tool"
+printf '%s\n' '#!/usr/bin/sh' 'exit 0' > "$SMOKE/b/tool"
+printf '%s\n' 'not executable' > "$SMOKE/a/hidden"
 chmod 0755 "$SMOKE/a/tool" "$SMOKE/b/tool"
 chmod 0644 "$SMOKE/a/hidden"
 PATH="$SMOKE/a:$SMOKE/b" "$BIN" tool > "$SMOKE/first"
 test "$(cat "$SMOKE/first")" = "$SMOKE/a/tool"
 PATH="$SMOKE/a:$SMOKE/b" "$BIN" --all tool > "$SMOKE/all"
-printf '%s\\n' "$SMOKE/a/tool" "$SMOKE/b/tool" > "$SMOKE/all.expected"
+printf '%s\n' "$SMOKE/a/tool" "$SMOKE/b/tool" > "$SMOKE/all.expected"
 cmp "$SMOKE/all.expected" "$SMOKE/all"
 status=0
 PATH="$SMOKE/a" "$BIN" hidden > "$SMOKE/hidden.out" \
@@ -90,19 +140,12 @@ grep -F 'no hidden in' "$SMOKE/hidden.err"
   PATH='./a' "$BIN" --show-dot tool > shown-dot
   test "$(cat shown-dot)" = './a/tool'
 )
-
-# Exercise the shell-alias input mode while resolving the alias body through
-# the same deterministic PATH fixtures.
-printf '%s\\n' "alias pick='tool --flag'" \
+printf '%s\n' "alias pick='tool --flag'" \
   | PATH="$SMOKE/a:$SMOKE/b" "$BIN" --read-alias pick > "$SMOKE/alias"
-printf '%s\\n\\t%s\\n' "alias pick='tool --flag'" "$SMOKE/a/tool" \
+printf '%s\n\t%s\n' "alias pick='tool --flag'" "$SMOKE/a/tool" \
   > "$SMOKE/alias.expected"
 cmp "$SMOKE/alias.expected" "$SMOKE/alias"
 
-# Enforce the inherited distribution hardening and runtime-closure contract
-# on the sole installed ELF before creating conventional build-ID debuginfo.
-patchelf --remove-rpath "$BIN" 2>/dev/null || true
-patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
 "$BIN" --version | head -1 | grep -F "v$PEKIT_VERSION"
 "$BIN" --help | grep -F 'Write the full path of COMMAND(s)'
 readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
@@ -113,49 +156,22 @@ readelf -d "$BIN" | grep -F 'RELR'
 readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 needed=$(readelf -d "$BIN" \
-  | sed -n 's/.*Shared library: \\[\\([^]]*\\)\\].*/\\1/p' \
+  | sed -n 's/.*Shared library: \[\([^]]*\)\].*/\1/p' \
   | LC_ALL=C sort -u)
 test "$needed" = 'libc.so.6'
+if strings "$BIN" | grep -F "$ROOT"; then exit 1; fi
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.which" -type f -print -quit)"
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+'''
 
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.which \
-  -l "$PEKIT_OUT/.srclist" -n usr/bin/which
-bid=$(readelf -n usr/bin/which \
-  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug usr/bin/which \
-  "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip usr/bin/which
-if strings usr/bin/which | grep -F "$ROOT"; then
-  echo "GNU which contains a build-root path after debug splitting" >&2
-  exit 1
-fi
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.gnu.which/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.which/$rel"
-    done
-test -n "$(find usr/src/debug/org.gnu.which -type f -print -quit)"
-rm -rf "$SMOKE"
-rm -f "$PEKIT_OUT/.srclist"
-"""
-
-[build.main.dependencies.peipkg]
-# The installed binary is C-only, but upstream's cwm4 configure layer invokes
-# AC_PROG_CXX and tests C++ warning flags even for this package.
+[test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
-debugedit              = "*"
-patchelf               = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.findutils"              = "*"
+"org.gnu.grep"                   = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"

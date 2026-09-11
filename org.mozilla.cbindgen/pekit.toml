@@ -43,25 +43,11 @@ export CARGO_HOME="$PEKIT_OUT/cargo-home"
 mkdir -p "$CARGO_HOME"
 cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
 
-test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = "$PEKIT_VERSION"
-
 export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$PEKIT_WORKSPACE_ROOT=/usr/src/debug/org.mozilla.cbindgen/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=/usr/src/debug/org.mozilla.cbindgen/.build --remap-path-prefix=$SRC=/usr/src/debug/org.mozilla.cbindgen --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=/usr/src/debug/org.mozilla.cbindgen/vendor"
 
-# The full upstream fixture matrix compiles every case as C, C++, and Cython.
-# Peios needs the C/C++ generator and deliberately does not acquire Cython just
-# for this build tool. Run the crate's unit suites, then exercise both required
-# output languages end to end below.
-cargo test --release --locked --offline --lib --bins --target-dir "$PEKIT_OUT/target"
+# Build the generator offline from the vendored dependency closure. Its unit
+# and generated-language coverage runs in the mandatory test gate below.
 cargo build --release --locked --offline --target-dir "$PEKIT_OUT/target"
-test "$("$PEKIT_OUT/target/release/cbindgen" --version)" = "cbindgen $PEKIT_VERSION"
-
-"$PEKIT_OUT/target/release/cbindgen" --lang c \
-  --output "$PEKIT_OUT/smoke.h" "$SRC/tests/rust/struct.rs"
-"$PEKIT_OUT/target/release/cbindgen" --lang c++ \
-  --output "$PEKIT_OUT/smoke.hpp" "$SRC/tests/rust/struct.rs"
-gcc -DDEFINED -I "$SRC/tests" -fsyntax-only -xc "$PEKIT_OUT/smoke.h"
-g++ -DDEFINED -I "$SRC/tests" -std=c++17 -fsyntax-only -xc++ "$PEKIT_OUT/smoke.hpp"
-rm -f "$PEKIT_OUT/smoke.h" "$PEKIT_OUT/smoke.hpp"
 
 BIN="$PEKIT_OUT/usr/bin/cbindgen"
 mkdir -p "$PEKIT_OUT/usr/bin"
@@ -93,17 +79,6 @@ tr '\0' '\n' < "$LIST" | LC_ALL=C sort -u | while IFS= read -r rel; do
   cp "$ORIGIN" "$DEBUG_ROOT/$rel"
 done
 rm -f "$LIST"
-test -n "$(find "$DEBUG_ROOT" -type f -print -quit)"
-
-readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
-readelf -lW "$BIN" | grep -q 'GNU_RELRO'
-readelf -lW "$BIN" | grep -Eq 'GNU_STACK[[:space:]].*RW[[:space:]]'
-readelf -dW "$BIN" | grep -q 'BIND_NOW'
-readelf -dW "$BIN" | grep -Eq 'FLAGS_1.*PIE'
-! readelf -dW "$BIN" | grep -Eq '(RPATH|RUNPATH)'
-! readelf -SW "$BIN" | grep -q '\.debug_info'
-readelf -SW "$DEBUG" | grep -q '\.debug_info'
-test "$(readelf -n "$DEBUG" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" = "$BUILD_ID"
 '''
 
 [build.main.dependencies.peipkg]
@@ -129,3 +104,72 @@ gcc        = "*"
 "g++"      = "*"
 binutils   = "*"
 debugedit  = "*"
+
+[test]
+needs = ["main", "vendor"]
+gate  = true
+command = '''
+set -eu
+set -o pipefail 2>/dev/null || true
+
+SRC=$(pwd -P)
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/cbindgen"
+export CARGO_HOME="$PEKIT_OUT/cargo-home"
+mkdir -p "$CARGO_HOME"
+cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$PEKIT_WORKSPACE_ROOT=/usr/src/debug/org.mozilla.cbindgen/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=/usr/src/debug/org.mozilla.cbindgen/.build --remap-path-prefix=$SRC=/usr/src/debug/org.mozilla.cbindgen --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=/usr/src/debug/org.mozilla.cbindgen/vendor"
+
+test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = "$PEKIT_VERSION"
+
+# The complete Cython fixture matrix would add an otherwise-unused language
+# toolchain. Gate the crate's unit suites and both Peios-supported output
+# languages instead.
+cargo test --release --locked --offline --lib --bins \
+  --target-dir "$PEKIT_OUT/target"
+test "$("$BIN" --version)" = "cbindgen $PEKIT_VERSION"
+"$BIN" --lang c --output "$PEKIT_OUT/smoke.h" "$SRC/tests/rust/struct.rs"
+"$BIN" --lang c++ --output "$PEKIT_OUT/smoke.hpp" "$SRC/tests/rust/struct.rs"
+gcc -DDEFINED -I "$SRC/tests" -fsyntax-only -xc "$PEKIT_OUT/smoke.h"
+g++ -DDEFINED -I "$SRC/tests" -std=c++17 -fsyntax-only -xc++ "$PEKIT_OUT/smoke.hpp"
+
+DEBUG_ROOT="$STAGE/usr/src/debug/org.mozilla.cbindgen"
+test -n "$(find "$DEBUG_ROOT" -type f -print -quit)"
+set -- "$STAGE"/usr/lib/debug/.build-id/*/*.debug
+test -f "$1"
+test "$#" -eq 1
+DEBUG="$1"
+BUILD_ID=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$BUILD_ID"
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -lW "$BIN" | grep -q 'GNU_RELRO'
+readelf -lW "$BIN" | grep -Eq 'GNU_STACK[[:space:]].*RW[[:space:]]'
+readelf -dW "$BIN" | grep -q 'BIND_NOW'
+readelf -dW "$BIN" | grep -Eq 'FLAGS_1.*PIE'
+! readelf -dW "$BIN" | grep -Eq '(RPATH|RUNPATH)'
+! readelf -SW "$BIN" | grep -q '\.debug_info'
+readelf -SW "$DEBUG" 2>/dev/null | grep -q '\.debug_info'
+test "$(readelf -n "$DEBUG" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" = "$BUILD_ID"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"      = "*"
+"dev.peios.peiosutils"     = "*"
+"org.gnu.findutils"        = "*"
+"org.gnu.grep"             = "*"
+"org.gnu.sed"              = "*"
+"org.rust-lang.rust"       = ">= 1.98.1"
+"org.gnu.gcc-c++"          = ">= 16, < 17"
+"org.gnu.binutils"         = "*"
+
+[test.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+findutils = "*"
+grep      = "*"
+sed       = "*"
+cargo     = "*"
+rustc     = "*"
+gcc       = "*"
+"g++"     = "*"
+binutils  = "*"

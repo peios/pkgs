@@ -6,13 +6,11 @@ name        = "org.linux.traceevent"
 description = "Linux trace-event parsing plugins"
 
 [provides]
-libtraceevent = "{{version}}-2"
 
 [replaces]
-libtraceevent = "<= {{version}}-1"
 
 [dependencies]
-glibc                        = ">= 2.43"
+"org.gnu.glibc"                        = ">= 2.43"
 "org.linux.traceevent-libs" = "{{version}}-2"
 
 [files]

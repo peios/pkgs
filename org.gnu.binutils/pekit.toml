@@ -130,40 +130,6 @@ find "$PEKIT_OUT/usr" -name '*.la' -delete
 # in this workspace do.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-# Functional release gate against the freshly installed tools and libraries.
-# This catches a version that still configures but breaks the Peios target,
-# archive reproducibility, executable-stack policy, or linker search layout.
-BIN="$PEKIT_OUT/usr/bin"
-export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/$TRIPLET"
-SMOKE="$PEKIT_OUT/.binutils-smoke"
-mkdir -p "$SMOKE"
-printf '%s\n' '.globl _start' '_start:' '  xor %edi, %edi' '  mov $60, %eax' '  syscall' > "$SMOKE/start.s"
-"$BIN/as" -o "$SMOKE/start.o" "$SMOKE/start.s"
-"$BIN/ld" -o "$SMOKE/start" "$SMOKE/start.o"
-"$BIN/readelf" -h "$SMOKE/start" | grep -F 'Machine:' | grep -F 'Advanced Micro Devices X86-64'
-# A missing input .note.GNU-stack exercises the configured default directly.
-# Binutils may omit PT_GNU_STACK entirely in that case, so validate both the
-# compiled policy bit and that no executable stack segment was emitted.
-grep -F '#define DEFAULT_LD_EXECSTACK 0' "$PEKIT_OUT/ld/config.h"
-"$BIN/readelf" -W -l "$SMOKE/start" | awk '$1 == "GNU_STACK" && $0 ~ /RWE/ { exit 1 }'
-"$BIN/ar" rc "$SMOKE/one.a" "$SMOKE/start.o"
-touch "$SMOKE/start.o"
-"$BIN/ar" rc "$SMOKE/two.a" "$SMOKE/start.o"
-cmp "$SMOKE/one.a" "$SMOKE/two.a"
-SEARCH_DIRS=$("$BIN/ld" --verbose | sed -n '/^SEARCH_DIR/p' | head -1)
-[ "$SEARCH_DIRS" = 'SEARCH_DIR("/usr/lib/x86_64-linux-peios");' ] || {
-  printf 'unexpected native ld search path: %s\n' "$SEARCH_DIRS" >&2
-  exit 1
-}
-"$BIN/ld" --version | head -1 | grep -F "$PEKIT_VERSION"
-for name in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-text; do
-  [ -L "$BIN/$name" ] || { echo "missing gprofng compatibility symlink: $name" >&2; exit 1; }
-done
-rm -rf "$SMOKE"
-# Do not let host-side strip/debugedit load staged libraries which they are
-# about to rewrite in place (that can SIGBUS when a mapped library is truncated).
-unset LD_LIBRARY_PATH
-
 # Post-install debug pipeline (same as the bignums) over the whole install tree —
 # binutils ships many ELF tools + libs, all want debuginfo. strip libtool's
 # redundant rpath + the stray ld-linux DT_NEEDED, scrub DWARF (-> /usr/src/debug/
@@ -206,15 +172,15 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 # Libtool uses file(1) to classify objects and libraries during configure.
-file = "*"
+"com.darwinsys.file" = "*"
 # gas uses perl/pod2man when refreshing the installed command manuals. Release
 # tarballs carry pregenerated pages, but a missing generator must not be masked
 # by make's non-fatal documentation rule.
-perl = "*"
+"org.perl.perl" = "*"
 # --with-system-zlib links the root's libz rather than binutils' bundled copy.
 # Previously satisfied by the composed sysroot beside the gcc recipe; now an
 # ordinary build dependency, since this builds natively in the rung-2 root.
-"zlib-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -225,16 +191,56 @@ perl = "*"
 zlib1g-dev = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
 case "$("$BIN/ld" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 case "$("$BIN/as" --version)" in *x86_64-linux-peios*) ;; *) exit 1;; esac
+
+# Exercise the target, deterministic archives, executable-stack policy and
+# installed linker search layout in the independently composed test root.
+export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/binutils-smoke"
+mkdir -p "$SMOKE"
+printf '%s\n' '.globl _start' '_start:' '  xor %edi, %edi' \
+  '  mov $60, %eax' '  syscall' > "$SMOKE/start.s"
+"$BIN/as" -o "$SMOKE/start.o" "$SMOKE/start.s"
+"$BIN/ld" -o "$SMOKE/start" "$SMOKE/start.o"
+"$BIN/readelf" -h "$SMOKE/start" | grep -F 'Machine:' | \
+  grep -F 'Advanced Micro Devices X86-64'
+grep -F '#define DEFAULT_LD_EXECSTACK 0' "$PEKIT_MAIN_OUT/ld/config.h"
+"$BIN/readelf" -W -l "$SMOKE/start" | \
+  awk '$1 == "GNU_STACK" && $0 ~ /RWE/ { exit 1 }'
+"$BIN/ar" rc "$SMOKE/one.a" "$SMOKE/start.o"
+touch "$SMOKE/start.o"
+"$BIN/ar" rc "$SMOKE/two.a" "$SMOKE/start.o"
+cmp "$SMOKE/one.a" "$SMOKE/two.a"
+SEARCH_DIRS=$("$BIN/ld" --verbose | sed -n '/^SEARCH_DIR/p' | head -1)
+[ "$SEARCH_DIRS" = 'SEARCH_DIR("/usr/lib/x86_64-linux-peios");' ] || {
+  printf 'unexpected native ld search path: %s\n' "$SEARCH_DIRS" >&2
+  exit 1
+}
+for name in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-text; do
+  [ -L "$BIN/$name" ] || {
+    echo "missing gprofng compatibility symlink: $name" >&2
+    exit 1
+  }
+done
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.gawk" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.sed" = "*"
 
 [test.dependencies.apt]
 dash = "*"
+coreutils = "*"
+gawk = "*"
+grep = "*"
+sed = "*"

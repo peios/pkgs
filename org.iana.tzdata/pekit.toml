@@ -49,28 +49,12 @@ make -o version AWK=gawk DATAFORM=main REDO=posix_only tzdata.zi leapseconds
 
 zic -b slim -d "$FIRST" tzdata.zi
 zic -b slim -d "$SECOND" tzdata.zi
-diff -qr "$FIRST" "$SECOND"
-test "$(find "$FIRST" -type f | wc -l)" -ge 500
 
 cp -R "$FIRST/." "$DEST/"
 for file in iso3166.tab zone.tab zone1970.tab zonenow.tab tzdata.zi leapseconds; do
   test -s "$file"
   cp "$file" "$DEST/$file"
 done
-# Exercise canonical aliases, a current DST transition, and a fixed-offset
-# zone through the installed payload rather than only checking file presence.
-for zone in UTC Etc/UTC Europe/London America/New_York Asia/Tokyo; do
-  test -s "$DEST/$zone"
-  grep -a -q '^TZif' "$DEST/$zone"
-done
-cmp "$DEST/UTC" "$DEST/Etc/UTC"
-TZDIR="$DEST" zdump -v -c 2026,2027 Europe/London > "$PEKIT_OUT/london.transitions"
-grep -F 'Sun Mar 29 01:00:00 2026 UT = Sun Mar 29 02:00:00 2026 BST' \
-  "$PEKIT_OUT/london.transitions" >/dev/null
-grep -F 'Sun Oct 25 01:00:00 2026 UT = Sun Oct 25 01:00:00 2026 GMT' \
-  "$PEKIT_OUT/london.transitions" >/dev/null
-
-rm -rf "$BUILD" "$FIRST" "$SECOND" "$PEKIT_OUT/london.transitions"
 '''
 
 [build.main.dependencies.peipkg]
@@ -94,16 +78,42 @@ make      = "*"
 libc-bin  = "*"
 
 [test]
+gate = true
+needs = ["main"]
 command = '''
 set -eu
 test "$(cat version)" = "$PEKIT_VERSION"
 test -s LICENSE
+STAGE="$PEKIT_MAIN_OUT"
+DEST="$STAGE/usr/share/zoneinfo"
+diff -qr "$STAGE/zoneinfo-a" "$STAGE/zoneinfo-b"
+test "$(find "$STAGE/zoneinfo-a" -type f | wc -l)" -ge 500
+for zone in UTC Etc/UTC Europe/London America/New_York Asia/Tokyo; do
+  test -s "$DEST/$zone"
+  grep -a -q '^TZif' "$DEST/$zone"
+done
+cmp "$DEST/UTC" "$DEST/Etc/UTC"
+TZDIR="$DEST" zdump -v -c 2026,2027 Europe/London > "$PEKIT_OUT/london.transitions"
+grep -F 'Sun Mar 29 01:00:00 2026 UT = Sun Mar 29 02:00:00 2026 BST' \
+  "$PEKIT_OUT/london.transitions" >/dev/null
+grep -F 'Sun Oct 25 01:00:00 2026 UT = Sun Oct 25 01:00:00 2026 GMT' \
+  "$PEKIT_OUT/london.transitions" >/dev/null
+rm -rf "$STAGE/build" "$STAGE/zoneinfo-a" "$STAGE/zoneinfo-b" \
+  "$PEKIT_OUT/london.transitions"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = ">= 0.8.5"
+"org.gnu.findutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.glibc-bin" = ">= 2.44"
 
 [test.dependencies.apt]
 dash      = "*"
 coreutils = "*"
+findutils = "*"
+diffutils = "*"
+grep = "*"
+libc-bin = "*"

@@ -3,6 +3,5 @@
 name = "dev.peios.kernel-headers"
 
 [provides]
-"linux-kernel-headers" = "7.0.9"
 
 [replaces]

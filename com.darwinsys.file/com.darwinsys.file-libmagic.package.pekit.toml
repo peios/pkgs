@@ -3,15 +3,14 @@ name        = "com.darwinsys.file-libmagic"
 description = "file - libmagic runtime library"
 
 [provides]
-libmagic = "{{version}}"
 
 [dependencies]
-glibc                         = ">= 2.43"
+"org.gnu.glibc"                         = ">= 2.43"
 "com.darwinsys.file-magic"   = "{{version}}-1"
-zlib                          = "*"
+"io.github.zlib-ng.zlib-ng-compat"                          = "*"
 "org.sourceware.bzip2-libs"  = "*"
-liblzma                       = "*"
-libzstd                       = "*"
+"org.tukaani.xz-libs"                       = "*"
+"com.facebook.zstd-libs"                       = "*"
 
 [files]
 "@source:COPYING"                                  = "usr/share/licenses/com.darwinsys.file-libmagic/"

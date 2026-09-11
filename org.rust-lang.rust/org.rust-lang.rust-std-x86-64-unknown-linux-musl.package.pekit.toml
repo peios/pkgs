@@ -3,7 +3,6 @@ name        = "org.rust-lang.rust-std-x86-64-unknown-linux-musl"
 description = "Rust standard libraries for static x86_64 Linux musl targets"
 
 [provides]
-rust-std-x86-64-unknown-linux-musl = "{{version}}-3"
 
 [dependencies]
 "org.rust-lang.rust-common" = "= {{version}}-3"

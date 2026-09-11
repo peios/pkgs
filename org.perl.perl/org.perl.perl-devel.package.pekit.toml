@@ -9,8 +9,6 @@ description = "Perl 5 XS and embedding development files"
 "org.perl.libperl" = "{{version}}-1"
 
 [provides]
-perl-devel    = "{{version}}"
-libperl-devel = "{{version}}"
 
 [files]
 "@source:Copying" = "usr/share/licenses/org.perl.perl-devel/Copying"

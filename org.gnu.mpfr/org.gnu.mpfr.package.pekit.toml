@@ -6,10 +6,9 @@ name        = "org.gnu.mpfr"
 description = "GNU correctly rounded multiple-precision floating-point library"
 
 [provides]
-mpfr = "{{version}}"
 
 [dependencies]
-glibc         = ">= 2.43"
+"org.gnu.glibc"         = ">= 2.43"
 "org.gnu.gmp" = ">= 6.3.0"
 
 [files]

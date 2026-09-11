@@ -55,8 +55,6 @@ env CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" CPPFLAGS="" LDFLAGS="" \
     --enable-shared \
     --enable-static
 make -j"$(nproc)"
-# Run the complete Autotest suite, parallelising its independent test groups.
-make check TESTSUITEFLAGS="-j$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
 # Rebuild installable libltdl from its supported standalone configuration.
@@ -73,7 +71,6 @@ cd "$LTDL_BUILD"
   CPPFLAGS="${CPPFLAGS-}" \
   LDFLAGS="${LDFLAGS-} -Wl,-z,ibt,-z,shstk"
 make -j"$(nproc)"
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Libtool archives encode build-host paths and are not a supported linker
@@ -86,17 +83,63 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 for script in libtool libtoolize libtool-next-version; do
   test -f "$BIN/$script"
   sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$BIN/$script"
+done
+
+# Create build-ID-indexed symbols and copy exactly the source/generated files
+# named by the runtime's rewritten DWARF.
+strip --strip-debug "$LIBDIR/libltdl.a"
+patchelf --remove-rpath "$LTDL_SO"
+debugedit -b "$WORK" -d /usr/src/debug/org.gnu.libtool \
+  -l "$PEKIT_OUT/.srclist" -n "$LTDL_SO"
+bid=$(readelf -n "$LTDL_SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$LTDL_SO" \
+  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
+strip "$LTDL_SO"
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$WORK/$rel" || continue
+  mkdir -p "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$(dirname "$rel")"
+  cp "$WORK/$rel" "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$rel"
+done
+rm -f "$PEKIT_OUT/.srclist"
+"""
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+WORK="$STAGE/build"
+TOOLS_BUILD="$WORK/tools"
+LTDL_BUILD="$WORK/ltdl"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+BIN="$STAGE/usr/bin"
+SMOKE="$PEKIT_OUT/smoke"
+PROJECT="$SMOKE/project"
+STAGED_DATA="$SMOKE/libtool-data"
+
+# Run both complete upstream suites against the exact retained build trees.
+make -C "$TOOLS_BUILD" check TESTSUITEFLAGS="-j$(nproc)"
+make -C "$LTDL_BUILD" -j"$(nproc)" check
+
+# Gate the complete, deliberate install surface before package selection.
+for script in libtool libtoolize libtool-next-version; do
   test "$(sed -n '1p' "$BIN/$script")" = '#!/usr/bin/sh'
   "$BIN/$script" --version | grep -F "$PEKIT_VERSION"
 done
-
-# Gate the complete, deliberate install surface before package selection.
 test "$(find "$BIN" -maxdepth 1 -type f | wc -l)" -eq 3
-test -s "$PEKIT_OUT/usr/share/aclocal/libtool.m4"
-test -s "$PEKIT_OUT/usr/share/aclocal/ltdl.m4"
-test -s "$PEKIT_OUT/usr/share/libtool/build-aux/ltmain.sh"
-test "$(find "$PEKIT_OUT/usr/share/man/man1" -maxdepth 1 -type f -name '*.1' | wc -l)" -eq 3
-test "$(find "$PEKIT_OUT/usr/include" -type f -name '*.h' | wc -l)" -eq 4
+test -s "$STAGE/usr/share/aclocal/libtool.m4"
+test -s "$STAGE/usr/share/aclocal/ltdl.m4"
+test -s "$STAGE/usr/share/libtool/build-aux/ltmain.sh"
+test "$(find "$STAGE/usr/share/man/man1" -maxdepth 1 -type f -name '*.1' | wc -l)" -eq 3
+test "$(find "$STAGE/usr/include" -type f -name '*.h' | wc -l)" -eq 4
 test -L "$LIBDIR/libltdl.so"
 test -L "$LIBDIR/libltdl.so.7"
 test -s "$LIBDIR/libltdl.a"
@@ -107,18 +150,12 @@ readelf --dyn-syms -W "$LTDL_SO" | grep -E ' lt_dlinit(@|$)'
 readelf --dyn-syms -W "$LTDL_SO" | grep -E ' lt_dlopen(@|$)'
 nm -g --defined-only "$LIBDIR/libltdl.a" | grep -E ' [T] lt_dlinit$'
 
-# Generate and build a real Autoconf/Automake project using the staged
-# libtoolize, macros and support files. This tests the package's primary job.
-SMOKE="$PEKIT_OUT/.libtool-smoke"
-PROJECT="$SMOKE/project"
-STAGED_DATA="$SMOKE/libtool-data"
+# Generate and build a real Autoconf/Automake project using only the staged
+# libtoolize, macros and support files.
 mkdir -p "$PROJECT" "$STAGED_DATA"
-# libtoolize has a supported private override for exercising a master data
-# repository before it resides at its final absolute prefix. Recreate that
-# repository layout entirely from staged payload files.
-ln -s "$PEKIT_OUT/usr/share/libtool/build-aux" "$STAGED_DATA/build-aux"
-ln -s "$PEKIT_OUT/usr/share/libtool" "$STAGED_DATA/libltdl"
-ln -s "$PEKIT_OUT/usr/share/aclocal" "$STAGED_DATA/m4"
+ln -s "$STAGE/usr/share/libtool/build-aux" "$STAGED_DATA/build-aux"
+ln -s "$STAGE/usr/share/libtool" "$STAGED_DATA/libltdl"
+ln -s "$STAGE/usr/share/aclocal" "$STAGED_DATA/m4"
 cat > "$PROJECT/configure.ac" <<'EOF'
 AC_INIT([peios-libtool-consumer], [1.0])
 AM_INIT_AUTOMAKE([foreign])
@@ -145,7 +182,7 @@ EOF
 cd "$PROJECT"
 PATH="$BIN:$PATH" _lt_pkgdatadir="$STAGED_DATA" \
   "$BIN/libtoolize" --copy --force
-ACLOCAL_PATH="$PEKIT_OUT/usr/share/aclocal" aclocal
+ACLOCAL_PATH="$STAGE/usr/share/aclocal" aclocal
 autoconf
 automake --add-missing --copy
 env CFLAGS="${CFLAGS-}" LDFLAGS="${LDFLAGS-}" ./configure \
@@ -156,7 +193,7 @@ test -f .libs/libanswer.so.1.0.0
 readelf -d .libs/libanswer.so.1.0.0 | grep -F 'Library soname: [libanswer.so.1]'
 
 # Exercise libltdl's public API against a real loadable module through both
-# shared and static linkage. The API must actually resolve and call a symbol.
+# shared and static linkage.
 cat > "$SMOKE/plugin.c" <<'EOF'
 int peios_ltdl_answer(void) { return 42; }
 EOF
@@ -181,43 +218,19 @@ int main(int argc, char **argv)
 }
 EOF
 cc -fPIC -shared "$SMOKE/plugin.c" -o "$SMOKE/plugin.so"
-cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" -lltdl \
+cc "$SMOKE/consumer.c" -I"$STAGE/usr/include" -L"$LIBDIR" -lltdl \
   -o "$SMOKE/shared-consumer"
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/shared-consumer" "$SMOKE/plugin.so"
-cc "$SMOKE/consumer.c" -I"$PEKIT_OUT/usr/include" "$LIBDIR/libltdl.a" \
+cc "$SMOKE/consumer.c" -I"$STAGE/usr/include" "$LIBDIR/libltdl.a" \
   -ldl -o "$SMOKE/static-consumer"
 "$SMOKE/static-consumer" "$SMOKE/plugin.so"
 
-# Installed payloads must not retain this build's private paths.
-if grep -R -F "$WORK" "$BIN" "$PEKIT_OUT/usr/share/libtool"; then exit 1; fi
-
-# Create build-ID-indexed symbols and copy exactly the source/generated files
-# named by the runtime's rewritten DWARF.
-strip --strip-debug "$LIBDIR/libltdl.a"
-patchelf --remove-rpath "$LTDL_SO"
-debugedit -b "$WORK" -d /usr/src/debug/org.gnu.libtool \
-  -l "$PEKIT_OUT/.srclist" -n "$LTDL_SO"
-bid=$(readelf -n "$LTDL_SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$LTDL_SO" \
-  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-strip "$LTDL_SO"
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$WORK/$rel" || continue
-  mkdir -p "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$(dirname "$rel")"
-  cp "$WORK/$rel" "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$rel"
-done
-test -f "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-readelf -S "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug" | grep -F '.debug_info'
-test -n "$(find "$PEKIT_OUT/usr/src/debug/org.gnu.libtool" -type f -print -quit)"
-
-# Final runtime security and dependency contract.
+# Validate reproducibility, split debugging and the runtime security contract.
+if grep -R -F "$WORK" "$BIN" "$STAGE/usr/share/libtool"; then exit 1; fi
+DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
+test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
+readelf -S "$DEBUG" 2>/dev/null | grep -F '.debug_info'
+test -n "$(find "$STAGE/usr/src/debug/org.gnu.libtool" -type f -print -quit)"
 readelf -h "$LTDL_SO" | grep -Eq 'Type:[[:space:]]+DYN'
 readelf -W -l "$LTDL_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$LTDL_SO" | grep -F 'GNU_RELRO'
@@ -227,19 +240,30 @@ readelf -n "$LTDL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$LTDL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(readelf -d "$LTDL_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$LTDL_SO" | grep -F 'Shared library: [libc.so.6]'
+'''
 
-rm -rf "$SMOKE" "$WORK"
-rm -f "$PEKIT_OUT/.srclist"
-"""
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"com.darwinsys.file"             = "*"
+"org.gnu.autoconf"               = "*"
+"org.gnu.automake"               = "*"
+"org.gnu.tar"                    = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+"g++"           = "*"
+autoconf        = "*"
+automake        = "*"
+file            = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file"   = "*"
-debugedit               = "*"
+"org.sourceware.debugedit"               = "*"
 "org.gnu.autoconf"      = "*"
 "org.gnu.automake"      = "*"
-patchelf                 = "*"
-tar                       = "*"
+"org.nixos.patchelf"                 = "*"
+"org.gnu.tar"                       = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

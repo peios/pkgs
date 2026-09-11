@@ -1,0 +1,203 @@
+# pci.ids — the architecture-independent PCI vendor and device database.
+#
+# pciutils upstream maintains this data independently because hardware IDs
+# change much faster than the pciutils code. The dedicated pciids repository
+# publishes the generated database on its master branch without release tags.
+# Pekit's tracked-path mode therefore creates a dated release only when the
+# pci.ids bytes change and pins that observation to an immutable commit/blob.
+
+out_dir = "out"
+
+[source.git]
+url          = "https://github.com/pciutils/pciids.git"
+ref          = "refs/heads/master"
+tracked_path = "pci.ids"
+# Soft maintenance floor. Earlier observations remain exactly rebuildable;
+# later database changes advance unattended unless a fail-closed gate rejects
+# a malformed upstream snapshot.
+versions     = ">= 2026.09.11"
+
+# Upstream does not sign this moving data branch. HTTPS discovery plus Pekit's
+# append-only lock binding the commit, Git blob and SHA-256 is the explicit
+# temporary source-authentication boundary.
+
+[build.main]
+command = '''
+set -eu
+SOURCE="$PEKIT_SOURCE_ROOT/pci.ids"
+DEST="$PEKIT_OUT/usr/share/pci.ids"
+LICENSE="$PEKIT_OUT/usr/share/licenses/cz.ucw.pciids/LICENSE"
+
+test -s "$SOURCE"
+install -Dm0644 "$SOURCE" "$DEST"
+install -Dm0644 "$PEKIT_RECIPE_ROOT/LICENSE" "$LICENSE"
+cmp "$SOURCE" "$DEST"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"      = "*"
+"org.gnu.diffutils"         = "*"
+"dev.peios.peiosutils" = "*"
+
+[build.main.dependencies.apt]
+coreutils = "*"
+dash      = "*"
+diffutils = "*"
+
+[test]
+gate  = true
+needs = ["main"]
+command = '''
+set -eu
+SOURCE="$PEKIT_SOURCE_ROOT/pci.ids"
+DATABASE="$PEKIT_MAIN_OUT/usr/share/pci.ids"
+LICENSE="$PEKIT_MAIN_OUT/usr/share/licenses/cz.ucw.pciids/LICENSE"
+
+# The sparse source and source manifest must bind exactly the bytes tested.
+test -s "$SOURCE"
+test "$(find "$PEKIT_SOURCE_ROOT" -type f | wc -l)" -eq 1
+test "$(find "$PEKIT_SOURCE_ROOT" -type l | wc -l)" -eq 0
+cmp "$SOURCE" "$DATABASE"
+test "$(stat -c '%a' "$DATABASE")" = 644
+test "$(stat -c '%a' "$LICENSE")" = 644
+find "$PEKIT_MAIN_OUT" -type f -printf '%P\n' | LC_ALL=C sort > "$PEKIT_OUT/files"
+printf '%s\n' \
+  usr/share/licenses/cz.ucw.pciids/LICENSE \
+  usr/share/pci.ids > "$PEKIT_OUT/expected-files"
+diff -u "$PEKIT_OUT/expected-files" "$PEKIT_OUT/files"
+grep -F 'SPDX: GPL-2.0-or-later' "$LICENSE"
+grep -F 'SPDX: BSD-3-Clause' "$LICENSE"
+
+python3 - "$PEKIT_SOURCE_ROOT" "$DATABASE" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+
+root, database = Path(sys.argv[1]), Path(sys.argv[2])
+raw = database.read_bytes()
+text = raw.decode("utf-8", errors="strict")
+manifest = json.loads((root.parent / "source.pekit.json").read_text())
+digest = hashlib.sha256(raw).hexdigest()
+tracked = "pci.ids"
+url = "https://github.com/pciutils/pciids.git"
+
+assert manifest["kind"] == "git"
+assert manifest["rendered"] == f"{url}@refs/heads/master:{tracked}"
+assert manifest["root"] == tracked
+assert manifest["checksum"] == digest
+commit, blob = manifest["immutable"].split(":", 1)
+assert re.fullmatch(r"[0-9a-f]{40}", commit)
+assert re.fullmatch(r"[0-9a-f]{40}", blob)
+assert manifest["provenance_ref"] == (
+    f"git:{url}@{commit}:{tracked}#sha256:{digest}"
+)
+
+# Parse every non-comment record, enforcing the grammar and hierarchy rather
+# than accepting a merely non-empty database. Duplicate numeric identities are
+# rejected because libpci's lookup result would otherwise depend on ordering.
+vendor_re = re.compile(r"^([0-9A-Fa-f]{4})  (\S.*)$")
+device_re = re.compile(r"^\t([0-9A-Fa-f]{4})  (\S.*)$")
+subsystem_re = re.compile(
+    r"^\t\t([0-9A-Fa-f]{4}) ([0-9A-Fa-f]{4})  (\S.*)$"
+)
+class_re = re.compile(r"^C ([0-9A-Fa-f]{2})  (\S.*)$")
+subclass_re = re.compile(r"^\t([0-9A-Fa-f]{2})  (\S.*)$")
+progif_re = re.compile(r"^\t\t([0-9A-Fa-f]{2})  (\S.*)$")
+
+section = None
+vendor = device = pci_class = subclass = None
+vendors, devices, subsystems = set(), set(), set()
+classes, subclasses, progifs = set(), set(), set()
+counts = {name: 0 for name in (
+    "vendors", "devices", "subsystems", "classes", "subclasses", "progifs"
+)}
+
+for lineno, line in enumerate(text.splitlines(), 1):
+    if not line or line.startswith("#"):
+        continue
+    match = class_re.fullmatch(line)
+    if match:
+        section = "classes"
+        pci_class = match.group(1).lower()
+        subclass = None
+        assert pci_class not in classes, (lineno, "duplicate class", pci_class)
+        classes.add(pci_class)
+        counts["classes"] += 1
+        continue
+    if section == "classes":
+        match = progif_re.fullmatch(line)
+        if match:
+            assert pci_class is not None and subclass is not None, lineno
+            key = (pci_class, subclass, match.group(1).lower())
+            assert key not in progifs, (lineno, "duplicate programming interface", key)
+            progifs.add(key)
+            counts["progifs"] += 1
+            continue
+        match = subclass_re.fullmatch(line)
+        if match:
+            assert pci_class is not None, lineno
+            subclass = match.group(1).lower()
+            key = (pci_class, subclass)
+            assert key not in subclasses, (lineno, "duplicate subclass", key)
+            subclasses.add(key)
+            counts["subclasses"] += 1
+            continue
+    else:
+        match = subsystem_re.fullmatch(line)
+        if match:
+            assert vendor is not None and device is not None, lineno
+            key = (vendor, device, match.group(1).lower(), match.group(2).lower())
+            assert key not in subsystems, (lineno, "duplicate subsystem", key)
+            subsystems.add(key)
+            counts["subsystems"] += 1
+            continue
+        match = device_re.fullmatch(line)
+        if match:
+            assert vendor is not None, lineno
+            device = match.group(1).lower()
+            key = (vendor, device)
+            assert key not in devices, (lineno, "duplicate device", key)
+            devices.add(key)
+            counts["devices"] += 1
+            continue
+        match = vendor_re.fullmatch(line)
+        if match:
+            section = "vendors"
+            vendor = match.group(1).lower()
+            device = None
+            assert vendor not in vendors, (lineno, "duplicate vendor", vendor)
+            vendors.add(vendor)
+            counts["vendors"] += 1
+            continue
+    raise AssertionError((lineno, "malformed or misplaced record", line))
+
+# Floors catch a truncated or accidentally replaced snapshot without coupling
+# the package to an exact database revision.
+assert counts["vendors"] >= 2_000, counts
+assert counts["devices"] >= 20_000, counts
+assert counts["classes"] >= 15, counts
+assert "8086" in vendors                 # Intel Corporation
+assert "1022" in vendors                 # Advanced Micro Devices, Inc.
+assert ("8086", "1237") in devices      # 82440LX/EX PCI host bridge
+assert "01" in classes                   # Mass storage controller
+assert ("01", "06") in subclasses       # SATA controller
+PY
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"     = "*"
+"org.gnu.diffutils"        = "*"
+"org.gnu.findutils"        = "*"
+"org.gnu.grep"             = "*"
+"org.python.python3"       = "*"
+"dev.peios.peiosutils" = "*"
+
+[test.dependencies.apt]
+coreutils = "*"
+dash      = "*"
+diffutils = "*"
+findutils = "*"
+grep      = "*"
+python3   = "*"

@@ -16,8 +16,8 @@ license_class = "free"
 homepage     = "https://www.gnu.org/software/autoconf/"
 
 [dependencies]
-m4   = ">= 1.4.16"
-perl = ">= 5.6"
+"org.gnu.m4"   = ">= 1.4.16"
+"org.perl.perl" = ">= 5.6"
 
 [files]
 "@source:COPYING*"         = "usr/share/licenses/org.gnu.autoconf/"

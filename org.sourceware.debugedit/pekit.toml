@@ -102,6 +102,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \\
   --mandir=/usr/share/man \\
   --disable-inlined-xxhash \\
   --disable-silent-rules
+printf '%s\n' "$TEST_LAST" > "$PEKIT_OUT/.test-last"
 
 # A clean rebuild in the identical object path must reproduce every shipped
 # executable byte-for-byte before the upstream regression suite is run.
@@ -111,11 +112,6 @@ for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
 done
 make clean
 make -j"$(nproc)"
-for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
-  cmp "$SMOKE/$tool.first" "$tool"
-done
-
-make check TESTSUITEFLAGS="1-$TEST_LAST"
 make install DESTDIR="$PEKIT_OUT"
 
 # find-debuginfo requires GDB/DWZ features unavailable in the native package
@@ -124,81 +120,13 @@ rm -f "$PEKIT_OUT/usr/bin/find-debuginfo" \\
   "$PEKIT_OUT/usr/share/man/man1/find-debuginfo.1"
 
 BINDIR="$PEKIT_OUT/usr/bin"
-for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
-  test -x "$BINDIR/$tool"
-  "$BINDIR/$tool" --version | grep -F "$PEKIT_VERSION"
-done
 
-# Exercise the staged debugedit across DWARF path rewriting, NUL-delimited
-# source listing, build-ID recomputation, and post-edit execution.
-mkdir -p "$SMOKE/old/src"
-cat > "$SMOKE/old/src/probe.c" <<'EOF'
-#include <stdio.h>
-int main(void) { puts("debugedit-probe"); return 0; }
-EOF
-cc $CFLAGS $LDFLAGS -o "$SMOKE/probe" "$SMOKE/old/src/probe.c"
-old_id=$(readelf -n "$SMOKE/probe" \\
-  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-"$BINDIR/debugedit" -b "$SMOKE/old" \\
-  -d /usr/src/debug/org.sourceware.debugedit \\
-  -l "$SMOKE/source.list" -i "$SMOKE/probe" > "$SMOKE/new-id"
-new_id=$(cat "$SMOKE/new-id")
-test -n "$old_id"
-test -n "$new_id"
-test "$old_id" != "$new_id"
-"$SMOKE/probe" | grep -Fx debugedit-probe
-readelf --debug-dump=info "$SMOKE/probe" > "$SMOKE/dwarf"
-grep -F /usr/src/debug/org.sourceware.debugedit "$SMOKE/dwarf"
-if grep -F "$SMOKE/old" "$SMOKE/dwarf"; then exit 1; fi
-tr '\\0' '\\n' < "$SMOKE/source.list" | grep -Fx src/probe.c
-
-# Classify a real static archive with and without debug sections.
-cc $CFLAGS -c -o "$SMOKE/probe.o" "$SMOKE/old/src/probe.c"
-ar cr "$SMOKE/probe.a" "$SMOKE/probe.o"
-"$BINDIR/debugedit-classify-ar" -v "$SMOKE/probe.a" \\
-  2>&1 | grep -F 'found member(s) with debug sections'
-strip --strip-debug "$SMOKE/probe.o"
-ar cr "$SMOKE/probe-stripped.a" "$SMOKE/probe.o"
-status=0
-"$BINDIR/debugedit-classify-ar" -v "$SMOKE/probe-stripped.a" \\
-  > "$SMOKE/classify.out" 2>&1 || status=$?
-test "$status" -eq 1
-grep -F 'no member with debug sections' "$SMOKE/classify.out"
-
-# Prove sepdebugcrcfix updates a stale .gnu_debuglink checksum and then sees
-# its own update as already matching on a second pass.
-mkdir -p "$SMOKE/crc-root/usr/bin" "$SMOKE/crc-debug/usr/bin"
-cp "$SMOKE/probe" "$SMOKE/crc-root/usr/bin/probe"
-objcopy --only-keep-debug "$SMOKE/crc-root/usr/bin/probe" \\
-  "$SMOKE/crc-debug/usr/bin/probe.debug"
-objcopy --strip-debug "$SMOKE/crc-root/usr/bin/probe"
-objcopy --add-gnu-debuglink="$SMOKE/crc-debug/usr/bin/probe.debug" \\
-  "$SMOKE/crc-root/usr/bin/probe"
-printf x >> "$SMOKE/crc-debug/usr/bin/probe.debug"
-(cd "$SMOKE/crc-root" && \\
-  "$BINDIR/sepdebugcrcfix" "$SMOKE/crc-debug" usr/bin/probe) \\
-  | grep -F 'Updated 1 CRC32s, 0 CRC32s did match.'
-(cd "$SMOKE/crc-root" && \\
-  "$BINDIR/sepdebugcrcfix" "$SMOKE/crc-debug" usr/bin/probe) \\
-  | grep -F 'Updated 0 CRC32s, 1 CRC32s did match.'
-
-# Enforce the inherited Peios hardening contract on every shipped ELF.
+# Normalize loader metadata before splitting debug data.
 for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
   elf="$BINDIR/$tool"
   patchelf --remove-rpath "$elf" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  readelf -n "$elf" | grep -F 'Build ID:'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
-patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libdw.so.1
-patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libelf.so.1
-patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libxxhash.so.0
 
 # Conventional build-ID symbols plus exact DWARF-referenced source files.
 cd "$PEKIT_OUT"
@@ -228,15 +156,121 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \\
       [ -f "$ROOT/$rel" ] || continue
       mkdir -p "usr/src/debug/org.sourceware.debugedit/$(dirname "$rel")"
       cp "$ROOT/$rel" "usr/src/debug/org.sourceware.debugedit/$rel"
-    done
-test -n "$(find usr/src/debug/org.sourceware.debugedit -type f -print -quit)"
-rm -rf "$SMOKE" "$CONFIG_TOOLS" "$BUILD_SRC" "$OBJ"
+done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+OBJ="$STAGE/build"
+CONFIG_TOOLS="$STAGE/config-tools"
+BINDIR="$STAGE/usr/bin"
+REPRO="$STAGE/.debugedit-smoke"
+SMOKE="$PEKIT_OUT/smoke"
+TEST_LAST=$(cat "$STAGE/.test-last")
+PATH="$CONFIG_TOOLS:$PATH"
+export PATH
+
+for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
+  cmp "$REPRO/$tool.first" "$OBJ/$tool"
+done
+make -C "$OBJ" check TESTSUITEFLAGS="1-$TEST_LAST"
+
+for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
+  test -x "$BINDIR/$tool"
+  "$BINDIR/$tool" --version | grep -F "$PEKIT_VERSION"
+done
+
+mkdir -p "$SMOKE/old/src"
+cat > "$SMOKE/old/src/probe.c" <<'EOF'
+#include <stdio.h>
+int main(void) { puts("debugedit-probe"); return 0; }
+EOF
+cc $CFLAGS $LDFLAGS -o "$SMOKE/probe" "$SMOKE/old/src/probe.c"
+old_id=$(readelf -n "$SMOKE/probe" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+"$BINDIR/debugedit" -b "$SMOKE/old" \
+  -d /usr/src/debug/org.sourceware.debugedit \
+  -l "$SMOKE/source.list" -i "$SMOKE/probe" > "$SMOKE/new-id"
+new_id=$(cat "$SMOKE/new-id")
+test -n "$old_id"
+test -n "$new_id"
+test "$old_id" != "$new_id"
+"$SMOKE/probe" | grep -Fx debugedit-probe
+readelf --debug-dump=info "$SMOKE/probe" > "$SMOKE/dwarf"
+grep -F /usr/src/debug/org.sourceware.debugedit "$SMOKE/dwarf"
+if grep -F "$SMOKE/old" "$SMOKE/dwarf"; then exit 1; fi
+tr '\0' '\n' < "$SMOKE/source.list" | grep -Fx src/probe.c
+
+cc $CFLAGS -c -o "$SMOKE/probe.o" "$SMOKE/old/src/probe.c"
+ar cr "$SMOKE/probe.a" "$SMOKE/probe.o"
+"$BINDIR/debugedit-classify-ar" -v "$SMOKE/probe.a" \
+  2>&1 | grep -F 'found member(s) with debug sections'
+strip --strip-debug "$SMOKE/probe.o"
+ar cr "$SMOKE/probe-stripped.a" "$SMOKE/probe.o"
+status=0
+"$BINDIR/debugedit-classify-ar" -v "$SMOKE/probe-stripped.a" \
+  > "$SMOKE/classify.out" 2>&1 || status=$?
+test "$status" -eq 1
+grep -F 'no member with debug sections' "$SMOKE/classify.out"
+
+mkdir -p "$SMOKE/crc-root/usr/bin" "$SMOKE/crc-debug/usr/bin"
+cp "$SMOKE/probe" "$SMOKE/crc-root/usr/bin/probe"
+objcopy --only-keep-debug "$SMOKE/crc-root/usr/bin/probe" \
+  "$SMOKE/crc-debug/usr/bin/probe.debug"
+objcopy --strip-debug "$SMOKE/crc-root/usr/bin/probe"
+objcopy --add-gnu-debuglink="$SMOKE/crc-debug/usr/bin/probe.debug" \
+  "$SMOKE/crc-root/usr/bin/probe"
+printf x >> "$SMOKE/crc-debug/usr/bin/probe.debug"
+(cd "$SMOKE/crc-root" && \
+  "$BINDIR/sepdebugcrcfix" "$SMOKE/crc-debug" usr/bin/probe) \
+  | grep -F 'Updated 1 CRC32s, 0 CRC32s did match.'
+(cd "$SMOKE/crc-root" && \
+  "$BINDIR/sepdebugcrcfix" "$SMOKE/crc-debug" usr/bin/probe) \
+  | grep -F 'Updated 0 CRC32s, 1 CRC32s did match.'
+
+for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
+  elf="$BINDIR/$tool"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  readelf -n "$elf" | grep -F 'Build ID:'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libdw.so.1
+patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libelf.so.1
+patchelf --print-needed "$BINDIR/debugedit" | grep -Fx libxxhash.so.0
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$STAGE/usr/src/debug/org.sourceware.debugedit" -type f -print -quit)"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.sourceware.elfutils"        = ">= 0.196"
+"org.gnu.cpio"                   = "*"
+"org.tukaani.xz"                 = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+"g++"           = "*"
+binutils        = "*"
+elfutils        = "*"
+file            = "*"
+patchelf        = "*"
+cpio            = "*"
+xz-utils        = "*"
+gdb             = "*"
+dwz             = "*"
+
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++"          = "*"
-pkgconf                         = "*"
+"org.pkgconf.pkgconf"                         = "*"
 "org.sourceware.elfutils-devel" = ">= 0.196"
 "org.sourceware.elfutils"       = ">= 0.196"
 "com.xxhash.xxhash-devel"       = ">= 0.8.3"

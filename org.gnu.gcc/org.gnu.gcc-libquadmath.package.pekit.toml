@@ -10,10 +10,8 @@ description = "GCC __float128 quad-precision math library (libquadmath.so.0)"
 license     = "LGPL-2.0-or-later AND LGPL-2.1-or-later"
 
 [provides]
-libquadmath = "{{version}}-2"
 
 [replaces]
-libquadmath = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"

@@ -65,12 +65,6 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
     -i libtool
 
 make -j"$(nproc)"
-# Full upstream release suite: algorithm known-answer vectors, invalid input,
-# entropy/error fallbacks, static symbol surfaces, nested calls and API tests.
-# On Linux with all modern entropy APIs, one fallback-only case skips.
-make -j"$(nproc)" check
-grep -Fx '# FAIL:  0' test-suite.log
-grep -Fx '# ERROR: 0' test-suite.log
 make install DESTDIR="$PEKIT_OUT"
 
 # Build only glibc's historic compatibility ABI in a separate tree. Selecting
@@ -91,9 +85,6 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
     -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' \
     -i libtool
 make -j"$(nproc)"
-make -j"$(nproc)" check
-grep -Fx '# FAIL:  0' test-suite.log
-grep -Fx '# ERROR: 0' test-suite.log
 make install DESTDIR="$PEKIT_OUT/compat-root"
 
 COMPAT_LIBDIR="$PEKIT_OUT/compat-root$LIBDIR"
@@ -106,55 +97,8 @@ cp -a "$COMPAT_LIBDIR/"libcrypt.so.1* "$STAGED_LIBDIR/"
 # shared-object linker names are the supported development interfaces.
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
-# Freeze both ABIs and the development surface before destructive debug/strip
-# processing. A future SONAME or file-layout change must receive explicit
-# package metadata rather than leaking across splits.
 MODERN_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.2.*' | LC_ALL=C sort)
 COMPAT_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.1.*' | LC_ALL=C sort)
-test "$(printf '%s\n' "$MODERN_SO" | grep -c .)" -eq 1
-test "$(printf '%s\n' "$COMPAT_SO" | grep -c .)" -eq 1
-test -L "$STAGED_LIBDIR/libcrypt.so"
-test -L "$STAGED_LIBDIR/libcrypt.so.2"
-test -L "$STAGED_LIBDIR/libcrypt.so.1"
-test -s "$STAGED_LIBDIR/libcrypt.a"
-test -f "$INCLUDEDIR/crypt.h"
-test ! -e "$INCLUDEDIR/xcrypt.h"
-test -f "$STAGED_LIBDIR/pkgconfig/libcrypt.pc"
-test -f "$STAGED_LIBDIR/pkgconfig/libxcrypt.pc"
-readelf -d "$MODERN_SO" | grep -F 'Library soname: [libcrypt.so.2]'
-readelf -d "$COMPAT_SO" | grep -F 'Library soname: [libcrypt.so.1]'
-readelf --dyn-syms -W "$MODERN_SO" | grep -E ' crypt@@XCRYPT_2[.]0$'
-readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' crypt@GLIBC_2[.]2[.]5$'
-readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' encrypt@GLIBC_2[.]2[.]5$'
-readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' setkey@GLIBC_2[.]2[.]5$'
-
-export PKG_CONFIG_LIBDIR="$STAGED_LIBDIR/pkgconfig"
-export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
-pkg-config --validate libcrypt libxcrypt
-test "$(pkg-config --modversion libcrypt)" = "$PEKIT_VERSION"
-test "$(pkg-config --modversion libxcrypt)" = "$PEKIT_VERSION"
-
-# Compile and execute a known SHA-512 crypt vector through both dynamic and
-# static linkage against the staged header/library, not the host libcrypt.
-SMOKE="$PEKIT_OUT/.libxcrypt-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/consumer.c" <<'EOF'
-#include <crypt.h>
-#include <string.h>
-
-int main(void)
-{
-  const char *expected = "$6$saltstring$o.lX/OaU2BzTI4xKucC0wOS/UNGkMMQmo.oR0lK8c02WCKnUDCDwFqIpBVCQIbVQJIQ4Faa9gWyJzey0r8KtF0";
-  char *actual = crypt("U*U*U", "$6$saltstring");
-  return actual == 0 || strcmp(actual, expected) != 0;
-}
-EOF
-cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$STAGED_LIBDIR" -lcrypt \
-  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/shared"
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
-cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$STAGED_LIBDIR/libcrypt.a" \
-  -pthread -o "$SMOKE/static"
-"$SMOKE/static"
 
 # Produce build-ID-indexed symbols for both shipped ELF objects, rewrite their
 # compilation roots, and stage every source file referenced by the final DWARF.
@@ -185,14 +129,91 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel
   mkdir -p "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt/$(dirname "$rel")"
   cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt/$rel"
 done
-test "$(find "$PEKIT_OUT/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
-test -n "$(find "$PEKIT_OUT/usr/src/debug/io.github.besser82.libxcrypt" -type f -print -quit)"
-for dbg in $(find "$PEKIT_OUT/usr/lib/debug/.build-id" -type f -name '*.debug'); do
+rm -rf "$PEKIT_OUT/compat-root"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.perl.perl"      = "*"
+"org.sourceware.debugedit"             = "*"
+"org.nixos.patchelf"              = "*"
+"org.pkgconf.pkgconf"               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+perl            = "*"
+debugedit        = "*"
+patchelf         = "*"
+pkgconf          = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+# Full upstream release suites: algorithm known-answer vectors, invalid input,
+# entropy/error fallbacks, static symbol surfaces, nested calls and API tests.
+# On Linux with all modern entropy APIs, one fallback-only case skips.
+for build in build-modern build-compat; do
+  cd "$PEKIT_MAIN_OUT/$build"
+  make -j"$(nproc)" check
+  grep -Fx '# FAIL:  0' test-suite.log
+  grep -Fx '# ERROR: 0' test-suite.log
+done
+STAGE="$PEKIT_MAIN_OUT"
+STAGED_LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$STAGE/usr/include"
+MODERN_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.2.*' | LC_ALL=C sort)
+COMPAT_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.1.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$MODERN_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$COMPAT_SO" | grep -c .)" -eq 1
+test -L "$STAGED_LIBDIR/libcrypt.so"
+test -L "$STAGED_LIBDIR/libcrypt.so.2"
+test -L "$STAGED_LIBDIR/libcrypt.so.1"
+test -s "$STAGED_LIBDIR/libcrypt.a"
+test -f "$INCLUDEDIR/crypt.h"
+test ! -e "$INCLUDEDIR/xcrypt.h"
+test -f "$STAGED_LIBDIR/pkgconfig/libcrypt.pc"
+test -f "$STAGED_LIBDIR/pkgconfig/libxcrypt.pc"
+readelf -d "$MODERN_SO" | grep -F 'Library soname: [libcrypt.so.2]'
+readelf -d "$COMPAT_SO" | grep -F 'Library soname: [libcrypt.so.1]'
+readelf --dyn-syms -W "$MODERN_SO" | grep -E ' crypt@@XCRYPT_2[.]0$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' crypt@GLIBC_2[.]2[.]5$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' encrypt@GLIBC_2[.]2[.]5$'
+readelf --dyn-syms -W "$COMPAT_SO" | grep -E ' setkey@GLIBC_2[.]2[.]5$'
+
+export PKG_CONFIG_LIBDIR="$STAGED_LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkg-config --validate libcrypt libxcrypt
+test "$(pkg-config --modversion libcrypt)" = "$PEKIT_VERSION"
+test "$(pkg-config --modversion libxcrypt)" = "$PEKIT_VERSION"
+
+SMOKE="$PEKIT_OUT/libxcrypt-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <crypt.h>
+#include <string.h>
+
+int main(void)
+{
+  const char *expected = "$6$saltstring$o.lX/OaU2BzTI4xKucC0wOS/UNGkMMQmo.oR0lK8c02WCKnUDCDwFqIpBVCQIbVQJIQ4Faa9gWyJzey0r8KtF0";
+  char *actual = crypt("U*U*U", "$6$saltstring");
+  return actual == 0 || strcmp(actual, expected) != 0;
+}
+EOF
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$STAGED_LIBDIR" -lcrypt \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/shared"
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$STAGED_LIBDIR/libcrypt.a" \
+  -pthread -o "$SMOKE/static"
+"$SMOKE/static"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$STAGE/usr/src/debug/io.github.besser82.libxcrypt" -type f -print -quit)"
+for dbg in $(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -F '.debug_info'
 done
-
-# Final payload hardening and dependency assertions. These run after stripping
-# so they describe exactly the objects that enter packages.
 for elf in "$MODERN_SO" "$COMPAT_SO"; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
@@ -203,37 +224,22 @@ for elf in "$MODERN_SO" "$COMPAT_SO"; do
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
-
-rm -rf "$SMOKE" "$MODERN" "$COMPAT" "$PEKIT_OUT/compat-root"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-'''
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "*"
-"org.perl.perl"      = "*"
-debugedit             = "*"
-patchelf              = "*"
-pkgconf               = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-perl            = "*"
-debugedit        = "*"
-patchelf         = "*"
-pkgconf          = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -f "$PEKIT_MAIN_OUT/usr/include/crypt.h"
-test -f "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/libcrypt.a"
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libcrypt.so.*
-test -e "$1"
+rm -rf "$SMOKE"
+rm -rf "$PEKIT_MAIN_OUT/build-modern" "$PEKIT_MAIN_OUT/build-compat"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.perl.perl" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 dash = "*"
+perl = "*"
+debugedit = "*"
+patchelf = "*"
+pkgconf = "*"

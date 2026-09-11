@@ -23,6 +23,7 @@
 out_dir = "out"
 
 [test]
+gate = true
 command = "tests/test-mount-root-disk.sh"
 
 [test.dependencies.peipkg]
@@ -31,7 +32,7 @@ command = "tests/test-mount-root-disk.sh"
 # ordinary file utilities. Keep it independent of the runtime peiosutils
 # binary: that dependency is exercised by image closure, while these tests are
 # deliberately about the hook's own decisions and arguments.
-"org.gnu.coreutils"    = ">= 9.11"
+"dev.peios.peiosutils"    = ">= 9.11"
 
 [test.dependencies.apt]
 dash      = "*"

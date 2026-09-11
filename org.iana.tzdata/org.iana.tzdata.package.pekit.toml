@@ -3,7 +3,6 @@ name        = "org.iana.tzdata"
 description = "IANA Time Zone Database"
 
 [provides]
-tzdata = "{{version}}-1"
 
 [files]
 "@source:LICENSE"          = "usr/share/licenses/org.iana.tzdata/LICENSE"

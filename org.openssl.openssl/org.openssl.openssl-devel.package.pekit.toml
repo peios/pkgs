@@ -5,7 +5,6 @@ name        = "org.openssl.openssl-devel"
 description = "OpenSSL development headers and linker metadata"
 
 [provides]
-"openssl-devel" = "{{version}}"
 
 [dependencies]
 "org.openssl.libcrypto" = "{{version}}-1"

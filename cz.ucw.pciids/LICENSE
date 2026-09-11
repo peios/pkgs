@@ -1,0 +1,19 @@
+pci.ids licensing notice
+========================
+
+The PCI ID Repository permits distribution of its database and generated
+files under either of these licences, at the recipient's choice:
+
+  * GNU General Public License, version 2 or any later version
+    (SPDX: GPL-2.0-or-later)
+  * BSD 3-Clause License
+    (SPDX: BSD-3-Clause)
+
+The database is a compilation of factual data. Martin Mares and Albert Pool
+hold copyright in its aggregation and formatting.
+
+Upstream licensing statement:
+https://github.com/pciutils/pciids/blob/master/README.md
+
+Canonical database:
+https://pci-ids.ucw.cz/

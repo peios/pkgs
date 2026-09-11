@@ -36,9 +36,6 @@ SRC="$PEKIT_SOURCE_ROOT"
 BUILD="$SRC"
 BIN="$PEKIT_OUT/usr/bin"
 FSCKDIR="$PEKIT_OUT/usr/libexec/fsck"
-SMOKE="$PEKIT_OUT/.dosfstools-smoke"
-
-mkdir -p "$SMOKE"
 
 # The complete upstream suite depends on xxd only for reversing its committed
 # reference hexdumps. Peios does not yet package Vim's xxd, so provide that
@@ -85,18 +82,6 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
   --disable-silent-rules
 
 make -j"$(nproc)"
-make -j"$(nproc)" check
-
-# The release contains 40 filesystem-image tests. Require the complete suite,
-# no skip and no unexpected failure; permit upstream to add tests or retire
-# its one current expected-failure case without recipe churn.
-total=$(sed -n 's/^# TOTAL:[[:space:]]*//p' tests/test-suite.log)
-test "$total" -ge 40
-grep -Eq '^# SKIP:[[:space:]]+0$' tests/test-suite.log
-grep -Eq '^# FAIL:[[:space:]]+0$' tests/test-suite.log
-grep -Eq '^# XPASS:[[:space:]]+0$' tests/test-suite.log
-grep -Eq '^# ERROR:[[:space:]]+0$' tests/test-suite.log
-
 make install DESTDIR="$PEKIT_OUT"
 
 # Retain the current mkfs/fsck type names but drop the pre-4.0 command aliases
@@ -117,51 +102,6 @@ done
 # Package current documentation explicitly and leave historical 2.x/mkdosfs
 # documents to corresponding source.
 rm -rf "$PEKIT_OUT/usr/share/doc"
-
-# Exercise all three FAT widths and every installed program against ordinary
-# files. This covers the staged formatter/checker/label pipeline without a
-# privileged loop device or a host mount.
-"$BIN/mkfs.fat" -C --invariant -F 12 -n PEIFAT12 \
-  "$SMOKE/fat12.img" 1440
-"$BIN/fsck.fat" -n "$SMOKE/fat12.img"
-"$BIN/mkfs.msdos" -C --invariant -F 16 -n PEIFAT16 \
-  "$SMOKE/fat16.img" 32768
-"$BIN/fsck.fat" -n "$SMOKE/fat16.img"
-"$BIN/mkfs.vfat" -C --invariant -F 32 -n PEIOSESP -i 1234ABCD \
-  "$SMOKE/fat32.img" 65536
-"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
-test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = PEIOSESP
-test "$("$BIN/fatlabel" -i "$SMOKE/fat32.img")" = 1234abcd
-"$BIN/fatlabel" "$SMOKE/fat32.img" NEWLABEL
-test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = NEWLABEL
-"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
-"$BIN/fatlabel" -V | grep -F "$PEKIT_VERSION"
-
-# Enforce the intended installed interface exactly before debug payloads are
-# generated. A newly installed command, alias or manual requires review.
-find "$BIN" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort \
-  > "$PEKIT_OUT/.actual-bin"
-printf '%s\n' fatlabel fsck.fat mkfs.fat mkfs.msdos mkfs.vfat \
-  | LC_ALL=C sort > "$PEKIT_OUT/.expected-bin"
-cmp "$PEKIT_OUT/.expected-bin" "$PEKIT_OUT/.actual-bin"
-find "$FSCKDIR" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort \
-  > "$PEKIT_OUT/.actual-fsck"
-printf '%s\n' fsck.fat fsck.msdos fsck.vfat | LC_ALL=C sort \
-  > "$PEKIT_OUT/.expected-fsck"
-cmp "$PEKIT_OUT/.expected-fsck" "$PEKIT_OUT/.actual-fsck"
-for type in fat msdos vfat; do
-  test "$(readlink "$FSCKDIR/fsck.$type")" = ../../bin/fsck.fat
-done
-test "$(readlink "$BIN/mkfs.msdos")" = mkfs.fat
-test "$(readlink "$BIN/mkfs.vfat")" = mkfs.fat
-find "$PEKIT_OUT/usr/share/man/man8" -mindepth 1 -maxdepth 1 -printf '%f\n' \
-  | LC_ALL=C sort > "$PEKIT_OUT/.actual-man"
-printf '%s\n' fatlabel.8 fsck.fat.8 fsck.msdos.8 fsck.vfat.8 \
-  mkfs.fat.8 mkfs.msdos.8 mkfs.vfat.8 | LC_ALL=C sort \
-  > "$PEKIT_OUT/.expected-man"
-cmp "$PEKIT_OUT/.expected-man" "$PEKIT_OUT/.actual-man"
-test ! -e "$PEKIT_OUT/usr/sbin"
-test ! -e "$PEKIT_OUT/usr/share/doc"
 
 # Create conventional build-ID debuginfo and the exact corresponding source
 # referenced by DWARF for the three distinct ELF executables.
@@ -196,17 +136,92 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
       cp "$ROOT/$rel" \
         "usr/src/debug/io.github.dosfstools.dosfstools/$rel"
     done
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 3
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 3
-test -n "$(find usr/src/debug/io.github.dosfstools.dosfstools \
-  -type f -print -quit)"
-for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.sourceware.debugedit"          = "*"
+"org.nixos.patchelf"           = "*"
+"org.perl.perl"               = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"
+xxd             = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+# The release contains 40 filesystem-image tests. Require the complete suite,
+# no skip and no unexpected failure; permit upstream to add tests or retire
+# its one current expected-failure case without recipe churn.
+if [ -d "$PEKIT_MAIN_OUT/.test-bin" ]; then
+  PATH="$PEKIT_MAIN_OUT/.test-bin:$PATH"
+  export PATH
+fi
+cd "$PEKIT_SOURCE_ROOT"
+make -j"$(nproc)" check
+total=$(sed -n 's/^# TOTAL:[[:space:]]*//p' tests/test-suite.log)
+test "$total" -ge 40
+grep -Eq '^# SKIP:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# FAIL:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# XPASS:[[:space:]]+0$' tests/test-suite.log
+grep -Eq '^# ERROR:[[:space:]]+0$' tests/test-suite.log
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin"
+FSCKDIR="$STAGE/usr/libexec/fsck"
+SMOKE="$PEKIT_OUT/dosfstools-smoke"
+mkdir -p "$SMOKE"
+
+# Exercise all three FAT widths and every installed program against ordinary
+# files, without a privileged loop device or host mount.
+"$BIN/mkfs.fat" -C --invariant -F 12 -n PEIFAT12 "$SMOKE/fat12.img" 1440
+"$BIN/fsck.fat" -n "$SMOKE/fat12.img"
+"$BIN/mkfs.msdos" -C --invariant -F 16 -n PEIFAT16 "$SMOKE/fat16.img" 32768
+"$BIN/fsck.fat" -n "$SMOKE/fat16.img"
+"$BIN/mkfs.vfat" -C --invariant -F 32 -n PEIOSESP -i 1234ABCD \
+  "$SMOKE/fat32.img" 65536
+"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
+test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = PEIOSESP
+test "$("$BIN/fatlabel" -i "$SMOKE/fat32.img")" = 1234abcd
+"$BIN/fatlabel" "$SMOKE/fat32.img" NEWLABEL
+test "$("$BIN/fatlabel" "$SMOKE/fat32.img")" = NEWLABEL
+"$BIN/fsck.fat" -n "$SMOKE/fat32.img"
+"$BIN/fatlabel" -V | grep -F "$PEKIT_VERSION"
+
+# Freeze the intended installed command, dispatcher and manual surfaces.
+find "$BIN" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort > "$SMOKE/actual-bin"
+printf '%s\n' fatlabel fsck.fat mkfs.fat mkfs.msdos mkfs.vfat \
+  | LC_ALL=C sort > "$SMOKE/expected-bin"
+cmp "$SMOKE/expected-bin" "$SMOKE/actual-bin"
+find "$FSCKDIR" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort > "$SMOKE/actual-fsck"
+printf '%s\n' fsck.fat fsck.msdos fsck.vfat | LC_ALL=C sort > "$SMOKE/expected-fsck"
+cmp "$SMOKE/expected-fsck" "$SMOKE/actual-fsck"
+for type in fat msdos vfat; do
+  test "$(readlink "$FSCKDIR/fsck.$type")" = ../../bin/fsck.fat
+done
+test "$(readlink "$BIN/mkfs.msdos")" = mkfs.fat
+test "$(readlink "$BIN/mkfs.vfat")" = mkfs.fat
+find "$STAGE/usr/share/man/man8" -mindepth 1 -maxdepth 1 -printf '%f\n' \
+  | LC_ALL=C sort > "$SMOKE/actual-man"
+printf '%s\n' fatlabel.8 fsck.fat.8 fsck.msdos.8 fsck.vfat.8 \
+  mkfs.fat.8 mkfs.msdos.8 mkfs.vfat.8 | LC_ALL=C sort > "$SMOKE/expected-man"
+cmp "$SMOKE/expected-man" "$SMOKE/actual-man"
+test ! -e "$STAGE/usr/sbin"
+test ! -e "$STAGE/usr/share/doc"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$STAGE/usr/src/debug/io.github.dosfstools.dosfstools" -type f -print -quit)"
+for dbg in $(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -F '.debug_info'
 done
-
-# Enforce the final inherited hardening, ABI closure and path-cleanliness
-# contract. All three tools use only libc (iconv is provided by glibc).
-for elf in usr/bin/fatlabel usr/bin/fsck.fat usr/bin/mkfs.fat; do
+ROOT=$(dirname "$(dirname "$STAGE")")
+for elf in "$BIN/fatlabel" "$BIN/fsck.fat" "$BIN/mkfs.fat"; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
@@ -218,43 +233,25 @@ for elf in usr/bin/fatlabel usr/bin/fsck.fat usr/bin/mkfs.fat; do
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
 done
-
+rm -rf "$SMOKE"
 # Leave the materialised source as a clean source tree rather than retaining
-# generated build products in Pekit's cache. The original authenticated
-# release archive remains the corresponding-source input.
-make -C "$BUILD" distclean
-rm -rf "$SMOKE" "$PEKIT_OUT/.test-bin"
-rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
-  "$PEKIT_OUT/.actual-fsck" "$PEKIT_OUT/.expected-fsck" \
-  "$PEKIT_OUT/.actual-man" "$PEKIT_OUT/.expected-man" \
-  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
-'''
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "*"
-debugedit          = "*"
-patchelf           = "*"
-perl               = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
-perl            = "*"
-xxd             = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/mkfs.fat"
-test -x "$PEKIT_MAIN_OUT/usr/bin/fsck.fat"
-test -x "$PEKIT_MAIN_OUT/usr/bin/fatlabel"
-test -s "$PEKIT_MAIN_OUT/usr/share/man/man8/mkfs.fat.8"
+# generated build products in Pekit's cache. The authenticated release archive
+# remains the corresponding-source input.
+make distclean
+rm -rf "$PEKIT_MAIN_OUT/.test-bin"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.perl.perl" = "*"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+debugedit = "*"
+patchelf = "*"
+perl = "*"
+xxd = "*"
 dash = "*"

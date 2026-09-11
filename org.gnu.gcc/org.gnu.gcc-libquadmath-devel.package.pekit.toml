@@ -7,10 +7,8 @@ description = "GCC __float128 math runtime development files"
 license     = "LGPL-2.0-or-later"
 
 [provides]
-"libquadmath-devel" = "{{version}}-2"
 
 [replaces]
-"libquadmath-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libquadmath" = "{{version}}-2"

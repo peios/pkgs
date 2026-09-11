@@ -1,2 +1,4 @@
 [allow]
-"elf.cet" = "Stable Rust cannot yet emit complete x86 IBT instrumentation for downstream crates; dwed retains NX stack, PIE, full RELRO, RELR, and no text relocations"
+"package.license" = "Package licence metadata is owned by the immutable delegated source and is checked by versioned lint"
+"package.homepage" = "Package homepage metadata is owned by the immutable delegated source and is checked by versioned lint"
+"package.description" = "Package descriptions are owned by the immutable delegated source and are checked by versioned lint"

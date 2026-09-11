@@ -8,10 +8,8 @@ license       = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND
 license_class = "firmware"
 
 [provides]
-"firmware-storage" = "{{version}}-3"
 
 [replaces]
-"firmware-storage" = "<= {{version}}-2"
 
 [files]
 ":family/storage/usr/lib/firmware/**"   = "usr/lib/firmware"

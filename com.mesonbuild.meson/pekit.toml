@@ -1,6 +1,6 @@
-# Meson — the build system. Packaged with Ninja to close the PEI-158
-# deferral ledger: kmod 34+ is meson-only, and qemu, glib2, pixman and
-# the rest of that era follow.
+# Meson — the build system. It is packaged with Ninja, its default executor,
+# and provides the native build interface required by modern upstreams such as
+# kmod 34 and later.
 #
 # The first Python APPLICATION package, and the model for the rest.
 # Libraries (docutils, flit_core) install into the interpreter's
@@ -43,15 +43,6 @@ SRC="$(pwd)"
 PRIV="$PEKIT_OUT/usr/lib/x86_64-linux-peios/meson"
 BIN="$PEKIT_OUT/usr/bin/meson"
 
-# These upstream suites cover Meson's parsers, option/version semantics,
-# machine-file model, TAP reader, Cargo translation and platform-independent
-# behavior. They are deliberately run through unittest so the gate has no
-# accidental dependency on whichever pytest plugins a builder has installed.
-python3 -S "$SRC/run_unittests.py" --backend=ninja \
-  CargoCfgTest CargoLockTest CargoTomlTest CargoVersionTest \
-  DataTests InternalTests MachineFileStoreTests OptionTests \
-  PlatformAgnosticTests TAPParserTests VersionComparisonTests
-
 # --private: modules into /usr/lib/<triplet>/meson, and the generated
 # /usr/bin/meson launcher prepends that directory (through the /lib view) to
 # sys.path before importing. Nothing else can import mesonbuild.
@@ -66,26 +57,57 @@ install -Dm644 "$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
   "$PEKIT_OUT/usr/share/man/man1/meson.1"
 rm -rf "$PRIV"/meson-*.data
 
+"""
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c"  = "*"
+"org.git.kernel.dash"                = "*"
+"org.ninja-build.ninja"               = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3"             = ">= 3.14, < 3.15"
+"io.pypa.setuptools"  = "*"
+
+[build.main.dependencies.apt]
+build-essential    = "*"
+ninja-build        = "*"
+python3            = "*"
+python3-dev        = "*"
+python3-setuptools = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+# These upstream suites cover Meson's parsers, option/version semantics,
+# machine-file model, TAP reader, Cargo translation and platform-independent
+# behavior. They are deliberately run through unittest so the gate has no
+# accidental dependency on whichever pytest plugins a builder has installed.
+python3 -S "$PEKIT_SOURCE_ROOT/run_unittests.py" --backend=ninja \
+  CargoCfgTest CargoLockTest CargoTomlTest CargoVersionTest \
+  DataTests InternalTests MachineFileStoreTests OptionTests \
+  PlatformAgnosticTests TAPParserTests VersionComparisonTests
+STAGE="$PEKIT_MAIN_OUT"
+PRIV="$STAGE/usr/lib/x86_64-linux-peios/meson"
+BIN="$STAGE/usr/bin/meson"
 test -x "$BIN"
-test -f "$PEKIT_OUT/usr/share/man/man1/meson.1"
+test -s "$STAGE/usr/share/man/man1/meson.1"
 test "$(find "$PRIV/mesonbuild" -type f -name '*.py' | wc -l)" -gt 100
 test "$(find "$PRIV/mesonbuild" -type f -name '*.pyc' | wc -l)" -gt 100
 test "$(head -n 1 "$BIN")" = '#!/bin/python3'
 grep -F "sys.path.insert(0, '/lib/x86_64-linux-peios/meson')" "$BIN"
-test -z "$(find "$PEKIT_OUT" -path '*/share/polkit-1/*' -type f -print -quit)"
+test -z "$(find "$STAGE" -path '*/share/polkit-1/*' -type f -print -quit)"
 
 # The application stays private: ordinary Python processes are not offered a
 # public `mesonbuild` module. The installed launcher alone adds its private
-# runtime-view path. PYTHONPATH points that launcher at the staged equivalent
-# while testing before package assembly.
-cd "$PEKIT_OUT"
+# runtime-view path. PYTHONPATH points that launcher at the staged equivalent.
 python3 -I -c "import importlib.util; assert importlib.util.find_spec('mesonbuild') is None"
 meson_stage() {
   PYTHONPATH="$PRIV" "$BIN" "$@"
 }
 test "$(meson_stage --version)" = "$PEKIT_VERSION"
 
-SMOKE="$PEKIT_OUT/.meson-smoke"
+SMOKE="$PEKIT_OUT/meson-smoke"
 mkdir -p "$SMOKE/src"
 cat > "$SMOKE/src/meson.build" <<'EOF'
 project(
@@ -131,40 +153,24 @@ assert all(entry['command'] for entry in commands)
 PY
 meson_stage configure "$SMOKE/build" -Dwarning_level=2
 meson_stage compile -C "$SMOKE/build" -j2
-export DESTDIR="$SMOKE/dest"
-meson_stage install -C "$SMOKE/build"
-unset DESTDIR
+DESTDIR="$SMOKE/dest" meson_stage install -C "$SMOKE/build"
 test "$("$SMOKE/dest/usr/bin/peios-smoke")" = 42
 test "$(cat "$SMOKE/dest/usr/share/peios-meson-smoke/payload.txt")" = installed
 rm -rf "$SMOKE"
-"""
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c"  = "*"
-dash                = "*"
-ninja               = "*"
-"org.gnu.coreutils" = "*"
-python3             = ">= 3.14, < 3.15"
-python3-setuptools  = "*"
-
-[build.main.dependencies.apt]
-build-essential    = "*"
-ninja-build        = "*"
-python3            = "*"
-python3-dev        = "*"
-python3-setuptools = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/meson"
-test -d "$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/meson/mesonbuild"
-test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/meson.1"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
 "org.git.kernel.dash" = "*"
+"org.ninja-build.ninja" = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
+"io.pypa.setuptools" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 dash = "*"
+ninja-build = "*"
+python3 = "*"
+python3-dev = "*"
+python3-setuptools = "*"

@@ -4,13 +4,8 @@ description = "GNU Texinfo converters for Texinfo and POD documents"
 license     = "GPL-3.0-or-later"
 
 [provides]
-texinfo  = "{{version}}-1"
-makeinfo = "{{version}}-1"
-texi2any = "{{version}}-1"
-pod2texi = "{{version}}-1"
 
 [replaces]
-texinfo = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.texinfo-common" = "{{version}}-1"

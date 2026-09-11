@@ -5,10 +5,9 @@ name        = "net.sourceforge.perfmon2.libpfm"
 description = "Hardware performance-event discovery and encoding runtime library"
 
 [provides]
-libpfm = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/net.sourceforge.perfmon2.libpfm/"

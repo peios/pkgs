@@ -5,10 +5,8 @@ name        = "org.gnome.libxslt-devel"
 description = "libxslt and libexslt headers and development metadata"
 
 [provides]
-"libxslt-devel" = "{{version}}-1"
 
 [replaces]
-"libxslt-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnome.libxslt"       = "{{version}}-1"

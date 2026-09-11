@@ -14,14 +14,6 @@ license       = "LicenseRef-Public-Domain AND BSD-2-Clause AND BSD-3-Clause"
 license_class = "free"
 homepage      = "https://docutils.sourceforge.io"
 
-[provides]
-# Preserve the bootstrap-era identity while downstream recipes migrate to the
-# authenticated reverse-DNS name.
-"python3-docutils" = "{{version}}-2"
-
-[replaces]
-"python3-docutils" = "<= {{version}}-1"
-
 [dependencies]
 "org.python.python3" = ">= 3.14, < 3.15"
 

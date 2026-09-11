@@ -3,10 +3,9 @@ name        = "org.openssl.libssl"
 description = "OpenSSL TLS runtime library"
 
 [provides]
-libssl = "{{version}}"
 
 [dependencies]
-glibc                   = ">= 2.43"
+"org.gnu.glibc"                   = ">= 2.43"
 "org.openssl.libcrypto" = "{{version}}-1"
 
 [files]

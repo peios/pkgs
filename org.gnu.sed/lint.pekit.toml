@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The applicable upstream suite and staged BRE, ERE, locale, in-place, and sandbox tests run inside build.main so package and publish fail closed"

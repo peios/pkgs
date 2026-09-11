@@ -70,14 +70,6 @@ rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
   "$PEKIT_OUT$PREFIX/bin/rust-gdbgui" \
   "$PEKIT_OUT$PREFIX/bin/rust-lldb"
 
-# Assert the bootstrap contract at the installed prefix. This catches a lock
-# or recipe edit that would otherwise let x.py begin a many-hour build with a
-# seed different from the version named by its immutable source lock.
-test "$("$PEKIT_OUT$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
-test "$("$PEKIT_OUT$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rustc"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-cargo"
-test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
 """
 
 [build.main.dependencies.peipkg]
@@ -86,4 +78,28 @@ test -f "$PEKIT_OUT$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gn
 "io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [build.main.dependencies.apt]
+build-essential = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+PREFIX="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/rust-stage0"
+
+# Catch a lock or recipe edit before a final compiler begins its many-hour
+# self-hosted build with the wrong seed.
+test "$("$PREFIX/bin/rustc" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test "$("$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
+test -f "$PREFIX/lib/rustlib/manifest-rustc"
+test -f "$PREFIX/lib/rustlib/manifest-cargo"
+test -f "$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials" = "*"
+"org.gnu.gcc-libgcc"         = ">= 16"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
+
+[test.dependencies.apt]
 build-essential = "*"

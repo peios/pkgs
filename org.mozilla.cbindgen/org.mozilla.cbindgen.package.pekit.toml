@@ -3,7 +3,6 @@ name        = "org.mozilla.cbindgen"
 description = "Rust-to-C and C++ bindings generator"
 
 [provides]
-cbindgen = "{{version}}-1"
 
 [files]
 "@source:LICENSE"      = "usr/share/licenses/org.mozilla.cbindgen/LICENSE"

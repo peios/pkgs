@@ -5,7 +5,6 @@ architecture = "noarch"
 license      = "Zlib"
 
 [provides]
-zlib-ng-doc = "{{version}}-2"
 
 [files]
 "@source:LICENSE.md" = "usr/share/licenses/io.github.zlib-ng.zlib-ng-doc/"

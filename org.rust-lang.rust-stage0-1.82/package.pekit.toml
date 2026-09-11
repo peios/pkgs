@@ -13,15 +13,13 @@ license_class = "free"
 homepage      = "https://www.rust-lang.org/"
 
 [provides]
-rust-stage0 = "{{version}}-2"
 
 [replaces]
-rust-stage0 = "<= {{version}}-2"
 
 [dependencies]
-glibc  = ">= 2.43"
-libgcc = ">= 16"
-zlib   = ">= 2.3.3"
+"org.gnu.glibc"  = ">= 2.43"
+"org.gnu.gcc-libgcc" = ">= 16"
+"io.github.zlib-ng.zlib-ng-compat"   = ">= 2.3.3"
 
 [files]
 "@source:COPYRIGHT"      = "usr/share/licenses/org.rust-lang.rust-stage0/"

@@ -46,22 +46,7 @@ cd "$PEKIT_OUT"
   --disable-stackprof \
   --disable-nls
 
-# Upstream labels these as the recommended production feature set. Test the
-# configured result so a missing or renamed dependency cannot silently reduce
-# the library's format support on a future rebuild.
-grep -Fx '#define USE_ZLIB 1' config.h
-grep -Fx '#define USE_BZLIB 1' config.h
-grep -Fx '#define USE_LZMA 1' config.h
-grep -Fx '#define USE_ZSTD 1' config.h
-grep -Fx '#define USE_ZSTD_COMPRESS 1' config.h
-grep -Fx '#define USE_DEMANGLE 1' config.h
-grep -Fx '#define DEFAULT_AR_DETERMINISTIC true' config.h
-
 make -j"$(nproc)"
-# Test fixtures carry their original numeric owners. Pekit's unprivileged
-# build namespace cannot restore those IDs, so extract their content while
-# retaining the builder's ownership; this is also our Automake test policy.
-TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # The disabled debuginfod and stackprof components still install reference
@@ -76,55 +61,10 @@ rm -f \
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/etc"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
-# Installed command and library integration gate. This executes from the
-# staged tree, independently of any elfutils installation on the build host.
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 BINDIR="$PEKIT_OUT/usr/bin"
-SMOKE="$PEKIT_OUT/.elfutils-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/probe.c" <<'EOF'
-#include <fcntl.h>
-#include <unistd.h>
-#include <gelf.h>
-#include <elfutils/libdw.h>
-
-int main(int argc, char **argv) {
-  GElf_Ehdr ehdr;
-  if (argc != 2 || elf_version(EV_CURRENT) == EV_NONE) return 1;
-  int fd = open(argv[1], O_RDONLY);
-  if (fd < 0) return 2;
-  Elf *elf = elf_begin(fd, ELF_C_READ, 0);
-  if (!elf || elf_kind(elf) != ELF_K_ELF || !gelf_getehdr(elf, &ehdr)) return 3;
-  elf_end(elf);
-  Dwarf *dw = dwarf_begin(fd, DWARF_C_READ);
-  if (!dw) return 4;
-  dwarf_end(dw);
-  close(fd);
-  return ehdr.e_machine == EM_X86_64 ? 0 : 5;
-}
-EOF
-cc $CFLAGS -I"$PEKIT_OUT/usr/include" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" $LDFLAGS \
-  -o "$SMOKE/probe" "$SMOKE/probe.c" -ldw -lelf
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/probe" "$SMOKE/probe"
-LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-readelf" -h "$SMOKE/probe" \
-  | grep -F 'ELF64'
-LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-nm" "$SMOKE/probe" \
-  | grep -E '^main[[:space:]]'
-LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-elflint" --gnu-ld "$SMOKE/probe"
-
-# Preserve the workspace hardening contract and prohibit build-tree loader
-# paths. Static archives retain symbols but discard compiler-only debug data.
-find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$f" | grep -F 'BIND_NOW'
-  if readelf -d "$f" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-done
-rm -rf "$SMOKE"
+find "$PEKIT_OUT/usr" -type f -name '*.a' \
+  -exec strip --strip-debug {} \\;
 
 # Conventional build-id debug packages. debugedit rewrites source paths to a
 # stable package namespace before detached symbols are produced and the
@@ -158,23 +98,92 @@ done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+BINDIR="$STAGE/usr/bin"
+SMOKE="$PEKIT_OUT/smoke"
+
+# Assert the configured production feature set, then run the complete upstream
+# suite with ownership-neutral fixture extraction.
+for define in USE_ZLIB USE_BZLIB USE_LZMA USE_ZSTD USE_ZSTD_COMPRESS USE_DEMANGLE; do
+  grep -Fx "#define $define 1" "$STAGE/config.h"
+done
+grep -Fx '#define DEFAULT_AR_DETERMINISTIC true' "$STAGE/config.h"
+TAR_OPTIONS=--no-same-owner make -C "$STAGE" -j"$(nproc)" check
+
+mkdir -p "$SMOKE"
+cat > "$SMOKE/probe.c" <<'EOF'
+#include <fcntl.h>
+#include <unistd.h>
+#include <gelf.h>
+#include <elfutils/libdw.h>
+int main(int argc, char **argv) {
+  GElf_Ehdr ehdr;
+  if (argc != 2 || elf_version(EV_CURRENT) == EV_NONE) return 1;
+  int fd = open(argv[1], O_RDONLY);
+  if (fd < 0) return 2;
+  Elf *elf = elf_begin(fd, ELF_C_READ, 0);
+  if (!elf || elf_kind(elf) != ELF_K_ELF || !gelf_getehdr(elf, &ehdr)) return 3;
+  elf_end(elf);
+  Dwarf *dw = dwarf_begin(fd, DWARF_C_READ);
+  if (!dw) return 4;
+  dwarf_end(dw);
+  close(fd);
+  return ehdr.e_machine == EM_X86_64 ? 0 : 5;
+}
+EOF
+cc $CFLAGS -I"$STAGE/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" $LDFLAGS \
+  -o "$SMOKE/probe" "$SMOKE/probe.c" -ldw -lelf
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/probe" "$SMOKE/probe"
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-readelf" -h "$SMOKE/probe" | grep -F 'ELF64'
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-nm" "$SMOKE/probe" | grep -E '^main[[:space:]]'
+LD_LIBRARY_PATH="$LIBDIR" "$BINDIR/eu-elflint" --gnu-ld "$SMOKE/probe"
+
+find "$STAGE/usr" -type f ! -type l | while IFS= read -r f; do
+  case "$f" in *.a) continue;; esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$f" | grep -F 'BIND_NOW'
+  if readelf -d "$f" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+test -n "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
+test -n "$(find "$STAGE/usr/src/debug/org.sourceware.elfutils" -type f -print -quit)"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.bash"                   = "*"
+"org.gnu.tar"                    = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+"g++"           = "*"
+bash            = "*"
+tar             = "*"
+
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++"        = "*"
-m4                            = "*"
-pkgconf                       = "*"
-zlib-devel                    = "*"
+"org.gnu.m4"                            = "*"
+"org.pkgconf.pkgconf"                       = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel"                    = "*"
 "org.sourceware.bzip2-devel" = "*"
-xz-devel                      = "*"
-zstd-devel                    = "*"
+"org.tukaani.xz-devel"                      = "*"
+"com.facebook.zstd-devel"                    = "*"
 "org.sourceware.bzip2"       = "*"
 "org.gnu.bash"               = "*"
-glibc-bin                    = "*"
-tar                          = "*"
-xz                            = "*"
-zstd                          = "*"
-which                         = "*"
-debugedit                     = "*"
-patchelf                      = "*"
+"org.gnu.glibc-bin"                    = "*"
+"org.gnu.tar"                          = "*"
+"org.tukaani.xz"                            = "*"
+"com.facebook.zstd"                          = "*"
+"org.gnu.which"                         = "*"
+"org.sourceware.debugedit"                     = "*"
+"org.nixos.patchelf"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

@@ -34,63 +34,11 @@ cd "$PEKIT_OUT"
   --disable-nls
 
 make -j"$(nproc)"
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios currently has no Info reader. The source package retains the complete
 # Texinfo documentation; installed users receive the command manual pages.
 rm -rf "$PEKIT_OUT/usr/share/info"
-
-# Exercise each staged command through representative successful and
-# difference-reporting paths. Exit status 1 is data for these utilities, not a
-# failed executable, and is checked explicitly.
-BIN="$PEKIT_OUT/usr/bin"
-SMOKE="$PEKIT_OUT/.diffutils-smoke"
-mkdir -p "$SMOKE/left/sub" "$SMOKE/right/sub"
-printf '%s\n' alpha beta > "$SMOKE/left/file"
-printf '%s\n' alpha gamma > "$SMOKE/right/file"
-printf '%s\n' same > "$SMOKE/left/sub/same"
-cp "$SMOKE/left/sub/same" "$SMOKE/right/sub/same"
-
-"$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/left/file"
-status=0
-"$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/right/file" || status=$?
-[ "$status" -eq 1 ]
-
-status=0
-"$BIN/diff" -u "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/unified" || status=$?
-[ "$status" -eq 1 ]
-grep -F -- '-beta' "$SMOKE/unified"
-grep -F -- '+gamma' "$SMOKE/unified"
-
-status=0
-"$BIN/diff" -r "$SMOKE/left" "$SMOKE/right" > "$SMOKE/recursive" || status=$?
-[ "$status" -eq 1 ]
-grep -F 'file' "$SMOKE/recursive"
-
-printf '%s\n' base > "$SMOKE/base"
-printf '%s\n' ours > "$SMOKE/ours"
-printf '%s\n' theirs > "$SMOKE/theirs"
-status=0
-"$BIN/diff3" -m "$SMOKE/ours" "$SMOKE/base" "$SMOKE/theirs" > "$SMOKE/merged" || status=$?
-[ "$status" -eq 1 ]
-grep -F '<<<<<<<' "$SMOKE/merged"
-grep -F '>>>>>>>' "$SMOKE/merged"
-
-status=0
-"$BIN/sdiff" --suppress-common-lines "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/side" || status=$?
-[ "$status" -eq 1 ]
-grep -F '|' "$SMOKE/side"
-
-for elf in "$BIN/cmp" "$BIN/diff" "$BIN/diff3" "$BIN/sdiff"; do
-  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-done
-rm -rf "$SMOKE"
 
 # Produce conventional debuginfo and debugsource payloads.
 cd "$PEKIT_OUT"
@@ -122,7 +70,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-perl               = "*"
+"org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -130,26 +78,58 @@ debugedit       = "*"
 patchelf        = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-DIFF="$PEKIT_MAIN_OUT/usr/bin/diff"
-TMP="$PEKIT_OUT/diffutils-test"
-mkdir -p "$TMP"
-printf '%s\n' before > "$TMP/a"
-printf '%s\n' after > "$TMP/b"
-set +e
-output=$("$DIFF" -u "$TMP/a" "$TMP/b")
-status=$?
-set -e
-test "$status" -eq 1
-case "$output" in *-before*+after*) ;; *) exit 1;; esac
+cd "$PEKIT_MAIN_OUT"
+make -j"$(nproc)" check
+BIN="$PEKIT_MAIN_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/diffutils-test"
+mkdir -p "$SMOKE/left/sub" "$SMOKE/right/sub"
+printf '%s\n' alpha beta > "$SMOKE/left/file"
+printf '%s\n' alpha gamma > "$SMOKE/right/file"
+printf '%s\n' same > "$SMOKE/left/sub/same"
+cp "$SMOKE/left/sub/same" "$SMOKE/right/sub/same"
+"$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/left/file"
+status=0; "$BIN/cmp" -s "$SMOKE/left/file" "$SMOKE/right/file" || status=$?
+[ "$status" -eq 1 ]
+status=0; "$BIN/diff" -u "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/unified" || status=$?
+[ "$status" -eq 1 ]
+grep -F -- '-beta' "$SMOKE/unified"
+grep -F -- '+gamma' "$SMOKE/unified"
+status=0; "$BIN/diff" -r "$SMOKE/left" "$SMOKE/right" > "$SMOKE/recursive" || status=$?
+[ "$status" -eq 1 ]
+grep -F file "$SMOKE/recursive"
+printf '%s\n' base > "$SMOKE/base"
+printf '%s\n' ours > "$SMOKE/ours"
+printf '%s\n' theirs > "$SMOKE/theirs"
+status=0; "$BIN/diff3" -m "$SMOKE/ours" "$SMOKE/base" "$SMOKE/theirs" > "$SMOKE/merged" || status=$?
+[ "$status" -eq 1 ]
+grep -F '<<<<<<<' "$SMOKE/merged"
+grep -F '>>>>>>>' "$SMOKE/merged"
+status=0; "$BIN/sdiff" --suppress-common-lines "$SMOKE/left/file" "$SMOKE/right/file" > "$SMOKE/side" || status=$?
+[ "$status" -eq 1 ]
+grep -F '|' "$SMOKE/side"
+for elf in "$BIN/cmp" "$BIN/diff" "$BIN/diff3" "$BIN/sdiff"; do
+  "$elf" --version | head -1 | grep -F "$PEKIT_VERSION"
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
 "org.git.kernel.dash" = "*"
-"org.gnu.coreutils" = "*"
+"dev.peios.peiosutils" = "*"
+"org.perl.perl" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 coreutils = "*"
 dash = "*"
+perl = "*"

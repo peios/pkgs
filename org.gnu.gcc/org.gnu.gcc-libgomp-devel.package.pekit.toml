@@ -8,10 +8,8 @@ name        = "org.gnu.gcc-libgomp-devel"
 description = "GCC OpenMP runtime development files"
 
 [provides]
-"libgomp-devel" = "{{version}}-2"
 
 [replaces]
-"libgomp-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libgomp" = "{{version}}-2"

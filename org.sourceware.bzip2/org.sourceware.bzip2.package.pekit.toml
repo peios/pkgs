@@ -6,19 +6,14 @@ side_effects = ["man-db"]
 name        = "org.sourceware.bzip2"
 description = "Block-sorting compression tools"
 
-[provides]
-# Version the compatibility capability so dependency resolution prefers this
-# canonical package over the retired unqualified bzip2 package.
-bzip2 = "{{version}}"
-
 [dependencies]
 "org.sourceware.bzip2-libs" = "{{version}}-3"
 # bzgrep and bzdiff are POSIX shell frontends over these standard tools.
-dash          = "*"
-"org.gnu.coreutils" = "*"
-diffutils     = "*"
-grep          = "*"
-sed           = "*"
+"org.git.kernel.dash"          = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.diffutils"     = "*"
+"org.gnu.grep"          = "*"
+"org.gnu.sed"           = "*"
 
 [files]
 "@source:LICENSE"   = "usr/share/licenses/org.sourceware.bzip2/"

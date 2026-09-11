@@ -5,10 +5,8 @@ name        = "org.llvm.lld"
 description = "LLVM linker and compatible driver names"
 
 [provides]
-lld = "{{version}}-2"
 
 [replaces]
-lld = "<= {{version}}-1"
 
 [dependencies]
 "org.llvm.llvm-libs" = "{{version}}-2"

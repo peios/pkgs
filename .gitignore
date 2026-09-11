@@ -2,19 +2,24 @@
 # to a shared staging tree. As with the repository link below, omit the trailing
 # slash so a cache-sharing symlink cannot dirty exact package provenance.
 out
+# Retired flat publication pool and its historical snapshots. These patterns
+# remain so an old worktree or archived command cannot accidentally commit one.
 _pkgsOut_
 # Also match a release worktree's symlink to the shared repository. A trailing
 # slash ignores only real directories; leaving it off keeps that operational
 # symlink from falsely marking otherwise exact-commit package provenance dirty.
 _peipkgRepo_
 _pkgsOut_.presigning-bak/
-# Legacy publish-pool name (superseded by _pkgsOut_/); never commit the pool.
+# Older spelling of the same retired flat publish pool; never commit it.
 pkgsOut/
 # Dated/labelled snapshots of the pool taken before a sweeping change
 # (_pkgsOut_.pre-pfsl-…, .pre-hardening-bak, .superseded). Same artifacts, same
 # reason, and they run to gigabytes: three of them were 3.1 GB and one
 # `git add -A` away from the history.
 _pkgsOut_.*/
+# DWE is deliberately excluded from the public repository and publishes only
+# to this dedicated local image-composition pool.
+_dwePackages_
 
 # Keyring files are per-developer / environment-specific (hold or reference key
 # material) and are never committed.

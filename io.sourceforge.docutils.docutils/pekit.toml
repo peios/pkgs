@@ -29,26 +29,33 @@ command = """
 set -eu
 SRC="$(pwd -P)"
 
-# The upstream suite (unittest, ~2,300 cases across parsers, transforms and
-# every writer) runs against a copy of the source tree so the fetched tree
-# stays pristine. The library is pure Python, so the tree under test is
-# byte-for-byte what the wheel carries.
-cp -r "$SRC" "$PEKIT_OUT/test-tree"
-(cd "$PEKIT_OUT/test-tree" && PYTHONDONTWRITEBYTECODE=1 python3 test/alltests.py)
-rm -rf "$PEKIT_OUT/test-tree"
-
 # Wheel -> site-packages, launchers, checked-hash bytecode. The workspace
 # helper is the one place that policy lives; see _pybuild_/README.md.
 python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
   --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
+"""
 
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"                = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
+"io.pypa.flit-core"  = "*"
+
+[build.main.dependencies.apt]
+python3 = "*"
+flit    = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
 # In the Debian reference rung, install-wheel follows Debian's sysconfig path;
-# in the native rung it follows Peios' triplet path. Only the latter is
-# packageable, but both exercise the same installed wheel and launchers.
+# in the native rung it follows Peios' triplet path.
 if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  SITE="$PEKIT_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
+  SITE="$PEKIT_MAIN_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
 else
-  set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
+  set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
   [ "$#" -eq 1 ] && [ -d "$1" ] || {
     echo "docutils: expected exactly one Peios site-packages directory" >&2
     exit 1
@@ -60,12 +67,9 @@ test -f "$SITE/docutils/core.py"
 test -f "$SITE/docutils/parsers/rst/__init__.py"
 test -f "$SITE"/docutils-*.dist-info/METADATA
 
-# Treat the public command surface as an API: catch a dropped converter or an
-# unexpected new launcher that would otherwise silently change the package.
-python3 - "$PEKIT_OUT/usr/bin" <<'PY'
+python3 - "$PEKIT_MAIN_OUT/usr/bin" <<'PY'
 from pathlib import Path
 import sys
-
 expected = {
     'docutils', 'rst2html', 'rst2html4', 'rst2html5', 'rst2latex',
     'rst2man', 'rst2odt', 'rst2pseudoxml', 'rst2s5', 'rst2xetex',
@@ -78,29 +82,21 @@ for path in bindir.iterdir():
     assert path.read_text().splitlines()[0] == '#!/bin/python3'
 PY
 
-# Exercise the installed library and metadata, and verify all bytecode uses
-# checked-hash invalidation (PEP 552) rather than timestamps.
-cd "$PEKIT_OUT"
 PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
 python3 -S - "$SITE" "$PEKIT_VERSION" <<'PY'
 import importlib.metadata
 from pathlib import Path
 import sys
-
 site = Path(sys.argv[1]).resolve()
 version = sys.argv[2]
-
 assert not any(path.suffix in {'.so', '.a', '.o'} for path in site.rglob('*'))
-
 import docutils
 from docutils.core import publish_string
-
 assert Path(docutils.__file__).resolve().is_relative_to(site)
 assert docutils.__version__ == version
 assert importlib.metadata.version('docutils') == version
-html = publish_string('Heading\\n=======\\n', writer_name='html5')
-assert b'<h1 class="title">Heading</h1>' in html
-
+assert b'<h1 class="title">Heading</h1>' in publish_string(
+    'Heading\n=======\n', writer_name='html5')
 py_sources = sorted((site / 'docutils').rglob('*.py'))
 pycs = sorted((site / 'docutils').rglob('*.pyc'))
 assert len(py_sources) >= 120
@@ -111,9 +107,7 @@ for pyc in pycs:
     assert int.from_bytes(data[4:8], 'little') == 3
 PY
 
-# End-to-end staged-launcher gates for the two formats Peios consumes most:
-# man pages for system tools and HTML for general documentation.
-SMOKE="$PEKIT_OUT/.docutils-smoke"
+SMOKE="$PEKIT_OUT/docutils-smoke"
 mkdir -p "$SMOKE"
 cat > "$SMOKE/input.rst" <<'EOF'
 peios-docutils-smoke
@@ -121,55 +115,42 @@ peios-docutils-smoke
 
 This is a **production** conversion test.
 EOF
-PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/rst2man" \
+PYTHONPATH="$SITE" "$PEKIT_MAIN_OUT/usr/bin/rst2man" \
   "$SMOKE/input.rst" "$SMOKE/output.1"
-PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/rst2html5" \
+PYTHONPATH="$SITE" "$PEKIT_MAIN_OUT/usr/bin/rst2html5" \
   "$SMOKE/input.rst" "$SMOKE/output.html"
 python3 - "$SMOKE/output.1" "$SMOKE/output.html" <<'PY'
 from pathlib import Path
 import sys
-
 assert '.TH "peios-docutils-smoke"' in Path(sys.argv[1]).read_text()
 assert '<strong>production</strong>' in Path(sys.argv[2]).read_text()
 PY
-VERSION_OUTPUT="$(PYTHONPATH="$SITE" "$PEKIT_OUT/usr/bin/docutils" --version)"
+VERSION_OUTPUT="$(PYTHONPATH="$SITE" "$PEKIT_MAIN_OUT/usr/bin/docutils" --version)"
 case "$VERSION_OUTPUT" in
   *"Docutils $PEKIT_VERSION"*) ;;
   *) echo "docutils: unexpected --version output: $VERSION_OUTPUT" >&2; exit 1 ;;
 esac
-rm -rf "$SMOKE"
 
-# Neither testing nor building may dirty the immutable fetched source.
-python3 -S - "$SRC" <<'PY'
+# The upstream suite is about 2,300 unittest cases across parsers, transforms
+# and every writer. Run it against a disposable source copy so the fetched tree
+# stays pristine.
+cp -r "$PEKIT_SOURCE_ROOT" "$PEKIT_OUT/test-tree"
+(cd "$PEKIT_OUT/test-tree" && PYTHONDONTWRITEBYTECODE=1 python3 test/alltests.py)
+
+# Neither building nor testing may dirty the immutable fetched source.
+python3 -S - "$PEKIT_SOURCE_ROOT" <<'PY'
 from pathlib import Path
 import sys
-
 assert not any(path.is_dir() for path in Path(sys.argv[1]).rglob('__pycache__'))
 PY
-"""
-
-[build.main.dependencies.peipkg]
-dash                = "*"
-"org.gnu.coreutils" = "*"
-"org.python.python3" = ">= 3.14, < 3.15"
-"io.pypa.flit-core"  = "*"
-
-[build.main.dependencies.apt]
-python3 = "*"
-flit    = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/rst2man"
-test -x "$PEKIT_MAIN_OUT/usr/bin/rst2html5"
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/docutils
-test -d "$1"
+rm -rf "$SMOKE" "$PEKIT_OUT/test-tree"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
 
 [test.dependencies.apt]
 dash = "*"
+python3 = "*"

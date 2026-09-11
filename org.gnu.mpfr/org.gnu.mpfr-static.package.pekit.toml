@@ -3,7 +3,6 @@ name        = "org.gnu.mpfr-static"
 description = "GNU MPFR static library"
 
 [provides]
-"mpfr-static" = "{{version}}"
 
 [dependencies]
 "org.gnu.mpfr-devel" = "{{version}}-1"

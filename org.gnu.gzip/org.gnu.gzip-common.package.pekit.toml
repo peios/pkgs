@@ -6,7 +6,6 @@ architecture = "noarch"
 description  = "GNU gzip command manuals"
 
 [provides]
-"gzip-common" = "{{version}}"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/org.gnu.gzip-common/COPYING"

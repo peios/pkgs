@@ -11,10 +11,8 @@ name        = "org.llvm.llvm"
 description = "Compiler infrastructure command-line tools"
 
 [provides]
-llvm = "{{version}}-2"
 
 [replaces]
-llvm = "<= {{version}}-1"
 
 [dependencies]
 "org.llvm.llvm-libs" = "{{version}}-2"

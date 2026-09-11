@@ -50,16 +50,6 @@ sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' \
 
 make -j"$(nproc)"
 
-# Upstream's suite tests the C parser, mutations, serialization, includes and
-# malformed-input handling. Its test binary assumes testdata/ is relative to
-# the current directory, which `make check` gets wrong for an out-of-source
-# build. Run that complete binary from the source tests directory, while
-# resolving the library from this build tree rather than an older composition.
-(
-  cd "$SRC/tests"
-  LD_LIBRARY_PATH="$PEKIT_OUT/lib/.libs" \
-    "$PEKIT_OUT/tests/.libs/libconfig_tests"
-)
 make install DESTDIR="$PEKIT_OUT"
 
 find "$PEKIT_OUT/usr" -name '*.la' -delete
@@ -85,94 +75,6 @@ CONFIG_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig.so.15.*' | LC_AL
 CONFIGXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig++.so.15.*' | LC_ALL=C sort)
 test "$(printf '%s\n' "$CONFIG_SO" | grep -c .)" -eq 1
 test "$(printf '%s\n' "$CONFIGXX_SO" | grep -c .)" -eq 1
-test -L "$LIBDIR/libconfig.so"
-test -L "$LIBDIR/libconfig.so.15"
-test -L "$LIBDIR/libconfig++.so"
-test -L "$LIBDIR/libconfig++.so.15"
-test -s "$LIBDIR/libconfig.a"
-test -s "$LIBDIR/libconfig++.a"
-test -f "$INCLUDEDIR/libconfig.h"
-test -f "$INCLUDEDIR/libconfig.h++"
-readelf -d "$CONFIG_SO" | grep -F 'Library soname: [libconfig.so.15]'
-readelf -d "$CONFIGXX_SO" | grep -F 'Library soname: [libconfig++.so.15]'
-readelf --dyn-syms -W "$CONFIG_SO" | grep -E ' config_read(@|$)'
-readelf --dyn-syms -W "$CONFIGXX_SO" | c++filt | grep -F 'libconfig::Config::readString'
-
-export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
-export PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT"
-pkg-config --validate libconfig libconfig++
-test "$(pkg-config --modversion libconfig)" = "$PEKIT_VERSION"
-test "$(pkg-config --modversion libconfig++)" = "$PEKIT_VERSION"
-pkg-config --libs libconfig | grep -Eq '(^|[[:space:]])-lconfig([[:space:]]|$)'
-pkg-config --libs libconfig++ | grep -Eq '(^|[[:space:]])-lconfig[+][+]([[:space:]]|$)'
-
-grep -F "$PEKIT_VERSION" \
-  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
-grep -F 'set(LIBCONFIG_INCLUDE_DIRS "/usr/include")' \
-  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
-grep -F "$PEKIT_VERSION" \
-  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
-grep -F 'set(LIBCONFIG++_INCLUDE_DIRS "/usr/include")' \
-  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
-
-# Exercise the staged headers and libraries through both APIs, using shared and
-# static linkage. The checks parse typed nested data and verify the result.
-SMOKE="$PEKIT_OUT/.libconfig-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/consumer.c" <<'EOF'
-#include <libconfig.h>
-
-int main(void)
-{
-  config_t cfg;
-  int answer = 0;
-  config_init(&cfg);
-  if (!config_read_string(&cfg, "app: { answer = 42; enabled = true; };"))
-    return 1;
-  if (!config_lookup_int(&cfg, "app.answer", &answer) || answer != 42)
-    return 2;
-  if (!config_lookup_bool(&cfg, "app.enabled", &answer) || !answer)
-    return 3;
-  config_destroy(&cfg);
-  return 0;
-}
-EOF
-cat > "$SMOKE/consumer.cc" <<'EOF'
-#include <libconfig.h++>
-#include <string>
-
-int main()
-{
-  libconfig::Config cfg;
-  cfg.readString("app: { name = \\\"peios\\\"; workers = 4; };");
-  std::string name;
-  int workers = 0;
-  if (!cfg.lookupValue("app.name", name) || name != "peios")
-    return 1;
-  if (!cfg.lookupValue("app.workers", workers) || workers != 4)
-    return 2;
-  return 0;
-}
-EOF
-cc "$SMOKE/consumer.c" $(pkg-config --cflags --libs libconfig) \
-  -o "$SMOKE/c-shared"
-g++ "$SMOKE/consumer.cc" $(pkg-config --cflags --libs libconfig++) \
-  -o "$SMOKE/cxx-shared"
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
-LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
-cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libconfig.a" \
-  -o "$SMOKE/c-static"
-g++ "$SMOKE/consumer.cc" -I"$INCLUDEDIR" "$LIBDIR/libconfig++.a" \
-  -o "$SMOKE/cxx-static"
-"$SMOKE/c-static"
-"$SMOKE/cxx-static"
-
-# libconfig++ is intentionally self-contained. A future switch to wrapping the
-# C ABI needs a package dependency update, so make that architecture visible.
-if readelf -d "$CONFIGXX_SO" | grep -F 'Shared library: [libconfig.so.15]'; then
-  echo 'libconfig++ gained a libconfig runtime dependency' >&2
-  exit 1
-fi
 
 # Build-ID-indexed debug symbols and the exact source files named by rewritten
 # DWARF. Static archives have no build ID, so retain code but discard debug.
@@ -200,13 +102,117 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   mkdir -p "usr/src/debug/io.github.hyperrealm.libconfig/$(dirname "$rel")"
   cp "$ROOT/$rel" "usr/src/debug/io.github.hyperrealm.libconfig/$rel"
 done
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
-test -n "$(find usr/src/debug/io.github.hyperrealm.libconfig -type f -print -quit)"
-for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.sourceware.debugedit"                = "*"
+"org.nixos.patchelf"                 = "*"
+"org.pkgconf.pkgconf"                  = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkgconf         = "*"
+debugedit       = "*"
+patchelf        = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+INCLUDEDIR="$STAGE/usr/include"
+CONFIG_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig.so.15.*' | LC_ALL=C sort)
+CONFIGXX_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libconfig++.so.15.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$CONFIG_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$CONFIGXX_SO" | grep -c .)" -eq 1
+test -L "$LIBDIR/libconfig.so"
+test -L "$LIBDIR/libconfig.so.15"
+test -L "$LIBDIR/libconfig++.so"
+test -L "$LIBDIR/libconfig++.so.15"
+test -s "$LIBDIR/libconfig.a"
+test -s "$LIBDIR/libconfig++.a"
+test -f "$INCLUDEDIR/libconfig.h"
+test -f "$INCLUDEDIR/libconfig.h++"
+readelf -d "$CONFIG_SO" | grep -F 'Library soname: [libconfig.so.15]'
+readelf -d "$CONFIGXX_SO" | grep -F 'Library soname: [libconfig++.so.15]'
+readelf --dyn-syms -W "$CONFIG_SO" | grep -E ' config_read(@|$)'
+readelf --dyn-syms -W "$CONFIGXX_SO" | c++filt | grep -F 'libconfig::Config::readString'
+
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkg-config --validate libconfig libconfig++
+test "$(pkg-config --modversion libconfig)" = "$PEKIT_VERSION"
+test "$(pkg-config --modversion libconfig++)" = "$PEKIT_VERSION"
+pkg-config --libs libconfig | grep -Eq '(^|[[:space:]])-lconfig([[:space:]]|$)'
+pkg-config --libs libconfig++ | grep -Eq '(^|[[:space:]])-lconfig[+][+]([[:space:]]|$)'
+grep -F "$PEKIT_VERSION" "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
+grep -F 'set(LIBCONFIG_INCLUDE_DIRS "/usr/include")' \
+  "$LIBDIR/cmake/libconfig/libconfigConfig.cmake"
+grep -F "$PEKIT_VERSION" "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
+grep -F 'set(LIBCONFIG++_INCLUDE_DIRS "/usr/include")' \
+  "$LIBDIR/cmake/libconfig++/libconfig++Config.cmake"
+
+SMOKE="$PEKIT_OUT/libconfig-smoke"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <libconfig.h>
+int main(void) {
+  config_t cfg;
+  int answer = 0;
+  config_init(&cfg);
+  if (!config_read_string(&cfg, "app: { answer = 42; enabled = true; };"))
+    return 1;
+  if (!config_lookup_int(&cfg, "app.answer", &answer) || answer != 42)
+    return 2;
+  if (!config_lookup_bool(&cfg, "app.enabled", &answer) || !answer)
+    return 3;
+  config_destroy(&cfg);
+  return 0;
+}
+EOF
+cat > "$SMOKE/consumer.cc" <<'EOF'
+#include <libconfig.h++>
+#include <string>
+int main() {
+  libconfig::Config cfg;
+  cfg.readString("app: { name = \"peios\"; workers = 4; };");
+  std::string name;
+  int workers = 0;
+  if (!cfg.lookupValue("app.name", name) || name != "peios")
+    return 1;
+  if (!cfg.lookupValue("app.workers", workers) || workers != 4)
+    return 2;
+  return 0;
+}
+EOF
+cc "$SMOKE/consumer.c" $(pkg-config --cflags --libs libconfig) \
+  -o "$SMOKE/c-shared"
+g++ "$SMOKE/consumer.cc" $(pkg-config --cflags --libs libconfig++) \
+  -o "$SMOKE/cxx-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/c-shared"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cxx-shared"
+cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libconfig.a" \
+  -o "$SMOKE/c-static"
+g++ "$SMOKE/consumer.cc" -I"$INCLUDEDIR" "$LIBDIR/libconfig++.a" \
+  -o "$SMOKE/cxx-static"
+"$SMOKE/c-static"
+"$SMOKE/cxx-static"
+
+# libconfig++ is intentionally self-contained.
+if readelf -d "$CONFIGXX_SO" | grep -F 'Shared library: [libconfig.so.15]'; then
+  echo 'libconfig++ gained a libconfig runtime dependency' >&2
+  exit 1
+fi
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$STAGE/usr/src/debug/io.github.hyperrealm.libconfig" -type f -print -quit)"
+for dbg in $(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -F '.debug_info'
 done
-
-# Validate the final stripped shared objects and their dependency separation.
 for elf in "$CONFIG_SO" "$CONFIGXX_SO"; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
@@ -220,36 +226,31 @@ test "$(readelf -d "$CONFIG_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$CONFIG_SO" | grep -F 'Shared library: [libc.so.6]'
 readelf -d "$CONFIGXX_SO" | grep -F 'Shared library: [libstdc++.so.6]'
 
-rm -rf "$SMOKE"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-"""
-
-[build.main.dependencies.peipkg]
-"dev.peios.build-essentials-c++" = "*"
-debugedit                = "*"
-patchelf                 = "*"
-pkgconf                  = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-pkgconf         = "*"
-debugedit       = "*"
-patchelf        = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
+# The suite's binary assumes testdata/ is relative to the source tests tree.
+(
+  cd "$PEKIT_SOURCE_ROOT/tests"
+  LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/lib/.libs" \
+    "$PEKIT_MAIN_OUT/tests/.libs/libconfig_tests"
+)
 test -f "$PEKIT_MAIN_OUT/usr/include/libconfig.h"
 test -f "$PEKIT_MAIN_OUT/usr/include/libconfig.h++"
 set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libconfig.so.*
 test -e "$1"
 set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/libconfig++.so.*
 test -e "$1"
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
 "org.git.kernel.dash" = "*"
+"org.gnu.findutils" = "*"
+"org.gnu.grep" = "*"
+"org.pkgconf.pkgconf" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 dash = "*"
+findutils = "*"
+grep = "*"
+pkgconf = "*"

@@ -40,6 +40,27 @@ find "$PREFIX/src" -type f -path '*/testdata/*' -exec sh -c '
   done
 ' sh {} +
 
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"dev.peios.peiosutils"   = "*"
+"org.gnu.binutils"    = "*"
+"org.gnu.findutils"   = "*"
+
+[build.main.dependencies.apt]
+dash      = "*"
+coreutils = "*"
+binutils  = "*"
+findutils = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+PREFIX="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios/go-stage0"
+
 test -x "$PREFIX/bin/go"
 test -x "$PREFIX/bin/gofmt"
 test "$($PREFIX/bin/go version | cut -d' ' -f3)" = "go$PEKIT_VERSION"
@@ -49,14 +70,10 @@ test -d "$PREFIX/src/cmd/compile"
 test -d "$PREFIX/pkg/tool/linux_amd64"
 '''
 
-[build.main.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-"org.gnu.coreutils"   = "*"
-"org.gnu.binutils"    = "*"
-"org.gnu.findutils"   = "*"
+[test.dependencies.peipkg]
+"org.git.kernel.dash"   = "*"
+"dev.peios.peiosutils" = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 dash      = "*"
 coreutils = "*"
-binutils  = "*"
-findutils = "*"

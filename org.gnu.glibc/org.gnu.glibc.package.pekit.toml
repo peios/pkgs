@@ -21,10 +21,8 @@ name        = "org.gnu.glibc"
 description = "GNU C Library - shared libraries and dynamic loader"
 
 [provides]
-glibc = "{{version}}-5"
 
 [replaces]
-glibc = "<= {{version}}-4"
 
 # The dynamic linker's ABI-fixed path. glibc installs the real loader under the
 # triplet (/usr/lib/x86_64-linux-peios/ld-linux-x86-64.so.2), and the x86-64

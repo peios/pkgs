@@ -10,7 +10,6 @@ license_class = "free"
 homepage      = "https://salsa.debian.org/md/netbase"
 
 [provides]
-netbase = "{{version}}"
 
 [files]
 ":usr/etc/**"             = "usr/etc"

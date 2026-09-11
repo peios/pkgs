@@ -3,12 +3,6 @@ name        = "com.xxhash.xxhash-devel"
 description = "xxHash headers, linker input, and pkg-config metadata"
 license     = "BSD-2-Clause"
 
-[provides]
-"xxhash-devel" = "{{version}}-1"
-
-[replaces]
-"xxhash-devel" = "<= {{version}}-1"
-
 [dependencies]
 "com.xxhash.xxhash-libs" = "{{version}}-1"
 

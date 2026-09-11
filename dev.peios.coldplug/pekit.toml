@@ -8,6 +8,7 @@
 out_dir = "out"
 
 [test]
+gate = true
 command = "tests/test-load-drivers.sh"
 
 [test.dependencies.peipkg]

@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libgomp-static"
 description = "GCC OpenMP runtime static library"
 
 [provides]
-"libgomp-static" = "{{version}}-2"
 
 [replaces]
-"libgomp-static" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libgomp-devel" = "{{version}}-2"

@@ -1,2 +1,0 @@
-[allow]
-"build.test" = "Upstream unit tests plus staged library, header, plugin, ABI, and reproducibility gates run inside build.main so package and publish fail closed"

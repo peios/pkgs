@@ -6,10 +6,8 @@ name        = "org.gnu.mpc"
 description = "GNU correctly rounded multiple-precision complex arithmetic library"
 
 [provides]
-mpc = "{{version}}-2"
 
 [replaces]
-mpc = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"

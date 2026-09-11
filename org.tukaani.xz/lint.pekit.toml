@@ -1,2 +1,0 @@
-[allow]
-"build.test" = "The complete upstream suite and staged format, integrity, command-wrapper, and shared/static ABI matrix run inside build.main so package and publish fail closed"

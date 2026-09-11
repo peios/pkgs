@@ -38,7 +38,6 @@ cmake -S "$SRC" -B "$BUILD" \
   -DCAPSTONE_BUILD_CSTOOL=ON \
   -DCAPSTONE_BUILD_CSTEST=OFF
 cmake --build "$BUILD" --parallel "$(nproc)"
-ctest --test-dir "$BUILD" --output-on-failure
 DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
 
 DOCDIR="$PEKIT_OUT/usr/share/doc/org.capstone-engine.capstone"
@@ -46,6 +45,68 @@ mkdir -p "$DOCDIR"
 install -m 0644 "$SRC/README.md" "$SRC/ChangeLog" "$SRC/CREDITS.TXT" \
   "$SRC/SPONSORS.TXT" "$DOCDIR/"
 
+# Distribution debug split.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
+    *.o) continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f" 2>/dev/null || true
+  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  if [ -n "$bid" ]; then
+    p2=$(printf %s "$bid" | cut -c1-2)
+    rest=$(printf %s "$bid" | cut -c3-)
+    mkdir -p "usr/lib/debug/.build-id/$p2"
+    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  fi
+  strip "$f"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue;; esac
+  [ -f "$ROOT/$rel" ] || continue
+  mkdir -p "usr/src/debug/org.capstone-engine.capstone/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.capstone-engine.capstone/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+"""
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.cmake.cmake" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cmake          = "*"
+debugedit      = "*"
+patchelf       = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+output=$(LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios" \
+  "$STAGE/usr/bin/cstool" x64 554889e5)
+case "$output" in *push*rbp*mov*rbp*rsp*) ;; *) exit 1;; esac
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+BUILD="$PEKIT_OUT/build"
+ctest --test-dir "$BUILD" --output-on-failure
+rm -rf "$PEKIT_MAIN_OUT/build"
+
+# Exercise the exact installed CLI and C API after packaging transformations.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 # Installed CLI and public C API gate.
 readelf -d "$LIBDIR/libcapstone.so.$PEKIT_VERSION" | \
   grep -F 'Library soname: [libcapstone.so.5]'
@@ -79,62 +140,14 @@ cmake --build "$SMOKE/cmake-build" --parallel "$(nproc)"
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/cmake-build/capstone_consumer"
 rm -rf "$SMOKE"
 
-# Distribution debug split.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.capstone-engine.capstone/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.capstone-engine.capstone/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-rm -rf "$BUILD"
-"""
+'''
 
-[build.main.dependencies.peipkg]
+[test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake" = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
 cmake          = "*"
 debugedit      = "*"
 patchelf       = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-STAGE="$PEKIT_MAIN_OUT"
-output=$(LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios" \
-  "$STAGE/usr/bin/cstool" x64 554889e5)
-case "$output" in *push*rbp*mov*rbp*rsp*) ;; *) exit 1;; esac
-'''
-
-[test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-dash = "*"

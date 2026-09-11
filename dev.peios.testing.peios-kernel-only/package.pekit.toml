@@ -12,7 +12,6 @@ homepage      = "https://github.com/peios/pkgs"
 # Any edition satisfies `peios-release`; kernel integration profiles select
 # this qualified testing edition explicitly.
 [provides]
-peios-release = "1.0.0"
 
 # The newest kernel visible in the selected repository, and deliberately
 # nothing else — no modules package, kmod, coldplug, or init. The unconstrained

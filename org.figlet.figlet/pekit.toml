@@ -34,13 +34,6 @@ make -j"$(nproc)" \
   CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
   DEFAULTFONTDIR=/usr/share/figlet
 
-# All 26 upstream rendering regressions, including every shipped font,
-# control files, TLF input, layout modes and right-to-left rendering.
-make check \
-  SHELL=/usr/bin/sh CC=cc LD=cc \
-  CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
-  DEFAULTFONTDIR=/usr/share/figlet
-
 make install \
   SHELL=/usr/bin/sh CC=cc LD=cc \
   CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
@@ -50,28 +43,6 @@ make install \
 # Peios places the POSIX shell at /usr/bin/sh.
 sed -i '1s|^#!/bin/sh -$|#!/usr/bin/sh -|' \
   "$BIN/figlist" "$BIN/showfigfonts"
-
-# Exercise all four installed commands against the staged font catalogue.
-test "$("$BIN/figlet" -I1)" = 20205
-test "$("$BIN/figlet" -I2)" = /usr/share/figlet
-printf '%s\n' Peios | FIGLET_FONTDIR="$FONTDIR" "$BIN/figlet" \
-  | grep -F '____'
-find "$FONTDIR" -type f -name '*.flf' -print | LC_ALL=C sort \
-  | while IFS= read -r font; do "$BIN/chkfont" "$font"; done
-"$BIN/figlist" -d "$FONTDIR" | grep -Fx standard
-"$BIN/showfigfonts" -d "$FONTDIR" Peios > "$PEKIT_OUT/.figlet-fonts"
-grep -F 'standard :' "$PEKIT_OUT/.figlet-fonts"
-grep -F 'Peios' "$PEKIT_OUT/.figlet-fonts"
-rm -f "$PEKIT_OUT/.figlet-fonts"
-
-# Enforce the workspace hardening contract before stripping the executables.
-for elf in "$BIN/figlet" "$BIN/chkfont"; do
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-done
 
 # Conventional build-ID debuginfo plus the exact source files referenced by
 # DWARF, with the private build path rewritten to the canonical namespace.
@@ -99,15 +70,14 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
       cp "$BUILD/$rel" "usr/src/debug/org.figlet.figlet/$rel"
     done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
-rm -rf "$BUILD"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"   = "*"
-"org.gnu.coreutils" = "*"
+"dev.peios.peiosutils" = "*"
 "org.gnu.diffutils" = "*"
-sed                  = "*"
-debugedit            = "*"
+"org.gnu.sed"                  = "*"
+"org.sourceware.debugedit"            = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -117,6 +87,7 @@ sed             = "*"
 debugedit       = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
@@ -124,10 +95,57 @@ BIN="$PEKIT_MAIN_OUT/usr/bin/figlet"
 FONTDIR="$PEKIT_MAIN_OUT/usr/share/figlet"
 test -n "$("$BIN" -d "$FONTDIR" -f standard PEIOS)"
 case "$("$BIN" -v 2>&1)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT/build"
+# All 26 upstream rendering regressions, including every shipped font,
+# control files, TLF input, layout modes and right-to-left rendering.
+make check \
+  SHELL=/usr/bin/sh CC=cc LD=cc \
+  CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" \
+  DEFAULTFONTDIR=/usr/share/figlet
+
+
+# Exercise and audit the exact installed commands after staging.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+BIN="$PEKIT_OUT/usr/bin"
+FONTDIR="$PEKIT_OUT/usr/share/figlet"
+# Exercise all four installed commands against the staged font catalogue.
+test "$("$BIN/figlet" -I1)" = 20205
+test "$("$BIN/figlet" -I2)" = /usr/share/figlet
+printf '%s\n' Peios | FIGLET_FONTDIR="$FONTDIR" "$BIN/figlet" \
+  | grep -F '____'
+find "$FONTDIR" -type f -name '*.flf' -print | LC_ALL=C sort \
+  | while IFS= read -r font; do "$BIN/chkfont" "$font"; done
+"$BIN/figlist" -d "$FONTDIR" | grep -Fx standard
+"$BIN/showfigfonts" -d "$FONTDIR" Peios > "$PEKIT_OUT/.figlet-fonts"
+grep -F 'standard :' "$PEKIT_OUT/.figlet-fonts"
+grep -F 'Peios' "$PEKIT_OUT/.figlet-fonts"
+rm -f "$PEKIT_OUT/.figlet-fonts"
+
+# Enforce the workspace hardening contract on the final stripped executables.
+for elf in "$BIN/figlet" "$BIN/chkfont"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+
+rm -rf "$PEKIT_MAIN_OUT/build"
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"dev.peios.build-essentials-c"   = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.sed"                  = "*"
+"org.sourceware.debugedit"            = "*"
 
 [test.dependencies.apt]
-dash = "*"
+build-essential = "*"
+coreutils       = "*"
+diffutils       = "*"
+sed             = "*"
+debugedit       = "*"

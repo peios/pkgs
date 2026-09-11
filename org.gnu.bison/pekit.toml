@@ -45,9 +45,6 @@ cd "$PEKIT_OUT"
   --libdir=/usr/lib/x86_64-linux-peios \
   --mandir=/usr/share/man
 make -j"$(nproc)"
-# Exercise the shipped C, C++ and GLR skeletons. Optional language integrations
-# skip when their toolchains are absent; the native C/C++ cases are mandatory.
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios is /usr-native and deliberately has no legacy /bin alias. Upstream's
@@ -58,41 +55,6 @@ sed -i '1s|^#! /bin/sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/yacc"
 # Peios does not yet ship an Info reader. Keep the command manuals and Autoconf
 # macros, which are live developer interfaces, while dropping orphaned docs.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
-
-# Functional gate against the installed program, its runtime m4 dependency and
-# the historical yacc interface. This catches a release that builds but cannot
-# generate and compile a native parser in the Peios build environment.
-SMOKE="$PEKIT_OUT/.bison-smoke"
-mkdir -p "$SMOKE"
-# The smoke test runs the staged binary before it is installed at /usr, so
-# point it at the equally staged skeleton tree. A composed root needs no
-# override because the package lands at the compiled-in path.
-export BISON_PKGDATADIR="$PEKIT_OUT/usr/share/bison"
-printf '%s\n' \
-  '%{' \
-  'int yylex(void);' \
-  'void yyerror(const char *message);' \
-  '%}' \
-  '%%' \
-  'input: %empty ;' \
-  '%%' \
-  'int yylex(void) { return 0; }' \
-  'void yyerror(const char *message) { (void) message; }' \
-  'int main(void) { return yyparse(); }' > "$SMOKE/parser.y"
-"$PEKIT_OUT/usr/bin/bison" --warnings=error -d -o "$SMOKE/parser.c" "$SMOKE/parser.y"
-cc -o "$SMOKE/parser" "$SMOKE/parser.c"
-"$SMOKE/parser"
-# The installed yacc wrapper deliberately execs the final absolute path
-# /usr/bin/bison, which is not mounted over the host's /usr during this staged
-# check. Exercise the identical compatibility mode directly here and verify the
-# wrapper target; the post-package composed-root test executes the wrapper.
-head -1 "$PEKIT_OUT/usr/bin/yacc" | grep -Fx '#!/usr/bin/sh'
-grep -F 'exec "$bindir/bison" -y' "$PEKIT_OUT/usr/bin/yacc"
-"$PEKIT_OUT/usr/bin/bison" -y -d -o "$SMOKE/yacc-parser.c" "$SMOKE/parser.y"
-cc -o "$SMOKE/yacc-parser" "$SMOKE/yacc-parser.c"
-"$SMOKE/yacc-parser"
-"$PEKIT_OUT/usr/bin/bison" --version | head -1 | grep -F "$PEKIT_VERSION"
-rm -rf "$SMOKE"
 
 # Distribution debug split: scrub build paths, index detached symbols by GNU
 # build ID, strip the runtime, and retain precisely the referenced sources.
@@ -130,12 +92,12 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 # The upstream suite exercises generated scanners and Autoconf integration.
-flex = "*"
+"io.github.westes.flex" = "*"
 "org.gnu.autoconf" = ">= 2.72"
 # Bison invokes m4 both while building and when generating parsers.
-m4 = ">= 1.4"
+"org.gnu.m4" = ">= 1.4"
 # Native-language catalog generation.
-gettext = "*"
+"org.gnu.gettext" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -147,21 +109,58 @@ debugedit = "*"
 patchelf = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
+# Exercise the shipped C, C++ and GLR skeletons. Optional language integrations
+# skip when their toolchains are absent; the native C/C++ cases are mandatory.
+cd "$PEKIT_MAIN_OUT"
+make -j"$(nproc)" check
 BISON="$PEKIT_MAIN_OUT/usr/bin/bison"
-TMP="$PEKIT_OUT/bison-test"
-mkdir -p "$TMP"
-printf '%s\n' '%%' 'input: ;' '%%' > "$TMP/minimal.y"
-M4=m4 "$BISON" -o "$TMP/parser.c" "$TMP/minimal.y"
-test -s "$TMP/parser.c"
+STAGE="$PEKIT_MAIN_OUT"
+SMOKE="$PEKIT_OUT/bison-test"
+mkdir -p "$SMOKE"
+export BISON_PKGDATADIR="$STAGE/usr/share/bison"
+printf '%s\n' \
+  '%{' \
+  'int yylex(void);' \
+  'void yyerror(const char *message);' \
+  '%}' \
+  '%%' \
+  'input: %empty ;' \
+  '%%' \
+  'int yylex(void) { return 0; }' \
+  'void yyerror(const char *message) { (void) message; }' \
+  'int main(void) { return yyparse(); }' > "$SMOKE/parser.y"
+"$BISON" --warnings=error -d -o "$SMOKE/parser.c" "$SMOKE/parser.y"
+cc -o "$SMOKE/parser" "$SMOKE/parser.c"
+"$SMOKE/parser"
+head -1 "$STAGE/usr/bin/yacc" | grep -Fx '#!/usr/bin/sh'
+grep -F 'exec "$bindir/bison" -y' "$STAGE/usr/bin/yacc"
+"$BISON" -y -d -o "$SMOKE/yacc-parser.c" "$SMOKE/parser.y"
+cc -o "$SMOKE/yacc-parser" "$SMOKE/yacc-parser.c"
+"$SMOKE/yacc-parser"
+"$BISON" --version | head -1 | grep -F "$PEKIT_VERSION"
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"io.github.westes.flex" = "*"
+"org.gnu.autoconf" = ">= 2.72"
 "org.git.kernel.dash" = "*"
-m4 = "*"
+"org.gnu.m4" = "*"
+"org.gnu.gettext" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+flex = "*"
+autoconf = ">= 2.72"
 dash = "*"
 m4 = "*"
+gettext = "*"
+debugedit = "*"
+patchelf = "*"

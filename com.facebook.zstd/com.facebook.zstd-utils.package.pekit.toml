@@ -1,16 +1,19 @@
+side_effects = ["man-db"]
+
 [package]
-name        = "com.facebook.zstd-utils"
-description = "Zstandard-aware grep shell utility"
-license     = "BSD-2-Clause"
+name         = "com.facebook.zstd-utils"
+architecture = "noarch"
+description  = "Zstandard-aware grep shell utility"
+license      = "BSD-2-Clause"
 
 [provides]
-"zstd-utils" = "{{version}}-2"
 
 [dependencies]
-dash                 = "*"
+"org.git.kernel.dash"                 = "*"
 "org.gnu.grep"       = "*"
 "com.facebook.zstd" = "{{version}}-2"
 
 [files]
 "@source:programs/zstdgrep" = "usr/share/licenses/com.facebook.zstd-utils/LICENSE.zstdgrep"
 ":usr/bin/zstdgrep"         = "usr/bin/zstdgrep"
+":usr/share/man/man1/zstdgrep.1.gz" = "usr/share/man/man1/zstdgrep.1.gz"

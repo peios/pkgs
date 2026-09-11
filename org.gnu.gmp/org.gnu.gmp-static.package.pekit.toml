@@ -5,7 +5,6 @@ name        = "org.gnu.gmp-static"
 description = "GNU Multiple Precision Arithmetic Library - static libraries"
 
 [provides]
-"gmp-static" = "{{version}}"
 
 [dependencies]
 "org.gnu.gmp-devel" = "{{version}}-2"

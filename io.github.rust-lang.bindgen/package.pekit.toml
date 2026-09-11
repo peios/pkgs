@@ -10,10 +10,10 @@ license_class = "free"
 homepage     = "https://github.com/rust-lang/rust-bindgen"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 # bindgen dlopens libclang.so at runtime (clang-sys runtime loading);
 # kernel parity keeps it on the same major as the kernel's clang.
-clang = ">= 18.1.8, < 19"
+"org.llvm.clang" = ">= 18.1.8, < 19"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/io.github.rust-lang.bindgen/"

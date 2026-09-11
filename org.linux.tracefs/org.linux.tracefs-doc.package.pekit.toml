@@ -7,7 +7,6 @@ architecture = "noarch"
 license      = "LGPL-2.1-only"
 
 [provides]
-"libtracefs-doc" = "{{version}}-2"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-doc/LGPL-2.1"

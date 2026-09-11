@@ -1,2 +1,0 @@
-[allow]
-"build.test" = "Upstream library, utility, terminfo, and staged ABI checks run inside build.main so package and publish fail closed"

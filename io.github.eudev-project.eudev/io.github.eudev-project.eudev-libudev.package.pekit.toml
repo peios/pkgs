@@ -8,7 +8,7 @@ description = "libudev - device enumeration runtime library (eudev)"
 license     = "LGPL-2.1-or-later"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.eudev-project.eudev-libudev/"

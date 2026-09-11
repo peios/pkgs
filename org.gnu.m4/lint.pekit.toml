@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The upstream macro-language suite and staged command probes run inside build.main so package and publish fail closed"

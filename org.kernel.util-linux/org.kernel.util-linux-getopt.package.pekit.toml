@@ -6,13 +6,11 @@ description = "Enhanced getopt command-line parser for shell scripts"
 license     = "GPL-2.0-or-later"
 
 [provides]
-getopt = "{{version}}-1"
 
 [replaces]
-getopt = "< {{version}}-1"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-getopt/"

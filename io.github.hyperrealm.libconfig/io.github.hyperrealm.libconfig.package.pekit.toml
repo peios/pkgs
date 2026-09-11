@@ -7,10 +7,9 @@ name        = "io.github.hyperrealm.libconfig"
 description = "Structured configuration-file C runtime"
 
 [provides]
-libconfig = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig/"

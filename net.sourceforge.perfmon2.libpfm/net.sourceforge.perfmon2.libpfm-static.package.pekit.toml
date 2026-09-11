@@ -5,7 +5,6 @@ name        = "net.sourceforge.perfmon2.libpfm-static"
 description = "libpfm - static library"
 
 [provides]
-libpfm-static = "{{version}}"
 
 [dependencies]
 "net.sourceforge.perfmon2.libpfm-devel" = "{{version}}-1"

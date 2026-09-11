@@ -10,11 +10,12 @@
 out_dir = "out"
 
 [test]
+gate = true
 command = "tests/test-dynamic-boot.sh"
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
-"org.gnu.coreutils"   = "*"
+"dev.peios.peiosutils"   = "*"
 "org.gnu.grep"        = "*"
 
 [test.dependencies.apt]

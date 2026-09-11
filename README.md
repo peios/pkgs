@@ -57,7 +57,7 @@ their replacements.
 
 `out_dir` must be a dedicated child of the recipe root; use the inherited
 convention `out_dir = "out"`. Do not point it at source, a parent/workspace
-directory, `_pkgsOut_`, or `_peipkgRepo_`. A `[clean]` target is only for
+directory, or `_peipkgRepo_`. A `[clean]` target is only for
 additional regeneratable state outside `out_dir` (for example Cargo's local
 `target/`) and must name that state narrowly. Never add `[clean] command =
 "rm -rf out"`: Pekit already owns and removes `out_dir`.
@@ -69,7 +69,7 @@ pekit workspace clean
 ```
 
 With no catalogue clean targets this removes each included member's managed
-`out_dir` and preserves the local artifact pool and signed repository. Preview
+`out_dir` and preserves the signed repository. Preview
 the exact member/path plan with `pekit --dry-run workspace clean`. Workspace
 exclusions still apply: clean an intentionally excluded local-only recipe, such
 as `dev.peios.dwed`, explicitly when required.
@@ -198,8 +198,9 @@ compatibility lane, with the rolling lane packaged separately and a precise
 lint allowance explaining the boundary.
 
 Map odd upstream versions into Peios' normal order where useful. Dated releases
-use `YYYY.MM.DD`, even when the upstream tag is `YYYYMMDD`; named regex captures
-and the `ref` template perform the mapping.
+use `YYYY.MM.DD`, even when an upstream tag or URL filename is `YYYYMMDD`;
+named regex captures map the discovered components, and source templates render
+the upstream spelling.
 
 Version discovery must exclude prereleases, release candidates, signatures,
 checksums, and unrelated assets unless the recipe explicitly packages them.
@@ -405,11 +406,20 @@ the selected release must pass all applicable gates in both clean environments.
 
 ### Build and upstream tests
 
-Run the complete applicable upstream test suite against the just-built objects,
-with failures fatal. When no runnable upstream suite exists (for example binary
-firmware), the recipe must perform rigorous structural validation and explain a
-`build.test` lint allowance. If a suite must run inside `build.main`, say so and
-make package/publish fail closed on it.
+Run the complete applicable upstream test suite against the just-built objects
+from a `[test]` or named `[test.*]` target with `gate = true`. Package and
+publish run gates by default; `--no-gates` is only for rapid local iteration and
+must never be used for release qualification. Keep build targets focused on
+constructing and transforming their output. Immediate fail-fast preconditions
+that make a transformation safe may remain beside that transformation, but
+upstream suites, installed behavior, ABI/API checks, payload policy, hardening,
+debug/source validation, and security regressions belong in gates.
+
+Test targets must declare their own dependencies for both providers. If a gate
+uses a retained build tree, do not delete that tree in `build`; clean it after
+the gate instead. When no runnable upstream suite exists (for example binary
+firmware), provide rigorous gated structural/semantic validation of the staged
+payload rather than a mere existence check.
 
 ### Installed-interface tests
 
@@ -488,8 +498,8 @@ put a production private key or an absolute developer key path in a committed
 recipe. Development keyrings are per-developer, gitignored qualification inputs
 and must never be treated as public-repository custody.
 
-`pekit publish` packages the selected package(s), copies them to `_pkgsOut_`,
-and publishes them into `_peipkgRepo_`. It creates the Peipkg repository if it
+`pekit publish` packages the selected package(s) and publishes them directly
+into `_peipkgRepo_`. It creates the Peipkg repository if it
 does not exist. Repository publication currently regenerates the complete
 signed index from repository contents; it is not an incremental database
 operation. The repository is a directory of static files and requires no

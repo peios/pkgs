@@ -8,7 +8,6 @@ name        = "org.gnu.coreutils-build-compat"
 description = "Private GNU core utilities for package build roots"
 
 [provides]
-"coreutils-build-compat" = "{{version}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils-build-compat/"

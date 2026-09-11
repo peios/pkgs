@@ -1,16 +1,16 @@
+side_effects = ["man-db"]
+
 [package]
 name        = "com.facebook.zstd"
 description = "Zstandard compression and decompression tools"
 license     = "MIT AND (BSD-3-Clause OR GPL-2.0-only)"
 
 [provides]
-zstd = "{{version}}-2"
 
 [replaces]
-zstd = "<= {{version}}-1"
 
 [dependencies]
-glibc                                      = ">= 2.43"
+"org.gnu.glibc"                                      = ">= 2.43"
 "com.facebook.zstd-common"                = "{{version}}-2"
 "io.github.zlib-ng.zlib-ng-compat"        = "*"
 "org.tukaani.xz-libs"                     = "*"
@@ -22,3 +22,7 @@ glibc                                      = ">= 2.43"
 ":usr/bin/unzstd"                      = "usr/bin/unzstd"
 ":usr/bin/zstdcat"                     = "usr/bin/zstdcat"
 ":usr/bin/zstdmt"                      = "usr/bin/zstdmt"
+":usr/share/man/man1/zstd.1.gz"        = "usr/share/man/man1/zstd.1.gz"
+":usr/share/man/man1/unzstd.1.gz"      = "usr/share/man/man1/unzstd.1.gz"
+":usr/share/man/man1/zstdcat.1.gz"     = "usr/share/man/man1/zstdcat.1.gz"
+":usr/share/man/man1/zstdmt.1.gz"      = "usr/share/man/man1/zstdmt.1.gz"

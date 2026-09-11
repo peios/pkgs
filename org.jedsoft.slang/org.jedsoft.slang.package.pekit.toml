@@ -6,16 +6,10 @@ side_effects = ["man-db"]
 name        = "org.jedsoft.slang"
 description = "S-Lang interpreter, standard library, and loadable modules"
 
-[provides]
-# Preserve the retired recipe identity while making the canonical package the
-# deterministic provider during migration.
-slang = "{{version}}-1"
-slsh  = "{{version}}-1"
-
 [dependencies]
-glibc                     = ">= 2.43"
+"org.gnu.glibc"                     = ">= 2.43"
 "org.jedsoft.slang-libs" = "{{version}}-1"
-zlib                      = ">= 2.3.3"
+"io.github.zlib-ng.zlib-ng-compat"                      = ">= 2.3.3"
 
 [files]
 "@source:COPYING"                              = "usr/share/licenses/org.jedsoft.slang/"

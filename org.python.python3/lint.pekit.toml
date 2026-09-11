@@ -1,3 +1,3 @@
 [allow]
 "source.signature.required" = "CPython 3.14 and newer publish Sigstore bundles under PEP 761; Pekit cannot yet verify those identities and transparency proofs, so the immutable lock remains the acceptance gate"
-"build.test" = "The full applicable CPython suite and staged interpreter, module, venv, and extension probes run inside build.main so package and publish fail closed"
+"source.versions.ceiling" = "Python feature minors are ABI transitions for site-packages and extension modules; 3.15 requires a coordinated package-set migration rather than an unattended patch update"

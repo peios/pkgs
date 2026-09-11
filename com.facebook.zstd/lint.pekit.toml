@@ -1,0 +1,3 @@
+[allow]
+"elf.debuginfo" = "com.facebook.zstd-debuginfo owns build-ID symbols for every ELF emitted by the Zstandard source family"
+"package.architecture" = "com.facebook.zstd-devel and com.facebook.zstd-static contain x86_64 ABI-path linker metadata and machine-code archives"

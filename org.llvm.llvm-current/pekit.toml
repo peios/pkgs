@@ -112,10 +112,6 @@ BUILT_RESOURCE_DIR=$("$BUILD/bin/clang" -print-resource-dir)
 test -f "$BUILT_RESOURCE_DIR/include/stddef.h"
 test -f "$BUILT_RESOURCE_DIR/include/hlsl.h"
 
-# Full dependency-closed upstream coverage for every shipped project. The
-# targets contain LLVM's unit tests plus lit integration and regression suites.
-cmake --build "$BUILD" --target check-llvm check-clang check-lld -- -j"$JOBS"
-
 DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
 
 # scan-build/scan-view and other interpreter frontends are separate products,
@@ -129,78 +125,6 @@ find "$PREFIX/bin" -type f ! -type l -exec sh -c '
 find "$PREFIX/bin" -type l ! -exec test -e {} ';' -delete
 rm -rf "$PREFIX/lib/$TRIPLET/libear" \
   "$PREFIX/lib/$TRIPLET/libscanbuild" "$PREFIX/libexec" "$PREFIX/share"
-
-# Freeze the installed ABI and layout before destructive debug processing.
-test -x "$PREFIX/bin/llvm-config"
-test -x "$PREFIX/bin/clang-$LLVM_MAJOR"
-test -x "$PREFIX/bin/ld.lld"
-test -L "$LIBDIR/libLLVM-$LLVM_MAJOR.so"
-test -f "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR"
-test -f "$LIBDIR/libclang-cpp.so.$LLVM_MAJOR_MINOR"
-test -f "$LIBDIR/libclang.so.$PEKIT_VERSION"
-test -d "$PREFIX/include/llvm"
-test -d "$PREFIX/include/clang-c"
-test -d "$PREFIX/include/lld"
-test -d "$LIBDIR/cmake/llvm"
-test -d "$LIBDIR/cmake/clang"
-test -d "$LIBDIR/cmake/lld"
-test -n "$(find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -print -quit)"
-
-readelf -d "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F "Library soname: [libLLVM.so.$LLVM_MAJOR_MINOR]"
-readelf -d "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F "Library soname: [libclang.so.$LLVM_MAJOR_MINOR]"
-readelf --dyn-syms -W "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F ' LLVMContextCreate'
-readelf --dyn-syms -W "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F ' clang_createIndex'
-
-# Exercise the installed tools, not merely build-tree executables.
-BIN="$PREFIX/bin"
-SMOKE="$PEKIT_OUT/.llvm-smoke"
-mkdir -p "$SMOKE"
-export LD_LIBRARY_PATH="$LIBDIR"
-"$BIN/llvm-config" --version | grep -Fx "$PEKIT_VERSION"
-"$BIN/clang" --version | grep -F "clang version $PEKIT_VERSION"
-"$BIN/ld.lld" --version | grep -F "LLD $PEKIT_VERSION"
-
-printf '%s\n' 'define i32 @answer() { ret i32 42 }' > "$SMOKE/input.ll"
-"$BIN/llvm-as" "$SMOKE/input.ll" -o "$SMOKE/input.bc"
-"$BIN/llvm-dis" "$SMOKE/input.bc" -o "$SMOKE/output.ll"
-grep -F 'ret i32 42' "$SMOKE/output.ll"
-
-cat > "$SMOKE/freestanding.c" <<'EOF'
-__attribute__((noreturn)) void _start(void) {
-  __asm__ volatile("syscall" : : "a"(60), "D"(0) : "rcx", "r11", "memory");
-  __builtin_unreachable();
-}
-EOF
-"$BIN/clang" --target="$LLVM_TRIPLE" -ffreestanding -fno-pic \
-  -fno-stack-protector -c "$SMOKE/freestanding.c" -o "$SMOKE/freestanding.o"
-"$BIN/ld.lld" -static -e _start "$SMOKE/freestanding.o" -o "$SMOKE/freestanding"
-"$SMOKE/freestanding"
-
-cat > "$SMOKE/llvm-api.c" <<'EOF'
-#include <llvm-c/Core.h>
-int main(void) {
-  LLVMContextRef context = LLVMContextCreate();
-  if (!context) return 1;
-  LLVMContextDispose(context);
-  return 0;
-}
-EOF
-cc "$SMOKE/llvm-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" -lLLVM -o "$SMOKE/llvm-api"
-"$SMOKE/llvm-api"
-
-cat > "$SMOKE/clang-api.c" <<'EOF'
-#include <clang-c/Index.h>
-int main(void) {
-  CXIndex index = clang_createIndex(0, 0);
-  if (!index) return 1;
-  clang_disposeIndex(index);
-  return 0;
-}
-EOF
-cc "$SMOKE/clang-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" -lclang -o "$SMOKE/clang-api"
-"$SMOKE/clang-api"
 
 # Static archives retain linkable symbols but not duplicate DWARF. Split every
 # installed ELF by build ID and stage the exact source files its DWARF names.
@@ -259,16 +183,94 @@ tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
       mkdir -p "$(dirname "$destination")"
       cp "$DEBUG_ROOT/$rel" "$destination"
     done
-test -n "$(find usr/src/debug/org.llvm.llvm -type f -print -quit)"
-test "$(find .debuginfo -type f -path '*/usr/lib/debug/.build-id/*/*.debug' | wc -l)" \
-  -eq "$(wc -l < "$PEKIT_OUT/.build-ids")"
+rm -f "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.source-list"
+'''
 
-# Validate the exact stripped payload's baseline hardening. The representative
-# executables and shared libraries cover every linker mode used by this build.
-for elf in usr/bin/llvm-config usr/bin/clang-$LLVM_MAJOR usr/bin/lld \
-  "usr/lib/$TRIPLET/libLLVM.so.$LLVM_MAJOR_MINOR" \
-  "usr/lib/$TRIPLET/libclang-cpp.so.$LLVM_MAJOR_MINOR" \
-  "usr/lib/$TRIPLET/libclang.so.$PEKIT_VERSION"; do
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+TRIPLET=x86_64-linux-peios
+LLVM_TRIPLE=x86_64-unknown-linux-peios
+LIBDIR="$PREFIX/lib/$TRIPLET"
+LLVM_MAJOR=${PEKIT_VERSION%%.*}
+LLVM_MAJOR_MINOR=$(printf '%s' "$PEKIT_VERSION" | cut -d. -f1,2)
+BIN="$PREFIX/bin"
+SMOKE="$PEKIT_OUT/smoke"
+JOBS=$(nproc)
+
+cmake --build "$BUILD" --target check-llvm check-clang check-lld -- -j"$JOBS"
+
+test -x "$BIN/llvm-config"
+test -x "$BIN/clang-$LLVM_MAJOR"
+test -x "$BIN/ld.lld"
+test -L "$LIBDIR/libLLVM-$LLVM_MAJOR.so"
+test -f "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR"
+test -f "$LIBDIR/libclang-cpp.so.$LLVM_MAJOR_MINOR"
+test -f "$LIBDIR/libclang.so.$PEKIT_VERSION"
+for directory in llvm clang-c lld; do test -d "$PREFIX/include/$directory"; done
+for project in llvm clang lld; do test -d "$LIBDIR/cmake/$project"; done
+test -n "$(find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -print -quit)"
+readelf -d "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F "Library soname: [libLLVM.so.$LLVM_MAJOR_MINOR]"
+readelf -d "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F "Library soname: [libclang.so.$LLVM_MAJOR_MINOR]"
+readelf --dyn-syms -W "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" | grep -F ' LLVMContextCreate'
+readelf --dyn-syms -W "$LIBDIR/libclang.so.$PEKIT_VERSION" | grep -F ' clang_createIndex'
+
+mkdir -p "$SMOKE"
+export LD_LIBRARY_PATH="$LIBDIR"
+"$BIN/llvm-config" --version | grep -Fx "$PEKIT_VERSION"
+"$BIN/clang" --version | grep -F "clang version $PEKIT_VERSION"
+"$BIN/ld.lld" --version | grep -F "LLD $PEKIT_VERSION"
+printf '%s\n' 'define i32 @answer() { ret i32 42 }' > "$SMOKE/input.ll"
+"$BIN/llvm-as" "$SMOKE/input.ll" -o "$SMOKE/input.bc"
+"$BIN/llvm-dis" "$SMOKE/input.bc" -o "$SMOKE/output.ll"
+grep -F 'ret i32 42' "$SMOKE/output.ll"
+cat > "$SMOKE/freestanding.c" <<'EOF'
+__attribute__((noreturn)) void _start(void) {
+  __asm__ volatile("syscall" : : "a"(60), "D"(0) : "rcx", "r11", "memory");
+  __builtin_unreachable();
+}
+EOF
+"$BIN/clang" --target="$LLVM_TRIPLE" -ffreestanding -fno-pic \
+  -fno-stack-protector -c "$SMOKE/freestanding.c" -o "$SMOKE/freestanding.o"
+"$BIN/ld.lld" -static -e _start "$SMOKE/freestanding.o" -o "$SMOKE/freestanding"
+"$SMOKE/freestanding"
+cat > "$SMOKE/llvm-api.c" <<'EOF'
+#include <llvm-c/Core.h>
+int main(void) {
+  LLVMContextRef context = LLVMContextCreate();
+  if (!context) return 1;
+  LLVMContextDispose(context); return 0;
+}
+EOF
+cc "$SMOKE/llvm-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lLLVM -o "$SMOKE/llvm-api"
+"$SMOKE/llvm-api"
+cat > "$SMOKE/clang-api.c" <<'EOF'
+#include <clang-c/Index.h>
+int main(void) {
+  CXIndex index = clang_createIndex(0, 0);
+  if (!index) return 1;
+  clang_disposeIndex(index); return 0;
+}
+EOF
+cc "$SMOKE/clang-api.c" -I"$PREFIX/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" -lclang -o "$SMOKE/clang-api"
+"$SMOKE/clang-api"
+unset LD_LIBRARY_PATH
+
+test "$(wc -l < "$STAGE/.build-ids")" -ge 80
+test -n "$(find "$STAGE/usr/src/debug/org.llvm.llvm" -type f -print -quit)"
+test "$(find "$STAGE/.debuginfo" -type f -path '*/usr/lib/debug/.build-id/*/*.debug' | wc -l)" \
+  -eq "$(wc -l < "$STAGE/.build-ids")"
+for elf in "$BIN/llvm-config" "$BIN/clang-$LLVM_MAJOR" "$BIN/lld" \
+  "$LIBDIR/libLLVM.so.$LLVM_MAJOR_MINOR" \
+  "$LIBDIR/libclang-cpp.so.$LLVM_MAJOR_MINOR" \
+  "$LIBDIR/libclang.so.$PEKIT_VERSION"; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
@@ -277,24 +279,42 @@ for elf in usr/bin/llvm-config usr/bin/clang-$LLVM_MAJOR usr/bin/lld \
   readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
-
-rm -rf "$SMOKE" "$BUILD"
-rm -f "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.source-list" \
-  "$PEKIT_OUT/.build-ids"
 '''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.cmake.cmake"                = "*"
+"org.ninja-build.ninja"         = "*"
+"org.python.python3"            = "*"
+"org.perl.perl"                 = "*"
+"org.gnu.bash"                  = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel"       = "*"
+"org.gnu.tar"                   = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+cmake            = "*"
+ninja-build      = "*"
+python3          = "*"
+perl             = "*"
+bash             = "*"
+zlib1g-dev       = "*"
+libzstd-dev      = "*"
+tar              = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake"      = "*"
 "org.ninja-build.ninja" = "*"
-python3                 = "*"
-perl                    = "*"
+"org.python.python3"                 = "*"
+"org.perl.perl"                    = "*"
 "org.gnu.bash"          = "*"
-"zlib-devel"            = "*"
-"zstd-devel"            = "*"
-debugedit                = "*"
-patchelf                 = "*"
-tar                      = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel"            = "*"
+"com.facebook.zstd-devel"            = "*"
+"org.sourceware.debugedit"                = "*"
+"org.nixos.patchelf"                 = "*"
+"org.gnu.tar"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

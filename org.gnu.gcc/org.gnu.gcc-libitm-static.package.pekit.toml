@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libitm-static"
 description = "GCC transactional memory runtime static library"
 
 [provides]
-"libitm-static" = "{{version}}-2"
 
 [replaces]
-"libitm-static" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libitm-devel" = "{{version}}-2"

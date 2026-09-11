@@ -5,10 +5,9 @@ name        = "org.openssl.openssl"
 description = "Cryptography and TLS command-line toolkit"
 
 [provides]
-openssl = "{{version}}"
 
 [dependencies]
-glibc                   = ">= 2.43"
+"org.gnu.glibc"                   = ">= 2.43"
 "org.openssl.libcrypto" = "{{version}}-1"
 "org.openssl.libssl"    = "{{version}}-1"
 

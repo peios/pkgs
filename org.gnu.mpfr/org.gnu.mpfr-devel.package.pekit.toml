@@ -3,7 +3,6 @@ name        = "org.gnu.mpfr-devel"
 description = "GNU MPFR development files"
 
 [provides]
-"mpfr-devel" = "{{version}}"
 
 [dependencies]
 "org.gnu.mpfr"      = "{{version}}-1"

@@ -7,14 +7,12 @@ name        = "org.gnome.libxml2"
 description = "XML and HTML parser runtime library"
 
 [provides]
-libxml2 = "{{version}}-1"
 
 [replaces]
-libxml2 = "<= {{version}}-1"
 
 [dependencies]
-glibc = ">= 2.43"
-zlib  = ">= 2.3.3"
+"org.gnu.glibc" = ">= 2.43"
+"io.github.zlib-ng.zlib-ng-compat"  = ">= 2.3.3"
 
 [files]
 "@source:Copyright" = "usr/share/licenses/org.gnome.libxml2/"

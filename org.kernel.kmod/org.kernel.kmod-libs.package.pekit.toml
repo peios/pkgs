@@ -8,15 +8,14 @@ description = "libkmod kernel module management library"
 license     = "LGPL-2.1-or-later"
 
 [provides]
-libkmod = "{{version}}"
 
 [dependencies]
-glibc   = ">= 2.43"
-zlib    = ">= 2.3.3"
-liblzma = ">= 5.8"
-libzstd = ">= 1.5.7"
+"org.gnu.glibc"   = ">= 2.43"
+"io.github.zlib-ng.zlib-ng-compat"    = ">= 2.3.3"
+"org.tukaani.xz-libs" = ">= 5.8"
+"com.facebook.zstd-libs" = ">= 1.5.7"
 # openssl on: modinfo PKCS7 signature display (libcrypto).
-libssl  = ">= 3.5.7"
+"org.openssl.libssl"  = ">= 3.5.7"
 
 [files]
 "@source:libkmod/COPYING" = "usr/share/licenses/org.kernel.kmod-libs/COPYING"

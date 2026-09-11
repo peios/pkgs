@@ -7,16 +7,13 @@ name        = "com.mesonbuild.meson"
 description = "High-performance software build system"
 license     = "Apache-2.0"
 
-[provides]
-meson = "{{version}}"
-
 [dependencies]
 # Meson is a private Python application. Its checked-hash bytecode follows the
 # feature version of the interpreter used to build it.
-python3 = ">= 3.14, < 3.15"
+"org.python.python3" = ">= 3.14, < 3.15"
 # Meson deliberately generates Ninja projects by default and `meson compile`
 # requires the executor at runtime.
-ninja = ">= 1.8.2"
+"org.ninja-build.ninja" = ">= 1.8.2"
 
 [files]
 "@source:COPYING"                           = "usr/share/licenses/com.mesonbuild.meson/"

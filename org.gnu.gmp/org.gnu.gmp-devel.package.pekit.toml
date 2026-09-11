@@ -6,7 +6,6 @@ name        = "org.gnu.gmp-devel"
 description = "GNU Multiple Precision Arithmetic Library - development files"
 
 [provides]
-"gmp-devel" = "{{version}}"
 
 [dependencies]
 "org.gnu.gmp" = "{{version}}-2"

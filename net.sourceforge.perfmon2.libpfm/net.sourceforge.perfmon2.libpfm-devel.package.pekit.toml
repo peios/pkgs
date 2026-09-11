@@ -12,7 +12,6 @@ name        = "net.sourceforge.perfmon2.libpfm-devel"
 description = "libpfm - headers and link library"
 
 [provides]
-libpfm-devel = "{{version}}"
 
 [dependencies]
 "net.sourceforge.perfmon2.libpfm" = "{{version}}-1"

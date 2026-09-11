@@ -6,10 +6,9 @@ description = "NUMA policy control tools"
 license     = "GPL-2.0-only AND LicenseRef-Linux-man-pages-copyleft"
 
 [provides]
-numactl = "{{version}}"
 
 [dependencies]
-glibc                        = ">= 2.43"
+"org.gnu.glibc"                        = ">= 2.43"
 "io.github.numactl.libnuma" = "{{version}}-1"
 
 [files]

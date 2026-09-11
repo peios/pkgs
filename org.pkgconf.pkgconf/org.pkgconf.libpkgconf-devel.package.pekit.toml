@@ -5,10 +5,6 @@
 name        = "org.pkgconf.libpkgconf-devel"
 description = "pkgconf - libpkgconf development files"
 
-[provides]
-libpkgconf-devel     = "{{version}}"
-"pkgconfig(libpkgconf)" = "{{version}}"
-
 [dependencies]
 "org.pkgconf.libpkgconf" = "{{version}}-1"
 

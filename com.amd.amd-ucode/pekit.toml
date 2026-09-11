@@ -44,7 +44,6 @@ mkdir -p "$DEST" "$LICENSE_DIR"
 find "$SRC/amd-ucode" -maxdepth 1 -type f -name 'microcode_amd*.bin' -print0 \
   | LC_ALL=C sort -z \
   | xargs -0r cat > "$DEST/AuthenticAMD.bin"
-test -s "$DEST/AuthenticAMD.bin"
 
 # linux-firmware moved firmware licences into LICENSES/ in 2026. Normalise
 # both layouts so historical dated tags remain packageable.
@@ -68,9 +67,9 @@ fi
 # The peipkg build root contains only declared tools. The apt provider keeps
 # the same recipe usable on the bootstrap/development rung.
 [build.main.dependencies.peipkg]
-dash          = "*"
-"org.gnu.coreutils" = "*"
-findutils     = "*"
+"org.git.kernel.dash"  = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.findutils"    = "*"
 
 [build.main.dependencies.apt]
 dash      = "*"
@@ -79,14 +78,20 @@ findutils = "*"
 
 [test]
 needs = ["main"]
+gate = true
 command = '''
 set -eu
-test -s "$PEKIT_MAIN_OUT/++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"
-test -d "$PEKIT_MAIN_OUT/usr/share/licenses/com.amd.amd-ucode"
+BLOB="$PEKIT_MAIN_OUT/++/amd-ucode/kernel/x86/microcode/AuthenticAMD.bin"
+python3 "$PEKIT_RECIPE_ROOT/tools/validate-amd-ucode.py" \
+  --source-dir "$PEKIT_SOURCE_ROOT/amd-ucode" \
+  --assembled "$BLOB"
+test -s "$PEKIT_MAIN_OUT/usr/share/licenses/com.amd.amd-ucode/LICENSE.amd-ucode"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"org.python.python3"  = "*"
 
 [test.dependencies.apt]
-dash = "*"
+dash    = "*"
+python3 = "*"

@@ -28,40 +28,17 @@ for name in ethertypes protocols services; do
   test -s "$SRC/etc/$name"
   install -m 0644 "$SRC/etc/$name" "$DEST/$name"
 done
-
-# Retain Debian's release gate: no service name/alias may claim the same
-# port/protocol tuple twice. A duplicate makes libc lookup order ambiguous.
-if sed 's/#.*$//; s/[[:space:]][[:space:]]*/ /g' "$DEST/services" | \\
-  while read -r name service aliases; do
-    for alias in $name $aliases; do printf '%s %s\\n' "$alias" "$service"; done
-  done | sort | uniq -d | grep .; then
-  echo "duplicate service name and port/protocol tuple" >&2
-  exit 1
-fi
-
-# Structural and representative lookup-data gates catch truncation or a
-# future upstream layout/format change before publication.
-awk '$1 == "tcp" && $2 == 6 { found = 1 } END { exit !found }' "$DEST/protocols"
-awk '$1 == "udp" && $2 == 17 { found = 1 } END { exit !found }' "$DEST/protocols"
-awk '$1 == "domain" && $2 == "53/tcp" { found = 1 } END { exit !found }' "$DEST/services"
-awk '$1 == "domain" && $2 == "53/udp" { found = 1 } END { exit !found }' "$DEST/services"
-awk '$1 == "IPv4" && $2 == "0800" { found = 1 } END { exit !found }' "$DEST/ethertypes"
 """
 
 [build.main.dependencies.peipkg]
-dash                = "*"
-"org.gnu.coreutils" = "*"
-"org.gnu.gawk"      = "*"
-"org.gnu.grep"      = "*"
-sed                 = "*"
+"org.git.kernel.dash"                = "*"
+"dev.peios.peiosutils" = "*"
 
 [build.main.dependencies.apt]
 coreutils = "*"
-gawk      = "*"
-grep      = "*"
-sed       = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
@@ -69,15 +46,31 @@ ROOT="$PEKIT_MAIN_OUT/usr/etc"
 test -s "$ROOT/protocols"
 test -s "$ROOT/services"
 test -s "$ROOT/ethertypes"
-found=false
-while IFS= read -r line; do
-  case "$line" in tcp[[:space:]]6[[:space:]]TCP*) found=:; break;; esac
-done < "$ROOT/protocols"
-$found
+# No service name or alias may claim the same port/protocol tuple twice.
+if sed 's/#.*$//; s/[[:space:]][[:space:]]*/ /g' "$ROOT/services" | \
+  while read -r name service aliases; do
+    for alias in $name $aliases; do printf '%s %s\n' "$alias" "$service"; done
+  done | sort | uniq -d | grep .; then
+  echo "duplicate service name and port/protocol tuple" >&2
+  exit 1
+fi
+awk '$1 == "tcp" && $2 == 6 { found = 1 } END { exit !found }' "$ROOT/protocols"
+awk '$1 == "udp" && $2 == 17 { found = 1 } END { exit !found }' "$ROOT/protocols"
+awk '$1 == "domain" && $2 == "53/tcp" { found = 1 } END { exit !found }' "$ROOT/services"
+awk '$1 == "domain" && $2 == "53/udp" { found = 1 } END { exit !found }' "$ROOT/services"
+awk '$1 == "IPv4" && $2 == "0800" { found = 1 } END { exit !found }' "$ROOT/ethertypes"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.gawk" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.sed" = "*"
 
 [test.dependencies.apt]
 dash = "*"
+coreutils = "*"
+gawk = "*"
+grep = "*"
+sed = "*"

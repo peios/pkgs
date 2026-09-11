@@ -16,14 +16,6 @@ license      = "BSD-3-Clause AND BSD-2-Clause AND MIT"
 license_class = "free"
 homepage     = "https://flit.pypa.io/"
 
-[provides]
-# Preserve the bootstrap-era package identity while downstream recipes migrate
-# to the authenticated reverse-DNS name.
-"python3-flit-core" = "{{version}}-2"
-
-[replaces]
-"python3-flit-core" = "<= {{version}}-1"
-
 [dependencies]
 # Bytecode and the site-packages path are bound to the interpreter's
 # feature version: a python3 minor bump is a rebuild of this package.

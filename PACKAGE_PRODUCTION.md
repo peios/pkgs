@@ -77,6 +77,52 @@ A completed upstream package normally has all of the following:
 
 ## Checkpoint
 
+### Static re-audit (2026-09-11)
+
+The catalogue now contains **121 physical recipes**: **120 public workspace
+members** plus the deliberately excluded `dev.peios.dwed`. The additional
+member since the production checkpoint below is the independently tracked
+`cz.ucw.pciids` data package.
+
+A fresh catalogue-wide lint with the current Pekit reports **115 clean and 5
+failing public members**. The failures are confined to delegated first-party
+release manifests:
+
+- `dev.peios.kernel`: ten unqualified Peipkg inputs remain in the `upstream`,
+  `source`, and `uapi` targets. Six have catalogue identities already; Git,
+  Patch, and Lua are not yet packaged. The nested network clone of Linux also
+  needs replacing with a declared, locked input before the kernel recipe is
+  fully hermetic.
+- `dev.peios.libpeios` and `dev.peios.librsi`: their latest tags each lack a
+  separate gated test target and retain two `peiosutils` spellings. Their local
+  source manifests already contain the static-clean corrections and await a
+  release.
+- `dev.peios.peiosutils`: its latest tag lacks a separate gated test target;
+  the local source manifest already contains the static-clean correction and
+  awaits a release.
+- `dev.peios.trustd`: its latest tag names `ca-certificates` directly. The local
+  source manifest now names `org.mozilla.ca-certificates` and is static-clean;
+  it awaits a release.
+
+The audit also exposed a Pekit ordering defect: `rc2` sorted after `rc13`, and
+a final release sorted below its prereleases. The local Pekit fix adds natural
+prerelease ordering and passes the full Go test suite; with that fix, kernel
+discovery correctly selects `v0.20.1-rc13` and its finding count falls from 97
+to the ten current dependency references above.
+
+All non-delegated recipes define gated tests. No catalogue recipe defines a
+custom clean target, and the delegated Cargo clean targets are narrow
+`cargo clean` operations. Direct recipes use managed `out/` paths and no
+unexpected loose recipe directories remain. `org.kernel.linux-firmware` still
+maps upstream's undelimited `YYYYMMDD` filenames to the catalogue's documented
+`YYYY.MM.DD` package-version form through named URL-listing captures; the first
+normalized lock is signed upstream release `2026.09.10`. Sixteen delegated
+first-party members also retain small catalogue package overlays (mostly empty
+`provides`/`replaces` tables that remove undeployed aliases from older source
+tags). They are effective and linted, but should return to source-owned package
+definitions as those projects make their next releases; Atrium and Authd are
+already in the desired wrapper-only shape.
+
 - Physical inventory: **120 recipes**: **93 upstream/dependency** and **27
   Peios-owned** (`dev.peios.*`) recipes.
 - Public production inventory: **119 / 119 published**. This is all 93

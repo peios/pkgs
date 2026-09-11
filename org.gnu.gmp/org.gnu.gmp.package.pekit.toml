@@ -13,10 +13,9 @@ description = "GNU Multiple Precision Arithmetic Library"
 # links libgmp, as will nettle/gnutls; none of them touch the C++ API.
 
 [provides]
-gmp = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 # License texts. gmp is dual-licensed and ships four: COPYING (the statement of

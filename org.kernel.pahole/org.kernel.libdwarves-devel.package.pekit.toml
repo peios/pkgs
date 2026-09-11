@@ -3,7 +3,6 @@ name        = "org.kernel.libdwarves-devel"
 description = "libdwarves headers and shared-library development links"
 
 [provides]
-"libdwarves-devel" = "{{version}}"
 
 [dependencies]
 "org.kernel.libdwarves"         = "{{version}}-1"

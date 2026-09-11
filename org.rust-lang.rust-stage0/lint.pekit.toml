@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The private signed seed has no independent runtime surface; build.main verifies the exact compiler, Cargo, and standard-library manifests before the source-built Rust consumer uses it"

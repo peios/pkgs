@@ -22,9 +22,9 @@ name        = "org.gnu.binutils"
 description = "GNU binary utilities (assembler, linker, object tools)"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 # libbfd links libz.so.1 (compressed debug sections).
-zlib = ">= 2.3.3"
+"io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
 
 [files]
 # License texts are supplied once by the runtime package; every sibling has an

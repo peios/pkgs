@@ -11,10 +11,8 @@ name        = "org.gnu.gcc-libatomic"
 description = "GCC atomic operations runtime library (libatomic.so.1)"
 
 [provides]
-libatomic = "{{version}}-2"
 
 [replaces]
-libatomic = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"

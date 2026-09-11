@@ -10,11 +10,10 @@ description = "GNU Make build automation tool"
 license     = "GPL-3.0-or-later"
 
 [provides]
-make = "{{version}}"
 
 [dependencies]
-dash  = "*"
-glibc = ">= 2.43"
+"org.git.kernel.dash"  = "*"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING"        = "usr/share/licenses/org.gnu.make/"

@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libatomic-devel"
 description = "GCC atomic operations runtime development files"
 
 [provides]
-"libatomic-devel" = "{{version}}-2"
 
 [replaces]
-"libatomic-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libatomic" = "{{version}}-2"

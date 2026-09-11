@@ -5,18 +5,16 @@ name        = "org.rust-lang.rustc"
 description = "Rust compiler and rustdoc documentation generator"
 
 [provides]
-rustc   = "{{version}}-2"
-rustdoc = "{{version}}-2"
 
 [dependencies]
 "org.rust-lang.rust-std"    = "= {{version}}-2"
 "org.rust-lang.rust-common" = "= {{version}}-2"
-glibc                     = ">= 2.43"
-libgcc                    = ">= 16"
-"libstdc++"               = ">= 16"
-llvm                      = ">= 18.1.8, < 19"
+"org.gnu.glibc"                     = ">= 2.43"
+"org.gnu.gcc-libgcc"                    = ">= 16"
+"org.gnu.gcc-libstdc++"               = ">= 16"
+"org.llvm.llvm"                      = ">= 18.1.8, < 19"
 # Functional rather than DT_NEEDED: rustc drives the system linker through cc.
-gcc                       = ">= 16"
+"org.gnu.gcc"                       = ">= 16"
 
 [files]
 ":usr/bin/rustc" = "usr/bin/rustc"

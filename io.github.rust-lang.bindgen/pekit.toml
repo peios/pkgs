@@ -39,7 +39,7 @@ cargo vendor --locked "$PEKIT_OUT/vendor" > "$PEKIT_OUT/cargo-config.toml"
 
 [build.vendor.dependencies.peipkg]
 "dev.peios.build-essentials" = "*"
-rust = "*"
+"org.rust-lang.rust" = "*"
 
 [build.vendor.dependencies.apt]
 cargo = "*"
@@ -55,31 +55,15 @@ mkdir -p "$CARGO_HOME"
 cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
 cd "$SRC"
 cargo build --release --offline --locked --target-dir "$PEKIT_OUT/target"
-test "$("$PEKIT_OUT/target/release/bindgen" --version)" = "bindgen $PEKIT_VERSION"
-
-# Exercise the actual libclang-loading path and validate a stable fragment of
-# generated Rust, not merely that the statically linked CLI starts.
-printf 'struct peios_bindgen_smoke { unsigned long value; };\n' \
-  > "$PEKIT_OUT/smoke.h"
-LIBCLANG_SO="$(find /usr/lib -name libclang.so -print -quit)"
-test -n "$LIBCLANG_SO"
-export LIBCLANG_PATH="${LIBCLANG_SO%/*}"
-"$PEKIT_OUT/target/release/bindgen" \
-  --allowlist-type peios_bindgen_smoke \
-  --no-layout-tests \
-  "$PEKIT_OUT/smoke.h" > "$PEKIT_OUT/smoke.rs"
-grep -q 'peios_bindgen_smoke' "$PEKIT_OUT/smoke.rs"
-grep -q 'c_ulong' "$PEKIT_OUT/smoke.rs"
-
 mkdir -p "$PEKIT_OUT/usr/bin"
 cp "$PEKIT_OUT/target/release/bindgen" "$PEKIT_OUT/usr/bin/bindgen"
-rm -rf "$PEKIT_OUT/target" "$PEKIT_OUT/smoke.h" "$PEKIT_OUT/smoke.rs"
+rm -rf "$PEKIT_OUT/target"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-rust = "*"
-clang = ">= 18.1.8, < 19"
+"org.rust-lang.rust" = "*"
+"org.llvm.clang" = ">= 18.1.8, < 19"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -88,15 +72,33 @@ clang-18 = "*"
 libclang-18-dev = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/bindgen"
-test -n "$PEKIT_VERSION"
+BIN="$PEKIT_MAIN_OUT/usr/bin/bindgen"
+SMOKE="$PEKIT_OUT/bindgen-test"
+test -x "$BIN"
+test "$("$BIN" --version)" = "bindgen $PEKIT_VERSION"
+mkdir -p "$SMOKE"
+printf 'struct peios_bindgen_smoke { unsigned long value; };\n' > "$SMOKE/smoke.h"
+LIBCLANG_SO="$(find /usr/lib -name libclang.so -print -quit)"
+test -n "$LIBCLANG_SO"
+export LIBCLANG_PATH="${LIBCLANG_SO%/*}"
+"$BIN" --allowlist-type peios_bindgen_smoke --no-layout-tests \
+  "$SMOKE/smoke.h" > "$SMOKE/smoke.rs"
+grep -q peios_bindgen_smoke "$SMOKE/smoke.rs"
+grep -q c_ulong "$SMOKE/smoke.rs"
+rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.llvm.clang" = ">= 18.1.8, < 19"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+clang-18 = "*"
+libclang-18-dev = "*"
 dash = "*"

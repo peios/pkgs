@@ -502,15 +502,15 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 "org.rust-lang.rust-stage0" = ">= 1.97.1, < {{major}}.{{minor}}"
 "org.libc.musl-sysroot"    = ">= 1.2.6"
 "org.gnu.gcc-libatomic-static" = ">= 16"
-python3                      = "*"
-llvm                         = ">= 22.1.6, < 23"
-"llvm-devel"                = ">= 22.1.6, < 23"
-"zlib-devel"                = "*"
-"zstd-devel"                = "*"
-pkgconf                      = "*"
-"openssl-devel"             = "*"
-debugedit                    = "*"
-gzip                         = "*"
+"org.python.python3"                      = "*"
+"org.llvm.llvm"                         = ">= 22.1.6, < 23"
+"org.llvm.llvm-devel"                = ">= 22.1.6, < 23"
+"io.github.zlib-ng.zlib-ng-compat-devel"                = "*"
+"com.facebook.zstd-devel"                = "*"
+"org.pkgconf.pkgconf"                      = "*"
+"org.openssl.openssl-devel"             = "*"
+"org.sourceware.debugedit"                    = "*"
+"org.gnu.gzip"                         = "*"
 
 # The final self-hosted compiler is a peipkg-rung build: Debian does not carry
 # the exact private stage0 prefix. These entries retain the declared non-seed
@@ -527,6 +527,7 @@ debugedit       = "*"
 gzip            = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
@@ -590,8 +591,8 @@ if readelf -dW "$MUSL_BIN" | grep -q NEEDED; then exit 1; fi
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++"          = "*"
 "org.gnu.gcc-libatomic-static" = ">= 16"
-llvm                            = ">= 22.1.6, < 23"
-zlib                            = ">= 2.3.3"
+"org.llvm.llvm"                            = ">= 22.1.6, < 23"
+"io.github.zlib-ng.zlib-ng-compat"                            = ">= 2.3.3"
 "org.openssl.libssl"           = ">= 3.5"
 "org.openssl.libcrypto"        = ">= 3.5"
 

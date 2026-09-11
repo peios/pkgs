@@ -5,12 +5,8 @@ name        = "com.xxhash.xxhash-libs"
 description = "xxHash runtime library"
 license     = "BSD-2-Clause"
 
-[provides]
-libxxhash          = "{{version}}-1"
-"libxxhash.so.0" = "{{version}}"
-
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/com.xxhash.xxhash-libs/"

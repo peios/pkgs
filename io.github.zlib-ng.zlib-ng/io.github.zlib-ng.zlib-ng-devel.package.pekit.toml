@@ -4,10 +4,8 @@ description = "zlib-ng native API headers and linker metadata"
 license     = "Zlib"
 
 [provides]
-zlib-ng-devel = "{{version}}-2"
 
 [replaces]
-zlib-ng-devel = "<= {{version}}-1"
 
 [dependencies]
 "io.github.zlib-ng.zlib-ng" = "{{version}}-2"

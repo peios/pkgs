@@ -52,73 +52,12 @@ cd "$PEKIT_OUT"
 # generated Info file during the build instead of introducing Texinfo solely
 # to regenerate a payload removed below.
 make -j"$(nproc)" MAKEINFO=true
-make -j"$(nproc)" check MAKEINFO=true
 make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
 
 # Peios currently has no Info reader. The complete documentation remains in
 # the corresponding-source package, while the installed command keeps its
 # concise manual page.
 rm -rf "$PEKIT_OUT/usr/share/info"
-
-# Exercise all three operational modes from the staged executable.
-BIN="$PEKIT_OUT/usr/bin/cpio"
-SMOKE="$PEKIT_OUT/.cpio-smoke"
-mkdir -p "$SMOKE/input/nested" "$SMOKE/extract" "$SMOKE/pass"
-printf '%s\n' 'archive payload' > "$SMOKE/input/nested/file"
-ln -s nested/file "$SMOKE/input/link"
-(
-  cd "$SMOKE/input"
-  printf '%s\n' nested nested/file link |
-    "$BIN" --create --format=newc --quiet > "$SMOKE/archive.cpio"
-)
-(
-  cd "$SMOKE/extract"
-  "$BIN" --extract --make-directories --unconditional --quiet < "$SMOKE/archive.cpio"
-)
-cmp "$SMOKE/input/nested/file" "$SMOKE/extract/nested/file"
-[ "$(readlink "$SMOKE/extract/link")" = nested/file ]
-(
-  cd "$SMOKE/input"
-  printf '%s\n' nested/file | "$BIN" --pass-through --make-directories "$SMOKE/pass"
-)
-cmp "$SMOKE/input/nested/file" "$SMOKE/pass/nested/file"
-"$BIN" --list --quiet < "$SMOKE/archive.cpio" | grep -Fx nested/file
-"$BIN" --quoting-style=help | grep -Fx shell-escape
-
-# Regress CVE-2026-66484: --no-absolute-filenames must sanitize hard-link
-# targets as well as member names. GNU tar constructs the malicious ustar
-# relation; extraction may diagnose the now-unresolvable link, but it must
-# never link the external victim into the destination.
-VICTIM="/tmp/pekit-cpio-cve84-$$"
-trap 'rm -f "$VICTIM"' 0 1 2 15
-printf '%s\n' protected > "$VICTIM"
-mkdir -p "$SMOKE/hard-src" "$SMOKE/hard-out"
-printf '%s\n' payload > "$SMOKE/hard-src/a"
-ln "$SMOKE/hard-src/a" "$SMOKE/hard-src/b"
-(
-  cd "$SMOKE/hard-src"
-  tar --absolute-names --format=ustar \
-    --transform="flags=h;s|^a$|$VICTIM|" \
-    -cf "$SMOKE/hardlink.tar" a b
-)
-(
-  cd "$SMOKE/hard-out"
-  "$BIN" --extract --make-directories --unconditional \
-    --no-absolute-filenames --quiet < "$SMOKE/hardlink.tar"
-)
-[ "$(stat -c %h "$VICTIM")" = 1 ]
-test ! -e "$SMOKE/hard-out/b"
-rm -f "$VICTIM"
-trap - 0 1 2 15
-
-# Validate the installed ELF against the workspace hardening contract.
-"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
-readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
-readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
-readelf -d "$BIN" | grep -F 'BIND_NOW'
-readelf -d "$BIN" | grep -F 'RELR'
-if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
-rm -rf "$SMOKE"
 
 # Produce conventional debuginfo and debugsource payloads.
 cd "$PEKIT_OUT"
@@ -150,8 +89,8 @@ rm -f "$PEKIT_OUT/.dl"
 "org.gnu.autoconf" = ">= 2.72"
 "org.gnu.automake" = ">= 1.18"
 "org.gnu.bash" = "*"
-perl = "*"
-tar = "*"
+"org.perl.perl" = "*"
+"org.gnu.tar" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -164,22 +103,88 @@ perl           = "*"
 tar            = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
+cd "$PEKIT_MAIN_OUT"
+make -j"$(nproc)" check MAKEINFO=true
 CPIO="$PEKIT_MAIN_OUT/usr/bin/cpio"
+SMOKE="$PEKIT_OUT/cpio-smoke"
+mkdir -p "$SMOKE/input/nested" "$SMOKE/extract" "$SMOKE/pass"
+printf '%s\n' 'archive payload' > "$SMOKE/input/nested/file"
+ln -s nested/file "$SMOKE/input/link"
+(
+  cd "$SMOKE/input"
+  printf '%s\n' nested nested/file link | "$CPIO" --create --format=newc --quiet > "$SMOKE/archive.cpio"
+)
+(
+  cd "$SMOKE/extract"
+  "$CPIO" --extract --make-directories --unconditional --quiet < "$SMOKE/archive.cpio"
+)
+cmp "$SMOKE/input/nested/file" "$SMOKE/extract/nested/file"
+[ "$(readlink "$SMOKE/extract/link")" = nested/file ]
+(
+  cd "$SMOKE/input"
+  printf '%s\n' nested/file | "$CPIO" --pass-through --make-directories "$SMOKE/pass"
+)
+cmp "$SMOKE/input/nested/file" "$SMOKE/pass/nested/file"
+"$CPIO" --list --quiet < "$SMOKE/archive.cpio" | grep -Fx nested/file
+"$CPIO" --quoting-style=help | grep -Fx shell-escape
+
+VICTIM="/tmp/pekit-cpio-cve84-$$"
+trap 'rm -f "$VICTIM"' 0 1 2 15
+printf '%s\n' protected > "$VICTIM"
+mkdir -p "$SMOKE/hard-src" "$SMOKE/hard-out"
+printf '%s\n' payload > "$SMOKE/hard-src/a"
+ln "$SMOKE/hard-src/a" "$SMOKE/hard-src/b"
+(
+  cd "$SMOKE/hard-src"
+  tar --absolute-names --format=ustar --transform="flags=h;s|^a$|$VICTIM|" \
+    -cf "$SMOKE/hardlink.tar" a b
+)
+(
+  cd "$SMOKE/hard-out"
+  "$CPIO" --extract --make-directories --unconditional \
+    --no-absolute-filenames --quiet < "$SMOKE/hardlink.tar"
+)
+[ "$(stat -c %h "$VICTIM")" = 1 ]
+test ! -e "$SMOKE/hard-out/b"
+rm -f "$VICTIM"
+trap - 0 1 2 15
+
+"$CPIO" --version | head -1 | grep -F "$PEKIT_VERSION"
+readelf -h "$CPIO" | grep -E 'Type:[[:space:]]+DYN'
+readelf -W -l "$CPIO" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -d "$CPIO" | grep -F 'BIND_NOW'
+readelf -d "$CPIO" | grep -F 'RELR'
+if readelf -d "$CPIO" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+
 TMP="$PEKIT_OUT/cpio-test"
 mkdir -p "$TMP/in" "$TMP/out"
 printf '%s' payload > "$TMP/in/file"
 (cd "$TMP/in" && printf '%s\n' file | "$CPIO" -o -H newc > "$TMP/archive.cpio")
 (cd "$TMP/out" && "$CPIO" -id < "$TMP/archive.cpio")
 test "$(cat "$TMP/out/file")" = payload
+rm -rf "$SMOKE" "$TMP"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.autoconf" = ">= 2.72"
+"org.gnu.automake" = ">= 1.18"
+"org.gnu.bash" = "*"
 "org.git.kernel.dash" = "*"
-"org.gnu.coreutils" = "*"
+"dev.peios.peiosutils" = "*"
+"org.perl.perl" = "*"
+"org.gnu.tar" = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
+autoconf = ">= 2.72"
+automake = ">= 1.18"
+bash = "*"
 coreutils = "*"
 dash = "*"
+perl = "*"
+tar = "*"

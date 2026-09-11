@@ -47,60 +47,11 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 
 make -j"$(nproc)"
 
-# Run the complete release suite, including Gnulib portability tests and the
-# Perl-backed copyright helper test. Automake's summaries must contain at
-# least one passing test and no failure or harness error.
-make -j"$(nproc)" check
-find . -name test-suite.log -type f | grep -q .
-grep -R -q '^# PASS:' --include='test-suite.log' .
-if grep -R -E '^# (FAIL|ERROR):[[:space:]]+[1-9]' --include='test-suite.log' .; then
-  exit 1
-fi
-
 make install DESTDIR="$PEKIT_OUT"
 
 # Peios does not currently ship an Info reader. Preserve the command manual
 # and translated diagnostics, but omit orphaned Info and package docs.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
-
-test -x "$BIN"
-test -f "$PEKIT_OUT/usr/share/man/man1/m4.1"
-test -n "$(find "$PEKIT_OUT/usr/share/locale" -type f -name 'm4.mo' -print -quit)"
-test "$(find "$PEKIT_OUT/usr/bin" -type f | wc -l)" -eq 1
-
-# Exercise the staged program as a real consumer: ordinary expansion,
-# include-path lookup, frozen-state round trip and the configured syscmd shell.
-SMOKE="$PEKIT_OUT/.m4-smoke"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/basic.m4" <<'EOF'
-changequote(`[', `]')dnl
-define([GREETING], [Hello, $1!])dnl
-GREETING([Peios])
-EOF
-test "$("$BIN" --fatal-warnings "$SMOKE/basic.m4")" = "Hello, Peios!"
-
-cat > "$SMOKE/defs.m4" <<'EOF'
-define([INCLUDED], [included-ok])dnl
-EOF
-cat > "$SMOKE/include.m4" <<'EOF'
-changequote(`[', `]')dnl
-include([defs.m4])INCLUDED
-EOF
-test "$("$BIN" --fatal-warnings -I "$SMOKE" "$SMOKE/include.m4")" = "included-ok"
-
-cat > "$SMOKE/freeze.m4" <<'EOF'
-changequote(`[', `]')dnl
-define([FROZEN], [state-ok])dnl
-EOF
-"$BIN" -F "$SMOKE/state.m4f" "$SMOKE/freeze.m4"
-test "$(printf '%s\n' FROZEN | "$BIN" -R "$SMOKE/state.m4f")" = "state-ok"
-cat > "$SMOKE/syscmd.m4" <<'EOF'
-changequote(`[', `]')dnl
-esyscmd([printf syscmd-ok])
-EOF
-test "$("$BIN" --fatal-warnings "$SMOKE/syscmd.m4")" = "syscmd-ok"
-"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
-rm -rf "$SMOKE"
 
 # Split the sole shipped ELF by build ID, rewrite its DWARF paths to the
 # canonical package namespace and retain every referenced source file.
@@ -129,26 +80,14 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
 strip usr/bin/m4
 rm -f "$PEKIT_OUT/.srclist"
 
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 1
-test "$(find usr/src/debug/org.gnu.m4 -type f | wc -l)" -gt 10
-
-# Assert the exact stripped payload that will ship.
-readelf -h usr/bin/m4 | grep -Eq 'Type:[[:space:]]+DYN'
-readelf -W -l usr/bin/m4 | grep 'GNU_STACK' | grep -F 'RW '
-readelf -W -l usr/bin/m4 | grep -F 'GNU_RELRO'
-readelf -d usr/bin/m4 | grep -F 'BIND_NOW'
-readelf -d usr/bin/m4 | grep -F 'RELR'
-readelf -n usr/bin/m4 | grep -E 'x86 feature:.*IBT.*SHSTK'
-if readelf -d usr/bin/m4 | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
-usr/bin/m4 --version | head -1 | grep -F "$PEKIT_VERSION"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-debugedit          = "*"
-gettext            = "*"
-patchelf           = "*"
-perl               = "*"
+"org.sourceware.debugedit"          = "*"
+"org.gnu.gettext"            = "*"
+"org.nixos.patchelf"           = "*"
+"org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -156,3 +95,78 @@ gettext         = "*"
 perl            = "*"
 debugedit       = "*"
 patchelf        = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BIN="$STAGE/usr/bin/m4"
+SMOKE="$PEKIT_OUT/smoke"
+cd "$STAGE"
+
+make -j"$(nproc)" check
+find . -name test-suite.log -type f | grep -q .
+grep -R -q '^# PASS:' --include='test-suite.log' .
+if grep -R -E '^# (FAIL|ERROR):[[:space:]]+[1-9]' --include='test-suite.log' .; then
+  exit 1
+fi
+
+test -x "$BIN"
+test -f "$STAGE/usr/share/man/man1/m4.1"
+test -n "$(find "$STAGE/usr/share/locale" -type f -name 'm4.mo' -print -quit)"
+test "$(find "$STAGE/usr/bin" -type f | wc -l)" -eq 1
+
+mkdir -p "$SMOKE"
+cat > "$SMOKE/basic.m4" <<'EOF'
+changequote(`[', `]')dnl
+define([GREETING], [Hello, $1!])dnl
+GREETING([Peios])
+EOF
+test "$("$BIN" --fatal-warnings "$SMOKE/basic.m4")" = "Hello, Peios!"
+cat > "$SMOKE/defs.m4" <<'EOF'
+define([INCLUDED], [included-ok])dnl
+EOF
+cat > "$SMOKE/include.m4" <<'EOF'
+changequote(`[', `]')dnl
+include([defs.m4])INCLUDED
+EOF
+test "$("$BIN" --fatal-warnings -I "$SMOKE" "$SMOKE/include.m4")" = "included-ok"
+cat > "$SMOKE/freeze.m4" <<'EOF'
+changequote(`[', `]')dnl
+define([FROZEN], [state-ok])dnl
+EOF
+"$BIN" -F "$SMOKE/state.m4f" "$SMOKE/freeze.m4"
+test "$(printf '%s\n' FROZEN | "$BIN" -R "$SMOKE/state.m4f")" = "state-ok"
+cat > "$SMOKE/syscmd.m4" <<'EOF'
+changequote(`[', `]')dnl
+esyscmd([printf syscmd-ok])
+EOF
+test "$("$BIN" --fatal-warnings "$SMOKE/syscmd.m4")" = "syscmd-ok"
+"$BIN" --version | head -1 | grep -F "$PEKIT_VERSION"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find "$STAGE/usr/src/debug/org.gnu.m4" -type f | wc -l)" -gt 10
+readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
+readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
+readelf -d "$BIN" | grep -F 'BIND_NOW'
+readelf -d "$BIN" | grep -F 'RELR'
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.perl.perl"                = "*"
+"org.gnu.binutils"             = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+findutils       = "*"
+grep            = "*"
+perl            = "*"
+binutils        = "*"

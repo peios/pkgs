@@ -7,10 +7,8 @@ name        = "org.gnu.gcc-libitm-devel"
 description = "GCC transactional memory runtime development files"
 
 [provides]
-"libitm-devel" = "{{version}}-2"
 
 [replaces]
-"libitm-devel" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.gcc-libitm" = "{{version}}-2"

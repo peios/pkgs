@@ -14,10 +14,8 @@ description  = "GNU C Library - locale source definitions and charmaps"
 architecture = "noarch"
 
 [provides]
-"glibc-locale-source" = "{{version}}-5"
 
 [replaces]
-"glibc-locale-source" = "<= {{version}}-4"
 
 [files]
 "@source:COPYING*"       = "usr/share/licenses/org.gnu.glibc-locale-source/"

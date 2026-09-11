@@ -6,10 +6,9 @@ name        = "org.pkgconf.libpkgconf"
 description = "pkgconf - package metadata runtime library"
 
 [provides]
-libpkgconf = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf/"

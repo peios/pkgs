@@ -1,0 +1,2 @@
+[allow]
+"package.architecture" = "AMD CPU microcode is an x86_64 boot payload despite containing no ELF or architecture-triplet path; noarch would incorrectly advertise it to non-x86 systems"

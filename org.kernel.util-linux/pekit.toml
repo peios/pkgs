@@ -59,9 +59,6 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
   --disable-silent-rules
 make -j"$(nproc)"
 
-# Autotools' check target covers the configured library and common support
-# units. Any upstream failure blocks the package.
-make -j"$(nproc)" check
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
@@ -83,55 +80,12 @@ install -D -m 0755 getopt "$PEKIT_OUT/usr/bin/getopt"
 install -D -m 0644 "$SRC/misc-utils/getopt.1" \
   "$PEKIT_OUT/usr/share/man/man1/getopt.1"
 
-# Run every upstream getopt case against this build. The component suite is
-# unprivileged and must pass without exclusions.
-"$SRC/tests/run.sh" --srcdir="$SRC" --builddir="$GETOPT_BUILD" \
-  --parallel="$(nproc)" getopt
-
 cd "$PEKIT_OUT"
 LIB=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libblkid.so.*' -print)
 test "$(printf '%s\n' "$LIB" | grep -c .)" -eq 1
-test -s "$LIBDIR/libblkid.a"
-test -L "$LIBDIR/libblkid.so"
-test -L "$LIBDIR/libblkid.so.1"
-test -x usr/bin/getopt
-
-# Installed-interface checks: enhanced getopt parsing and a consumer compiled
-# and run against the staged libblkid headers and SONAME.
-rc=0
-usr/bin/getopt --test >/dev/null 2>&1 || rc=$?
-test "$rc" -eq 4
-test "$(usr/bin/getopt -o ab: --long alpha,beta: -- -a --beta value tail)" \
-  = " -a --beta 'value' -- 'tail'"
-printf '%s\n' \
-  '#include <blkid/blkid.h>' \
-  '#include <stdlib.h>' \
-  '#include <string.h>' \
-  'int main(void) {' \
-  '  const char *version = 0, *date = 0; char *type = 0, *value = 0;' \
-  '  if (blkid_get_library_version(&version, &date) <= 0 || !version || !date) return 1;' \
-  '  if (blkid_parse_tag_string("UUID=peios", &type, &value) != 0) return 2;' \
-  '  if (strcmp(type, "UUID") || strcmp(value, "peios")) return 3;' \
-  '  free(type); free(value); return 0;' \
-  '}' > .libblkid-smoke.c
-gcc ${CPPFLAGS:-} ${CFLAGS:-} -Iusr/include .libblkid-smoke.c \
-  -L"$LIBDIR" -lblkid \
-  -o .libblkid-smoke
-LD_LIBRARY_PATH="$LIBDIR" ./.libblkid-smoke
-rm -f .libblkid-smoke .libblkid-smoke.c
-
-# Enforce the inherited production hardening contract before symbol stripping.
 for elf in "$LIB" usr/bin/getopt; do
   patchelf --remove-rpath "$elf" 2>/dev/null || true
-  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-  readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
-readelf -d "$LIB" | grep -F 'Library soname: [libblkid.so.1]'
-readelf -d "$LIB" | grep -F 'Shared library: [libc.so.6]'
 
 # Split build-ID symbols per binary package and gather every DWARF-referenced
 # source once in the source-family debugsource package.
@@ -167,13 +121,78 @@ tr '\0' '\n' < .srclist | LC_ALL=C sort -u | while IFS= read -r rel; do
   cp "$ROOT/$rel" "usr/src/debug/org.kernel.util-linux/$rel"
 done
 rm -f .dl .srclist
-rm -rf "$BUILD" "$GETOPT_BUILD"
 '''
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+SRC="$(pwd)"
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+GETOPT_BUILD="$STAGE/getopt-build"
+LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
+LIB=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libblkid.so.*' -print)
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
+
+make -C "$BUILD" -j"$(nproc)" check
+"$SRC/tests/run.sh" --srcdir="$SRC" --builddir="$GETOPT_BUILD" \
+  --parallel="$(nproc)" getopt
+
+test "$(printf '%s\n' "$LIB" | grep -c .)" -eq 1
+test -s "$LIBDIR/libblkid.a"
+test -L "$LIBDIR/libblkid.so"
+test -L "$LIBDIR/libblkid.so.1"
+test -x "$STAGE/usr/bin/getopt"
+
+rc=0
+"$STAGE/usr/bin/getopt" --test >/dev/null 2>&1 || rc=$?
+test "$rc" -eq 4
+test "$("$STAGE/usr/bin/getopt" -o ab: --long alpha,beta: -- -a --beta value tail)" \
+  = " -a --beta 'value' -- 'tail'"
+cat > "$SMOKE/libblkid.c" <<'EOF'
+#include <blkid/blkid.h>
+#include <stdlib.h>
+#include <string.h>
+int main(void) {
+  const char *version = 0, *date = 0; char *type = 0, *value = 0;
+  if (blkid_get_library_version(&version, &date) <= 0 || !version || !date) return 1;
+  if (blkid_parse_tag_string("UUID=peios", &type, &value) != 0) return 2;
+  if (strcmp(type, "UUID") || strcmp(value, "peios")) return 3;
+  free(type); free(value); return 0;
+}
+EOF
+gcc ${CPPFLAGS:-} ${CFLAGS:-} -I"$STAGE/usr/include" "$SMOKE/libblkid.c" \
+  -L"$LIBDIR" -lblkid -o "$SMOKE/libblkid"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libblkid"
+
+for elf in "$LIB" "$STAGE/usr/bin/getopt"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+done
+readelf -d "$LIB" | grep -F 'Library soname: [libblkid.so.1]'
+readelf -d "$LIB" | grep -F 'Shared library: [libc.so.6]'
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find "$STAGE/getopt-debug/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$STAGE/usr/src/debug/org.kernel.util-linux" -type f -print -quit)"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-debugedit          = "*"
-patchelf           = "*"
+"org.sourceware.debugedit"          = "*"
+"org.nixos.patchelf"           = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

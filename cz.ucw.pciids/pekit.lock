@@ -1,0 +1,16 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "2026.09.11"
+  ref = "refs/heads/master"
+  commit = "5cf3109c97f5226f8d62aab2d9f19e98d55f6a6d"
+  repository = "https://github.com/pciutils/pciids.git"
+  path = "pci.ids"
+  blob = "db640b6dd53d08434e0b4d3b8328d1f32e277ccf"
+  blob_sha256 = "6190db4a17c42dd7ad84aa8abb658a70d1328179715aa10e29ab690eb5c920cd"
+  locked_at = "2026-09-11T14:49:58Z"

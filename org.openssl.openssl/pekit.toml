@@ -52,35 +52,6 @@ perl "$SRC/Configure" linux-x86_64 \
 
 make -j"$(nproc)"
 
-# A release tarball is tested again against each build environment and its
-# compiler. Keep the suite parallel, require a substantial discovered surface,
-# and let any skipped/failed recipe be reported by upstream's harness.
-test "$(make list-tests | wc -l)" -gt 200
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  # Peios routes every host lookup through resolvd's peios_net NSS module and
-  # deliberately has no /etc/hosts fallback. The hermetic native build root
-  # has no daemon, so this otherwise self-contained upstream test cannot
-  # resolve its hard-coded localhost name. Run the full suite without that
-  # recipe, then run the same OCSP exchange against numeric loopback. Debian
-  # continues to exercise the pristine resolver path as well.
-  make test HARNESS_JOBS="$(nproc)" \
-    TESTS='alltests -test_ocsp_cert_chain'
-  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
-  OCSP_ORIG="$BUILD/.82-test_ocsp_cert_chain.t.orig"
-  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
-  restore_ocsp_recipe() {
-    cp -p "$OCSP_ORIG" "$OCSP_RECIPE"
-    rm -f "$OCSP_ORIG"
-  }
-  trap restore_ocsp_recipe EXIT HUP INT TERM
-  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
-  make test TESTS=test_ocsp_cert_chain
-  restore_ocsp_recipe
-  trap - EXIT HUP INT TERM
-else
-  make test HARNESS_JOBS="$(nproc)"
-fi
-
 make install_sw DESTDIR="$PEKIT_OUT"
 make install_ssldirs DESTDIR="$PEKIT_OUT"
 make install_man_docs DESTDIR="$PEKIT_OUT"
@@ -99,109 +70,6 @@ rm -rf "$PEKIT_OUT/etc/ssl/certs" "$PEKIT_OUT/etc/ssl/private" \
 mkdir -p "$PEKIT_OUT/usr/etc"
 mv "$PEKIT_OUT/etc/ssl" "$PEKIT_OUT/usr/etc/ssl"
 rmdir "$PEKIT_OUT/etc"
-
-# Gate the deliberate installed surface before selecting package payloads.
-find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f -printf '%f\n' | \
-  LC_ALL=C sort > "$PEKIT_OUT/.installed-tools"
-printf '%s\n' CA.pl c_rehash openssl tsget.pl | LC_ALL=C sort \
-  > "$PEKIT_OUT/.expected-tools"
-diff -u "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools"
-test "$(readlink "$PEKIT_OUT/usr/bin/tsget")" = tsget.pl
-for script in CA.pl c_rehash tsget.pl; do
-  test "$(sed -n '1p' "$PEKIT_OUT/usr/bin/$script")" = '#!/usr/bin/perl'
-done
-
-test -f "$PEKIT_OUT/usr/etc/ssl/openssl.cnf"
-test -f "$PEKIT_OUT/usr/etc/ssl/ct_log_list.cnf"
-test "$(find "$STAGED_LIBDIR/engines-3" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 4
-test "$(find "$STAGED_LIBDIR/ossl-modules" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 1
-test -f "$STAGED_LIBDIR/ossl-modules/legacy.so"
-for stem in crypto ssl; do
-  test -L "$STAGED_LIBDIR/lib$stem.so"
-  test -f "$STAGED_LIBDIR/lib$stem.so.3"
-  test -f "$STAGED_LIBDIR/lib$stem.a"
-  readelf -d "$STAGED_LIBDIR/lib$stem.so.3" | \
-    grep -F "Library soname: [lib$stem.so.3]"
-done
-for pc in libcrypto libssl openssl; do
-  test -f "$STAGED_LIBDIR/pkgconfig/$pc.pc"
-  test "$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
-    PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --modversion "$pc")" \
-    = "$PEKIT_VERSION"
-done
-test -f "$STAGED_LIBDIR/cmake/OpenSSL/OpenSSLConfig.cmake"
-test -f "$STAGED_LIBDIR/cmake/OpenSSL/OpenSSLConfigVersion.cmake"
-test "$(find "$PEKIT_OUT/usr/share/man/man1" -type f | wc -l)" -gt 50
-test "$(find "$PEKIT_OUT/usr/share/man/man3" -type f | wc -l)" -gt 100
-test -n "$(find "$PEKIT_OUT/usr/share/man/man5" -type f -print -quit)"
-test -n "$(find "$PEKIT_OUT/usr/share/man/man7" -type f -print -quit)"
-
-# Exercise the installed configuration, built-in and loadable providers, CLI,
-# certificate verification, and both shared and static public C interfaces.
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" version -a \
-  > "$PEKIT_OUT/.version"
-grep -F "OpenSSL $PEKIT_VERSION" "$PEKIT_OUT/.version"
-grep -F 'OPENSSLDIR: "/etc/ssl"' "$PEKIT_OUT/.version"
-grep -F "ENGINESDIR: \"$LIBDIR/engines-3\"" "$PEKIT_OUT/.version"
-grep -F "MODULESDIR: \"$LIBDIR/ossl-modules\"" "$PEKIT_OUT/.version"
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" list -providers | \
-  grep -F 'OpenSSL Default Provider'
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" list -providers \
-  -provider default -provider legacy | grep -F 'OpenSSL Legacy Provider'
-printf 'abc' | OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-  LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" dgst -sha256 | \
-  grep -F 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
-
-SMOKE="$PEKIT_OUT/.openssl-smoke"
-mkdir -p "$SMOKE"
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" req -x509 -newkey rsa:2048 \
-  -nodes -subj /CN=pekit.openssl.test -days 1 \
-  -keyout "$SMOKE/key.pem" -out "$SMOKE/cert.pem"
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" verify \
-  -CAfile "$SMOKE/cert.pem" "$SMOKE/cert.pem" | grep -F ': OK'
-
-cat > "$SMOKE/openssl.c" <<'EOF'
-#include <openssl/evp.h>
-#include <openssl/ssl.h>
-
-int main(void)
-{
-  EVP_MD *digest;
-  SSL_CTX *context;
-
-  if (!OPENSSL_init_ssl(0, NULL))
-    return 1;
-  digest = EVP_MD_fetch(NULL, "SHA256", NULL);
-  context = SSL_CTX_new(TLS_method());
-  if (digest == NULL || context == NULL)
-    return 1;
-  EVP_MD_free(digest);
-  SSL_CTX_free(context);
-  return 0;
-}
-EOF
-OPENSSL_CFLAGS=$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
-  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --cflags openssl)
-OPENSSL_LIBS=$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
-  PKG_CONFIG_SYSROOT_DIR="$PEKIT_OUT" pkgconf --libs openssl)
-cc $OPENSSL_CFLAGS "$SMOKE/openssl.c" -L"$STAGED_LIBDIR" \
-  $OPENSSL_LIBS -o "$SMOKE/shared"
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
-LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
-cc $OPENSSL_CFLAGS "$SMOKE/openssl.c" \
-  "$STAGED_LIBDIR/libssl.a" "$STAGED_LIBDIR/libcrypto.a" \
-  -ldl -pthread -o "$SMOKE/static"
-OPENSSL_CONF="$PEKIT_OUT/usr/etc/ssl/openssl.cnf" \
-OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" "$SMOKE/static"
 
 # Split build-ID-indexed symbols and stage all DWARF-referenced sources.
 # Static archives retain code while dropping their debug sections.
@@ -237,11 +105,122 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
     mkdir -p "usr/src/debug/org.openssl.openssl/$(dirname "$rel")"
     cp "$ROOT/$rel" "usr/src/debug/org.openssl.openssl/$rel"
   done
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 8
-test -n "$(find usr/src/debug/org.openssl.openssl -type f -print -quit)"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids"
+'''
 
-# Assert the properties of every shipped ELF after its final mutation.
-find usr/bin usr/lib/x86_64-linux-peios -type f ! -type l ! -name '*.a' | \
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+SRC="$(pwd)"
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$STAGE$LIBDIR"
+BIN="$STAGE/usr/bin/openssl"
+CONF="$STAGE/usr/etc/ssl/openssl.cnf"
+SMOKE="$PEKIT_OUT/smoke"
+
+test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  make -C "$BUILD" test HARNESS_JOBS="$(nproc)" \
+    TESTS='alltests -test_ocsp_cert_chain'
+  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
+  OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
+  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
+  restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
+  trap restore_ocsp_recipe EXIT HUP INT TERM
+  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
+  make -C "$BUILD" test TESTS=test_ocsp_cert_chain
+  restore_ocsp_recipe
+  trap - EXIT HUP INT TERM
+else
+  make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
+fi
+
+find "$STAGE/usr/bin" -maxdepth 1 -type f -printf '%f\n' | \
+  LC_ALL=C sort > "$PEKIT_OUT/installed-tools"
+printf '%s\n' CA.pl c_rehash openssl tsget.pl | LC_ALL=C sort \
+  > "$PEKIT_OUT/expected-tools"
+diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
+test "$(readlink "$STAGE/usr/bin/tsget")" = tsget.pl
+for script in CA.pl c_rehash tsget.pl; do
+  test "$(sed -n '1p' "$STAGE/usr/bin/$script")" = '#!/usr/bin/perl'
+done
+test -f "$STAGE/usr/etc/ssl/openssl.cnf"
+test -f "$STAGE/usr/etc/ssl/ct_log_list.cnf"
+test "$(find "$STAGED_LIBDIR/engines-3" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 4
+test "$(find "$STAGED_LIBDIR/ossl-modules" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 1
+test -f "$STAGED_LIBDIR/ossl-modules/legacy.so"
+for stem in crypto ssl; do
+  test -L "$STAGED_LIBDIR/lib$stem.so"
+  test -f "$STAGED_LIBDIR/lib$stem.so.3"
+  test -f "$STAGED_LIBDIR/lib$stem.a"
+  readelf -d "$STAGED_LIBDIR/lib$stem.so.3" | grep -F "Library soname: [lib$stem.so.3]"
+done
+for pc in libcrypto libssl openssl; do
+  test -f "$STAGED_LIBDIR/pkgconfig/$pc.pc"
+  test "$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
+    PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --modversion "$pc")" = "$PEKIT_VERSION"
+done
+test -f "$STAGED_LIBDIR/cmake/OpenSSL/OpenSSLConfig.cmake"
+test -f "$STAGED_LIBDIR/cmake/OpenSSL/OpenSSLConfigVersion.cmake"
+test "$(find "$STAGE/usr/share/man/man1" -type f | wc -l)" -gt 50
+test "$(find "$STAGE/usr/share/man/man3" -type f | wc -l)" -gt 100
+test -n "$(find "$STAGE/usr/share/man/man5" -type f -print -quit)"
+test -n "$(find "$STAGE/usr/share/man/man7" -type f -print -quit)"
+
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" version -a > "$PEKIT_OUT/version"
+grep -F "OpenSSL $PEKIT_VERSION" "$PEKIT_OUT/version"
+grep -F 'OPENSSLDIR: "/etc/ssl"' "$PEKIT_OUT/version"
+grep -F "ENGINESDIR: \"$LIBDIR/engines-3\"" "$PEKIT_OUT/version"
+grep -F "MODULESDIR: \"$LIBDIR/ossl-modules\"" "$PEKIT_OUT/version"
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" list -providers | grep -F 'OpenSSL Default Provider'
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" list -providers \
+  -provider default -provider legacy | grep -F 'OpenSSL Legacy Provider'
+printf abc | OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" \
+  "$BIN" dgst -sha256 | grep -F \
+  'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+
+mkdir -p "$SMOKE"
+OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" req \
+  -x509 -newkey rsa:2048 -nodes -subj /CN=pekit.openssl.test -days 1 \
+  -keyout "$SMOKE/key.pem" -out "$SMOKE/cert.pem"
+OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" verify \
+  -CAfile "$SMOKE/cert.pem" "$SMOKE/cert.pem" | grep -F ': OK'
+cat > "$SMOKE/openssl.c" <<'EOF'
+#include <openssl/evp.h>
+#include <openssl/ssl.h>
+int main(void) {
+  EVP_MD *digest; SSL_CTX *context;
+  if (!OPENSSL_init_ssl(0, NULL)) return 1;
+  digest = EVP_MD_fetch(NULL, "SHA256", NULL);
+  context = SSL_CTX_new(TLS_method());
+  if (digest == NULL || context == NULL) return 1;
+  EVP_MD_free(digest); SSL_CTX_free(context); return 0;
+}
+EOF
+OPENSSL_CFLAGS=$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
+  PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --cflags openssl)
+OPENSSL_LIBS=$(PKG_CONFIG_PATH="$STAGED_LIBDIR/pkgconfig" \
+  PKG_CONFIG_SYSROOT_DIR="$STAGE" pkgconf --libs openssl)
+cc $OPENSSL_CFLAGS "$SMOKE/openssl.c" -L"$STAGED_LIBDIR" \
+  $OPENSSL_LIBS -o "$SMOKE/shared"
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/shared"
+cc $OPENSSL_CFLAGS "$SMOKE/openssl.c" \
+  "$STAGED_LIBDIR/libssl.a" "$STAGED_LIBDIR/libcrypto.a" \
+  -ldl -pthread -o "$SMOKE/static"
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" "$SMOKE/static"
+
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 8
+test -n "$(find "$STAGE/usr/src/debug/org.openssl.openssl" -type f -print -quit)"
+find "$STAGE/usr/bin" "$STAGED_LIBDIR" -type f ! -type l ! -name '*.a' | \
   while IFS= read -r elf; do
   readelf -h "$elf" >/dev/null 2>&1 || continue
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
@@ -252,24 +231,34 @@ find usr/bin usr/lib/x86_64-linux-peios -type f ! -type l ! -name '*.a' | \
   readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
-
-rm -rf "$SMOKE" "$BUILD"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
-  "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.installed-tools" \
-  "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.version"
 '''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.peiosutils"         = "*"
+"org.gnu.diffutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.make"                 = "*"
+"org.perl.perl"                = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.sed"                  = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+perl            = "*"
+pkg-config      = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"   = "*"
-debugedit            = "*"
-"org.gnu.coreutils" = "*"
+"org.sourceware.debugedit"            = "*"
+"dev.peios.peiosutils" = "*"
 "org.gnu.diffutils" = "*"
 "org.gnu.grep"      = "*"
 "org.gnu.make"      = "*"
-patchelf             = "*"
-perl                 = "*"
-pkgconf              = "*"
-sed                  = "*"
+"org.nixos.patchelf"             = "*"
+"org.perl.perl"                 = "*"
+"org.pkgconf.pkgconf"              = "*"
+"org.gnu.sed"                  = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"

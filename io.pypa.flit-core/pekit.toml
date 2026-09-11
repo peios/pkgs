@@ -38,6 +38,34 @@ command = """
 set -eu
 SRC="$(pwd -P)"
 
+# flit_core builds its own wheel: the backend is in the tree being built, and
+# `python3 -c` puts the cwd on sys.path, which is the whole bootstrap.
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
+
+"""
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"          = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
+
+[build.main.dependencies.apt]
+python3          = "*"
+python3-pytest   = "*"
+python3-testpath = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/flit_core
+test -d "$1"
+test -f "$1/__init__.py"
+
+# Run the upstream release suite from the explicit package gate.
+SRC="$(pwd -P)"
 # Run every upstream core test in the reference environment. The native
 # bootstrap root intentionally does not acquire pytest and testpath merely to
 # build its own build backend; the installed self-hosting gate below covers it.
@@ -45,11 +73,10 @@ if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
   PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q "$SRC/tests_core"
 fi
 
-# flit_core builds its own wheel: the backend is in the tree being built, and
-# `python3 -c` puts the cwd on sys.path, which is the whole bootstrap.
-python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
-  --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
 
+# Exercise the exact installed backend from the staged package tree.
+SRC="$(pwd -P)"
+PEKIT_OUT="$PEKIT_MAIN_OUT"
 if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
   # The reference interpreter's sysconfig path is deliberately not packageable
   # by the Peios-only [files] mapping below. It validates upstream and backend
@@ -155,29 +182,14 @@ import sys
 assert not any(path.is_dir() for path in Path(sys.argv[1]).rglob('__pycache__'))
 PY
 rm -rf "$SMOKE"
-"""
-
-[build.main.dependencies.peipkg]
-dash          = "*"
-"org.gnu.coreutils" = "*"
-"org.python.python3" = ">= 3.14, < 3.15"
-
-[build.main.dependencies.apt]
-python3          = "*"
-python3-pytest   = "*"
-python3-testpath = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/flit_core
-test -d "$1"
-test -f "$1/__init__.py"
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"org.git.kernel.dash"          = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3" = ">= 3.14, < 3.15"
 
 [test.dependencies.apt]
-dash = "*"
+python3          = "*"
+python3-pytest   = "*"
+python3-testpath = "*"

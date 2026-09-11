@@ -8,10 +8,8 @@ name        = "org.gnu.glibc-utils"
 description = "GNU C Library - profiling and tracing utilities"
 
 [provides]
-"glibc-utils" = "{{version}}-5"
 
 [replaces]
-"glibc-utils" = "<= {{version}}-4"
 
 [dependencies]
 # The programs plus LD_PRELOAD/LD_AUDIT modules are loaded into the runtime,

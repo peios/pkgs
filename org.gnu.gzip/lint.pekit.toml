@@ -1,2 +1,1 @@
 [allow]
-"build.test" = "The upstream suite and staged compression, corruption, concatenation, and wrapper tests run inside build.main so package and publish fail closed"

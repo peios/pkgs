@@ -30,10 +30,8 @@ name = "org.gnu.glibc-langpack-{{multipack}}"
 description = "GNU C Library - {{multipack}} locale data"
 
 [provides]
-"glibc-langpack-{{multipack}}" = "{{version}}-5"
 
 [replaces]
-"glibc-langpack-{{multipack}}" = "<= {{version}}-4"
 
 [dependencies]
 # Compiled locale data is loaded by glibc at runtime and its binary format is

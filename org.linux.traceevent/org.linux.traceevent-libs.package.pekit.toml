@@ -6,14 +6,8 @@ name        = "org.linux.traceevent-libs"
 description = "Linux trace-event parsing runtime library"
 license     = "LGPL-2.1-only"
 
-[provides]
-"libtraceevent.so.1" = "{{version}}"
-
-[replaces]
-libtraceevent = "<= {{version}}-1"
-
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-libs/LGPL-2.1"

@@ -8,10 +8,8 @@ license       = "LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Fi
 license_class = "firmware"
 
 [provides]
-"firmware-atheros" = "{{version}}-3"
 
 [replaces]
-"firmware-atheros" = "<= {{version}}-2"
 
 [files]
 ":family/atheros/usr/lib/firmware/**"   = "usr/lib/firmware"

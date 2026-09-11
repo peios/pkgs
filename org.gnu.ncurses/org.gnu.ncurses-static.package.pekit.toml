@@ -3,7 +3,6 @@ name        = "org.gnu.ncurses-static"
 description = "ncurses static libraries"
 
 [provides]
-"ncurses-static" = "{{version}}-3"
 
 [dependencies]
 "org.gnu.ncurses-devel" = "{{version}}-3"

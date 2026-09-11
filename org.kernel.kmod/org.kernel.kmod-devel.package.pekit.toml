@@ -7,8 +7,6 @@ description = "libkmod headers and shared-library development files"
 license     = "LGPL-2.1-or-later"
 
 [provides]
-kmod-devel    = "{{version}}"
-libkmod-devel = "{{version}}"
 
 [dependencies]
 "org.kernel.kmod-libs" = "{{version}}-2"

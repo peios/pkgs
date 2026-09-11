@@ -3,10 +3,8 @@ name        = "org.gnu.mpc-debuginfo"
 description = "GNU MPC debugging symbols"
 
 [provides]
-"mpc-debuginfo" = "{{version}}-2"
 
 [replaces]
-"mpc-debuginfo" = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.mpc" = "{{version}}-2"

@@ -57,12 +57,6 @@ grep -Fx '#define WITH_PROFILER /**/' config.h
 
 make -j"$(nproc)"
 
-# Upstream's complete suite covers the XSLT recommendation corpus, EXSLT,
-# extension functions/elements, includes/imports, keys, encodings, XInclude,
-# multiple outputs, XSLTMark, bundled DocBook transforms, fuzz targets and the
-# threaded API.
-make check
-
 # A clean second compilation in the same normalized build root must reproduce
 # both shared libraries, both deterministic static archives and xsltproc byte
 # for byte.
@@ -73,6 +67,84 @@ cp libexslt/.libs/libexslt.so.0.8.* "$REPRO/libexslt.so"
 cp libxslt/.libs/libxslt.a "$REPRO/libxslt.a"
 cp libexslt/.libs/libexslt.a "$REPRO/libexslt.a"
 cp xsltproc/.libs/xsltproc "$REPRO/xsltproc"
+
+make install DESTDIR="$PEKIT_OUT"
+find "$PREFIX" -name '*.la' -delete
+# Obsolete pre-pkg-config shell metadata duplicates the maintained .pc files
+# and xslt-config interface and is omitted by established distributions.
+rm -f "$LIBDIR/xsltConf.sh"
+
+# Create conventional build-ID-indexed symbols and copy exactly the source
+# files named by rewritten DWARF into the debugsource payload.
+strip --strip-debug "$LIBDIR/libxslt.a" "$LIBDIR/libexslt.a"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+for elf in "$LIBXSLT_SO" "$LIBEXSLT_SO" "$PREFIX/bin/xsltproc"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.libxslt \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.gnome.libxslt/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxslt/$rel"
+done
+rm -rf "$SMOKE"
+rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
+  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c"        = "*"
+"org.pkgconf.pkgconf"                      = "*"
+"org.gnome.libxml2-devel"  = ">= 2.15.3-1"
+"org.gnome.libxml2-static" = ">= 2.15.3-1"
+"org.gnu.glibc-gconv-extra"        = "*"
+"org.perl.perl"            = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+pkg-config      = "*"
+libxml2-dev     = ">= 2.15.1"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+TMP="$PEKIT_OUT/libxslt-test"
+mkdir -p "$TMP"
+printf '%s\n' '<root><value>Peios</value></root>' > "$TMP/input.xml"
+cat > "$TMP/style.xsl" <<'EOF'
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="text"/>
+  <xsl:template match="/"><xsl:value-of select="root/value"/></xsl:template>
+</xsl:stylesheet>
+EOF
+export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
+test "$("$STAGE/usr/bin/xsltproc" "$TMP/style.xsl" "$TMP/input.xml")" = Peios
+
+# Rebuild in the identical object directory and gate byte reproducibility.
+BUILD="$STAGE/build"
+REPRO="$STAGE/.repro"
+cd "$BUILD"
 make clean
 make -j"$(nproc)"
 cmp "$REPRO/libxslt.so" libxslt/.libs/libxslt.so.1.1.*
@@ -81,12 +153,21 @@ cmp "$REPRO/libxslt.a" libxslt/.libs/libxslt.a
 cmp "$REPRO/libexslt.a" libexslt/.libs/libexslt.a
 cmp "$REPRO/xsltproc" xsltproc/.libs/xsltproc
 
-make install DESTDIR="$PEKIT_OUT"
-find "$PREFIX" -name '*.la' -delete
-# Obsolete pre-pkg-config shell metadata duplicates the maintained .pc files
-# and xslt-config interface and is omitted by established distributions.
-rm -f "$LIBDIR/xsltConf.sh"
+# Run the upstream release suite from the explicit package gate.
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+cd "$PEKIT_OUT/build"
+# Upstream's complete suite covers the XSLT recommendation corpus, EXSLT,
+# extension functions/elements, includes/imports, keys, encodings, XInclude,
+# multiple outputs, XSLTMark, bundled DocBook transforms, fuzz targets and the
+# threaded API.
+make check
 
+
+# Freeze and exercise the exact installed XSLT/EXSLT contract after staging.
+SRC="$PEKIT_SOURCE_ROOT"
+PEKIT_OUT="$PEKIT_MAIN_OUT"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 # Assert the installed command, development and ABI surface. Real-object
 # suffixes may advance within 1.1, but a SONAME/age change requires review.
 find "$PREFIX/bin" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
@@ -237,40 +318,6 @@ cc "$SMOKE/consumer.c" -I"$PREFIX/include" \
   $(pkg-config --libs libxml-2.0) -lm -ldl -o "$SMOKE/static-consumer"
 "$SMOKE/static-consumer"
 
-# Create conventional build-ID-indexed symbols and copy exactly the source
-# files named by rewritten DWARF into the debugsource payload.
-strip --strip-debug "$LIBDIR/libxslt.a" "$LIBDIR/libexslt.a"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-for elf in "$LIBXSLT_SO" "$LIBEXSLT_SO" "$PREFIX/bin/xsltproc"; do
-  patchelf --remove-rpath "$elf"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.libxslt \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" \
-    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.gnome.libxslt/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxslt/$rel"
-done
-test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
-test -n "$(find "$PREFIX/src/debug/org.gnome.libxslt" -type f -print -quit)"
-for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
-  readelf -S "$dbg" | grep -F '.debug_info'
-done
-
 # Enforce the workspace hardening contract after final stripping and prohibit
 # embedded build-tree loader paths. Explicit CET link stamping keeps IBT/SHSTK
 # observable even when a reference-rung CRT object lacks the property note.
@@ -286,48 +333,26 @@ readelf -d "$LIBXSLT_SO" | grep -F 'Shared library: [libxml2.so.16]'
 readelf -d "$LIBEXSLT_SO" | grep -F 'Shared library: [libxslt.so.1]'
 readelf -d "$PREFIX/bin/xsltproc" | grep -F 'Shared library: [libxslt.so.1]'
 readelf -d "$PREFIX/bin/xsltproc" | grep -F 'Shared library: [libexslt.so.0]'
-
-rm -rf "$REPRO" "$SMOKE"
-rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
-  "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test -n "$(find "$PREFIX/src/debug/org.gnome.libxslt" -type f -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+rm -rf "$SMOKE" "$STAGE/.repro" "$STAGE/build"
 '''
 
-[build.main.dependencies.peipkg]
+[test.dependencies.peipkg]
 "dev.peios.build-essentials-c"        = "*"
-pkgconf                      = "*"
+"org.pkgconf.pkgconf"                      = "*"
 "org.gnome.libxml2-devel"  = ">= 2.15.3-1"
 "org.gnome.libxml2-static" = ">= 2.15.3-1"
-"glibc-gconv-extra"        = "*"
+"org.gnu.glibc-gconv-extra"        = "*"
 "org.perl.perl"            = "*"
 
-[build.main.dependencies.apt]
+[test.dependencies.apt]
 build-essential = "*"
 pkg-config      = "*"
 libxml2-dev     = ">= 2.15.1"
 debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
-
-[test]
-needs = ["main"]
-command = '''
-set -eu
-STAGE="$PEKIT_MAIN_OUT"
-TMP="$PEKIT_OUT/libxslt-test"
-mkdir -p "$TMP"
-printf '%s\n' '<root><value>Peios</value></root>' > "$TMP/input.xml"
-cat > "$TMP/style.xsl" <<'EOF'
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="text"/>
-  <xsl:template match="/"><xsl:value-of select="root/value"/></xsl:template>
-</xsl:stylesheet>
-EOF
-export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
-test "$("$STAGE/usr/bin/xsltproc" "$TMP/style.xsl" "$TMP/input.xml")" = Peios
-'''
-
-[test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-dash = "*"

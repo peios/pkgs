@@ -4,8 +4,6 @@ description  = "ncurses terminal capability database"
 architecture = "noarch"
 
 [provides]
-"ncurses-base" = "{{version}}-3"
-"ncurses-term" = "{{version}}-3"
 
 [files]
 "@source:COPYING"        = "usr/share/licenses/org.gnu.ncurses-terminfo/COPYING"

@@ -3,7 +3,6 @@ name        = "org.gnome.libxml2-static"
 description = "libxml2 static library"
 
 [provides]
-"libxml2-static" = "{{version}}-1"
 
 [dependencies]
 "org.gnome.libxml2-devel" = "{{version}}-1"

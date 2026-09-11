@@ -11,10 +11,8 @@ name        = "org.gnu.gcc-libitm"
 description = "GCC transactional memory runtime library (libitm.so.1)"
 
 [provides]
-libitm = "{{version}}-2"
 
 [replaces]
-libitm = "<= {{version}}-1"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"

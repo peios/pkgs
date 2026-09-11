@@ -65,23 +65,6 @@ cd "$PEKIT_OUT"
   --without-emacs --disable-openmp --disable-rpath \
   --disable-more-warnings
 make -s -j"$(nproc)"
-# All release tests run inside Pekit's deliberately network-isolated build
-# sandbox. Gnulib's test-getaddrinfo reaches public DNS names and recognizes
-# EAI_AGAIN as offline, but glibc reports the sandbox denial as EAI_SYSTEM with
-# EBUSY. Accept only that one exact non-hermetic failure; any other failed test
-# or failure signature remains fatal.
-set +e
-make -s -j"$(nproc)" check
-check_status=$?
-set -e
-if [ "$check_status" -ne 0 ]; then
-  failures=$(find . -name test-suite.log -exec sed -n 's/^FAIL: //p' {} + \
-    | LC_ALL=C sort -u)
-  test "$failures" = "test-getaddrinfo"
-  gai_log=gettext-tools/gnulib-tests/test-getaddrinfo.log
-  grep -F 'system error: Device or resource busy' "$gai_log"
-  grep -F 'expected 0, got -11' "$gai_log"
-fi
 make -s install DESTDIR="$PEKIT_OUT"
 
 # Peios has no Info reader, and glibc supplies the libintl implementation.
@@ -106,33 +89,6 @@ for script in \
   [ ! -f "$script" ] || sed -i '1s|^#! */bin/sh|#!/usr/bin/sh|' "$script"
 done
 
-BIN="$PEKIT_OUT/usr/bin"
-SMOKE="$PEKIT_OUT/.gettext-smoke"
-export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-mkdir -p "$SMOKE"
-cat > "$SMOKE/messages.po" <<'EOF'
-msgid ""
-msgstr ""
-"Content-Type: text/plain; charset=UTF-8\\n"
-
-msgid "hello"
-msgstr "bonjour"
-EOF
-"$BIN/msgfmt" --check --output-file="$SMOKE/messages.mo" "$SMOKE/messages.po"
-"$BIN/msgunfmt" "$SMOKE/messages.mo" > "$SMOKE/roundtrip.po"
-grep -F 'msgid "hello"' "$SMOKE/roundtrip.po"
-grep -F 'msgstr "bonjour"' "$SMOKE/roundtrip.po"
-printf '%s\n' 'const char *s = _("catalogued");' > "$SMOKE/input.c"
-"$BIN/xgettext" --keyword=_ --language=C --output="$SMOKE/extracted.po" "$SMOKE/input.c"
-grep -F 'msgid "catalogued"' "$SMOKE/extracted.po"
-test "$(printf '%s\n' '$name' | name=Peios "$BIN/envsubst")" = Peios
-"$BIN/msgfmt" --version | head -1 | grep -F "$PEKIT_VERSION"
-test -x "$BIN/autopoint"
-test -x "$BIN/gettextize"
-test -d "$PEKIT_OUT/usr/share/gettext"
-test -f "$PEKIT_OUT/usr/include/gettext-po.h"
-test -f "$PEKIT_OUT/usr/include/textstyle.h"
-
 # Harden every installed ELF, including gettext's private tool libraries and
 # libexec helpers, then emit conventional build-ID debuginfo and the exact
 # DWARF-referenced corresponding source.
@@ -145,11 +101,6 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
     patchelf --remove-rpath "$elf" 2>/dev/null || true
     patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
     printf '%s\n' "$elf" >> "$PEKIT_OUT/.elfs"
-    readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
-    readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
-    readelf -d "$elf" | grep -F 'BIND_NOW'
-    readelf -d "$elf" | grep -F 'RELR'
-    if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
   done
 test -s "$PEKIT_OUT/.elfs"
 
@@ -175,7 +126,6 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
       mkdir -p "usr/src/debug/org.gnu.gettext/$(dirname "$rel")"
       cp "$ROOT/$rel" "usr/src/debug/org.gnu.gettext/$rel"
     done
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.srclist"
 """
 
@@ -183,17 +133,17 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.srclist"
 # the development package ships and consumes that archive.
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
-glibc-gconv-extra = "*"
-glibc-langpack-de = "*"
-glibc-langpack-en = "*"
-glibc-langpack-fr = "*"
-glibc-langpack-ja = "*"
-glibc-langpack-zh = "*"
-gzip = "*"
+"org.gnu.glibc-gconv-extra" = "*"
+"org.gnu.glibc-langpack-de" = "*"
+"org.gnu.glibc-langpack-en" = "*"
+"org.gnu.glibc-langpack-fr" = "*"
+"org.gnu.glibc-langpack-ja" = "*"
+"org.gnu.glibc-langpack-zh" = "*"
+"org.gnu.gzip" = "*"
 "org.gnu.autoconf" = "*"
 "org.gnu.automake" = "*"
 "org.gnu.bash" = "*"
-perl = "*"
+"org.perl.perl" = "*"
 
 [build.main.dependencies.apt]
 autoconf = "*"
@@ -208,9 +158,28 @@ debugedit = "*"
 patchelf = "*"
 
 [test]
+gate = true
 needs = ["main"]
 command = '''
 set -eu
+# All release tests run inside Pekit's deliberately network-isolated test
+# sandbox. Gnulib's test-getaddrinfo reaches public DNS names and recognizes
+# EAI_AGAIN as offline, but glibc reports the sandbox denial as EAI_SYSTEM with
+# EBUSY. Accept only that one exact non-hermetic failure; any other failed test
+# or failure signature remains fatal.
+cd "$PEKIT_MAIN_OUT"
+set +e
+make -s -j"$(nproc)" check
+check_status=$?
+set -e
+if [ "$check_status" -ne 0 ]; then
+  failures=$(find . -name test-suite.log -exec sed -n 's/^FAIL: //p' {} + \
+    | LC_ALL=C sort -u)
+  test "$failures" = "test-getaddrinfo"
+  gai_log=gettext-tools/gnulib-tests/test-getaddrinfo.log
+  grep -F 'system error: Device or resource busy' "$gai_log"
+  grep -F 'expected 0, got -11' "$gai_log"
+fi
 STAGE="$PEKIT_MAIN_OUT"
 BIN="$STAGE/usr/bin"
 TMP="$PEKIT_OUT/gettext-test"
@@ -231,12 +200,57 @@ while IFS= read -r line; do
   test "$line" != 'msgstr "bonjour"' || found=:
 done < "$TMP/roundtrip.po"
 $found
+grep -F 'msgid "hello"' "$TMP/roundtrip.po"
+grep -F 'msgstr "bonjour"' "$TMP/roundtrip.po"
+printf '%s\n' 'const char *s = _("catalogued");' > "$TMP/input.c"
+"$BIN/xgettext" --keyword=_ --language=C --output="$TMP/extracted.po" "$TMP/input.c"
+grep -F 'msgid "catalogued"' "$TMP/extracted.po"
+test "$(printf '%s\n' '$name' | name=Peios "$BIN/envsubst")" = Peios
+"$BIN/msgfmt" --version | head -1 | grep -F "$PEKIT_VERSION"
+test -x "$BIN/autopoint"
+test -x "$BIN/gettextize"
+test -d "$STAGE/usr/share/gettext"
+test -f "$STAGE/usr/include/gettext-po.h"
+test -f "$STAGE/usr/include/textstyle.h"
+
+find "$STAGE/usr" -type f ! -type l -not -path '*/usr/lib/debug/*' \
+  -not -path '*/usr/src/debug/*' | while IFS= read -r elf; do
+    readelf -h "$elf" >/dev/null 2>&1 || continue
+    readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+    readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
+    readelf -d "$elf" | grep -F 'BIND_NOW'
+    readelf -d "$elf" | grep -F 'RELR'
+    if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
+  done
+rm -rf "$TMP"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.glibc-gconv-extra" = "*"
+"org.gnu.glibc-langpack-de" = "*"
+"org.gnu.glibc-langpack-en" = "*"
+"org.gnu.glibc-langpack-fr" = "*"
+"org.gnu.glibc-langpack-ja" = "*"
+"org.gnu.glibc-langpack-zh" = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.bash" = "*"
+"org.perl.perl" = "*"
 "org.git.kernel.dash" = "*"
-"org.gnu.coreutils" = "*"
+"dev.peios.peiosutils" = "*"
 
 [test.dependencies.apt]
+autoconf = "*"
+automake = "*"
+"bash" = "*"
+build-essential = "*"
+"g++" = "*"
+gzip = "*"
+locales-all = "*"
+perl = "*"
+debugedit = "*"
+patchelf = "*"
 coreutils = "*"
 dash = "*"

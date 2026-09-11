@@ -36,7 +36,6 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # Any edition satisfies `peios-release`. Depend on the virtual name to mean
 # "some Peios"; depend on an edition to mean that edition.
 [provides]
-peios-release = "{{version}}"
 
 # The base system. Every entry is a `>=` floor rather than a pin: at this
 # pre-alpha stage the floors let packages move without a repackage of the

@@ -11,10 +11,8 @@ description = "GNU Standard C++ Library (libstdc++.so.6)"
 license     = "(GPL-3.0-or-later WITH GCC-exception-3.1) AND GPL-3.0-or-later"
 
 [provides]
-"libstdc++" = "{{version}}-2"
 
 [replaces]
-"libstdc++" = "<= {{version}}-1"
 
 [dependencies]
 # libstdc++ links libgcc_s (the unwinder) + glibc. libgcc is built from this same

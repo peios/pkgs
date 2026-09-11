@@ -8,10 +8,8 @@ license       = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND 
 license_class = "firmware"
 
 [provides]
-"firmware-nic" = "{{version}}-3"
 
 [replaces]
-"firmware-nic" = "<= {{version}}-2"
 
 [files]
 ":family/nic/usr/lib/firmware/**"   = "usr/lib/firmware"

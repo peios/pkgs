@@ -5,10 +5,9 @@ name        = "org.kernel.libcap"
 description = "Linux POSIX capabilities runtime libraries"
 
 [provides]
-libcap = "{{version}}"
 
 [dependencies]
-glibc = ">= 2.43"
+"org.gnu.glibc" = ">= 2.43"
 
 [files]
 "@source:License" = "usr/share/licenses/org.kernel.libcap/License"

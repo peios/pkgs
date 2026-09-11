@@ -1,0 +1,58 @@
+.TH PZSTD 1 "September 2026" "Zstandard" "User Commands"
+.SH NAME
+pzstd \- parallel Zstandard compressor and decompressor
+.SH SYNOPSIS
+.B pzstd
+.RI [ options ]
+.RI [ file ...]
+.SH DESCRIPTION
+.B pzstd
+compresses and decompresses data in the Zstandard format using multiple
+worker threads.  During compression it splits input into independently
+compressed frames and concatenates them into a standards-compliant stream.
+It accepts the same core command-line interface as
+.BR zstd (1),
+with an additional option for selecting the worker count.
+.SH OPTIONS
+.TP
+.BI \-p " threads"
+.TQ
+.BI \-\-processes " threads"
+Use the specified number of worker threads.
+.TP
+.BR \-d , " \-\-decompress"
+Decompress input.
+.TP
+.BI \-o " file"
+Write output to
+.IR file .
+.TP
+.BR \-c , " \-\-stdout"
+Write output to standard output.
+.TP
+.BR \-f , " \-\-force"
+Overwrite output without prompting and process symbolic links.
+.TP
+.BR \-k , " \-\-keep"
+Preserve input files.  This is the default.
+.TP
+.BR \-t , " \-\-test"
+Test compressed-file integrity without writing decompressed output.
+.TP
+.BI \- "#"
+Select compression level 1 through 19.  The default is 3.
+.TP
+.BR \-h , " \-\-help"
+Display the complete option summary and exit.
+.TP
+.BR \-V , " \-\-version"
+Display version information and exit.
+.SH NOTES
+Dictionary mode is not supported by
+.BR pzstd .
+Streams produced by it can be decompressed by any conforming Zstandard
+implementation.  Parallel decompression is available for streams produced by
+.BR pzstd ;
+ordinary Zstandard streams are read and decompressed through separate threads.
+.SH SEE ALSO
+.BR zstd (1)
