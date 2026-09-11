@@ -22,6 +22,8 @@ command = '''
 set -eu
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+CFLAGS="$CFLAGS -ffile-prefix-map=$ROOT=/usr/src/debug/org.gnu.patch -fdebug-prefix-map=$ROOT=/usr/src/debug/org.gnu.patch -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.patch" \
 LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
@@ -34,9 +36,9 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+gzip -9n "$PEKIT_OUT/usr/share/man/man1/patch.1"
 
 cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 BIN=usr/bin/patch
 patchelf --remove-rpath "$BIN" 2>/dev/null || true
 debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.patch \
@@ -64,6 +66,7 @@ rm -f "$PEKIT_OUT/.srclist"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit"     = "*"
 "org.gnu.gettext"              = "*"
+"org.gnu.gzip"                 = "*"
 "org.nixos.patchelf"           = "*"
 "org.perl.perl"                = "*"
 
@@ -71,6 +74,7 @@ rm -f "$PEKIT_OUT/.srclist"
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"
+gzip            = "*"
 patchelf        = "*"
 perl            = "*"
 
@@ -114,6 +118,7 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.patch" -type f -print -quit)"
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.diffutils"    = "*"
@@ -125,6 +130,7 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.patch" -type f -print -quit)"
 "org.gnu.binutils"     = "*"
 
 [test.dependencies.apt]
+build-essential = "*"
 binutils  = "*"
 coreutils = "*"
 diffutils = "*"

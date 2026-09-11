@@ -11,5 +11,4 @@ license     = "GPL-3.0-or-later"
 [files]
 "@source:COPYING"       = "usr/share/licenses/org.gnu.patch/"
 ":usr/bin/patch"         = "usr/bin/patch"
-":usr/share/locale/**"   = "usr/share/locale"
 ":usr/share/man/man1/**" = "usr/share/man/man1"

@@ -1,7 +1,8 @@
 [package]
 name        = "org.kernel.linux-source"
-description = "Authenticated pristine Linux kernel source tree"
+description = "Authenticated pristine Linux kernel source archive"
 license     = "GPL-2.0-only"
 
 [files]
-":usr/src/linux-{{version}}/**" = "usr/src/linux-{{version}}"
+":usr/share/licenses/org.kernel.linux-source/COPYING" = "usr/share/licenses/org.kernel.linux-source/COPYING"
+":usr/src/dist/linux-{{version}}.tar.xz"               = "usr/src/dist/linux-{{version}}.tar.xz"

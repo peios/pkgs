@@ -4,16 +4,15 @@
 
 out_dir = "out"
 
-# The payload is itself the complete corresponding source, so emitting a
-# second automatic source package would duplicate roughly two GiB unpacked.
+# The payload is itself the complete corresponding source archive, so emitting
+# a second automatic source package would duplicate the same upstream bytes.
 [source_package]
 enabled = false
 
 [source.url]
 url         = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-{{version}}.tar.xz"
 listing_url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/"
-extract     = true
-root        = "linux-{{version}}"
+extract     = false
 file_regex  = 'linux-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 versions    = "= 7.0.9"
 
@@ -28,35 +27,58 @@ fingerprints = ["647F28654894E3BD457199BE38DBBDC86092693E"]
 [build.main]
 command = '''
 set -eu
-DEST="$PEKIT_OUT/usr/src/linux-$PEKIT_VERSION"
-mkdir -p "$DEST"
-cp -aT . "$DEST"
+ARCHIVE="$(pwd)/linux-$PEKIT_VERSION.tar.xz"
+DEST="$PEKIT_OUT/usr/src/dist/linux-$PEKIT_VERSION.tar.xz"
+LICENSE="$PEKIT_OUT/usr/share/licenses/org.kernel.linux-source/COPYING"
+mkdir -p "$(dirname "$DEST")" "$(dirname "$LICENSE")"
+cp "$ARCHIVE" "$DEST"
+tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$LICENSE"
 '''
 
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash"  = "*"
 "dev.peios.peiosutils" = "*"
+"org.gnu.tar"          = "*"
+"org.tukaani.xz"       = "*"
 
 [build.main.dependencies.apt]
 coreutils = "*"
+tar       = "*"
+xz-utils  = "*"
 
 [test]
 needs = ["main"]
 gate  = true
 command = '''
 set -eu
-SRC="$PEKIT_MAIN_OUT/usr/src/linux-$PEKIT_VERSION"
-test -f "$SRC/Makefile"
-test -f "$SRC/COPYING"
-test -f "$SRC/security/security.c"
-test -f "$SRC/include/linux/kernel.h"
-test "$(make -s -C "$SRC" kernelversion)" = "$PEKIT_VERSION"
-test ! -e "$SRC/.git"
+ARCHIVE="$PEKIT_MAIN_OUT/usr/src/dist/linux-$PEKIT_VERSION.tar.xz"
+LIST="$PEKIT_OUT/members"
+test -s "$ARCHIVE"
+tar -tf "$ARCHIVE" > "$LIST"
+grep -Fx "linux-$PEKIT_VERSION/Makefile" "$LIST"
+grep -Fx "linux-$PEKIT_VERSION/COPYING" "$LIST"
+grep -Fx "linux-$PEKIT_VERSION/security/security.c" "$LIST"
+grep -Fx "linux-$PEKIT_VERSION/include/linux/kernel.h" "$LIST"
+if grep -Eq '(^/|(^|/)\.\.(/|$))' "$LIST"; then
+  echo "linux-source: archive contains an unsafe member path" >&2
+  exit 1
+fi
+tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$PEKIT_OUT/COPYING"
+cmp "$PEKIT_MAIN_OUT/usr/share/licenses/org.kernel.linux-source/COPYING" \
+  "$PEKIT_OUT/COPYING"
 '''
 
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-"org.gnu.make"        = "*"
+"org.git.kernel.dash"  = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.diffutils"    = "*"
+"org.gnu.grep"         = "*"
+"org.gnu.tar"          = "*"
+"org.tukaani.xz"       = "*"
 
 [test.dependencies.apt]
-make = "*"
+coreutils = "*"
+diffutils = "*"
+grep      = "*"
+tar       = "*"
+xz-utils  = "*"
