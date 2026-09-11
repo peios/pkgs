@@ -1,6 +1,0 @@
-# -3 republishes the qualified catalogue dependency overlays added after the
-# immutable Atrium 0.0.25 source release. The payload remains source-owned;
-# the catalogue revision records this metadata-only correction coherently for
-# every package in the split.
-[package]
-version = "{{version}}-3"

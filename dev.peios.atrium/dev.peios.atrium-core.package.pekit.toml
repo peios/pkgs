@@ -1,4 +1,0 @@
-[dependencies]
-"dev.peios.authd" = "*"
-"dev.peios.authd-lpsd" = "*"
-"dev.peios.peinit" = "*"
