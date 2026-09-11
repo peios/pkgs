@@ -7,12 +7,12 @@ description = "Peios C build environment"
 
 [dependencies]
 "dev.peios.build-essentials" = "1.0.0-9"
-"org.gnu.gcc"                 = ">= 16, < 17"
+"org.gnu.gcc"                 = ">= 16"
 "org.gnu.binutils"            = ">= 2.46"
-"org.gnu.glibc-devel"         = ">= 2.43"
-# This virtual is intentionally on the Linux UAPI version scale, independent
-# of the Peios kernel package's own PKM release version.
-"linux-kernel-headers"        = ">= 6.16"
+"org.gnu.glibc-devel"         = ">= 2.44"
+# The headers package follows the Linux UAPI version scale, independently of
+# the Peios kernel package's own PKM source-release version.
+"dev.peios.kernel-headers"    = ">= 6.16"
 "org.sourceware.debugedit"    = ">= 5.3"
 "org.nixos.patchelf"          = ">= 0.19.1"
 

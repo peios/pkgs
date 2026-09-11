@@ -1,7 +1,7 @@
 dev.peios.build-essentials — the ambient Peios userland build floor.
 
-It provides the legacy build-essentials role and pulls in the shell and tools
-that every Pekit build may assume without declaring them individually: dash
+It pulls in the shell and tools that every Pekit build may assume without
+declaring them individually: dash
 (including the sh role), Peiosutils, Diffutils, Findutils, Gawk, Grep, Make,
 and Sed.
 

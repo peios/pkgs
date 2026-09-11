@@ -1,5 +1,5 @@
-# C++ floor: the C contract plus the C++ frontend and standard-library
-# development surface from the same reviewed GCC major.
+# C++ floor: the C contract plus the rolling C++ frontend and standard-library
+# development surface. Both come from the same GCC source package family.
 
 [package]
 name        = "dev.peios.build-essentials-c++"
@@ -7,8 +7,8 @@ description = "Peios C++ build environment"
 
 [dependencies]
 "dev.peios.build-essentials-c"      = "1.0.0-9"
-"org.gnu.gcc-c++"                   = ">= 16, < 17"
-"org.gnu.gcc-libstdc++-devel"       = ">= 16, < 17"
+"org.gnu.gcc-c++"                   = ">= 16"
+"org.gnu.gcc-libstdc++-devel"       = ">= 16"
 
 [files]
 "@recipe:docs/build-essentials-c++.txt" = "usr/share/doc/dev.peios.build-essentials-c++/README"
