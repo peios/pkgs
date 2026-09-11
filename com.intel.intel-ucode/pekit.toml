@@ -152,6 +152,7 @@ rm -rf "$WORK"
 "org.gnu.diffutils" = "*"
 "org.gnu.findutils" = "*"
 "org.gnu.gawk" = "*"
+"org.gnu.grep" = "*"
 
 [test.dependencies.apt]
 dash = "*"
@@ -159,3 +160,4 @@ coreutils = "*"
 diffutils = "*"
 findutils = "*"
 gawk = "*"
+grep = "*"

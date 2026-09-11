@@ -128,7 +128,7 @@ EOF
 cat > "$SMOKE/src/main.c" <<'EOF'
 #include <stdio.h>
 int answer(void);
-int main(void) { printf("%d\\n", answer()); return answer() == 42 ? 0 : 1; }
+int main(void) { printf("%d\n", answer()); return answer() == 42 ? 0 : 1; }
 EOF
 printf '%s\n' installed > "$SMOKE/src/payload.txt"
 
@@ -165,6 +165,7 @@ rm -rf "$SMOKE"
 "org.ninja-build.ninja" = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
+"org.python.python3-devel" = ">= 3.14, < 3.15"
 "io.pypa.setuptools" = "*"
 
 [test.dependencies.apt]
