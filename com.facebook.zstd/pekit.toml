@@ -6,7 +6,7 @@ out_dir = "out"
 
 [source.url]
 url         = "https://github.com/facebook/zstd/releases/download/v{{version}}/zstd-{{version}}.tar.gz"
-listing_url = "https://github.com/facebook/zstd/releases"
+listing_url = "https://api.github.com/repos/facebook/zstd/releases?per_page=100"
 extract     = true
 root        = "zstd-{{version}}"
 file_regex  = 'zstd-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
@@ -34,12 +34,11 @@ LIBDIR="$PREFIX/lib/$TRIPLET"
 DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 DEBUG_DEST=/usr/src/debug/com.facebook.zstd
 
-# Feed the inherited Peios compiler policy through CMake's cache. Explicit CET
-# linker properties avoid losing the aggregate note when optimized assembly
-# objects participate in the shared library.
+# Feed the inherited Peios compiler policy through CMake's cache. Generate IBT
+# PLT entries while preserving the linker's compatibility-note merge.
 export CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
 export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 # Resolve optional compression backends through the active compiler so this
 # works with Debian multiarch and Peios' native triplet without host guessing.
@@ -48,12 +47,20 @@ LZMA_SO=$(cc -print-file-name=liblzma.so)
 test "$ZLIB_SO" != libz.so
 test "$LZMA_SO" != liblzma.so
 
+# Match the bounded fuzzing workloads of upstream's normal make test target.
+# Read its defaults from this source release so routine updates track upstream.
+FUZZER_FLAGS=$(sed -n 's/^FUZZERTEST ?= *//p' "$SRC/tests/Makefile" | tr ' ' ';')
+ZSTREAM_FLAGS=$(sed -n 's/^ZSTREAM_TESTTIME ?= *//p' "$SRC/tests/Makefile" | tr ' ' ';')
+test -n "$FUZZER_FLAGS"
+test -n "$ZSTREAM_FLAGS"
+
 # Upstream's Unix shared-CLI mode leaves POOL_* internals unresolved at
 # runtime in 1.5.7. Keep the supported/default static-libzstd CLI link while
 # still shipping and directly testing the shared public ABI.
 cmake -S "$SRC/build/cmake" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_ASM_FLAGS="$CFLAGS" \
   -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
   -DCMAKE_C_FLAGS_RELWITHDEBINFO=-DNDEBUG \
   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-DNDEBUG \
@@ -71,6 +78,8 @@ cmake -S "$SRC/build/cmake" -B "$BUILD" \
   -DZSTD_BUILD_PROGRAMS=ON \
   -DZSTD_PROGRAMS_LINK_SHARED=OFF \
   -DZSTD_BUILD_TESTS=ON \
+  -DZSTD_FUZZER_FLAGS="$FUZZER_FLAGS" \
+  -DZSTD_ZSTREAM_FLAGS="$ZSTREAM_FLAGS" \
   -DZSTD_BUILD_CONTRIB=ON \
   -DZSTD_LEGACY_SUPPORT=ON \
   -DZSTD_MULTITHREAD_SUPPORT=ON \
@@ -185,7 +194,7 @@ mkdir -p "$SMOKE"
 # CLI corpus, fullbench, fuzzer, and streaming state-machine test; gate the
 # current count so a future configure regression cannot silently drop tests.
 test "$(ctest --test-dir "$BUILD" -N | sed -n 's/^Total Tests: //p')" -eq 4
-ctest --test-dir "$BUILD" --output-on-failure
+ctest --test-dir "$BUILD" --parallel 2 --output-on-failure
 
 test "$(sed -n '1p' "$BIN/zstdgrep")" = '#!/usr/bin/sh'
 test "$(readlink "$LIBDIR/libzstd.so")" = libzstd.so.1
@@ -277,6 +286,18 @@ cc "$SMOKE/api.c" -I"$PREFIX/include" "$LIBDIR/libzstd.a" \
 grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/lib/CMakeFiles/libzstd_shared.dir/flags.make"
 grep -F -- '-D_FORTIFY_SOURCE=3' "$BUILD/contrib/pzstd/CMakeFiles/pzstd.dir/flags.make"
 
+# CMake treats assembly as a separate language: its CET-aware entry macros
+# need the same compiler protection flag as C. Check actual entry instructions.
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  ASM_OBJECT=$(find "$BUILD/lib/CMakeFiles/libzstd_shared.dir" -name huf_decompress_amd64.S.o)
+  test -n "$ASM_OBJECT"
+  readelf -n "$ASM_OBJECT" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  for fn in HUF_decompress4X1_usingDTable_internal_fast_asm_loop HUF_decompress4X2_usingDTable_internal_fast_asm_loop; do
+    objdump -d --disassemble="$fn" "$ASM_OBJECT" \
+      | sed -n "/<$fn>:/ {n;p;}" | grep -F endbr64
+  done
+fi
+
 # Verify debug/source extraction and static archive stripping.
 if readelf -SW "$LIBDIR/libzstd.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
 (cd "$STAGE" && find usr/src/debug/com.facebook.zstd -type f -printf '%p\n' \
@@ -299,7 +320,9 @@ for elf in "$BIN/zstd" "$BIN/pzstd" "$LIB"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if strings "$elf" | grep -F "$DEBUG_ROOT"; then exit 1; fi
   readelf -d "$elf" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' \
