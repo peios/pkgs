@@ -103,3 +103,13 @@ CARGO_PROFILE_RELEASE_INCREMENTAL = "false"
 "libnsl.so.1"           = "GLIBC_"
 "ld-linux-x86-64.so.2"  = "GLIBC_"
 "libgcc_s.so.1"         = "GCC_"
+
+# Worker inputs shared by the recipes; neither repository nor sibling packages are mounted.
+[isolation]
+enabled = true
+inputs = ["_pybuild_"]
+
+# Coordinator-side root preparation sources accompany every source bundle.
+# Worker-visible shared helpers are captured from isolation.inputs as well.
+[source_package]
+inputs = ["_peiroot_", "_debroot_"]

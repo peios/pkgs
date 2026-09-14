@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Freeze signed repository metadata once per job; archives remain immutable."""
+import os
+from pathlib import Path
+import shutil
+import tempfile
+
+state = Path(os.environ['PEKIT_JOB_STATE'])
+source = (Path(os.environ['PEKIT_WORKSPACE_ROOT']) / '_peipkgRepo_').resolve()
+snapshot = state / 'native-repository'
+if not snapshot.exists():
+    temporary = Path(tempfile.mkdtemp(prefix='repository-', dir=state))
+    try:
+        for name in ('repo.json', 'repo.json.sig', '.peipkg-repo.json'):
+            shutil.copy2(source / name, temporary / name)
+        shutil.copytree(source / 'index', temporary / 'index')
+        shutil.copytree(source / 'keys', temporary / 'keys')
+        (temporary / 'p').symlink_to(source / 'p', target_is_directory=True)
+        temporary.rename(snapshot)
+    finally:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+print(snapshot)

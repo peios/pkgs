@@ -162,8 +162,8 @@ with zipfile.ZipFile(wheel) as archive:
     assert f'{info}/WHEEL' in names
     assert f'{info}/RECORD' in names
     metadata = archive.read(f'{info}/METADATA').decode()
-    assert 'Name: peios-flit-smoke\\n' in metadata
-    assert 'Version: 1.2.3\\n' in metadata
+    assert 'Name: peios-flit-smoke\n' in metadata
+    assert 'Version: 1.2.3\n' in metadata
 
 assert metadata_name == 'peios_flit_smoke-1.2.3.dist-info'
 assert (smoke / 'metadata' / metadata_name / 'METADATA').is_file()

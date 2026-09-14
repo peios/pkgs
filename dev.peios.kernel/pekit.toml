@@ -12,27 +12,17 @@
 # (root < source < member), so publication updates the signed repository like
 # every other production package.
 #
-# Two things this source needs that a plain delegate (loregd, prelude) does not:
-#
-#   * The build container. Every stage is wrapped into `docker run … pkm-build`
-#     by the env.pekit.toml the pkm source carries — in delegate mode pekit
-#     searches the recipe dir first, then the fetched source, so the source's
-#     wrap applies here automatically (drop an env.pekit.toml beside this recipe
-#     only to override it; `--env=none` runs unwrapped). The pkm-build image
-#     must exist on the runner — the source builds it with build/build-image.sh.
-#
-#   * A TCB keyring, passed explicitly. build.kernel embeds the KACS built-in
-#     signing key from $PEKIT_KEYRING_TCB_PUB, so the packages carved from it
-#     (kernel, kernel-debuginfo) require `--keyring=<name>` at invocation —
-#     deliberately NOT baked in, to keep the signing anchor an explicit choice
-#     (dev key for the RC pool, production key for a release). `pekit workspace
-#     package … --keyring=<name>` resolves the keyring once at the workspace root
-#     and forwards it to every member, so a full-family sweep just needs the one
-#     flag. The other ~38 members (headers, devel, debug sources, every userspace
-#     tool) come from build.source / build.tools and need no keyring.
+# The workspace prepares dependency roots and Pekit isolates every target.
+# Member env files only supply compiler configuration. Keyring public inputs
+# are explicitly granted; production private keys stay with the coordinator.
+# The source overlay brings the current published tag onto that contract.
+# Remove it when the first upstream release containing the changes is selected.
 
 out_dir = "out"
 delegate = true
+
+[source]
+patches = "patches"
 
 [source.git]
 url = "https://github.com/peios/pkm.git"

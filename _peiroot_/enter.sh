@@ -1,25 +1,9 @@
 #!/bin/sh
-# Rung 2 of the PEI-126 self-host ladder: run a pekit target inside a
-# pristine root composed entirely from our own signed repository.
-#
-# pekit invokes this through peipkg.env.pekit.toml's [wrap]; $1 is the
-# fully assembled target script (export prelude + target command). The
-# root is the dependency closure of exactly what the recipe declares
-# (PEKIT_DEPENDENCIES, one "name constraint" per line) plus fsbase as
-# the skeleton ground — peipkg-compose resolves it offline from the signed
-# _peipkgRepo_, materialising claims (dash's /usr/bin/sh) and the usr-merge
-# intrinsic. bwrap then maps the host build identity to the fixed,
-# unprivileged peibuild identity and binds the workspace at its host path,
-# keeping every literal PEKIT_* path in the script valid inside. Presenting
-# the single-ID user namespace as uid 0 would make programs legitimately
-# expect supplementary uid/gid mappings and privileges that the hermetic root
-# does not provide. Package ownership remains independent: peipkg normalises
-# the packed result to root. The root is composed fresh per invocation and
-# discarded — pristine by construction.
+# Prepare declared native dependencies. Pekit owns worker isolation.
 set -eu
-script=${1:?missing wrapped command}
+: "${PEKIT_SANDBOX_ROOT:?Pekit must supply a private root destination}"
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
-repo="$PEKIT_WORKSPACE_ROOT/_peipkgRepo_"
+repo=$(python3 "$PEKIT_WORKSPACE_ROOT/_peiroot_/snapshot-repository.py")
 # Repository trust is intentionally pinned out of band. Update this only as
 # part of an explicit repository-key rotation ceremony.
 repo_anchor=63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602
@@ -56,9 +40,14 @@ trap 'rm -rf "$work"' EXIT INT TERM
 # attributes on the host filesystem. Preserve compose's complete descriptor
 # output in the temporary work area rather than weakening package validation;
 # it is discarded together with the root after the build target exits.
-peipkg-compose build "$work/root.toml" --out "$work/root" \
+peipkg-compose build "$work/root.toml" --out "$PEKIT_SANDBOX_ROOT" \
   --record-xattrs "$work/xattrs.jsonl" \
   --dangerously-bypass-path-restrictions
+
+# Keep exact automatically selected dependency identities for this job.
+record="$PEKIT_JOB_STATE/dependencies/$PEKIT_COMMAND-$PEKIT_TARGET"
+mkdir -p "$record"
+cp "$work/root.toml" "$work/root.lock.toml" "$record/"
 
 # Root-level runtime views. A booted Peios gets /bin, /sbin and /lib from
 # StrataFS (stratafs-base-topo's mount hook); peipkg-compose used to mint
@@ -80,7 +69,7 @@ peipkg-compose build "$work/root.toml" --out "$work/root" \
 # system. /lib64 is skipped —
 # dev.peios.fsbase owns it as real package payload.
 for view in bin sbin lib; do
-  [ -e "$work/root/$view" ] || ln -s "usr/$view" "$work/root/$view"
+  [ -e "$PEKIT_SANDBOX_ROOT/$view" ] || ln -s "usr/$view" "$PEKIT_SANDBOX_ROOT/$view"
 done
 
 # /etc is also a StrataFS view on a booted Peios system. Packages put vendor
@@ -90,62 +79,25 @@ done
 # sandbox state and is discarded with the root. It makes configure scripts and
 # test suites observe the runtime paths without allowing package payloads to
 # claim /etc itself.
-mkdir -p "$work/root/etc"
+mkdir -p "$PEKIT_SANDBOX_ROOT/etc"
 for tier in usr/etc system/retc lcl/etc; do
-  [ -d "$work/root/$tier" ] || continue
-  cp -a "$work/root/$tier/." "$work/root/etc/"
+  [ -d "$PEKIT_SANDBOX_ROOT/$tier" ] || continue
+  cp -a "$PEKIT_SANDBOX_ROOT/$tier/." "$PEKIT_SANDBOX_ROOT/etc/"
 done
 
 # A build sandbox has a synthetic uid/gid and no boot-time identity or network
 # initialisation. Give libc and upstream test suites the minimal matching
 # static databases they would otherwise receive from those runtime layers.
 # These files exist only in the disposable build root and are never packaged.
-[ -e "$work/root/etc/passwd" ] || cat > "$work/root/etc/passwd" <<'EOF'
+[ -e "$PEKIT_SANDBOX_ROOT/etc/passwd" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/passwd" <<'EOF'
 root:x:0:0:root:/root:/bin/sh
 peibuild:x:1000:1000:Peios package builder:/tmp:/bin/sh
 EOF
-[ -e "$work/root/etc/group" ] || cat > "$work/root/etc/group" <<'EOF'
+[ -e "$PEKIT_SANDBOX_ROOT/etc/group" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/group" <<'EOF'
 root:x:0:
 peibuild:x:1000:
 EOF
-[ -e "$work/root/etc/hosts" ] || cat > "$work/root/etc/hosts" <<'EOF'
+[ -e "$PEKIT_SANDBOX_ROOT/etc/hosts" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/hosts" <<'EOF'
 127.0.0.1 localhost
 ::1 localhost ip6-localhost ip6-loopback
 EOF
-
-# The recipe may delegate to a local checkout outside the package workspace.
-# Expose that checkout at the exact path Pekit exported, but nothing around it:
-# undeclared sibling-tree dependencies must remain unavailable so the native
-# rung catches non-hermetic source graphs instead of accidentally blessing
-# whatever happens to be checked out beside the source.
-set -- --bind "$PEKIT_WORKSPACE_ROOT" "$PEKIT_WORKSPACE_ROOT"
-case "$PEKIT_SOURCE_ROOT/" in
-  "$PEKIT_WORKSPACE_ROOT/"*) ;;
-  *)
-    [ -d "$PEKIT_SOURCE_ROOT" ] || {
-      echo "peiroot: source root is not a directory: $PEKIT_SOURCE_ROOT" >&2
-      exit 1
-    }
-    set -- "$@" --bind "$PEKIT_SOURCE_ROOT" "$PEKIT_SOURCE_ROOT"
-    ;;
-esac
-
-status=0
-bwrap \
-  --die-with-parent \
-  --unshare-all \
-  --uid 1000 --gid 1000 \
-  --bind "$work/root" / \
-  --dev /dev \
-  --proc /proc \
-  --tmpfs /tmp \
-  "$@" \
-  --chdir "$PWD" \
-  --clearenv \
-  --setenv PATH /usr/libexec/coreutils-build:/usr/bin \
-  --setenv HOME /tmp \
-  --setenv USER peibuild \
-  --setenv LOGNAME peibuild \
-  --setenv PEKIT_NATIVE_ROOT 1 \
-  /usr/bin/sh -euc "$script" || status=$?
-exit $status

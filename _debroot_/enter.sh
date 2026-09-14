@@ -1,62 +1,54 @@
 #!/bin/sh
-# Rung 1 of the PEI-126 self-host ladder: run a pekit target inside a
-# pristine Debian container instead of on the bare host.
-#
-# pekit invokes this through debian.env.pekit.toml's [wrap]; $1 is the
-# fully assembled target script (export prelude + target command). The
-# container installs exactly the apt packages the recipe declares
-# (PEKIT_DEPENDENCIES, one "name constraint" per line), then drops from
-# root to the invoking uid/gid to run the script, so staged files land
-# on the host with the right owner. The workspace is bound at its host
-# path, which keeps every literal PEKIT_* path in the script valid
-# inside. --rm makes the root pristine per invocation; the named volumes
-# only cache apt downloads and lists so repeat runs are cheap.
+# Install dependencies without any job/source mounts, then export the root.
+# Pekit runs the target in its own offline namespace after this has exited.
 set -eu
-script=${1:?missing wrapped command}
-: "${PEKIT_WORKSPACE_ROOT:?debian.env requires a pekit workspace}"
-deps=$(printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | awk 'NF {print $1}' | tr '\n' ' ')
-
-# Delegated recipes may take their local development source from outside this
-# package workspace. Mount only that checkout, at the path Pekit exported.
-# Deliberately do not mount its parent: undeclared sibling checkouts must stay
-# invisible so the reference rung detects non-hermetic source dependencies.
-set -- -v "$PEKIT_WORKSPACE_ROOT:$PEKIT_WORKSPACE_ROOT"
-case "$PEKIT_SOURCE_ROOT/" in
-  "$PEKIT_WORKSPACE_ROOT/"*) ;;
-  *)
-    [ -d "$PEKIT_SOURCE_ROOT" ] || {
-      echo "debroot: source root is not a directory: $PEKIT_SOURCE_ROOT" >&2
-      exit 1
-    }
-    set -- "$@" -v "$PEKIT_SOURCE_ROOT:$PEKIT_SOURCE_ROOT"
-    ;;
-esac
-
-exec docker run --rm \
-  "$@" \
-  -v pekit-debroot-apt-archives:/var/cache/apt/archives \
-  -v pekit-debroot-apt-lists:/var/lib/apt/lists \
-  -w "$PWD" \
-  -e DEBROOT_DEPS="$deps" \
-  -e DEBROOT_UID="$(id -u)" \
-  -e DEBROOT_GID="$(id -g)" \
-  debian:trixie \
-  sh -euc '
-    rm -f /etc/apt/apt.conf.d/docker-clean
-    if [ -n "$DEBROOT_DEPS" ]; then
-      find /var/lib/apt/lists -maxdepth 1 -name "*_Packages*" -mmin -1440 | grep -q . || apt-get update -q
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends $DEBROOT_DEPS
+: "${PEKIT_SANDBOX_ROOT:?Pekit must supply a private root destination}"
+# Reuse only dependency roots prepared in this job; workers see them read-only.
+fingerprint=$(printf '%s' "${PEKIT_DEPENDENCIES:-}" | sha256sum | cut -d' ' -f1)
+cache="$PEKIT_JOB_STATE/debian-roots/$fingerprint"
+record="$PEKIT_JOB_STATE/dependencies/$PEKIT_COMMAND-$PEKIT_TARGET"
+if [ -d "$cache/root" ]; then
+  cp -a "$cache/root" "$PEKIT_SANDBOX_ROOT"
+  mkdir -p "$record"
+  cp "$cache/installed.tsv" "$cache/base-image.txt" "$record/"
+  exit 0
+fi
+container=
+cleanup() { [ -z "$container" ] || docker rm -f "$container" >/dev/null; }
+trap cleanup EXIT INT TERM
+container=$(docker create --network bridge -e PEKIT_DEPENDENCIES="${PEKIT_DEPENDENCIES:-}" debian:trixie sh -euc '
+  apt-get update -q
+  # Preserve constraints as assertions against the installed package version.
+  # Wildcards track the current archive without requiring manual pins.
+  printf "%s\n" "$PEKIT_DEPENDENCIES" | while read -r name constraint; do
+    [ -n "$name" ] || continue
+    case "$name" in *[!a-z0-9+.-]*|-*) echo "invalid apt package: $name" >&2; exit 1;; esac
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends "$name"
+    if [ -n "$constraint" ] && [ "$constraint" != "*" ]; then
+      actual=$(dpkg-query -W -f="\${Version}" "$name")
+      op=${constraint%% *}; required=${constraint#* }
+      case "$op" in "=") op=eq;; ">=") op=ge;; ">") op=gt;; "<=") op=le;; "<") op=lt;; *) echo "unsupported apt constraint: $constraint" >&2; exit 1;; esac
+      dpkg --compare-versions "$actual" "$op" "$required" || { echo "$name $actual does not satisfy $constraint" >&2; exit 1; }
     fi
+  done
+  dpkg-query -W -f="\${Package}\t\${Version}\n" > /tmp/dependencies.tsv
+  printf "peibuild:x:1000:1000:Package builder:/tmp:/bin/sh\n" >> /etc/passwd
+  printf "peibuild:x:1000:\n" >> /etc/group
+')
+docker start -a "$container"
+[ "$(docker inspect -f '{{.State.ExitCode}}' "$container")" = 0 ]
+record="$PEKIT_JOB_STATE/dependencies/$PEKIT_COMMAND-$PEKIT_TARGET"
+mkdir -p "$record"
+docker cp "$container:/tmp/dependencies.tsv" "$record/installed.tsv"
+docker inspect -f '{{.Image}}' "$container" > "$record/base-image.txt"
+# Export strips image volumes; download caches and the Docker socket remain
+# coordinator-side. The temporary archive avoids swallowing pipeline failure.
+archive=$(mktemp)
+trap 'rm -f "$archive"; cleanup' EXIT INT TERM
+docker export "$container" -o "$archive"
+mkdir -p "$PEKIT_SANDBOX_ROOT"
+tar --no-same-owner -xf "$archive" -C "$PEKIT_SANDBOX_ROOT"
 
-    # setpriv accepts numeric identities that are absent from the container
-    # databases, but build/test programs reasonably expect getpwuid(3),
-    # getgrgid(3), ~ expansion and Path.home() to work. Give the invoking
-    # identity an ephemeral entry before dropping privileges.
-    getent group "$DEBROOT_GID" >/dev/null ||
-      printf "pekit-build-%s:x:%s:\n" "$DEBROOT_GID" "$DEBROOT_GID" >> /etc/group
-    getent passwd "$DEBROOT_UID" >/dev/null ||
-      printf "pekit-build-%s:x:%s:%s:Pekit build user:/tmp:/bin/sh\n" \
-        "$DEBROOT_UID" "$DEBROOT_UID" "$DEBROOT_GID" >> /etc/passwd
-
-    exec setpriv --reuid "$DEBROOT_UID" --regid "$DEBROOT_GID" --clear-groups env HOME=/tmp sh -euc "$1"
-  ' debroot "$script"
+mkdir -p "$cache"
+cp -a "$PEKIT_SANDBOX_ROOT" "$cache/root"
+cp "$record/installed.tsv" "$record/base-image.txt" "$cache/"
