@@ -226,7 +226,10 @@ cc ${CFLAGS:-} -I"$STAGE/usr/include" -L"$LIBDIR" \
 "$SMOKE/libmagic" "$DB"
 
 readelf -d "$LIB" | grep -F 'Library soname: [libmagic.so.1]'
-for soname in libz.so.1 libbz2.so.1 liblzma.so.5 libzstd.so.1; do
+# Each provider supplies bzip2's supported ABI under its own SONAME.
+bz2_soname=libbz2.so.1.0
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then bz2_soname=libbz2.so.1; fi
+for soname in libz.so.1 "$bz2_soname" liblzma.so.5 libzstd.so.1; do
   readelf -d "$LIB" | grep -F "Shared library: [$soname]"
 done
 

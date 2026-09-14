@@ -134,3 +134,9 @@ environments = ["debian", "peipkg-net"]
 source-reconstruction = ["python3", "_release_/check.py", "source-reconstruction"]
 reproducibility = ["python3", "_release_/check.py", "reproducibility"]
 integration = ["python3", "_release_/check.py", "integration"]
+
+
+# Reference toolchains need not promise Peios startup/runtime CET properties.
+# This allowance never applies to the final, native publication environment.
+[release.reference_allow]
+"elf.cet" = "Debian startup/runtime objects do not promise Peios CET markers; reference artifacts are not published and native code/properties remain mandatory"
