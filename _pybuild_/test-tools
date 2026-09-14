@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Acquire portable test tools, then materialize their recorded wheels offline."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tomllib
+import zipfile
+
+# These are upstream release automation / benchmark instrumentation, not the
+# functional package suite. All other upstream test requirements are retained.
+SETUPTOOLS_NON_FUNCTIONAL = ('jaraco.develop', 'pytest-perf')
+
+
+def sha(path):
+    with path.open('rb') as f:
+        return hashlib.file_digest(f, 'sha256').hexdigest()
+
+
+def portable(path):
+    if not path.name.endswith('-none-any.whl'):
+        raise ValueError(f'test tool is not a portable Python wheel: {path.name}')
+    with zipfile.ZipFile(path) as z:
+        for name in z.namelist():
+            if name.startswith('/') or '..' in Path(name).parts:
+                raise ValueError(f'unsafe wheel member: {name}')
+        wheel = [n for n in z.namelist() if n.count('/') == 1 and n.endswith('.dist-info/WHEEL')]
+        if len(wheel) != 1 or 'Root-Is-Purelib: true' not in z.read(wheel[0]).decode():
+            raise ValueError(f'test wheel is not pure Python: {path.name}')
+
+
+def acquire(source, output, project, version):
+    if project == 'setuptools':
+        config = tomllib.loads((source / 'pyproject.toml').read_text())
+        requirements = [r for r in config['project']['optional-dependencies']['test']
+                        if not r.startswith(SETUPTOOLS_NON_FUNCTIONAL)]
+    else:
+        requirements = ['pytest', 'testpath']
+    # The package under test also supplies nested virtualenv fixtures. This
+    # follows the selected candidate automatically; it is not a maintenance pin.
+    requirements += ['pip', f'{project}=={version}']
+    wheels = output / 'wheels'
+    wheels.mkdir(parents=True, exist_ok=False)
+    req = output / 'requirements.txt'
+    req.write_text('\n'.join(requirements) + '\n')
+    subprocess.run([sys.executable, '-m', 'pip', '--isolated', 'download',
+                    '--index-url=https://pypi.org/simple', '--no-cache-dir',
+                    '--only-binary=:all:', '--platform=any', '--implementation=py',
+                    '--abi=none', '--python-version', f'{sys.version_info.major}.{sys.version_info.minor}',
+                    '-r', str(req), '-d', str(wheels)], check=True)
+    files = {}
+    for p in sorted(wheels.iterdir()):
+        portable(p)
+        files[p.name] = sha(p)
+    (output / 'test-tools.json').write_text(json.dumps({
+        'schema': 1, 'project': project, 'version': version,
+        'requirements_sha256': sha(req), 'files': files,
+    }, sort_keys=True, indent=2) + '\n')
+
+
+def install(bundle, output):
+    record = json.loads((bundle / 'test-tools.json').read_text())
+    if record['schema'] != 1 or sha(bundle / 'requirements.txt') != record['requirements_sha256']:
+        raise ValueError('invalid test-tool request record')
+    wheels = bundle / 'wheels'
+    if {p.name for p in wheels.iterdir()} != set(record['files']):
+        raise ValueError('test-tool wheel inventory changed')
+    paths = []
+    for name, expected in record['files'].items():
+        path = wheels / name
+        if path.name != name or sha(path) != expected:
+            raise ValueError(f'test-tool wheel changed: {name}')
+        portable(path)
+        paths.append(str(path))
+    pip = [p for p in paths if Path(p).name.startswith('pip-')]
+    if len(pip) != 1:
+        raise ValueError('expected one recorded pip wheel')
+    # Pip runs only from a recorded wheel and writes only to this test stage.
+    # A fresh venv excludes system/user packages; the namespace is offline.
+    env = dict(os.environ, PYTHONPATH=pip[0], PIP_CONFIG_FILE=os.devnull,
+               PIP_NO_INDEX='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
+    if output.exists():
+        raise ValueError('test environment already exists')
+    subprocess.run([sys.executable, '-m', 'venv', '--without-pip', str(output)], check=True)
+    python = output / 'bin/python3'
+    site = subprocess.check_output([str(python), '-c',
+        'import sysconfig; print(sysconfig.get_path("purelib"))'], text=True).strip()
+    if not Path(site).resolve().is_relative_to(output.resolve()):
+        raise ValueError('test environment site escapes its private prefix')
+    subprocess.run([str(python), '-m', 'pip', 'install', '--no-index',
+                    '--no-deps', '--no-compile', '--no-warn-script-location',
+                    *paths], env=env, check=True)
+    check_env = dict(os.environ, PYTHONNOUSERSITE='1')
+    check_env.pop('PYTHONPATH', None)
+    subprocess.run([str(python), '-m', 'pip', 'check'], env=check_env, check=True)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['acquire', 'install'])
+    parser.add_argument('source', type=Path)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--project')
+    parser.add_argument('--version')
+    args = parser.parse_args()
+    if args.command == 'acquire':
+        if args.project not in ('flit_core', 'setuptools') or not args.version:
+            parser.error('acquire requires --project and --version')
+        acquire(args.source, args.output, args.project, args.version)
+    else:
+        install(args.source, args.output)

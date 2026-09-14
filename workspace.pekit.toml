@@ -87,9 +87,13 @@ CARGO_PROFILE_RELEASE_INCREMENTAL = "false"
 #
 # libstdc++.so.6 is deliberately ABSENT: its GLIBCXX_3.4.x / CXXABI_1.3.x
 # tokens do not track the gcc release version, so a floor would be noise.
-# Such libraries safely fall back to soname-only (exact-name) matching.
+# libstdc++ uses exact ELF capabilities below, independent of GCC versions.
 #
 # The ld-linux loader soname is x86_64-specific; revisit per-arch.
+[policy]
+# Automatically record every required/provided GLIBCXX and CXXABI version node.
+symbol_capabilities = ["libstdc++.so.6"]
+
 [policy.symbol_versions]
 "libc.so.6"             = "GLIBC_"
 "libm.so.6"             = "GLIBC_"
@@ -112,4 +116,21 @@ inputs = ["_pybuild_"]
 # Coordinator-side root preparation sources accompany every source bundle.
 # Worker-visible shared helpers are captured from isolation.inputs as well.
 [source_package]
-inputs = ["_peiroot_", "_debroot_"]
+inputs = ["_peiroot_", "_debroot_", "_release_"]
+
+# Automatic discovery continues for every attempt. Release locks one selection,
+# qualifies it in both environments, and promotes only the native archives.
+# The historical _peipkgRepo_ remains a development/bootstrap repository.
+[release]
+path = "_publicRepository_"
+name = "peios"
+signing_key = "keyring:signing.repository_key"
+environments = ["debian", "peipkg"]
+
+# Required acceptance commands live in _release_/commands.toml. Until the
+# remaining catalogue/reproducibility/integration work supplies real commands,
+# these checks fail closed; no successful build is treated as their substitute.
+[release.checks]
+source-reconstruction = ["python3", "_release_/check.py", "source-reconstruction"]
+reproducibility = ["python3", "_release_/check.py", "reproducibility"]
+integration = ["python3", "_release_/check.py", "integration"]

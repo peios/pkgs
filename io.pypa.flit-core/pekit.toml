@@ -14,9 +14,9 @@
 # workspace helper's, so that the policy lives in one place rather than in
 # each recipe. See _pybuild_/README.md for what it does and why.
 #
-# The upstream suite requires pytest and testpath, which do not belong in the
-# bootstrap runtime closure. The Debian reference rung runs it in full; the
-# Peipkg rung exercises the installed backend end-to-end with only Python.
+# Both rungs run the full upstream core suite and installed-backend gate.
+# Test tools are acquired only for qualification, outside the bootstrap build
+# and runtime closure; the worker consumes their recorded wheels offline.
 
 out_dir = "out"
 
@@ -32,6 +32,18 @@ file_regex  = 'flit_core-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 # Soft maintenance floor. Stable releases are selected and locked
 # automatically; backend compatibility is enforced by the gates below.
 versions    = ">= 4.0.2"
+
+# Test tools are acquired separately from the minimal bootstrap build.
+# Final qualification uses --env peipkg-net (or debian); only vendor has network.
+[build.vendor]
+command = '''python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" acquire "$PWD" "$PEKIT_OUT" --project flit_core --version "$PEKIT_VERSION"'''
+[build.vendor.dependencies.peipkg]
+# The peipkg-net profile prepares this acquisition target from its APT mapping.
+
+[build.vendor.dependencies.apt]
+python3 = "*"
+python3-pip = "*"
+ca-certificates = "*"
 
 [build.main]
 command = """
@@ -52,44 +64,43 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 
 [build.main.dependencies.apt]
 python3          = "*"
-python3-pytest   = "*"
-python3-testpath = "*"
 
 [test]
 gate = true
-needs = ["main"]
+needs = ["main", "vendor"]
 command = '''
 set -eu
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/flit_core
-test -d "$1"
-test -f "$1/__init__.py"
+SITE=$(python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/python_paths.py" "$PEKIT_MAIN_OUT")
+test -d "$SITE"
+test -f "$SITE/flit_core/__init__.py"
 
-# Run the upstream release suite from the explicit package gate.
+# Run the suite in a disposable source copy with recorded test-only wheels.
 SRC="$(pwd -P)"
-# Run every upstream core test in the reference environment. The native
-# bootstrap root intentionally does not acquire pytest and testpath merely to
-# build its own build backend; the installed self-hosting gate below covers it.
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q "$SRC/tests_core"
-fi
-
+TEST_WORK="$PEKIT_OUT/upstream"
+mkdir -p "$TEST_WORK"
+python3 -c 'import shutil, sys; shutil.copytree(sys.argv[1], sys.argv[2], dirs_exist_ok=True, symlinks=True)' "$SRC" "$TEST_WORK"
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" install "$PEKIT_VENDOR_OUT" "$PEKIT_OUT/test-tools"
+TEST_PYTHON="$PEKIT_OUT/test-tools/bin/python3"
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
+export PYTHONDONTWRITEBYTECODE=1
+export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+unset PIP_NO_INDEX PIP_INDEX_URL
+export PIP_CONFIG_FILE="$PEKIT_OUT/pip.conf"
+printf '[global]\nindex-url = file:///nonexistent\n' > "$PIP_CONFIG_FILE"
+export PIP_FIND_LINKS="$PEKIT_VENDOR_OUT/wheels"
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export VIRTUALENV_NO_PERIODIC_UPDATE=1
+export VIRTUALENV_OVERRIDE_APP_DATA="$PEKIT_OUT/virtualenv"
+cd "$TEST_WORK"
+"$TEST_PYTHON" -c 'import flit_core as backend; from pathlib import Path; assert Path(backend.__file__).resolve().is_relative_to(Path.cwd())'
+"$TEST_PYTHON" -m pytest -q -p no:cacheprovider --junitxml="$PEKIT_OUT/upstream.xml" tests_core
+cd "$SRC"
+unset PYTHONPATH
 
 # Exercise the exact installed backend from the staged package tree.
 SRC="$(pwd -P)"
 PEKIT_OUT="$PEKIT_MAIN_OUT"
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  # The reference interpreter's sysconfig path is deliberately not packageable
-  # by the Peios-only [files] mapping below. It validates upstream and backend
-  # behavior, but cannot accidentally be published as a Python 3.14 artifact.
-  SITE="$PEKIT_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-else
-  set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
-  [ "$#" -eq 1 ] && [ -d "$1" ] || {
-    echo "flit-core: expected exactly one Peios site-packages directory" >&2
-    exit 1
-  }
-  SITE="$1"
-fi
 test -d "$SITE"
 test -f "$SITE/flit_core/buildapi.py"
 test -f "$SITE/flit_core/vendor/tomli-1.2.3.dist-info/LICENSE"
@@ -98,7 +109,7 @@ test -f "$SITE/flit_core-"*.dist-info/METADATA
 # Exercise the installed package as the backend it exists to provide: import
 # and metadata, vendored TOML parsing, checked-hash bytecode, wheel metadata and
 # RECORD generation, prepared metadata, and corresponding-source creation.
-SMOKE="$PEKIT_OUT/.flit-core-smoke"
+SMOKE="$TEST_WORK/installed-smoke"
 mkdir -p "$SMOKE/project" "$SMOKE/dist" "$SMOKE/metadata"
 cat > "$SMOKE/project/pyproject.toml" <<'EOF'
 [build-system]
@@ -117,7 +128,7 @@ ANSWER = 42
 EOF
 
 cd "$PEKIT_OUT"
-PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
+PYTHONPATH="$SITE:$PEKIT_WORKSPACE_ROOT/_pybuild_" PYTHONDONTWRITEBYTECODE=1 \
 python3 -S - "$SITE" "$PEKIT_VERSION" "$SMOKE" <<'PY'
 import importlib.metadata
 import os
@@ -153,6 +164,8 @@ metadata_name = buildapi.prepare_metadata_for_build_wheel(str(smoke / 'metadata'
 sdist_name = buildapi.build_sdist(str(smoke / 'dist'))
 
 wheel = smoke / 'dist' / wheel_name
+from wheel_checks import install_and_import
+install_and_import(wheel, smoke / 'installed', 'peios_flit_smoke')
 assert wheel_name == 'peios_flit_smoke-1.2.3-py2.py3-none-any.whl'
 with zipfile.ZipFile(wheel) as archive:
     names = set(archive.namelist())
@@ -191,5 +204,3 @@ rm -rf "$SMOKE"
 
 [test.dependencies.apt]
 python3          = "*"
-python3-pytest   = "*"
-python3-testpath = "*"

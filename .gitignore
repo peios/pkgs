@@ -45,3 +45,7 @@ sysroot.lock.toml
 
 # Pekit coordinator locks sit outside disposable out/ trees.
 **/.pekit-job.lock
+
+# Qualified release candidates/evidence and the separate public repository.
+.pekit/
+_publicRepository_

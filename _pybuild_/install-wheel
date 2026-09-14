@@ -29,7 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
-import sysconfig
+from python_paths import library_path
 import tempfile
 import zipfile
 
@@ -143,7 +143,7 @@ def main():
         # Libraries go to the interpreter's one site-packages. Ask for it:
         # platlib is the real one (purelib is patched to match), and hardcoding
         # it would go stale at the next interpreter version.
-        installdir = sysconfig.get_path("platlib")
+        installdir = library_path()
         syspath = None
     dest = out + installdir
 

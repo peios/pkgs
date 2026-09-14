@@ -1,0 +1,7 @@
+# Commit version-independent argv arrays for the real acceptance runners here.
+# Each receives PEKIT_RELEASE_DIR and PEKIT_RELEASE_REPOSITORY. It must inspect
+# candidate.json and test that exact candidate, exit nonzero on any failure,
+# and must not fetch a newer upstream selection or mutate candidate artifacts.
+# Source reconstruction, independent reproducibility, and boot/upgrade/removal
+# qualification are audit items 8–10. An absent runner blocks public promotion.
+[checks]

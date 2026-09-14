@@ -299,6 +299,33 @@ package can build using the distribution it helps create. Both must remain
 usable. Provider names may differ, but they must supply equivalent inputs and
 the staged result must satisfy the same tests.
 
+The Debian preparer accepts concrete APT package names (including an optional
+architecture qualifier), `*`, or comma-separated comparisons using `=`, `>=`,
+`>`, `<=` and `<`. Versions use Debian's epoch and tilde ordering. It filters
+available candidates against every constraint, installs all direct dependencies
+in one APT transaction, then verifies their final installed versions. Unsupported
+syntax and unsatisfied requirements stop the job. Virtual package names must be
+replaced with the concrete implementation the recipe needs.
+
+Every fresh job pulls `debian:trixie` once and uses its immutable image ID for
+all Debian roots in that job. Ordinary jobs keep following the current archive;
+recipes do not need manually maintained exact version pins. Each prepared root
+is automatically retained as a SHA-256-addressed archive under
+`${XDG_STATE_HOME:-$HOME/.local/state}/pekit/debian-roots`, or the coordinator's
+`PEKIT_DEBIAN_ROOT_STORE`. This store is separate from disposable job outputs
+and has no automatic garbage collection. Back it up with release evidence;
+source packages carry the small per-target records, not the root archives.
+
+To replay a retained environment, set `PEKIT_DEBIAN_REPLAY` to its saved
+`build-environment/` directory and `PEKIT_DEBIAN_ROOT_STORE` to the archive store
+before running Pekit or the source bundle's `rebuild.py`. Replay verifies the
+captured preparer identity, architecture, requests, package inventory and archive
+hash; a missing or incompatible record fails without falling back to acquisition.
+Replay uses Python 3.11+, GNU tar and the normal Pekit/Bubblewrap runtime, without
+Docker or APT access. It freezes the dependency filesystem, not the host kernel,
+CPU, build timestamps, signing keys or language-vendoring network policy. Retain
+all referenced archives for as long as the corresponding release is supported.
+
 Compilation and testing are offline. If an ecosystem requires vendoring, give
 the hash-pinned materialization target an explicit `build:vendor`-style boundary
 and use `--env peipkg-net`; all compiler and test targets continue through the
@@ -344,9 +371,12 @@ build happened to use it.
 - Apply dependencies to the root that consumes them. Initramfs packages and
   hooks must declare the initramfs root rather than pulling system-root state by
   accident.
-- Architecture follows both files and dependency closure. A metadata/script
-  package that selects x86_64-only dependencies is itself x86_64; use `noarch`
-  only when payload and dependency contract are architecture-independent.
+- Portable scripts, metadata, and data use `noarch`, even when they depend on
+  native packages. Resolve those dependencies for the target machine; a native
+  dependency does not make portable payload architecture-specific. Machine code,
+  architecture-specific firmware, and ABI-specific generated files still need
+  the appropriate architecture. Document any architecture-constrained source or
+  header split whose payload alone does not establish that constraint.
 - Declare conflicts/replaces only for real co-installation or upgrade
   semantics, not as historical decoration.
 
@@ -454,6 +484,15 @@ separate debuginfo, and no leaked build paths. Exceptions for bootloaders,
 loaders, kernels, static-only artifacts, or upstream constraints must be narrow,
 technically justified, and tested.
 
+CET notes alone are insufficient. `elf.cet` also inspects known indirect-call
+entry points in the final payload, using matching build-ID debug symbols for
+stripped files. Preserve compiler instrumentation and use `-z ibtplt` for PLT
+entries; do not force IBT/SHSTK notes to conceal unmarked inputs. On a fully
+marked native toolchain, `-z cet-report=error` checks the linked input notes.
+Static inspection is bounded and does not replace runtime CET enforcement
+checks or review of assembly and generated code. See the
+[CET lint contract](https://learn.peios.org/pekit/running/linting).
+
 Debug packages are functional deliverables. Confirm each shipped ELF build ID
 resolves to its `.debug` file and that rewritten source paths resolve into the
 debugsource payload. Strip debug sections from static archives unless the
@@ -470,7 +509,17 @@ upstream build is awkward.
 
 ### Lint exceptions
 
-Workspace lint is mandatory. A member exception has this form:
+Workspace lint is mandatory. Prefer path-scoped exceptions for intentional
+payload files, so unrelated files remain checked:
+
+```toml
+[allow_files."payload.junk"]
+"usr/lib/compiler/*/crtbegin.o" = "Required startup object linked into user programs"
+```
+
+Patterns refer to package destinations, not build-host paths. An exception
+applies only to its named rule; unused exceptions remain visible in lint output.
+Use a whole-rule exception only when the justification covers the whole recipe:
 
 ```toml
 [allow]
@@ -508,7 +557,8 @@ recipe. Development keyrings are per-developer, gitignored qualification inputs
 and must never be treated as public-repository custody.
 
 `pekit publish` packages the selected package(s) and publishes them directly
-into `_peipkgRepo_`. It creates the Peipkg repository if it
+into the development/bootstrap `_peipkgRepo_`. This repository is not the public
+release target. It creates the Peipkg repository if it
 does not exist. Repository publication currently regenerates the complete
 signed index from repository contents; it is not an incremental database
 operation. The repository is a directory of static files and requires no
@@ -584,12 +634,12 @@ RECIPE=org.example.product
    revisions are fresh, the worktree contains no private/generated material,
    and no lint allowance is broader than necessary.
 
-7. Publish only after explicit release approval and with the intended signing
-   keyring:
+7. Commit reviewed catalogue changes, then let the release coordinator discover,
+   build, qualify and promote the next candidate with the intended signing keyring:
 
    ```sh
-   "$PEKIT" --recipe "$RECIPE" publish --all --latest --env peipkg --keyring production
-   peipkg-repo verify _peipkgRepo_
+   "$PEKIT" --recipe "$RECIPE" release --all --latest --keyring production
+   peipkg-repo verify _publicRepository_
    ```
 
 For a whole-catalogue qualification, put workspace flags before the delegated
@@ -636,3 +686,61 @@ A package is ready for production publication only when all answers are yes:
 
 If any answer is unknown, the package is not yet production-grade. Investigate
 or record a precise blocker; do not turn uncertainty into a broad exception.
+
+
+## Qualified production releases
+
+`pekit release --all --latest --keyring production` selects upstream once per
+recipe. `pekit workspace --jobs 4 release --all --latest --keyring production`
+qualifies all selected members before promoting a single repository batch.
+No per-release recipe pin or additional human approval is required for a normal
+successful run. Version discovery happens again on the next attempt.
+
+Production requires a clean committed catalogue. Release builds use distinct
+fresh paths in both configured environments and copies of one frozen source
+snapshot. Generated-file checks, declared release tests, configured recipe lint,
+and payload lint of the signed final archives must pass. Source/helper inputs,
+actual dependency identities, logs, exemptions, archive hashes and tool identity
+are retained under `.pekit/releases/candidate-*`. Keep this store and retained
+build-root archives backed up for the supported lifetime.
+
+The native artifacts are copied into a candidate repository. The publisher
+checks every active install closure and upgrades from every previous active
+closure, including root placement, missing capabilities, conflicts and payload
+collisions. Candidate files have independent inodes; checks cannot accidentally
+write through a hard link to a live archive. Required release checks then run
+against `PEKIT_RELEASE_REPOSITORY`, with selection details in
+`$PEKIT_RELEASE_DIR/candidate.json`. Missing or failing checks, modified inputs,
+evidence or archives, or a changed base repository reject promotion.
+
+`_release_/commands.toml` is the committed, version-independent command map for
+source reconstruction, independent reproducibility, and product integration.
+Its entries are intentionally unconfigured while audit items 8–10 are unfinished.
+`_release_/check.py` fails for missing entries; it never substitutes an existing
+ledger, a success flag, or a skipped check. Wire real test commands there as those
+items are completed. The dispatcher and coordinator retain their output and exit
+status automatically. These are trusted maintainer orchestration commands;
+never route downloaded upstream scripts into this coordinator interface. Build
+and package tests continue to use isolated workers.
+
+Only after all checks pass does Pekit sign `release.json` and promote its exact
+archive set into `_publicRepository_`. Protected repositories use publisher
+state schema 2, which older tools reject; ordinary `publish`, unsigned evidence,
+missing logs and changed artifacts cannot satisfy this boundary. Public repository
+wire formats are unchanged. The signed receipt records the tested candidate;
+`PROMOTED.json` records the actual resulting index. A process or disk failure
+during index writes can still need the normal repository verification/recovery
+procedure. A batch is not a claim of an atomic multi-file filesystem transaction.
+
+Do not deploy the bootstrap repository wholesale or point the release target at
+it. Failed candidates remain available with diagnostics and cannot be resumed
+by trusting a saved success bit: rerun qualification. This infrastructure does
+not establish full catalogue readiness, bit-for-bit reproducibility, guest boot,
+or supported upgrade behavior until their required checks actually run.
+
+
+Automatically managed `pekit.lock` updates are exempt from the clean-catalogue
+check and are captured as exact candidate inputs. A successful upstream release
+therefore does not force a human to commit its generated lock before the next
+attempt. Recipe, helper, lint, environment and release-policy changes still
+require a reviewed commit; lock integrity/source-authenticity checks still apply.

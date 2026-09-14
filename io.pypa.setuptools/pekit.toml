@@ -12,10 +12,10 @@
 # copy — kept, it is part of upstream's install contract. The build and
 # install steps are the workspace helper's; see _pybuild_/README.md.
 #
-# The complete upstream suite needs a broad Python packaging test ecosystem.
-# The Debian reference rung runs its dependency-light archive tests; both rungs
-# then exercise the installed backend end-to-end by building a real wheel,
-# metadata directory, and sdist with no network access.
+# Both rungs run the offline upstream functional suite and installed-backend
+# gate. Live-network tests and release/performance tooling are a separate scope.
+# Qualification tools are acquired and recorded outside the bootstrap build;
+# final build/test workers remain offline.
 
 out_dir = "out"
 
@@ -28,6 +28,18 @@ file_regex  = 'setuptools-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 # Soft maintenance floor. Stable releases are selected and locked
 # automatically; backend compatibility is enforced by the gates below.
 versions    = ">= 84.0.0"
+
+# Test tools are acquired separately from the minimal bootstrap build.
+# Final qualification uses --env peipkg-net (or debian); only vendor has network.
+[build.vendor]
+command = '''python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" acquire "$PWD" "$PEKIT_OUT" --project setuptools --version "$PEKIT_VERSION"'''
+[build.vendor.dependencies.peipkg]
+# The peipkg-net profile prepares this acquisition target from its APT mapping.
+
+[build.vendor.dependencies.apt]
+python3 = "*"
+python3-pip = "*"
+ca-certificates = "*"
 
 [build.main]
 command = """
@@ -48,44 +60,45 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 
 [build.main.dependencies.apt]
 python3        = "*"
-python3-pytest = "*"
 
 [test]
 gate = true
-needs = ["main"]
+needs = ["main", "vendor"]
 command = '''
 set -eu
-set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages/setuptools
-test -d "$1"
-test -f "$1/build_meta.py"
+SITE=$(python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/python_paths.py" "$PEKIT_MAIN_OUT")
+test -d "$SITE"
+test -f "$SITE/setuptools/build_meta.py"
 
-# Run the upstream release suite from the explicit package gate.
+# Run the suite in a disposable source copy with recorded test-only wheels.
 SRC="$(pwd -P)"
-# A dependency-light slice of the upstream suite validates archive handling in
-# the Debian reference environment. The native bootstrap root does not acquire
-# pytest and its plugin ecosystem merely to install a build backend.
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -c /dev/null --noconftest \
-    -p no:cacheprovider --runxfail \
-    "$SRC/setuptools/tests/test_archive_util.py"
-fi
-
+TEST_WORK="$PEKIT_OUT/upstream"
+mkdir -p "$TEST_WORK"
+python3 -c 'import shutil, sys; shutil.copytree(sys.argv[1], sys.argv[2], dirs_exist_ok=True, symlinks=True)' "$SRC" "$TEST_WORK"
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" install "$PEKIT_VENDOR_OUT" "$PEKIT_OUT/test-tools"
+TEST_PYTHON="$PEKIT_OUT/test-tools/bin/python3"
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
+export PYTHONDONTWRITEBYTECODE=1
+export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+unset PIP_NO_INDEX PIP_INDEX_URL
+export PIP_CONFIG_FILE="$PEKIT_OUT/pip.conf"
+printf '[global]\nindex-url = file:///nonexistent\n' > "$PIP_CONFIG_FILE"
+export PIP_FIND_LINKS="$PEKIT_VENDOR_OUT/wheels"
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export VIRTUALENV_NO_PERIODIC_UPDATE=1
+export VIRTUALENV_OVERRIDE_APP_DATA="$PEKIT_OUT/virtualenv"
+cd "$TEST_WORK"
+"$TEST_PYTHON" -c 'import setuptools as backend; from pathlib import Path; assert Path(backend.__file__).resolve().is_relative_to(Path.cwd())'
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/prepare-backend-tests" "$TEST_WORK" "$TEST_PYTHON" "$PEKIT_OUT/test-adjustments.json"
+"$TEST_PYTHON" -m pytest -q -p no:cacheprovider -p pytest_home.fixtures -p pytest_subprocess.fixtures -p pytest_timeout \
+  -m 'not uses_network' --junitxml="$PEKIT_OUT/upstream.xml" setuptools/tests
+cd "$SRC"
+unset PYTHONPATH
 
 # Exercise the exact installed backend from the staged package tree.
 SRC="$(pwd -P)"
 PEKIT_OUT="$PEKIT_MAIN_OUT"
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  # The reference interpreter's sysconfig path is deliberately not packageable
-  # by the Peios-only [files] mapping below.
-  SITE="$PEKIT_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-else
-  set -- "$PEKIT_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
-  [ "$#" -eq 1 ] && [ -d "$1" ] || {
-    echo "setuptools: expected exactly one Peios site-packages directory" >&2
-    exit 1
-  }
-  SITE="$1"
-fi
 test -d "$SITE"
 test -f "$SITE/setuptools/build_meta.py"
 test -f "$SITE/distutils-precedence.pth"
@@ -98,7 +111,7 @@ test -f "$SITE/setuptools-"*.dist-info/METADATA
 # Exercise the installed backend, not the source checkout. This covers import
 # precedence, bundled distutils, vendored requirements parsing, checked-hash
 # bytecode, PEP 517 wheel and metadata hooks, RECORD, and corresponding source.
-SMOKE="$PEKIT_OUT/.setuptools-smoke"
+SMOKE="$TEST_WORK/installed-smoke"
 mkdir -p "$SMOKE/project" "$SMOKE/dist" "$SMOKE/metadata"
 cat > "$SMOKE/project/pyproject.toml" <<'EOF'
 [build-system]
@@ -120,7 +133,7 @@ ANSWER = 42
 EOF
 
 cd "$PEKIT_OUT"
-PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
+PYTHONPATH="$SITE:$PEKIT_WORKSPACE_ROOT/_pybuild_" PYTHONDONTWRITEBYTECODE=1 \
 python3 -S - "$SITE" "$PEKIT_VERSION" "$SMOKE" <<'PY'
 import importlib.metadata
 import os
@@ -163,6 +176,8 @@ metadata_name = backend.prepare_metadata_for_build_wheel(str(smoke / 'metadata')
 sdist_name = backend.build_sdist(str(smoke / 'dist'))
 
 wheel = smoke / 'dist' / wheel_name
+from wheel_checks import install_and_import
+install_and_import(wheel, smoke / 'installed', 'peios_setuptools_smoke')
 assert wheel_name == 'peios_setuptools_smoke-1.2.3-py3-none-any.whl'
 with zipfile.ZipFile(wheel) as archive:
     names = set(archive.namelist())
@@ -172,8 +187,8 @@ with zipfile.ZipFile(wheel) as archive:
     assert f'{info}/WHEEL' in names
     assert f'{info}/RECORD' in names
     metadata = archive.read(f'{info}/METADATA').decode()
-    assert 'Name: peios-setuptools-smoke\\n' in metadata
-    assert 'Version: 1.2.3\\n' in metadata
+    assert 'Name: peios-setuptools-smoke\n' in metadata
+    assert 'Version: 1.2.3\n' in metadata
 
 assert metadata_name == 'peios_setuptools_smoke-1.2.3.dist-info'
 assert (smoke / 'metadata' / metadata_name / 'METADATA').is_file()
@@ -195,10 +210,14 @@ rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3-source" = ">= 3.14, < 3.15"
+"dev.peios.build-essentials-c++" = "*"
+"org.python.python3-devel" = ">= 3.14, < 3.15"
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
 
 [test.dependencies.apt]
+build-essential = "*"
+python3-dev = "*"
 python3        = "*"
-python3-pytest = "*"
