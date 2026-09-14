@@ -95,7 +95,7 @@ format = "peipkg"
 # contract explicitly, ships its licence, and tests the medium-discovery and
 # mount outcomes.
 version      = "1.0.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

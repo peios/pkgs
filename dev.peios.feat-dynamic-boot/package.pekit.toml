@@ -13,7 +13,7 @@ format = "peipkg"
 [package]
 name         = "dev.peios.feat-dynamic-boot"
 version      = "1.0.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 description  = "Feature: run mkirf/mkuki in watch form as Dynamic Boot services"
 license      = "MIT"
 license_class = "free"

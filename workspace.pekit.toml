@@ -125,7 +125,7 @@ inputs = ["_peiroot_", "_debroot_", "_release_"]
 path = "_publicRepository_"
 name = "peios"
 signing_key = "keyring:signing.repository_key"
-environments = ["debian", "peipkg"]
+environments = ["debian", "peipkg-net"]
 
 # Required acceptance commands live in _release_/commands.toml. Until the
 # remaining catalogue/reproducibility/integration work supplies real commands,

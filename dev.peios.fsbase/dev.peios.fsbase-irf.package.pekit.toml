@@ -40,6 +40,8 @@
 # subtree, so ancestors (/var, /usr/lib, /lcl/libexec) arrive automatically.
 
 [package]
+# The skeleton fixes the x86-64 loader link and ABI directories.
+architecture = "x86_64"
 name        = "dev.peios.fsbase-irf"
 description = "Base filesystem for the initramfs root - the reduced Peios skeleton"
 

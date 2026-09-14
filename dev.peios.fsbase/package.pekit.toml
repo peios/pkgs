@@ -48,7 +48,7 @@ format = "peipkg"
 # directory contract, exact StrataFS mount graph, test-root isolation, and the
 # rule that a failed mount must never emit an OK line.
 version      = "1.0.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

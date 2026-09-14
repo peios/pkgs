@@ -11,6 +11,8 @@
 # still land — they simply arrive as parents of the leaves below.
 
 [package]
+# The skeleton fixes the x86-64 loader link and ABI directories.
+architecture = "x86_64"
 name        = "dev.peios.fsbase"
 description = "Base filesystem - the Peios filesystem skeleton"
 
