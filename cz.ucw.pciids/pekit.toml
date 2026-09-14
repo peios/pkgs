@@ -29,8 +29,12 @@ DEST="$PEKIT_OUT/usr/share/pci.ids"
 LICENSE="$PEKIT_OUT/usr/share/licenses/cz.ucw.pciids/LICENSE"
 
 test -s "$SOURCE"
-install -Dm0644 "$SOURCE" "$DEST"
-install -Dm0644 "$PEKIT_RECIPE_ROOT/LICENSE" "$LICENSE"
+mkdir -p "$(dirname "$DEST")" "$(dirname "$LICENSE")"
+umask 022
+: > "$DEST"
+: > "$LICENSE"
+cat "$SOURCE" > "$DEST"
+cat "$PEKIT_RECIPE_ROOT/LICENSE" > "$LICENSE"
 cmp "$SOURCE" "$DEST"
 '''
 
@@ -53,7 +57,8 @@ SOURCE="$PEKIT_SOURCE_ROOT/pci.ids"
 DATABASE="$PEKIT_MAIN_OUT/usr/share/pci.ids"
 LICENSE="$PEKIT_MAIN_OUT/usr/share/licenses/cz.ucw.pciids/LICENSE"
 
-# The sparse source and source manifest must bind exactly the bytes tested.
+# Bind the isolated sparse source to the captured source lock, without assuming
+# a source-cache directory layout outside the worker.
 test -s "$SOURCE"
 test "$(find "$PEKIT_SOURCE_ROOT" -type f | wc -l)" -eq 1
 test "$(find "$PEKIT_SOURCE_ROOT" -type l | wc -l)" -eq 0
@@ -70,7 +75,8 @@ grep -F 'SPDX: BSD-3-Clause' "$LICENSE"
 
 python3 - "$PEKIT_SOURCE_ROOT" "$DATABASE" <<'PY'
 import hashlib
-import json
+import os
+import tomllib
 from pathlib import Path
 import re
 import sys
@@ -78,21 +84,23 @@ import sys
 root, database = Path(sys.argv[1]), Path(sys.argv[2])
 raw = database.read_bytes()
 text = raw.decode("utf-8", errors="strict")
-manifest = json.loads((root.parent / "source.pekit.json").read_text())
+locks = tomllib.loads((Path(os.environ["PEKIT_RECIPE_ROOT"]) / "pekit.lock").read_text())["source"]
 digest = hashlib.sha256(raw).hexdigest()
 tracked = "pci.ids"
 url = "https://github.com/pciutils/pciids.git"
 
-assert manifest["kind"] == "git"
-assert manifest["rendered"] == f"{url}@refs/heads/master:{tracked}"
-assert manifest["root"] == tracked
-assert manifest["checksum"] == digest
-commit, blob = manifest["immutable"].split(":", 1)
-assert re.fullmatch(r"[0-9a-f]{40}", commit)
-assert re.fullmatch(r"[0-9a-f]{40}", blob)
-assert manifest["provenance_ref"] == (
-    f"git:{url}@{commit}:{tracked}#sha256:{digest}"
-)
+matching = [entry for entry in locks
+            if entry.get("version") == os.environ["PEKIT_VERSION"]
+            and entry.get("repository") == url
+            and entry.get("path") == tracked]
+assert len(matching) == 1, "expected one captured source identity"
+locked = matching[0]
+assert locked["ref"] == "refs/heads/master"
+assert locked["blob_sha256"] == digest
+assert re.fullmatch(r"[0-9a-f]{40}", locked["commit"])
+assert re.fullmatch(r"[0-9a-f]{40}", locked["blob"])
+# Verify the Git object identity as well as the stronger recorded SHA-256.
+assert hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest() == locked["blob"]
 
 # Parse every non-comment record, enforcing the grammar and hierarchy rather
 # than accepting a merely non-empty database. Duplicate numeric identities are

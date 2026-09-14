@@ -14,3 +14,23 @@ schema = 1
   blob = "db640b6dd53d08434e0b4d3b8328d1f32e277ccf"
   blob_sha256 = "6190db4a17c42dd7ad84aa8abb658a70d1328179715aa10e29ab690eb5c920cd"
   locked_at = "2026-09-11T14:49:58Z"
+
+[[source]]
+  version = "2026.09.12"
+  ref = "refs/heads/master"
+  commit = "88fe01f67c10ef5483bdf5026c99a79ff6d88040"
+  repository = "https://github.com/pciutils/pciids.git"
+  path = "pci.ids"
+  blob = "a478fccbee3775c3e0a621dd526c52cf75016bee"
+  blob_sha256 = "6b14853a71400884d6ac876a8159ff83adda4e6b4f7d38ef22fffd047436e93f"
+  locked_at = "2026-09-12T15:53:07Z"
+
+[[source]]
+  version = "2026.09.13"
+  ref = "refs/heads/master"
+  commit = "086ce999bce8559e573711ee711983ec82ed6b64"
+  repository = "https://github.com/pciutils/pciids.git"
+  path = "pci.ids"
+  blob = "ed5fdf48fbe9af2af5c8d0a71f6d03feae0aa6dd"
+  blob_sha256 = "2d5caee8ec7d482e99047940dbb1947b8a3d33c28cb90fabb7e4426df4fe1096"
+  locked_at = "2026-09-13T09:13:56Z"
