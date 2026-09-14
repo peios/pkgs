@@ -24,6 +24,8 @@ fingerprints = ["E0FFBD975397F77A32AB76ECB6301D9E1BBEAC08"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CXXFLAGS="$CXXFLAGS -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gperf"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -33,6 +35,7 @@ cd "$PEKIT_OUT"
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+gzip -n -9 "$PEKIT_OUT/usr/share/man/man1/gperf.1"
 
 # Peios currently has no Info reader. The complete manuals remain in the
 # corresponding-source package; installed users receive the command man page.
@@ -68,9 +71,13 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
 "dev.peios.build-essentials-c++" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
@@ -81,6 +88,7 @@ gate  = true
 command = '''
 set -eu
 STAGE="$PEKIT_MAIN_OUT"
+gzip -t "$STAGE/usr/share/man/man1/gperf.1.gz"
 BIN="$STAGE/usr/bin/gperf"
 SMOKE="$PEKIT_OUT/smoke"
 
@@ -126,12 +134,14 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.gperf" -type f -print -quit)"
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.binutils"               = "*"
 "org.gnu.findutils"              = "*"
 "org.gnu.grep"                   = "*"
 
 [test.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 binutils        = "*"
 findutils       = "*"

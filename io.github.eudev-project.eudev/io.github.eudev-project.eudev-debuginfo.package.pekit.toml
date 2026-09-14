@@ -8,4 +8,5 @@ description = "eudev - debugging symbols"
 "io.github.eudev-project.eudev" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/io.github.eudev-project.eudev-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

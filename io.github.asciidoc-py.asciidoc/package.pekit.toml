@@ -31,5 +31,5 @@ homepage     = "https://asciidoc-py.github.io/"
 [files]
 "@source:LICENSE"                         = "usr/share/licenses/io.github.asciidoc-py.asciidoc/"
 ":usr/bin/**"                             = "usr/bin"
-":usr/share/man/man1/*.1"                 = "usr/share/man/man1"
+":usr/share/man/man1/*.1.gz"                 = "usr/share/man/man1"
 ":usr/lib/x86_64-linux-peios/asciidoc/**" = "usr/lib/x86_64-linux-peios/asciidoc"

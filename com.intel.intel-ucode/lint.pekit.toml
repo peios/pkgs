@@ -1,0 +1,2 @@
+[allow]
+"package.architecture" = "Intel CPU microcode targets x86 CPUs and is an x86_64 early-boot payload; absence of ELF does not make it portable firmware"

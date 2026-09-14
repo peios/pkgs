@@ -62,6 +62,8 @@ cd "$PEKIT_OUT"
 # Helpers and rules.d land in $libdir/udev, upstream's default. That is the
 # triplet directory rather than /usr/lib/udev because PSPU §3.4.2 permits
 # nothing else under /usr/lib — pack rejects the payload otherwise.
+CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev" \
+CXXFLAGS="${CXXFLAGS:-${CFLAGS:--O2 -g}} -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev" \
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin \
   --libdir="$LIBDIR" --sysconfdir=/etc \
   --disable-manpages --enable-hwdb --enable-blkid --enable-kmod \
@@ -76,6 +78,15 @@ make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT$LIBDIR" -name '*.la' -delete
+
+# Upstream's generated release pages are authoritative even when the optional
+# DocBook toolchain is disabled. Stage them in the canonical compressed form.
+for page in udev.conf.5 hwdb.7 udev.7 udevadm.8 udevd.8; do
+  section=${page##*.}
+  mkdir -p "$PEKIT_OUT/usr/share/man/man$section"
+  gzip -n -9 -c "$SRC/man/$page" > \
+    "$PEKIT_OUT/usr/share/man/man$section/$page.gz"
+done
 
 # udev.h is a private daemon header that cannot be consumed without other
 # uninstalled internals; udev.pc describes that private interface. The public
@@ -174,6 +185,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # depends on Peios's peiosutils instead.
 "dev.peios.peiosutils"  = "*"
 "org.sourceware.debugedit"             = "*"
+"org.gnu.gzip"                         = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -188,6 +200,7 @@ tar            = "*"
 xz-utils       = "*"
 coreutils      = "*"
 debugedit      = "*"
+gzip           = "*"
 
 [test]
 gate = true
@@ -248,7 +261,10 @@ cc ${CFLAGS:-} -I"$STAGE/usr/include" -L"$STAGED_LIBDIR" \
   -o "$SMOKE/libudev" "$SMOKE/libudev.c" -ludev
 LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libudev"
 
-find "$STAGE/usr" -type f ! -type l | while IFS= read -r f; do
+# Detached debug files carry symbols rather than runnable dynamic sections.
+find "$STAGE/usr" -type f ! -type l \
+  ! -path "$STAGE/usr/lib/debug/*" ! -path "$STAGE/usr/src/debug/*" \
+  | while IFS= read -r f; do
   readelf -h "$f" >/dev/null 2>&1 || continue
   readelf -W -l "$f" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -d "$f" | grep -F 'BIND_NOW'

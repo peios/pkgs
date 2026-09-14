@@ -3,7 +3,8 @@ name        = "org.gnu.gperf-debugsource"
 description = "GNU gperf debug source"
 
 [dependencies]
-"org.gnu.gperf-debuginfo" = "{{version}}-1"
+"org.gnu.gperf-debuginfo" = "{{version}}-2"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gperf-debugsource/COPYING"
 ":usr/src/debug/org.gnu.gperf/**" = "usr/src/debug/org.gnu.gperf"

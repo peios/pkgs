@@ -12,7 +12,7 @@ out_dir = "out"
 
 [source.url]
 url         = "https://github.com/dosfstools/dosfstools/releases/download/v{{version}}/dosfstools-{{version}}.tar.gz"
-listing_url = "https://github.com/dosfstools/dosfstools/releases"
+listing_url = "https://api.github.com/repos/dosfstools/dosfstools/releases?per_page=100"
 extract     = true
 root        = "dosfstools-{{version}}"
 file_regex  = 'dosfstools-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
@@ -69,9 +69,8 @@ EOF
 fi
 
 cd "$BUILD"
-# Force complete CET properties because conservative linker merging can drop
-# them when an implicit startup object is unmarked.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# Generate IBT PLT entries; let unmarked inputs remain visible in the CET note.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -137,15 +136,24 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
         "usr/src/debug/io.github.dosfstools.dosfstools/$rel"
     done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
+# Compress manuals deterministically and preserve their relative aliases.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[0-9]' -exec gzip -n -9 -- {} +
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[0-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
 '''
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit"          = "*"
 "org.nixos.patchelf"           = "*"
 "org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
@@ -173,6 +181,7 @@ grep -Eq '^# FAIL:[[:space:]]+0$' tests/test-suite.log
 grep -Eq '^# XPASS:[[:space:]]+0$' tests/test-suite.log
 grep -Eq '^# ERROR:[[:space:]]+0$' tests/test-suite.log
 STAGE="$PEKIT_MAIN_OUT"
+find "$STAGE/usr/share/man" -name "*.gz" -exec gzip -t -- {} +
 BIN="$STAGE/usr/bin"
 FSCKDIR="$STAGE/usr/libexec/fsck"
 SMOKE="$PEKIT_OUT/dosfstools-smoke"
@@ -209,8 +218,8 @@ test "$(readlink "$BIN/mkfs.msdos")" = mkfs.fat
 test "$(readlink "$BIN/mkfs.vfat")" = mkfs.fat
 find "$STAGE/usr/share/man/man8" -mindepth 1 -maxdepth 1 -printf '%f\n' \
   | LC_ALL=C sort > "$SMOKE/actual-man"
-printf '%s\n' fatlabel.8 fsck.fat.8 fsck.msdos.8 fsck.vfat.8 \
-  mkfs.fat.8 mkfs.msdos.8 mkfs.vfat.8 | LC_ALL=C sort > "$SMOKE/expected-man"
+printf '%s\n' fatlabel.8.gz fsck.fat.8.gz fsck.msdos.8.gz fsck.vfat.8.gz \
+  mkfs.fat.8.gz mkfs.msdos.8.gz mkfs.vfat.8.gz | LC_ALL=C sort > "$SMOKE/expected-man"
 cmp "$SMOKE/expected-man" "$SMOKE/actual-man"
 test ! -e "$STAGE/usr/sbin"
 test ! -e "$STAGE/usr/share/doc"
@@ -227,7 +236,9 @@ for elf in "$BIN/fatlabel" "$BIN/fsck.fat" "$BIN/mkfs.fat"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
@@ -242,6 +253,7 @@ rm -rf "$PEKIT_MAIN_OUT/.test-bin"
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
@@ -249,6 +261,7 @@ rm -rf "$PEKIT_MAIN_OUT/.test-bin"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit = "*"
 patchelf = "*"

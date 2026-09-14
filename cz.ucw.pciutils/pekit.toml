@@ -71,6 +71,9 @@ install -Dm0644 "$STATIC/lib/libpci.a" "$STAGED_LIBDIR/libpci.a"
 install -Dm0644 "$STATIC/lib/libpci.pc" \
   "$STAGED_LIBDIR/pkgconfig/libpci.pc"
 
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
+
 install -d "$PEKIT_OUT/usr/share/doc/cz.ucw.pciutils"
 install -m0644 "$SRC/README" "$SRC/ChangeLog" "$SRC/pciutils.lsm" \
   "$PEKIT_OUT/usr/share/doc/cz.ucw.pciutils/"
@@ -126,6 +129,7 @@ rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist"
 "io.github.zlib-ng.zlib-ng-compat-devel"                            = ">= 2.3.3"
 "org.sourceware.debugedit"                                 = ">= 5.2-1"
 "org.nixos.patchelf"                                  = ">= 0.19.1"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -140,6 +144,7 @@ libudev-dev     = "*"
 zlib1g-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -180,12 +185,12 @@ grep -Fx '#define PCI_HAVE_HWDB' "$CONFIG"
 test ! -e "$STAGE/usr/share/pci.ids"
 test ! -e "$BIN/update-pciids"
 for manual in \
-  usr/share/man/man5/pci.ids.5 \
-  usr/share/man/man7/pcilib.7 \
-  usr/share/man/man8/lspci.8 \
-  usr/share/man/man8/pcilmr.8 \
-  usr/share/man/man8/setpci.8; do
-  test -f "$STAGE/$manual"
+  usr/share/man/man5/pci.ids.5.gz \
+  usr/share/man/man7/pcilib.7.gz \
+  usr/share/man/man8/lspci.8.gz \
+  usr/share/man/man8/pcilmr.8.gz \
+  usr/share/man/man8/setpci.8.gz; do
+  gzip -t "$STAGE/$manual"
 done
 
 cat > "$SMOKE/pci.dump" <<'EOF'
@@ -249,6 +254,7 @@ rm -rf "$SMOKE" "$STAGE/build" "$STAGE/build-static"
 "org.kernel.kmod-devel" = ">= 34.2"
 "io.github.eudev-project.eudev-devel" = ">= 3.2.14"
 "io.github.zlib-ng.zlib-ng-compat-devel" = ">= 2.3.3"
+"org.gnu.gzip" = "*"
 
 [test.dependencies.apt]
 dash = "*"
@@ -261,3 +267,4 @@ pkg-config = "*"
 libkmod-dev = "*"
 libudev-dev = "*"
 zlib1g-dev = "*"
+gzip = "*"

@@ -1,0 +1,3 @@
+# Both supported ABIs share one build-ID-indexed symbol package.
+[elf]
+debuginfo = "io.github.besser82.libxcrypt-debuginfo"

@@ -1,2 +1,6 @@
+# Both C and C++ libraries share one build-ID symbol package.
+[elf]
+debuginfo = "io.github.hyperrealm.libconfig-debuginfo"
+
 [allow]
 "source.signature.required" = "upstream publishes release archives over HTTPS but provides no detached signature channel"

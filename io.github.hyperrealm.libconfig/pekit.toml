@@ -9,7 +9,7 @@ url         = "https://hyperrealm.github.io/libconfig/dist/libconfig-{{version}}
 listing_url = "https://hyperrealm.github.io/libconfig/"
 root        = "libconfig-{{version}}"
 extract     = true
-file_regex  = '^libconfig-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz$'
+file_regex  = 'libconfig-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
 # Soft maintenance floor. Follow stable releases automatically; an ABI or
 # source-layout change must pass the validation gates below.
 versions    = ">= 1.8.2"
@@ -29,7 +29,7 @@ INCLUDEDIR="$PEKIT_OUT/usr/include"
 
 cd "$PEKIT_OUT"
 "$SRC/configure" \
-  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
   --prefix=/usr \
@@ -219,7 +219,9 @@ for elf in "$CONFIG_SO" "$CONFIGXX_SO"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 test "$(readelf -d "$CONFIG_SO" | grep -c 'Shared library:')" -eq 1

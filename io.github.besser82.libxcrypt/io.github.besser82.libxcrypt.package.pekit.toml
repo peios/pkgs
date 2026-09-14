@@ -16,4 +16,4 @@ license     = "LGPL-2.1-or-later AND BSD-3-Clause AND BSD-2-Clause AND BSD-2-Cla
 "@source:COPYING.LIB"  = "usr/share/licenses/io.github.besser82.libxcrypt/"
 "@source:LICENSING"    = "usr/share/licenses/io.github.besser82.libxcrypt/"
 ":usr/lib/x86_64-linux-peios/libcrypt.so.2*" = "usr/lib/x86_64-linux-peios"
-":usr/share/man/man5/crypt.5"                = "usr/share/man/man5/crypt.5"
+":usr/share/man/man5/crypt.5.gz"                = "usr/share/man/man5/crypt.5.gz"

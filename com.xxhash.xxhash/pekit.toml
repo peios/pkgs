@@ -33,12 +33,12 @@ mkdir -p "$BUILD"
 cp -a "$SRC/." "$BUILD/"
 cd "$BUILD"
 
-# Preserve the workspace distro flags and force the linker to emit the CET
-# property note for both shipped ELF objects. DISPATCH enables runtime CPU
-# selection for the CLI and shared library without tying them to the build CPU.
+# Preserve the workspace distro flags and generate IBT PLT entries. The CET
+# note must come from the linked objects. DISPATCH enables runtime CPU selection
+# for the CLI and shared library without tying them to the build CPU.
 export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/com.xxhash.xxhash"
 export CXXFLAGS="${CXXFLAGS:-$CFLAGS}"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 # Build the production payload once. The gated upstream suite may rebuild its
 # retained build tree under compatibility flag sets after installation; those
@@ -47,6 +47,15 @@ make -j"$(nproc)" DISPATCH=1 LIBXXH_DISPATCH=1
 make install DESTDIR="$PEKIT_OUT" PREFIX=/usr \
   LIBDIR="$LIBDIR" MANDIR=/usr/share/man/man1 \
   DISPATCH=1 LIBXXH_DISPATCH=1
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
+# Upstream's checksum aliases are manual-page symlinks, so gzip leaves their
+# names and targets untouched. Keep the aliases valid and consistently
+# compressed alongside the canonical page.
+for alias in xxh128sum xxh32sum xxh3sum xxh64sum; do
+  rm "$PEKIT_OUT/usr/share/man/man1/$alias.1"
+  ln -s xxhsum.1.gz "$PEKIT_OUT/usr/share/man/man1/$alias.1.gz"
+done
 
 DOCDIR="$PREFIX/share/doc/com.xxhash.xxhash"
 mkdir -p "$DOCDIR/doc" "$DOCDIR/cli"
@@ -95,11 +104,13 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
 "dev.peios.build-essentials-c++" = "*"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -173,7 +184,7 @@ test "$(find "$STAGED_LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" \
 find "$PREFIX/share/man/man1" -mindepth 1 -maxdepth 1 \
   \( -type f -o -type l \) -printf '%f\n' | LC_ALL=C sort \
   > "$WORK/actual-man"
-printf '%s\n' xxh128sum.1 xxh32sum.1 xxh3sum.1 xxh64sum.1 xxhsum.1 \
+printf '%s\n' xxh128sum.1.gz xxh32sum.1.gz xxh3sum.1.gz xxh64sum.1.gz xxhsum.1.gz \
   | LC_ALL=C sort > "$WORK/expected-man"
 diff -u "$WORK/expected-man" "$WORK/actual-man"
 
@@ -260,7 +271,11 @@ for elf in usr/bin/xxhsum \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  # Debian's reference runtime objects do not promise Peios CET properties.
+  # The native rung must still prove the final note without forced properties.
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
@@ -282,7 +297,11 @@ rm -rf "$WORK" "$PEKIT_MAIN_OUT/build"
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.pkgconf.pkgconf" = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.bash" = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
 pkgconf         = "*"
+gzip            = "*"
+bash            = "*"

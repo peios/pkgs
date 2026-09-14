@@ -1,2 +1,5 @@
 [allow]
 "source.signature.required" = "PyPI publishes immutable release files and hashes but no detached source signatures"
+
+[allow_files."split.devel.packages"]
+"usr/lib/x86_64-linux-peios/meson/mesonbuild/cmake/**" = "Meson's private Python implementation of CMake interoperability, not a CMake consumer development interface"

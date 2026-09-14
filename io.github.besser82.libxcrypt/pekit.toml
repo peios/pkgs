@@ -9,10 +9,10 @@ patches = "patches"
 
 [source.url]
 url         = "https://github.com/besser82/libxcrypt/releases/download/v{{version}}/libxcrypt-{{version}}.tar.xz"
-listing_url = "https://github.com/besser82/libxcrypt/releases"
+listing_url = "https://api.github.com/repos/besser82/libxcrypt/releases?per_page=100"
 root        = "libxcrypt-{{version}}"
 extract     = true
-file_regex  = '^libxcrypt-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz$'
+file_regex  = 'libxcrypt-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
 # Soft maintenance floor. Future releases remain eligible automatically; the
 # ABI, test, payload and hardening gates below stop incompatible publication.
 versions    = ">= 4.5.2"
@@ -36,10 +36,10 @@ STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
 INCLUDEDIR="$PEKIT_OUT/usr/include"
 
 # Inherit the workspace optimisation and distro hardening policy. Prefix-map
-# source paths for reproducible, relocatable DWARF; explicit linker CET options
-# retain the GNU property note when provider CRT objects do not carry one.
+# source paths for reproducible, relocatable DWARF. Generate IBT PLT entries
+# without masking missing compatibility notes in provider CRT objects.
 export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.besser82.libxcrypt"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 # The ordinary build intentionally excludes obsolete entry points and owns the
 # complete development surface. Upstream's release archive is bootstrapped, so
@@ -131,9 +131,17 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel
 done
 rm -rf "$PEKIT_OUT/compat-root"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Compress manuals deterministically and preserve their relative aliases.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[0-9]' -exec gzip -n -9 -- {} +
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[0-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
 '''
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.perl.perl"      = "*"
 "org.sourceware.debugedit"             = "*"
@@ -141,6 +149,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.pkgconf.pkgconf"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 perl            = "*"
 debugedit        = "*"
@@ -162,6 +171,7 @@ for build in build-modern build-compat; do
   grep -Fx '# ERROR: 0' test-suite.log
 done
 STAGE="$PEKIT_MAIN_OUT"
+find "$STAGE/usr/share/man" -name "*.gz" -exec gzip -t -- {} +
 STAGED_LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
 INCLUDEDIR="$STAGE/usr/include"
 MODERN_SO=$(find "$STAGED_LIBDIR" -maxdepth 1 -type f -name 'libcrypt.so.2.*' | LC_ALL=C sort)
@@ -220,7 +230,9 @@ for elf in "$MODERN_SO" "$COMPAT_SO"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
@@ -229,6 +241,7 @@ rm -rf "$PEKIT_MAIN_OUT/build-modern" "$PEKIT_MAIN_OUT/build-compat"
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.perl.perl" = "*"
 "org.sourceware.debugedit" = "*"
@@ -237,6 +250,7 @@ rm -rf "$PEKIT_MAIN_OUT/build-modern" "$PEKIT_MAIN_OUT/build-compat"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 dash = "*"
 perl = "*"
