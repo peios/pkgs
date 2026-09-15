@@ -26,5 +26,8 @@
 # MaxTotalLayers), PEI-762 (bootstrap isolates a malformed layer), PEI-487
 # (the KACS configuration gates are BUILD_BUG_ON), PEI-1078 (CLONE_INTO_CGROUP
 # captures the target's kill_seq) and PEI-519 (no compiled-in hostname).
+# -10: the same batch plus the self-watch refreshing each dirty layer once
+# per delivery (PEI-762 follow-up; -9's isolation kept the layer watch alive
+# and exposed the per-event refresh).
 [package]
-version = "{{version}}-9"
+version = "{{version}}-10"

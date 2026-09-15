@@ -3,7 +3,7 @@
 name = "dev.peios.kernel-modules-irf"
 
 [dependencies]
-"dev.peios.kernel" = "= {{version}}-9"
+"dev.peios.kernel" = "= {{version}}-10"
 
 [provides]
 

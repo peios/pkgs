@@ -3,7 +3,7 @@
 name = "dev.peios.kernel-debugsource"
 
 [dependencies]
-"dev.peios.kernel" = "= {{version}}-9"
+"dev.peios.kernel" = "= {{version}}-10"
 
 [provides]
 
