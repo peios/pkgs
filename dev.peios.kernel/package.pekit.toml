@@ -6,5 +6,25 @@
 # the selector overlays align every exact intra-family dependency and generic
 # kernel capability with that same revision. Pekit derives the corresponding-source
 # description from this resolved version, so it must identify the -3 family too.
+#
+# -6 (2026-09-14): the kacs conformance batch, built from the working tree
+# (-5 was too). PEI-687 backup/restore intent on kacs_open; PEI-689 the KACS
+# ptrace answer is final (no perfmon fallback in mm_access, /proc/<pid>/fd
+# gated, Yama not built); PEI-1115 the SeTcbPrivilege half of the port
+# rebind rule. The selector overlays' "= {{version}}-N" pins move with this.
+#
+# -7 (2026-09-14): the lcs/kmes/stratafs conformance batch from the working
+# tree: PEI-755, 756, 757, 759, 760, 764, 765, 766, 769, 770 (LCS), PEI-659
+# (KMES batch reservation), PEI-263 and PEI-586 (stratafs admission and
+# mount-policy ordering), and the corrected /proc/<pid>/fd gate (PEI-689).
+# -8: the same batch with PEI-263's validity conditions back in stratum
+# order (only EACCES is decided stack-wide).
+#
+# -9 (2026-09-14): PEI-575 (a provider-less stratafs root serves a synthesised
+# descriptor), PEI-588 (a deferred deletion refused before stratafs is entered
+# is still audited), PEI-759 item 2 (the layer table is sized to
+# MaxTotalLayers), PEI-762 (bootstrap isolates a malformed layer), PEI-487
+# (the KACS configuration gates are BUILD_BUG_ON), PEI-1078 (CLONE_INTO_CGROUP
+# captures the target's kill_seq) and PEI-519 (no compiled-in hostname).
 [package]
-version = "{{version}}-1"
+version = "{{version}}-9"
