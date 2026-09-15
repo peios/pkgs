@@ -103,6 +103,10 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 "dev.peios.prelude" = { constraint = ">= 0.0.3-1", root = "initramfs" }
 "dev.peios.peinit"  = ">= 0.0.2-1"
+# svctl and the shutdown commands are peinit's operator client, split into
+# their own package so recovery images can carry the client without PID 1;
+# nothing depends on it, so like net and resolv it is listed here (PEI-1071).
+"dev.peios.peinit-svctl" = ">= 0.0.2-1"
 
 # Identity (PGSS Logon).
 "dev.peios.authd"       = ">= 0.0.14-1"
@@ -143,6 +147,11 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.trustd" = ">= 0.1.1-1"
 "dev.peios.trust"  = ">= 0.1.1-1"
 "org.mozilla.ca-certificates" = ">= 2026.09.06-1"
+
+# Zone data. Like the trust roots it is base-system data nothing depends on
+# by name: peinit resolves OnCalendar timezones through it, timed and anything
+# formatting local time read it (PEI-832).
+"org.iana.tzdata" = ">= 2026c-1"
 
 # Time. timed is the only process permitted to set the clock; clock is its
 # operator command. There is deliberately no NTP server here — that is a
