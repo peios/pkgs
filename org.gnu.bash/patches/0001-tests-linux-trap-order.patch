@@ -1,0 +1,26 @@
+Subject: Match Linux signal-number ordering in the trap fixture
+Origin: Peios packaging, Linux/glibc test fixture adaptation
+
+# Linux SIGUSR1 is 10 and SIGTERM is 15; Bash prints trap entries in signal
+# number order. The upstream golden file uses the opposite platform order.
+# Preserve all trap content and execution assertions; change only their order.
+--- a/tests/exec.right
++++ b/tests/exec.right
+@@ -26,15 +26,15 @@
+ 0
+ this is bashenv
+ trap -- 'echo EXIT' EXIT
++trap -- 'echo USR1' SIGUSR1
+ trap -- '' SIGTERM
+-trap -- 'echo USR1' SIGUSR1
+ USR1
+ ./exec3.sub: line 38: /tmp/bash-notthere: No such file or directory
+ ./exec3.sub: ENOENT: after failed exec: 127
+ ./exec3.sub: line 43: exec: bash-notthere: not found
+ trap -- 'echo EXIT' EXIT
++trap -- 'echo USR1' SIGUSR1
+ trap -- '' SIGTERM
+-trap -- 'echo USR1' SIGUSR1
+ USR1
+ EXIT
+ ./execscript: line 103: notthere: command not found

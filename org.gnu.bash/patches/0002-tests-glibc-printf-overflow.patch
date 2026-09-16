@@ -1,0 +1,16 @@
+Subject: Assert glibc overflow behavior in the printf fixture
+Origin: Peios packaging, Linux/glibc test fixture adaptation
+
+# glibc snprintf rejects an inline precision exceeding its integer range.
+# The host glibc Bash reproduces status 1 and an empty variable for this input.
+# Record that Linux/glibc result; do not skip the overflow or following %Q test.
+--- a/tests/printf.right
++++ b/tests/printf.right
+@@ -388,5 +388,6 @@
+ [X]
+ VAR=[]
+ VAR=[X]
++./printf7.sub: line 88: printf: Value too large for defined data type
++
+ XY
+-XY

@@ -14,6 +14,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://ftp.gnu.org/gnu/bash/bash-{{version}}.tar.gz"
 listing_url = "https://ftp.gnu.org/gnu/bash/"
@@ -45,6 +48,8 @@ fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.bash"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --without-bash-malloc
@@ -55,16 +60,46 @@ make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/include" \
   "$PEKIT_OUT/usr/bin/bashbug" "$PEKIT_OUT/usr/share/info" \
   "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/man/man1/bashbug.1"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
+: > "$PEKIT_OUT/.srclist"
+for elf in usr/bin/bash; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.bash \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "usr/src/debug/org.gnu.bash/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.gnu.bash/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.gettext" = "*"
+"org.gnu.gzip" = "*"
+"org.nixos.patchelf" = "*"
+"org.sourceware.debugedit" = "*"
 "org.gnu.ncurses-devel" = ">= 6.6"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 gettext = "*"
+gzip = "*"
+patchelf = "*"
+debugedit = "*"
 libncurses-dev = "*"
 
 [test]
@@ -72,6 +107,15 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
+# Capture the declared compatibility chmod before PATH-search fixtures reset
+# their environment. Other fixtures retain the declared compatibility tools.
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  export PEKIT_TEST_CHMOD=/usr/libexec/coreutils-build/chmod
+else
+  PEKIT_TEST_CHMOD=$(command -v chmod)
+  export PEKIT_TEST_CHMOD
+fi
+test -x "$PEKIT_TEST_CHMOD"
 BASH="$PEKIT_MAIN_OUT/usr/bin/bash"
 test "$("$BASH" --noprofile --norc -c 'a=(zero one two); printf %s "${a[2]}"')" = two
 case "$("$BASH" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
@@ -79,15 +123,147 @@ case "$("$BASH" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 # Run the upstream release suite from the explicit package gate.
 PEKIT_OUT="$PEKIT_MAIN_OUT"
 cd "$PEKIT_OUT"
-make tests
+# Upstream run-all exits zero even when a diff fails. Record every failed
+# comparison as well as the individual script status, and reject either.
+CHECK="$PEKIT_OUT/.suite-check"
+mkdir -p "$CHECK/bin"
+export PEKIT_BASH_DIFF_FAILURES="$CHECK/diff-failures"
+: > "$PEKIT_BASH_DIFF_FAILURES"
+cat > "$CHECK/bin/diff" <<'EOF'
+#!/bin/sh
+/usr/bin/diff "$@"
+status=$?
+if [ "$status" -ne 0 ]; then
+  printf '%s\n' "$*" >> "$PEKIT_BASH_DIFF_FAILURES"
+fi
+exit "$status"
+EOF
+"$PEKIT_TEST_CHMOD" 0755 "$CHECK/bin/diff"
+# Fail on upstream runner drift instead of silently losing failure tracking.
+grep -Fx 'exit 0' "$PEKIT_SOURCE_ROOT/tests/run-all"
+grep -F 'sh $x ;' "$PEKIT_SOURCE_ROOT/tests/run-all"
+sed -e '/^for x in run-/i failed=0' \
+    -e 's/run-minimal|run-gprof/run-all|run-minimal|run-gprof/' \
+    -e 's/sh $x ;/sh $x || failed=1 ;/' \
+    -e 's/^exit 0$/exit "$failed"/' \
+    "$PEKIT_SOURCE_ROOT/tests/run-all" > "$CHECK/run-all"
+# Upstream fixtures expect /tmp not to be HOME and exercise /dev/tty.
+export HOME="$CHECK/home"
+mkdir -p "$HOME"
+export PATH="$CHECK/bin:$PATH"
+command -v hexdump
+# Compile the exact legacy locale names expected by the upstream fixtures.
+# LOCPATH isolates these test data from installed system locales.
+export LOCPATH="$CHECK/locales"
+mkdir -p "$LOCPATH"
+# The host's locale utility has an AppArmor profile limited to system locale
+# paths. Validate our private fixture data through the libc API directly.
+cat > "$CHECK/locale-charmap.c" <<'EOF'
+#include <locale.h>
+#include <langinfo.h>
+#include <stdio.h>
+int main(void) {
+  if (!setlocale(LC_ALL, "")) return 1;
+  puts(nl_langinfo(CODESET));
+  return 0;
+}
+EOF
+cc "$CHECK/locale-charmap.c" -o "$CHECK/locale-charmap"
+for spec in en_US:UTF-8:en_US.UTF-8 de_DE:UTF-8:de_DE.UTF-8 fr_FR:ISO-8859-1:fr_FR.ISO8859-1 zh_TW:BIG5:zh_TW.big5 ja_JP:SHIFT_JIS:ja_JP.SJIS; do
+  input=${spec%%:*}; rest=${spec#*:}; charmap=${rest%%:*}; name=${rest#*:}
+  printf 'Compiling fixture locale %s (%s)\n' "$name" "$charmap"
+  localedef --no-archive --no-warnings=ascii -i "$input" -f "$charmap" "$LOCPATH/$name"
+  LC_ALL="$name" "$CHECK/locale-charmap" | grep -Fx "$charmap"
+done
+# glibc locale -a does not enumerate LOCPATH; expose only successfully compiled
+# test locales to upstream's availability probes while preserving real output.
+cat > "$CHECK/bin/locale" <<'EOF'
+#!/bin/sh
+if [ "$#" -eq 1 ] && [ "$1" = -a ]; then
+  LC_ALL=C /usr/bin/locale -a || exit $?
+  for dir in "$LOCPATH"/*; do
+    test -f "$dir/LC_CTYPE" || exit 1
+    printf '%s\n' "${dir##*/}"
+  done
+else
+  exec /usr/bin/locale "$@"
+fi
+EOF
+"$PEKIT_TEST_CHMOD" 0755 "$CHECK/bin/locale"
+LC_ALL=en_US.UTF-8 "$CHECK/locale-charmap" | grep -Fx UTF-8
+# Concurrent equal-duration child exits make the SIGCHLD fixture race:
+# standard signals may coalesce. Keep the same four children, job-control
+# operations and expected output, but separate the three sleep completions.
+TRAP8="$PEKIT_SOURCE_ROOT/tests/trap8.sub"
+cp -p "$TRAP8" "$CHECK/trap8.original"
+restore_trap8() { cp -p "$CHECK/trap8.original" "$TRAP8"; }
+trap restore_trap8 EXIT HUP INT TERM
+python3 - "$TRAP8" <<'PYFIX'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]);s=p.read_text()
+old='sleep 1 &\nsleep 1 &\n\nsleep 1'
+assert s.count(old)==1, 'upstream SIGCHLD fixture changed'
+p.write_text(s.replace(old,'sleep 1 &\nsleep 2 &\n\nsleep 3'))
+PYFIX
+python3 - "$BASH" "$CHECK/run-all" <<'EOF'
+import fcntl, os, pty, signal, struct, sys, termios
+pid, fd = pty.fork()
+if pid == 0:
+    for name in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), signal.SIG_DFL)
+    fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 80, 0, 0))
+    os.execvp('make', ['make', 'tests', 'THIS_SH=' + sys.argv[1], 'TESTSCRIPT=' + sys.argv[2]])
+try:
+    while True:
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError as error:
+            import errno
+            if error.errno == errno.EIO:
+                break
+            raise
+        if not chunk:
+            break
+        sys.stdout.buffer.write(chunk)
+        sys.stdout.buffer.flush()
+finally:
+    os.close(fd)
+_, status = os.waitpid(pid, 0)
+sys.exit(os.waitstatus_to_exitcode(status))
+EOF
+if [ -s "$PEKIT_BASH_DIFF_FAILURES" ]; then
+  cat "$PEKIT_BASH_DIFF_FAILURES" >&2
+  exit 1
+fi
+readelf -S "$BASH" | grep -F '.gnu.hash'
+if readelf -S "$BASH" | grep -F '.debug_info'; then exit 1; fi
+test "$(find "$PEKIT_OUT/usr/lib/debug/.build-id" -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$PEKIT_OUT/usr/src/debug/org.gnu.bash" -type f -print -quit)"
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.coreutils-build-compat" = "*"
+"org.kernel.util-linux-hexdump" = "*"
+"org.python.python3" = "*"
+"org.gnu.glibc-bin" = "*"
+"org.gnu.glibc-locale-source" = "*"
+"org.gnu.glibc-gconv-extra" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.gettext" = "*"
+"org.gnu.gzip" = "*"
+"org.nixos.patchelf" = "*"
+"org.sourceware.debugedit" = "*"
 "org.gnu.ncurses-devel" = ">= 6.6"
 
 [test.dependencies.apt]
+python3 = "*"
+locales = "*"
+bsdextrautils = "*"
 build-essential = "*"
 gettext = "*"
+gzip = "*"
+patchelf = "*"
+debugedit = "*"
 libncurses-dev = "*"

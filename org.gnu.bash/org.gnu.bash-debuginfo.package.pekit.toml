@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnu.bash-debuginfo"
+description = "GNU Bash debugging symbols"
+
+[dependencies]
+"org.gnu.bash" = "{{version}}-1"
+
+[files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.bash-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,62 @@
+Subject: Keep chmod available to shell PATH-reset fixtures
+Origin: Peios packaging, test-only command prerequisite
+
+Peios provides GNU chmod privately for builds. The fixture must retain its
+controlled PATH while invoking that declared tool by its captured absolute path.
+Modes, command-search assertions and expected output are unchanged.
+
+--- a/tests/exec3.sub
++++ b/tests/exec3.sub
+@@ -71,7 +71,7 @@
+ export v
+ exec ${THIS_SH} </dev/null
+ EOF
+-chmod 755 ./x.sh
++"${PEKIT_TEST_CHMOD:-chmod}" 755 ./x.sh
+ ${THIS_SH} ./x.sh 2>x.output
+ string=$(< x.output)
+ # check for right error message
+--- a/tests/exec6.sub
++++ b/tests/exec6.sub
+@@ -38,7 +38,7 @@
+ echo $?
+ 
+ touch /tmp/notwrite
+-chmod 400 /tmp/notwrite
++"${PEKIT_TEST_CHMOD:-chmod}" 400 /tmp/notwrite
+ 
+ # make sure redirection failures in commands whose exit status is inverted
+ # are handled correctly
+--- a/tests/exec7.sub
++++ b/tests/exec7.sub
+@@ -25,8 +25,8 @@
+ echo 'echo "testa"' > testa/foo
+ echo 'echo "testb"' > testb/foo
+ 
+-chmod 655 testa/foo
+-chmod 755 testb/foo
++"${PEKIT_TEST_CHMOD:-chmod}" 655 testa/foo
++"${PEKIT_TEST_CHMOD:-chmod}" 755 testb/foo
+ 
+ PATH=$TMPDIR/testa:$TMPDIR/testb $THIS_SH -c foo
+ 
+--- a/tests/type5.sub
++++ b/tests/type5.sub
+@@ -23,7 +23,7 @@
+ [ -d "$TDIR" ] || mkdir "$TDIR"
+ cd -P "$TDIR" || exit 1
+ 
+-touch e ; chmod +x e; type -P e; rm -f e
++touch e ; "${PEKIT_TEST_CHMOD:-chmod}" +x e; type -P e; rm -f e
+ 
+ shopt -s expand_aliases
+ 
+@@ -40,7 +40,7 @@
+ 
+ # test with PATH empty and unset
+ realdir=$(pwd -P)
+-touch e ; chmod +x e
++touch e ; "${PEKIT_TEST_CHMOD:-chmod}" +x e
+ 
+ PATH=
+ type -p e

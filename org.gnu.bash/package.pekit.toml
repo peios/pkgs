@@ -1,35 +1,9 @@
+# Shared package-family metadata; the shell alone owns the ish role.
 format = "peipkg"
 
-# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
-# `man -k` and `apropos` find them instead of falling back to a filesystem
-# scan. Top-level, not inside a table -- TOML would otherwise scope it to
-# whichever table precedes it.
-side_effects = ["man-db"]
-
 [package]
-name         = "org.gnu.bash"
-version      = "{{version}}-1"
+version = "{{version}}-1"
 architecture = "x86_64"
-description  = "GNU Bash - the Bourne-Again Shell"
-license      = "GPL-3.0-or-later"
+license = "GPL-3.0-or-later"
 license_class = "free"
-homepage     = "https://www.gnu.org/software/bash/"
-
-# Bash holds the preferred interactive-shell role. Dash remains the separate
-# `sh` provider for POSIX scripts; consumers that explicitly want an
-# interactive shell depend on `ish` and receive /usr/bin/ish.
-[provides]
-
-[claims.provides.ish.usrbin]
-target = "/usr/bin/bash"
-path   = "/usr/bin/ish"
-
-[dependencies]
-"org.gnu.glibc" = ">= 2.43"
-"org.gnu.ncurses-libs" = ">= 6.6"
-
-[files]
-"@source:COPYING"      = "usr/share/licenses/org.gnu.bash/"
-":usr/bin/**"          = "usr/bin"
-":usr/share/locale/**" = "usr/share/locale"
-":usr/share/man/**"    = "usr/share/man"
+homepage = "https://www.gnu.org/software/bash/"
