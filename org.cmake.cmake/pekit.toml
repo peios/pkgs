@@ -24,9 +24,11 @@ BUILD="$PEKIT_OUT/build"
 mkdir -p "$BUILD"
 cd "$BUILD"
 
-CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -fPIE"
-CXXFLAGS_COMMON="$CFLAGS_COMMON"
-LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Remap source strings without hiding physical DWARF paths from debugedit.
+CFLAGS_COMMON="${CFLAGS:?} -fstack-protector-strong -fPIE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
+CXXFLAGS_COMMON="${CXXFLAGS:?} -fstack-protector-strong -fPIE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
+LDFLAGS_COMMON="${LDFLAGS:?} -Wl,-z,ibtplt"
 export CFLAGS="$CFLAGS_COMMON"
 export CXXFLAGS="$CXXFLAGS_COMMON"
 export LDFLAGS="$LDFLAGS_COMMON"
@@ -41,6 +43,12 @@ make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/doc" "$PEKIT_OUT/usr/share/doc"
 
+# The complete upstream reference is installed in share/cmake-*/Help and
+# accessible with --help-manual. Also provide ordinary man(1) CLI references
+# from the exact staged tools, without a bootstrap dependency on Sphinx.
+sh "$PEKIT_RECIPE_ROOT/tools/install-manpages.sh" "$PEKIT_OUT" "$PEKIT_VERSION"
+
+
 # Preserve CMake and every bundled component's redistribution notices with
 # collision-free names. The discovery keeps future bundled-library changes
 # visible in package diffs without a hand-maintained file list.
@@ -54,7 +62,9 @@ find "$SRC/Licenses" "$SRC/Utilities" -type f \
     name=$(printf '%s' "$rel" | tr '/ ' '__')
     install -m 0644 "$notice" "$LICENSEDIR/$name"
   done
-cp -a "$LICENSEDIR" "$PEKIT_OUT/usr/share/licenses/org.cmake.cmake-data"
+for name in org.cmake.cmake-data org.cmake.cmake-debuginfo org.cmake.cmake-debugsource; do
+  cp -a "$LICENSEDIR" "$PEKIT_OUT/usr/share/licenses/$name"
+done
 
 cd "$PEKIT_OUT"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -63,8 +73,10 @@ find usr/bin -type f ! -type l | while IFS= read -r f; do
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
     rest=$(printf %s "$bid" | cut -c3-)
@@ -89,12 +101,14 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.openssl.openssl-devel" = "*"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 libssl-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -114,7 +128,7 @@ cd "$BUILD"
 # probes optional generators, toolchains, networks, and host facilities that
 # intentionally are not part of this bootstrap environment.
 "$BUILD/bin/ctest" -j"$(nproc)" --output-on-failure \
-  -R '^(SystemInformationNew|kwsys\\.|kwiml\\.test|CMake\\.Copyright|CommandLineTest|StringFileTest|MathTest|Simple|COnly|CxxOnly|TryCompile)$'
+  --no-tests=error -R '^(SystemInformationNew|kwsys\..*|kwiml\.test|CMake\.Copyright|CommandLineTest|StringFileTest|MathTest|Simple|COnly|CxxOnly|TryCompile)$'
 
 
 # Exercise and audit the exact installed toolchain after staging.
@@ -150,6 +164,9 @@ grep -F 'CMAKE_USE_OPENSSL:BOOL=ON' "$BUILD/CMakeCache.txt"
 
 # Installed executable hardening and distribution debug split.
 for tool in cmake ctest cpack; do
+  test -s "$PEKIT_OUT/usr/share/man/man1/$tool.1.gz"
+  "$PEKIT_OUT/usr/bin/$tool" --help-manual "$tool(1)" > "$PEKIT_OUT/.manual-check"
+  grep -F "$tool" "$PEKIT_OUT/.manual-check" >/dev/null
   elf="$PEKIT_OUT/usr/bin/$tool"
   readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
@@ -158,6 +175,7 @@ for tool in cmake ctest cpack; do
   if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
 
+rm -f "$PEKIT_OUT/.manual-check"
 rm -rf "$PEKIT_MAIN_OUT/.cmake-smoke" "$PEKIT_MAIN_OUT/build"
 '''
 
@@ -166,9 +184,11 @@ rm -rf "$PEKIT_MAIN_OUT/.cmake-smoke" "$PEKIT_MAIN_OUT/build"
 "org.openssl.openssl-devel" = "*"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
 libssl-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"

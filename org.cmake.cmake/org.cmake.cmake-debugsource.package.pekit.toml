@@ -7,3 +7,5 @@ description = "CMake - debug sources"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"
+
+":usr/share/licenses/org.cmake.cmake-debugsource/**" = "usr/share/licenses/org.cmake.cmake-debugsource"

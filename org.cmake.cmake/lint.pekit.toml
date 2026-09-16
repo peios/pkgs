@@ -1,0 +1,38 @@
+# Upstream resources are addressed by their public CMake names; changing them
+# would break the installed help and foreign-toolchain generation interfaces.
+[allow_files."payload.filenames"]
+"usr/share/cmake-*/Help/generator/Borland Makefiles.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Eclipse CDT4.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Green Hills MULTI.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/MSYS Makefiles.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/MinGW Makefiles.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/NMake Makefiles JOM.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/NMake Makefiles.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Ninja Multi-Config.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Sublime Text 2.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Unix Makefiles.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 10 2010.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 11 2012.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 12 2013.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 14 2015.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 15 2017.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 16 2019.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 17 2022.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 18 2026.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 6.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 7 .NET 2003.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 7.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 8 2005.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Visual Studio 9 2008.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+"usr/share/cmake-*/Help/generator/Watcom WMake.rst" = "Upstream generator help filename matches its public generator name; retain it for --help lookup"
+
+[allow_files."payload.scripts"]
+"usr/share/cmake-*/Modules/CompilerId/GHS_default.gpj.in" = "Green Hills project-file template consumed by CMake, not a host-executable script"
+"usr/share/cmake-*/Modules/CompilerId/GHS_lib.gpj.in" = "Green Hills project-file template consumed by CMake, not a host-executable script"
+"usr/share/cmake-*/Modules/Platform/AIX/ExportImportList" = "Upstream AIX-only helper uses that platform's shell dialect; Linux shell syntax does not apply"
+
+[allow_files."split.devel.packages"]
+"usr/bin/cmake" = "The cmake executable is the main product, not a library's development metadata"
+"usr/share/bash-completion/completions/cmake" = "Command completion belongs with CMake's runtime data"
+"usr/share/cmake-*/Help/manual/cmake/version-schema.json" = "Installed CMake manual schema belongs with its runtime help"
+"usr/share/aclocal/cmake.m4" = "CMake's Autoconf integration is part of the build tool's data package, not a separate library interface"

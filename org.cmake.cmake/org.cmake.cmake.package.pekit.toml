@@ -1,6 +1,8 @@
 # CMake's executable tools. Architecture-independent modules and editor
 # integration live in the exact-version data package.
 
+side_effects = ["man-db"]
+
 [package]
 name        = "org.cmake.cmake"
 description = "Cross-platform build-system generator"
@@ -13,3 +15,5 @@ description = "Cross-platform build-system generator"
 ":usr/bin/cpack" = "usr/bin/cpack"
 ":usr/bin/ctest" = "usr/bin/ctest"
 ":usr/share/licenses/org.cmake.cmake/**" = "usr/share/licenses/org.cmake.cmake"
+
+":usr/share/man/man1/**" = "usr/share/man/man1"

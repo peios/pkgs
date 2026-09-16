@@ -7,3 +7,5 @@ description = "CMake - debugging symbols"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"
+
+":usr/share/licenses/org.cmake.cmake-debuginfo/**" = "usr/share/licenses/org.cmake.cmake-debuginfo"
