@@ -7,4 +7,5 @@ description = "S-Lang debugging symbols"
 "org.jedsoft.slang-libs" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.jedsoft.slang-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

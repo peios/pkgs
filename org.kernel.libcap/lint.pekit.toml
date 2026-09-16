@@ -1,0 +1,4 @@
+
+# Runtime splits share the family symbol archive.
+[elf]
+debuginfo = "org.kernel.libcap-debuginfo"

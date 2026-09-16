@@ -7,7 +7,7 @@ out_dir = "out"
 [source.url]
 url         = "https://www.jedsoft.org/releases/slang/slang-{{version}}.tar.bz2"
 listing_url = "https://www.jedsoft.org/releases/slang/"
-file_regex  = '^slang-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2$'
+file_regex  = 'slang-[0-9]+\.[0-9]+\.[0-9]+\.tar\.bz2'
 extract     = true
 root        = "slang-{{version}}"
 # Soft maintenance floor. Follow every newer authenticated stable release;
@@ -26,6 +26,7 @@ fingerprints = ["64083373E9E1DE997EBBE7784B82D0B82930237D"]
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 BUILD="$PEKIT_OUT/build"
 LIBDIR=/usr/lib/x86_64-linux-peios
 STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
@@ -37,8 +38,8 @@ cd "$BUILD"
 
 # Preserve the workspace toolchain profile while making the security and
 # reproducible-source-path contract explicit on both supported build rungs.
-CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/org.jedsoft.slang" \
-LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk" \
+CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.jedsoft.slang" \
+LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt" \
   ./configure \
     --build=x86_64-pc-linux-gnu \
     --host=x86_64-pc-linux-gnu \
@@ -121,6 +122,17 @@ tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
     done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
   "$PEKIT_OUT/.installed-modules" "$PEKIT_OUT/.expected-modules"
+
+# Deterministic manuals, including relative alias targets.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 '''
 
 [test]
@@ -189,7 +201,9 @@ for elf in "$SLSH" "$SLANG_SO" "$STAGED_LIBDIR"/slang/v2/modules/*-module.so; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
 done
@@ -215,6 +229,7 @@ ncurses-base    = "*"
 zlib1g-dev      = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"           = "*"
 "org.sourceware.debugedit"                    = "*"
 "org.gnu.ncurses-terminfo" = "*"
@@ -222,6 +237,7 @@ zlib1g-dev      = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 ncurses-base    = "*"

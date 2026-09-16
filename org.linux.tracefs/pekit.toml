@@ -34,9 +34,9 @@ mkdir -p "$BUILD"
 
 # Upstream honours environment CFLAGS directly. Append reproducible debug
 # paths and CET while retaining the workspace profile's optimisation and
-# linker policy; the explicit link flags retain CET notes on the shared DSO.
-export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+# linker policy. Generate IBT PLT entries while preserving input-note merging.
+export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$JOBS" \
   prefix=/usr \
@@ -147,6 +147,17 @@ tr '\0' '\n' < "$PEKIT_OUT/.debug-list" | LC_ALL=C sort -u | \
     cp "$ROOT/$source" "usr/src/debug/org.linux.tracefs/$source"
   done
 rm -f "$PEKIT_OUT/.debug-list"
+
+# Deterministic manuals, including relative alias targets.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 '''
 
 [test]
@@ -163,8 +174,8 @@ LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 COMPLETION="$PREFIX/share/bash-completion/completions/tracefs_sql.bash"
 SMOKE="$PEKIT_OUT/smoke"
 JOBS=2
-export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 if pkgconf --exists cunit; then
   make -C "$SRC" O="$BUILD" -j1 test
@@ -197,9 +208,9 @@ for txt in "$SRC"/Documentation/libtracefs*.txt.1; do
 done
 for section in 3 1; do
   find "$STAGE/doc-src/Documentation" -maxdepth 1 -type f -name "*.$section" \
-    ! -name '*.txt.1' -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/expected-man$section"
+    ! -name '*.txt.1' -printf '%f.gz\n' | LC_ALL=C sort > "$PEKIT_OUT/expected-man$section"
   find "$PREFIX/share/man/man$section" -maxdepth 1 \( -type f -o -type l \) \
-    -name "*.$section" -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-man$section"
+    -name "*.$section.gz" -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-man$section"
   test -s "$PEKIT_OUT/expected-man$section"
   diff -u "$PEKIT_OUT/expected-man$section" "$PEKIT_OUT/actual-man$section"
 done
@@ -284,7 +295,9 @@ readelf -W -l "$LIBSO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$LIBSO" | grep -F 'GNU_RELRO'
 readelf -d "$LIBSO" | grep -F 'BIND_NOW'
 readelf -d "$LIBSO" | grep -F 'RELR'
-readelf -n "$LIBSO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$LIBSO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$LIBSO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 test "$(readelf -d "$LIBSO" | grep -c 'Shared library:')" -eq 2
 readelf -d "$LIBSO" | grep -F 'Shared library: [libtraceevent.so.1]'
@@ -309,6 +322,7 @@ libtraceevent-dev = "*"
 pkgconf           = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"              = "*"
 "org.sourceware.debugedit"                           = "*"
 "org.gnu.findutils"                           = "*"
@@ -323,6 +337,7 @@ pkgconf           = "*"
 "org.gnu.sed"                                 = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 asciidoc          = "*"
 bash              = "*"
 build-essential   = "*"

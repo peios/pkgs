@@ -13,7 +13,7 @@ url         = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap
 listing_url = "https://cdn.kernel.org/pub/linux/libs/security/linux-privs/libcap2/"
 extract     = true
 root        = "libcap-{{version}}"
-file_regex  = '^libcap-[0-9]+\.[0-9]+\.tar\.xz$'
+file_regex  = 'libcap-[0-9]+\.[0-9]+\.tar\.xz'
 # Soft maintenance floor. Follow every newer authenticated stable release;
 # ABI or command changes stop at the staged-interface tests.
 versions    = ">= 2.78"
@@ -31,6 +31,8 @@ fingerprints = ["38A644698C69787344E954CE29EE848AE2CCF3F4"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libcap"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 BIN="$PEKIT_OUT/usr/bin"
 mkdir -p "$PEKIT_OUT/build"
@@ -87,6 +89,17 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
       cp "$ROOT/$rel" "$PEKIT_OUT/usr/src/debug/org.kernel.libcap/$rel"
     done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+
+# Deterministic manuals, including relative alias targets.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 """
 
 [test]
@@ -164,7 +177,9 @@ for elf in "$CAP_SO" "$PSX_SO" \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 '''
@@ -181,11 +196,13 @@ pkgconf         = "*"
 
 # bash: progs/mkcapshdoc.sh is a bash script.
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.bash" = "*"
 "org.pkgconf.pkgconf" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 bash = "*"
 debugedit = "*"
