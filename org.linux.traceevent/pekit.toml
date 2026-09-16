@@ -54,6 +54,7 @@ make -C "$SRC" O="$BUILD" -j1 \
 # its optional GNU source-highlight helper is unavailable. Build documentation
 # from a private copy and render those source blocks as ordinary, complete code
 # listings instead, avoiding that test-only formatter dependency on Peios.
+export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 DOCSRC="$PEKIT_OUT/doc-src"
 mkdir -p "$DOCSRC" "$BUILD/Documentation"
 cp -a "$SRC/Documentation" "$SRC/scripts" "$DOCSRC/"
@@ -95,6 +96,12 @@ make -C "$DOCSRC/Documentation" -j1 \
 make -C "$DOCSRC/Documentation" -j1 \
   obj="$BUILD" EVENT_PARSE_VERSION="$PEKIT_VERSION" \
   XMLTO="$XMLTO_COMPAT" DESTDIR="$PEKIT_OUT" prefix=/usr install
+
+# DocBook XSL versions disagree on whether aliases include their section.
+# Use the section-qualified form expected when man/groff resolves .so paths.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  sed -i -E 's|^\.so ([^/]+\.([1-9]))$|.so man\2/\1|' "$page"
+done
 
 # Peios ships installed manuals compressed.  Use gzip's reproducible mode so
 # the package payload does not inherit build timestamps.

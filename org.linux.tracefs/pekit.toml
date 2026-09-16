@@ -62,6 +62,7 @@ make -C "$SRC" O="$BUILD" -j1 \
 # intentionally separate GNU Coreutils build baseline. Build documentation
 # from a private copy and invoke xsltproc directly through the exact narrow
 # interface expected by upstream's maintained Makefile.
+export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 DOCSRC="$PEKIT_OUT/doc-src"
 mkdir -p "$DOCSRC"
 cp -a "$SRC/Documentation" "$SRC/scripts" "$DOCSRC/"
@@ -147,6 +148,12 @@ tr '\0' '\n' < "$PEKIT_OUT/.debug-list" | LC_ALL=C sort -u | \
     cp "$ROOT/$source" "usr/src/debug/org.linux.tracefs/$source"
   done
 rm -f "$PEKIT_OUT/.debug-list"
+
+# DocBook XSL versions disagree on whether aliases include their section.
+# Use the section-qualified form expected when man/groff resolves .so paths.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  sed -i -E 's|^\.so ([^/]+\.([1-9]))$|.so man\2/\1|' "$page"
+done
 
 # Deterministic manuals, including relative alias targets.
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
