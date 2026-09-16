@@ -79,6 +79,8 @@ gate = true
 command = '''
 set -eu
 STAGE="$PEKIT_MAIN_OUT"
+# Do not silently skip legacy-encoding cases when the converter provider is absent.
+grep -F "our \$conversion_from_euc_cn = 'yes';" "$STAGE/usr/share/texi2any/Texinfo/ModulePath.pm"
 BIN="$STAGE/usr/bin"
 SMOKE="$PEKIT_OUT/smoke"
 mkdir -p "$SMOKE"
@@ -190,6 +192,8 @@ done
 '''
 
 [test.dependencies.peipkg]
+# Gnulib probes EUC-JP before enabling the EUC-CN conversion regression cases.
+"org.gnu.glibc-gconv-extra" = ">= 2.44"
 "org.gnu.tar" = "*"
 "dev.peios.build-essentials-c" = "*"
 "com.darwinsys.file"           = "*"
@@ -208,6 +212,8 @@ locales-all       = "*"
 perl              = "*"
 
 [build.main.dependencies.peipkg]
+# Gnulib probes EUC-JP before enabling the EUC-CN conversion regression cases.
+"org.gnu.glibc-gconv-extra" = ">= 2.44"
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"   = "*"
 "com.darwinsys.file" = "*"
