@@ -32,21 +32,27 @@ set -eu
 SRC="$(pwd -P)"
 cd "$PEKIT_OUT"
 
+# __FILE__ diagnostics use stable debug-source paths. A relative configure
+# invocation keeps CPython's compiled VPATH usable for build-tree discovery
+# without embedding the build farm's absolute directory in libpython.
+ROOT="$(dirname "$(dirname "$PEKIT_OUT")")"
+export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.python.python3"
+REL_SRC=$(realpath --relative-to="$PEKIT_OUT" "$SRC")
+
 # Keep unavailable optional modules deterministic across the Debian reference
 # and Peios-native environments. PEI-725 tracks libffi, SQLite, GDBM and tzdata;
 # PEI-613 tracks Readline. The dependency set below deliberately enables TLS,
 # bzip2, XZ, Zstandard, curses, and UUID support now.
 #
-# Every object is compiled with the workspace's -fcf-protection. Force the
-# linker to retain the matching CET properties: Debian's unmarked startup
-# objects would otherwise make its conservative property merge discard them.
+# Compile with the workspace's -fcf-protection and generate IBT PLT entries.
+# Do not assert compatibility on behalf of unmarked provider startup objects.
 py_cv_module__ctypes=disabled \
 py_cv_module__sqlite3=disabled \
 py_cv_module__dbm=disabled \
 py_cv_module__gdbm=disabled \
 py_cv_module__tkinter=disabled \
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
-"$SRC/configure" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
+"$REL_SRC/configure" \
   --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --with-platlibdir=lib/x86_64-linux-peios \
   --libdir=/usr/lib/x86_64-linux-peios \
@@ -78,6 +84,7 @@ PYTHON="$PEKIT_OUT/usr/bin/python$PYVER"
 rm -rf "$STDLIB/ensurepip" "$STDLIB/idlelib" "$STDLIB/turtledemo" \
   "$STDLIB/tkinter" "$STDLIB/test" "$STDLIB/__phello__"
 rm -f "$STDLIB/turtle.py" "$PEKIT_OUT"/usr/bin/idle3*
+rm -f "$STDLIB"/__pycache__/turtle.*.pyc
 cat > "$STDLIB/EXTERNALLY-MANAGED" <<'EOM'
 [externally-managed]
 Error=This Python is managed by peipkg. /usr is package-owned and verified;
@@ -89,6 +96,95 @@ find "$STDLIB/lib-dynload" -maxdepth 1 -type f \
   \\( -name '_test*.so' -o -name '_ctypes_test*.so' \
      -o -name '_xxtestfuzz*.so' -o -name 'xxlimited*.so' \
      -o -name 'xxsubtype*.so' \\) -delete
+
+
+# Every public command owns a compressed manual, including the SDK query tool.
+MAN="$PEKIT_OUT/usr/share/man/man1"
+cat > "$MAN/pydoc3.1" <<'MAN'
+.TH PYDOC3 1 "" "Python" "User Commands"
+.SH NAME
+pydoc3 - display or generate Python documentation
+.SH SYNOPSIS
+.B pydoc3
+.RI [ options ] " name ..."
+.SH DESCRIPTION
+Display documentation for Python modules, packages, objects, keywords or topics.
+A name containing a slash is treated as a Python source path.
+The names keywords, topics and modules list the corresponding available entries.
+Documentation imports Python modules; import-time code runs in this process.
+.SH OPTIONS
+.TP
+.BI "-k " keyword
+Search module synopsis lines.
+.TP
+.BI "-n " hostname
+Bind the documentation HTTP server to this host; the default is localhost.
+.TP
+.BI "-p " port
+Start the HTTP server on this port. Zero chooses an available port.
+.TP
+.B -b
+Start the HTTP server and open a web browser. May be combined with -n and -p.
+.TP
+.B -w
+Write HTML documentation in the current directory. Directory arguments document
+all their contents.
+.SH SEE ALSO
+.BR python3 (1)
+MAN
+cat > "$MAN/python3-config.1" <<'MAN'
+.TH PYTHON3-CONFIG 1 "" "Python" "Development Tools"
+.SH NAME
+python3-config - print Python extension and embedding compiler settings
+.SH SYNOPSIS
+.B python3-config
+.RI [ options ]
+.SH DESCRIPTION
+Print build settings for the installed Python interpreter. Use these settings
+when compiling extension modules or embedding Python in another program.
+.SH OPTIONS
+.TP
+.B --prefix, --exec-prefix
+Print the installation prefix or executable installation prefix.
+.TP
+.B --includes
+Print header search options.
+.TP
+.B --cflags
+Print header search and compiler options.
+.TP
+.B --libs, --ldflags
+Print library options or complete linker options.
+.TP
+.B --embed
+Include the Python embedding library in --libs and --ldflags output.
+.TP
+.B --extension-suffix
+Print the filename suffix for extension modules.
+.TP
+.B --abiflags
+Print interpreter ABI flags.
+.TP
+.B --configdir
+Print the installed build configuration directory.
+.TP
+.B --help
+Print supported options.
+.SH SEE ALSO
+.BR python3 (1)
+MAN
+ln -s pydoc3.1 "$MAN/pydoc$PYVER.1"
+ln -s python3-config.1 "$MAN/python$PYVER-config.1"
+find "$MAN" -type f -exec gzip -n -9 {} +
+find "$MAN" -type l | while IFS= read -r page; do
+  target=$(readlink "$page")
+  rm "$page"
+  ln -s "$target.gz" "$page.gz"
+done
+
+# The optional executable codec entry point must use our concrete interpreter,
+# not an unqualified PATH-dependent python command absent from the package.
+sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/python3|' "$STDLIB/encodings/rot_13.py"
 
 # CPython installs its build/source directory into sysconfig and the developer
 # Makefile. Those paths make extension builds host-specific and disclose the
@@ -107,7 +203,8 @@ for cfg in "$STDLIB"/_sysconfigdata_*.py \
            "$STDLIB/build-details.json" "$CONFIGDIR/Makefile"; do
   [ -f "$cfg" ] || continue
   sed -i -e "s#$SRC#$CANON_CONFIG#g" \
-         -e "s#$PEKIT_OUT#$CANON_CONFIG#g" "$cfg"
+         -e "s#$PEKIT_OUT#$CANON_CONFIG#g" \
+         -e "s#$ROOT#/usr/src/debug/org.python.python3#g" "$cfg"
 done
 export LD_LIBRARY_PATH="$LIBDIR"
 export PYTHONHOME="$PEKIT_OUT/usr"
@@ -182,18 +279,18 @@ STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE"
 JOBS="$(nproc)"
 
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-  TEST_SELECTION=$(LD_LIBRARY_PATH="$BUILD" "$BUILD/python" - <<'PY'
-from test.libregrtest.pgo import PGO_TESTS
-print(' '.join(PGO_TESTS))
-PY
-  )
-else
-  TEST_SELECTION=
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  # Independent libc results determine service prerequisites. Python wrapper
+  # failures must never turn into skips when the libc control succeeds.
+  cc -Wall -Wextra -Werror "$SRC/Lib/test/support/peios_libc_prerequisites.c" \
+    -o "$PEKIT_OUT/peios-libc-prerequisites"
+  export PEKIT_LIBC_PREREQUISITE_PROBE="$PEKIT_OUT/peios-libc-prerequisites"
 fi
+
 cd "$BUILD"
 LD_LIBRARY_PATH="$BUILD" \
-  ./python -m test -j"$JOBS" --timeout=1200 --slowest $TEST_SELECTION
+  ./python -m test -j"$JOBS" --timeout=1200 --slowest --verbose3 \
+    --junit-xml="$PEKIT_OUT/upstream-tests.xml"
 
 set -- "$STAGE"/usr/lib/x86_64-linux-peios/python3.*
 [ "$#" -eq 1 ] && [ -d "$1" ]
@@ -221,7 +318,7 @@ assert sys.version_info[:3] == tuple(map(int, sys.argv[1].split('.')))
 assert sysconfig.get_path('purelib') == sysconfig.get_path('platlib')
 assert sysconfig.get_path('purelib') == (
     f'{sys.prefix}/lib/x86_64-linux-peios/python3.14/site-packages')
-assert ssl.OPENSSL_VERSION.startswith('OpenSSL 3.')
+assert ssl.OPENSSL_VERSION_INFO >= (3, 0, 0)
 assert hashlib.sha256(b'peios').hexdigest()
 assert bz2.decompress(bz2.compress(b'peios')) == b'peios'
 assert lzma.decompress(lzma.compress(b'peios')) == b'peios'
@@ -261,13 +358,17 @@ for elf in "$STAGE/usr/bin/python$PYVER" \
   readelf -dW "$elf" | grep -q '(RELR)'
   ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
   readelf -nW "$elf" | grep -q 'Build ID:'
-  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+  if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+    readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+  fi
 done
 find "$STDLIB/lib-dynload" -type f -name '*.so' | while IFS= read -r elf; do
   readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
   ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
   readelf -nW "$elf" | grep -q 'Build ID:'
-  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+  if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+    readelf -nW "$elf" | grep -q 'IBT, SHSTK'
+  fi
 done
 '''
 
@@ -296,6 +397,8 @@ liblzma-dev     = "*"
 libzstd-dev     = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.coreutils-build-compat" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"                 = "*"
 "org.sourceware.debugedit"                         = "*"
 "org.pkgconf.pkgconf"             = "*"
@@ -309,6 +412,8 @@ libzstd-dev     = "*"
 "com.facebook.zstd-devel"                        = "*"
 
 [build.main.dependencies.apt]
+coreutils = "*"
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 pkgconf         = "*"

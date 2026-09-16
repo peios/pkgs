@@ -1,3 +1,5 @@
+side_effects = ["man-db"]
+
 [package]
 name        = "org.python.python3-devel"
 description = "Python 3 headers, embedding library and build metadata"
@@ -15,3 +17,5 @@ description = "Python 3 headers, embedding library and build metadata"
 ":usr/lib/x86_64-linux-peios/libpython3.14.so" = "usr/lib/x86_64-linux-peios/libpython3.14.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
 ":python-devel/usr/lib/x86_64-linux-peios/python3.14/**" = "usr/lib/x86_64-linux-peios/python3.14"
+
+":usr/share/man/man1/python*-config.1.gz" = "usr/share/man/man1"

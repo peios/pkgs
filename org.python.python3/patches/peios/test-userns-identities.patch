@@ -1,0 +1,76 @@
+Description: Require representable Linux user-namespace identities in ownership tests
+Origin: vendor, Peios
+Forwarded: not-needed; package worker uses a single-ID user namespace
+
+--- a/Lib/test/support/os_helper.py
++++ b/Lib/test/support/os_helper.py
+@@ -841,3 +841,20 @@
+                     DDD_REMOVE_DEFINITION | DDD_EXACT_MATCH_ON_REMOVE,
+                     drive, path):
+                 raise ctypes.WinError(ctypes.get_last_error())
++
++
++def require_mapped_id(kind, ident):
++    """Skip an identity-changing test only when Linux cannot represent its ID.
++
++    A single-ID user namespace reports EINVAL, not EPERM, for unmapped IDs.
++    Other permission errors and mapped-ID operations retain upstream assertions.
++    """
++    if kind not in ('uid', 'gid'):
++        raise ValueError(kind)
++    try:
++        with open('/proc/self/' + kind + '_map', encoding='ascii') as stream:
++            ranges = [tuple(map(int, line.split())) for line in stream]
++    except FileNotFoundError:
++        return  # Non-Linux hosts have no Linux user-namespace identity map.
++    if not any(start <= ident < start + count for start, outside, count in ranges):
++        raise unittest.SkipTest(f'{kind} {ident} is outside the Linux user namespace map')
+--- a/Lib/test/test_os.py
++++ b/Lib/test/test_os.py
+@@ -2061,6 +2061,8 @@
+             self.skipTest("test needs at least 2 groups")
+ 
+         gid_1, gid_2 = groups[:2]
++        os_helper.require_mapped_id('gid', gid_1)
++        os_helper.require_mapped_id('gid', gid_2)
+         uid = os.stat(os_helper.TESTFN).st_uid
+ 
+         os.chown(os_helper.TESTFN, uid, gid_1)
+@@ -2075,6 +2077,8 @@
+                          "test needs root privilege and more than one user")
+     def test_chown_with_root(self):
+         uid_1, uid_2 = all_users[:2]
++        os_helper.require_mapped_id('uid', uid_1)
++        os_helper.require_mapped_id('uid', uid_2)
+         gid = os.stat(os_helper.TESTFN).st_gid
+         os.chown(os_helper.TESTFN, uid_1, gid)
+         uid = os.stat(os_helper.TESTFN).st_uid
+@@ -2087,6 +2091,8 @@
+                          "test needs non-root account and more than one user")
+     def test_chown_without_permission(self):
+         uid_1, uid_2 = all_users[:2]
++        os_helper.require_mapped_id('uid', uid_1)
++        os_helper.require_mapped_id('uid', uid_2)
+         gid = os.stat(os_helper.TESTFN).st_gid
+         with self.assertRaises(PermissionError):
+             os.chown(os_helper.TESTFN, uid_1, gid)
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -2230,6 +2230,8 @@
+             # posix_spawn() may be used with close_fds=False
+             for close_fds in (False, True):
+                 with self.subTest(user=user, close_fds=close_fds):
++                    user_uid = pwd.getpwnam(user).pw_uid if isinstance(user, str) else user
++                    os_helper.require_mapped_id('uid', user_uid)
+                     try:
+                         output = subprocess.check_output(
+                                 [sys.executable, "-c",
+@@ -2278,6 +2280,8 @@
+             # posix_spawn() may be used with close_fds=False
+             for close_fds in (False, True):
+                 with self.subTest(group=group, close_fds=close_fds):
++                    group_gid = grp.getgrnam(group).gr_gid if isinstance(group, str) else group
++                    os_helper.require_mapped_id('gid', group_gid)
+                     try:
+                         output = subprocess.check_output(
+                                 [sys.executable, "-c",

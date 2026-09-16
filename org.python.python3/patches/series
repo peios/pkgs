@@ -2,3 +2,5 @@
 # materialisation ([source].patches in pekit.toml).
 peios/platform-triplet.patch  # PEIOS-DIVERGENCE(triplet): configure + configure.ac accept x86_64-linux-peios
 peios/purelib-is-platlib.patch  # PEIOS-DIVERGENCE(purelib): purelib = platlib, one site-packages
+peios/test-userns-identities.patch  # Test prerequisites: representable Linux user-namespace identities
+peios/test-offline-services.patch  # Test prerequisites: resolver/account services; loopback transports

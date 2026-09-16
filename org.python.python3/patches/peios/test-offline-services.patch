@@ -1,0 +1,1421 @@
+Description: Preserve interpreter tests in offline Peios workers without resolver or account services
+Origin: vendor, Peios; CPython 3.14.7 release source
+Forwarded: not-needed; Peios authority-service and package-worker integration
+Upstream-Source: https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz
+Upstream-SHA256: 3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81
+
+Use numeric loopback for transport fixtures while retaining distinct TLS peer
+identities. Assertions that require actual hostname/account authority records
+check those precise prerequisites; all other tests remain enabled. No runtime
+resolver or account implementation is replaced or mocked.
+
+--- a/Lib/test/_test_multiprocessing.py
++++ b/Lib/test/_test_multiprocessing.py
+@@ -3856,7 +3856,7 @@
+ 
+     def test_multiple_bind(self):
+         for family in self.connection.families:
+-            l = self.connection.Listener(family=family)
++            l = self.connection.Listener(address=(socket_helper.HOST, 0) if family == "AF_INET" else None, family=family)
+             self.addCleanup(l.close)
+             self.assertRaises(OSError, self.connection.Listener,
+                               l.address, family)
+@@ -3920,7 +3920,7 @@
+ 
+     def test_listener_client(self):
+         for family in self.connection.families:
+-            l = self.connection.Listener(family=family)
++            l = self.connection.Listener(address=(socket_helper.HOST, 0) if family == "AF_INET" else None, family=family)
+             p = self.Process(target=self._test, args=(l.address,))
+             p.daemon = True
+             p.start()
+@@ -3947,7 +3947,7 @@
+ 
+     def test_issue16955(self):
+         for fam in self.connection.families:
+-            l = self.connection.Listener(family=fam)
++            l = self.connection.Listener(address=(socket_helper.HOST, 0) if fam == "AF_INET" else None, family=fam)
+             c = self.connection.Client(l.address)
+             a = l.accept()
+             a.send_bytes(b"hello")
+@@ -4052,7 +4052,7 @@
+     @classmethod
+     def _listener(cls, conn, families):
+         for fam in families:
+-            l = cls.connection.Listener(family=fam)
++            l = cls.connection.Listener(address=(socket_helper.HOST, 0) if fam == "AF_INET" else None, family=fam)
+             conn.send(l.address)
+             new_conn = l.accept()
+             conn.send(new_conn)
+@@ -5675,7 +5675,7 @@
+         try:
+             socket.setdefaulttimeout(0.1)
+             parent, child = multiprocessing.Pipe(duplex=True)
+-            l = multiprocessing.connection.Listener(family='AF_INET')
++            l = multiprocessing.connection.Listener((socket_helper.HOST, 0), family='AF_INET')
+             p = multiprocessing.Process(target=self._test_timeout,
+                                         args=(child, l.address))
+             p.start()
+--- /dev/null
++++ b/Lib/test/support/_peios_prerequisites.py
+@@ -0,0 +1,25 @@
++"""Independent libc controls for Peios offline package-test prerequisites."""
++import os
++import subprocess
++import unittest
++
++# Some upstream cases deliberately clear the environment. Capture policy and
++# the compiled control path before they do so; never infer absence from Python.
++NATIVE_WORKER = os.environ.get("PEKIT_NATIVE_ROOT") == "1"
++LIBC_PROBE = os.environ.get("PEKIT_LIBC_PREREQUISITE_PROBE")
++
++
++def require_libc_prerequisite(feature, *args):
++    if not NATIVE_WORKER:
++        return
++    if not LIBC_PROBE or not os.path.isabs(LIBC_PROBE):
++        raise RuntimeError("native test worker is missing its direct-libc control")
++    result = subprocess.run([LIBC_PROBE, feature, *map(str, args)],
++                            capture_output=True, text=True, timeout=10)
++    evidence = (result.stdout + result.stderr).strip()
++    if result.returncode == 77:
++        raise unittest.SkipTest(
++            f"Peios offline worker lacks libc {feature} prerequisite: {evidence}"
++        )
++    if result.returncode != 0:
++        raise RuntimeError(f"libc prerequisite control failed ({result.returncode}): {evidence}")
+--- a/Lib/test/support/os_helper.py
++++ b/Lib/test/support/os_helper.py
+@@ -12,6 +12,7 @@
+ import warnings
+ 
+ from test import support
++from test.support._peios_prerequisites import require_libc_prerequisite
+ 
+ 
+ # Filename used for testing
+@@ -858,3 +859,15 @@
+         return  # Non-Linux hosts have no Linux user-namespace identity map.
+     if not any(start <= ident < start + count for start, outside, count in ranges):
+         raise unittest.SkipTest(f'{kind} {ident} is outside the Linux user namespace map')
++
++
++def require_passwd_entry(uid):
++    require_libc_prerequisite("passwd", uid)
++
++
++def require_group_entry(gid):
++    require_libc_prerequisite("group", gid)
++
++
++def require_cgi_account():
++    require_libc_prerequisite("cgi")
+--- /dev/null
++++ b/Lib/test/support/peios_libc_prerequisites.c
+@@ -0,0 +1,90 @@
++#define _GNU_SOURCE
++#include <arpa/inet.h>
++#include <errno.h>
++#include <grp.h>
++#include <netdb.h>
++#include <pwd.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/types.h>
++#include <unistd.h>
++#include <dlfcn.h>
++
++static int missing_resolver_bridge(void) {
++    /* The native glibc contract fixes hosts to peios_net. This particular
++       offline root has neither its NSS bridge nor the authority endpoint.
++       Require all three independent absence checks for the loader-error case. */
++    errno = 0;
++    void *bridge = dlopen("libnss_peios_net.so.2", RTLD_NOW | RTLD_LOCAL);
++    int loader_error = errno;
++    if (bridge) { dlclose(bridge); return 0; }
++    const char *loader_message = dlerror();
++    printf("NSS bridge loader errno=%d error=%s\n", loader_error,
++           loader_message ? loader_message : "(none)");
++    errno = 0;
++    int module_missing = access("/usr/lib/x86_64-linux-peios/libnss_peios_net.so.2", F_OK) < 0 && errno == ENOENT;
++    errno = 0;
++    int endpoint_missing = access("/run/resolvd/resolv.sock", F_OK) < 0 && errno == ENOENT;
++    printf("NSS bridge path missing=%d resolver endpoint missing=%d\n", module_missing, endpoint_missing);
++    return loader_message != NULL
++        && strcmp(loader_message, "libnss_peios_net.so.2: cannot open shared object file: No such file or directory") == 0
++        && module_missing && endpoint_missing;
++}
++
++int main(int argc, char **argv) {
++    if (argc < 2) return 2;
++    errno = 0;
++    if (!strcmp(argv[1], "hostname")) {
++        struct addrinfo *result = NULL;
++        struct addrinfo hints = {0};
++        int status = getaddrinfo("localhost", "0", &hints, &result);
++        int error = errno;
++        printf("getaddrinfo status=%d errno=%d\n", status, error);
++        if (!status) { freeaddrinfo(result); return 0; }
++        if (status == EAI_NONAME || status == EAI_NODATA) return 77;
++        if (status == EAI_SYSTEM && error == EBUSY && missing_resolver_bridge()) return 77;
++        return 1;
++    }
++    if (!strcmp(argv[1], "reverse")) {
++        struct in_addr address;
++        if (inet_pton(AF_INET, "127.0.0.1", &address) != 1) return 1;
++        struct hostent *result = gethostbyaddr(&address, sizeof(address), AF_INET);
++        int error = errno, host_error = h_errno;
++        printf("gethostbyaddr available=%d h_errno=%d errno=%d\n", result != NULL, host_error, error);
++        if (result) return 0;
++        if (host_error == HOST_NOT_FOUND || host_error == NO_DATA) return 77;
++        if (host_error == NO_RECOVERY && error == ENOENT && missing_resolver_bridge()) return 77;
++        return 1;
++    }
++    if (!strcmp(argv[1], "passwd") && argc == 3) {
++        struct passwd *result = getpwuid((uid_t)strtoul(argv[2], NULL, 10));
++        int error = errno;
++        printf("getpwuid available=%d errno=%d\n", result != NULL, error);
++        if (result) return 0;
++        return error == 0 || error == ENOENT || error == ESRCH ? 77 : 1;
++    }
++    if (!strcmp(argv[1], "group") && argc == 3) {
++        struct group *result = getgrgid((gid_t)strtoul(argv[2], NULL, 10));
++        int error = errno;
++        printf("getgrgid available=%d errno=%d\n", result != NULL, error);
++        if (result) return 0;
++        return error == 0 || error == ENOENT || error == ESRCH ? 77 : 1;
++    }
++    if (!strcmp(argv[1], "cgi")) {
++        struct passwd *result = getpwnam("nobody");
++        int error = errno;
++        printf("getpwnam nobody available=%d errno=%d\n", result != NULL, error);
++        if (result) return 0;
++        if (error != 0 && error != ENOENT && error != ESRCH) return 1;
++        errno = 0;
++        setpwent();
++        result = getpwent();
++        error = errno;
++        printf("getpwent available=%d errno=%d\n", result != NULL, error);
++        endpwent();
++        if (result) return 0;
++        return error == 0 || error == ENOENT || error == ESRCH ? 77 : 1;
++    }
++    return 2;
++}
+--- a/Lib/test/support/socket_helper.py
++++ b/Lib/test/support/socket_helper.py
+@@ -8,8 +8,9 @@
+ import unittest
+ 
+ from .. import support
+-
+-HOST = "localhost"
++from ._peios_prerequisites import NATIVE_WORKER, require_libc_prerequisite
++
++HOST = "127.0.0.1" if NATIVE_WORKER else "localhost"
+ HOSTv4 = "127.0.0.1"
+ HOSTv6 = "::1"
+ 
+@@ -341,3 +342,7 @@
+         "TCP blackhole is enabled (sysctl net.inet.tcp.blackhole)"
+     )
+     return skip_if(test)
++
++
++def require_localhost_resolution(*, reverse=False):
++    require_libc_prerequisite("reverse" if reverse else "hostname")
+--- a/Lib/test/test_asyncio/test_events.py
++++ b/Lib/test/test_asyncio/test_events.py
+@@ -807,7 +807,7 @@
+ 
+         f = self.loop.create_connection(
+             lambda: MyProto(loop=self.loop),
+-            'localhost', port1, local_addr=('localhost', port2))
++            socket_helper.HOST, port1, local_addr=(socket_helper.HOST, port2))
+ 
+         with self.assertRaises(OSError):
+             self.loop.run_until_complete(f)
+@@ -828,7 +828,7 @@
+ 
+         f = self.loop.create_connection(
+             lambda: MyProto(loop=self.loop),
+-            'localhost', port1, local_addr=('localhost', port2))
++            socket_helper.HOST, port1, local_addr=(socket_helper.HOST, port2))
+ 
+         with self.assertRaises(OSError):
+             self.loop.run_until_complete(f)
+--- a/Lib/test/test_asyncio/test_streams.py
++++ b/Lib/test/test_asyncio/test_streams.py
+@@ -969,7 +969,7 @@
+ 
+         def server():
+             # Runs in a separate thread.
+-            with socket.create_server(('localhost', 0)) as sock:
++            with socket.create_server((socket_helper.HOST, 0)) as sock:
+                 addr = sock.getsockname()
+                 q.put(addr)
+                 clt, _ = sock.accept()
+@@ -1236,7 +1236,7 @@
+         self.loop.set_exception_handler(lambda loop, ctx: messages.append(ctx))
+ 
+         async def client():
+-            rd, wr = await asyncio.open_connection('localhost', port)
++            rd, wr = await asyncio.open_connection(socket_helper.HOST, port)
+             wr.write(b'test msg')
+             await wr.drain()
+             wr.close()
+@@ -1244,7 +1244,7 @@
+ 
+         async def main():
+             server = await asyncio.start_server(
+-                handle_echo, 'localhost', port)
++                handle_echo, socket_helper.HOST, port)
+             await server.start_serving()
+             await client()
+             server.close()
+@@ -1273,7 +1273,7 @@
+             exc = None
+             try:
+                 await asyncio.open_connection(
+-                    host="localhost",
++                    host=socket_helper.HOST,
+                     port=port,
+                     happy_eyeballs_delay=0.25,
+                 )
+--- a/Lib/test/test_docxmlrpc.py
++++ b/Lib/test/test_docxmlrpc.py
+@@ -23,7 +23,7 @@
+ 
+ 
+ def make_server():
+-    serv = DocXMLRPCServer(("localhost", 0), logRequests=False)
++    serv = DocXMLRPCServer(("127.0.0.1", 0), logRequests=False)
+ 
+     try:
+         # Add some documentation
+@@ -77,7 +77,7 @@
+         self.thread.start()
+ 
+         PORT = self.serv.server_address[1]
+-        self.client = http.client.HTTPConnection("localhost:%d" % PORT)
++        self.client = http.client.HTTPConnection("127.0.0.1:%d" % PORT)
+ 
+     def tearDown(self):
+         self.client.close()
+--- a/Lib/test/test_external_inspection.py
++++ b/Lib/test/test_external_inspection.py
+@@ -79,7 +79,7 @@
+             import time, sys, socket, threading
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             def bar():
+                 for x in range(100):
+@@ -105,7 +105,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+ 
+@@ -209,7 +209,7 @@
+             import socket
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             def c5():
+                 sock.sendall(b"ready"); time.sleep(10_000)  # same line number
+@@ -257,7 +257,7 @@
+                 server_socket.setsockopt(
+                     socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
+                 )
+-                server_socket.bind(("localhost", port))
++                server_socket.bind(("127.0.0.1", port))
+                 server_socket.settimeout(SHORT_TIMEOUT)
+                 server_socket.listen(1)
+                 script_name = _make_test_script(
+@@ -457,7 +457,7 @@
+             import socket
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             async def gen_nested_call():
+                 sock.sendall(b"ready"); time.sleep(10_000)  # same line number
+@@ -482,7 +482,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+             script_name = _make_test_script(script_dir, "script", script)
+@@ -545,7 +545,7 @@
+             import socket
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             async def deep():
+                 await asyncio.sleep(0)
+@@ -571,7 +571,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+             script_name = _make_test_script(script_dir, "script", script)
+@@ -678,7 +678,7 @@
+             import socket
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             async def deep():
+                 await asyncio.sleep(0)
+@@ -707,7 +707,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+             script_name = _make_test_script(script_dir, "script", script)
+@@ -841,7 +841,7 @@
+ 
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             class EchoServerProtocol(asyncio.Protocol):
+                 def connection_made(self, transport):
+@@ -900,7 +900,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+             script_name = _make_test_script(script_dir, "script", script)
+@@ -1169,7 +1169,7 @@
+ 
+             # Connect to the test process
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            sock.connect(('localhost', {port}))
++            sock.connect(('127.0.0.1', {port}))
+ 
+             def worker_thread(name, barrier, ready_event):
+                 barrier.wait()  # Synchronize thread start
+@@ -1220,7 +1220,7 @@
+             # Create a socket server to communicate with the target process
+             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-            server_socket.bind(("localhost", port))
++            server_socket.bind(("127.0.0.1", port))
+             server_socket.settimeout(SHORT_TIMEOUT)
+             server_socket.listen(1)
+ 
+--- a/Lib/test/test_httplib.py
++++ b/Lib/test/test_httplib.py
+@@ -2204,6 +2204,7 @@
+ 
+     def test_local_unknown_cert(self):
+         # The custom cert isn't known to the default trust bundle
++        socket_helper.require_localhost_resolution()
+         import ssl
+         server = self.make_server(CERT_localhost)
+         h = client.HTTPSConnection('localhost', server.port)
+@@ -2213,6 +2214,7 @@
+ 
+     def test_local_good_hostname(self):
+         # The (valid) cert validates the HTTPS hostname
++        socket_helper.require_localhost_resolution()
+         import ssl
+         server = self.make_server(CERT_localhost)
+         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+@@ -2226,6 +2228,7 @@
+ 
+     def test_local_bad_hostname(self):
+         # The (valid) cert doesn't validate the HTTPS hostname
++        socket_helper.require_localhost_resolution()
+         import ssl
+         server = self.make_server(CERT_fakehostname)
+         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+--- a/Lib/test/test_httpservers.py
++++ b/Lib/test/test_httpservers.py
+@@ -1,3 +1,4 @@
++from test.support import socket_helper
+ """Unittests for the various HTTPServer modules.
+ 
+ Written by Cody A.W. Somerville <cody-somerville@ubuntu.com>,
+@@ -60,7 +61,7 @@
+     keyfile=None,
+     password=None,
+     *,
+-    address=('localhost', 0),
++    address=(socket_helper.HOST, 0),
+     request_handler=DummyRequestHandler,
+ ):
+     return HTTPSServer(
+@@ -93,7 +94,7 @@
+                 request_handler=self.request_handler,
+             )
+         else:
+-            self.server = HTTPServer(('localhost', 0), self.request_handler)
++            self.server = HTTPServer((socket_helper.HOST, 0), self.request_handler)
+         self.test_object.HOST, self.test_object.PORT = self.server.socket.getsockname()
+         self.test_object.server_started.set()
+         self.test_object = None
+@@ -1108,6 +1109,7 @@
+                                  (path, actual, expected))
+ 
+     def test_headers_and_content(self):
++        os_helper.require_cgi_account()
+         res = self.request('/cgi-bin/file1.py')
+         self.assertEqual(
+             (res.read(), res.getheader('Content-type'), res.status),
+@@ -1118,6 +1120,7 @@
+         self.assertEqual(res.status, HTTPStatus.NOT_FOUND)
+ 
+     def test_post(self):
++        os_helper.require_cgi_account()
+         params = urllib.parse.urlencode(
+             {'spam' : 1, 'eggs' : 'python', 'bacon' : 123456})
+         headers = {'Content-type' : 'application/x-www-form-urlencoded'}
+@@ -1126,6 +1129,7 @@
+         self.assertEqual(res.read(), b'1, python, 123456' + self.linesep)
+ 
+     def test_large_content_length(self):
++        os_helper.require_cgi_account()
+         for w in range(15, 25):
+             size = 1 << w
+             body = b'X' * size
+@@ -1134,6 +1138,7 @@
+             self.assertEqual(res.read(), b'%d %d' % (size, size) + self.linesep)
+ 
+     def test_large_content_length_truncated(self):
++        os_helper.require_cgi_account()
+         with support.swap_attr(self.request_handler, 'timeout', 0.001):
+             for w in range(18, 65):
+                 size = 1 << w
+@@ -1147,6 +1152,7 @@
+         self.assertEqual(res.status, HTTPStatus.NOT_FOUND)
+ 
+     def test_authorization(self):
++        os_helper.require_cgi_account()
+         headers = {b'Authorization' : b'Basic ' +
+                    base64.b64encode(b'username:pass')}
+         res = self.request('/cgi-bin/file1.py', 'GET', headers=headers)
+@@ -1156,12 +1162,14 @@
+ 
+     def test_no_leading_slash(self):
+         # http://bugs.python.org/issue2254
++        os_helper.require_cgi_account()
+         res = self.request('cgi-bin/file1.py')
+         self.assertEqual(
+             (b'Hello World' + self.linesep, 'text/html', HTTPStatus.OK),
+             (res.read(), res.getheader('Content-type'), res.status))
+ 
+     def test_os_environ_is_not_altered(self):
++        os_helper.require_cgi_account()
+         signature = "Test CGI Server"
+         os.environ['SERVER_SOFTWARE'] = signature
+         res = self.request('/cgi-bin/file1.py')
+@@ -1171,24 +1179,28 @@
+         self.assertEqual(os.environ['SERVER_SOFTWARE'], signature)
+ 
+     def test_urlquote_decoding_in_cgi_check(self):
++        os_helper.require_cgi_account()
+         res = self.request('/cgi-bin%2ffile1.py')
+         self.assertEqual(
+             (b'Hello World' + self.linesep, 'text/html', HTTPStatus.OK),
+             (res.read(), res.getheader('Content-type'), res.status))
+ 
+     def test_nested_cgi_path_issue21323(self):
++        os_helper.require_cgi_account()
+         res = self.request('/cgi-bin/child-dir/file3.py')
+         self.assertEqual(
+             (b'Hello World' + self.linesep, 'text/html', HTTPStatus.OK),
+             (res.read(), res.getheader('Content-type'), res.status))
+ 
+     def test_query_with_multiple_question_mark(self):
++        os_helper.require_cgi_account()
+         res = self.request('/cgi-bin/file4.py?a=b?c=d')
+         self.assertEqual(
+             (b'a=b?c=d' + self.linesep, 'text/html', HTTPStatus.OK),
+             (res.read(), res.getheader('Content-type'), res.status))
+ 
+     def test_query_with_continuous_slashes(self):
++        os_helper.require_cgi_account()
+         res = self.request('/cgi-bin/file4.py?k=aa%2F%2Fbb&//q//p//=//a//b//')
+         self.assertEqual(
+             (b'k=aa%2F%2Fbb&//q//p//=//a//b//' + self.linesep,
+@@ -1196,6 +1208,7 @@
+             (res.read(), res.getheader('Content-type'), res.status))
+ 
+     def test_cgi_path_in_sub_directories(self):
++        os_helper.require_cgi_account()
+         try:
+             CGIHTTPRequestHandler.cgi_directories.append('/sub/dir/cgi-bin')
+             res = self.request('/sub/dir/cgi-bin/file5.py')
+@@ -1206,6 +1219,7 @@
+             CGIHTTPRequestHandler.cgi_directories.remove('/sub/dir/cgi-bin')
+ 
+     def test_accept(self):
++        os_helper.require_cgi_account()
+         browser_accept = \
+                     'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+         tests = (
+@@ -1663,6 +1677,7 @@
+ 
+     @mock.patch('builtins.print')
+     def test_server_test_localhost(self, _):
++        socket_helper.require_localhost_resolution()
+         mock_server = self.mock_server_class()
+         server.test(ServerClass=mock_server, bind="localhost")
+         self.assertIn(
+--- a/Lib/test/test_imaplib.py
++++ b/Lib/test/test_imaplib.py
+@@ -748,7 +748,7 @@
+         _, server = self._setup(TimeoutHandler)
+         addr = server.server_address[1]
+         with self.assertRaises(TimeoutError):
+-            client = self.imap_class("localhost", addr, timeout=0.001)
++            client = self.imap_class(socket_helper.HOST, addr, timeout=0.001)
+ 
+     def test_with_statement(self):
+         _, server = self._setup(SimpleIMAPHandler, connect=False)
+@@ -1870,6 +1870,7 @@
+         ssl_context.load_verify_locations(CAFILE)
+ 
+         _, server = self._setup(SimpleIMAPHandler, connect=False)
++        socket_helper.require_localhost_resolution()
+         client = self.imap_class("localhost", server.server_address[1],
+                                  ssl_context=ssl_context)
+         client.shutdown()
+@@ -2282,6 +2283,7 @@
+                 client.shutdown()
+ 
+         with self.reaped_server(SimpleIMAPHandler) as server:
++            socket_helper.require_localhost_resolution()
+             client = self.imap_class("localhost", server.server_address[1],
+                                      ssl_context=ssl_context)
+             client.shutdown()
+--- a/Lib/test/test_logging.py
++++ b/Lib/test/test_logging.py
+@@ -1858,7 +1858,7 @@
+     """Test for SocketHandler objects."""
+ 
+     server_class = TestTCPServer
+-    address = ('localhost', 0)
++    address = (socket_helper.HOST, 0)
+ 
+     def setUp(self):
+         """Set up a TCP server to receive log messages, and a SocketHandler
+@@ -1878,7 +1878,7 @@
+         server.ready.wait()
+         hcls = logging.handlers.SocketHandler
+         if isinstance(server.server_address, tuple):
+-            self.sock_hdlr = hcls('localhost', server.port)
++            self.sock_hdlr = hcls(socket_helper.HOST, server.port)
+         else:
+             self.sock_hdlr = hcls(server.server_address, None)
+         self.log_output = ''
+@@ -1964,7 +1964,7 @@
+     """Test for DatagramHandler."""
+ 
+     server_class = TestUDPServer
+-    address = ('localhost', 0)
++    address = (socket_helper.HOST, 0)
+ 
+     def setUp(self):
+         """Set up a UDP server to receive log messages, and a DatagramHandler
+@@ -1984,7 +1984,7 @@
+         server.ready.wait()
+         hcls = logging.handlers.DatagramHandler
+         if isinstance(server.server_address, tuple):
+-            self.sock_hdlr = hcls('localhost', server.port)
++            self.sock_hdlr = hcls(socket_helper.HOST, server.port)
+         else:
+             self.sock_hdlr = hcls(server.server_address, None)
+         self.log_output = ''
+@@ -2044,7 +2044,7 @@
+     """Test for SysLogHandler using UDP."""
+ 
+     server_class = TestUDPServer
+-    address = ('localhost', 0)
++    address = (socket_helper.HOST, 0)
+ 
+     def setUp(self):
+         """Set up a UDP server to receive log messages, and a SysLogHandler
+@@ -2120,7 +2120,7 @@
+         instance_mock_sock.connect.side_effect = socket.timeout
+ 
+         with self.assertRaises(socket.timeout):
+-            logging.handlers.SysLogHandler(address=('localhost', 514),
++            logging.handlers.SysLogHandler(address=(socket_helper.HOST, 514),
+                                            socktype=socket.SOCK_STREAM,
+                                            timeout=1)
+ 
+@@ -2187,55 +2187,58 @@
+         root_logger = self.root_logger
+         root_logger.removeHandler(self.root_logger.handlers[0])
+         for secure in (False, True):
+-            addr = ('localhost', 0)
+-            if secure:
+-                try:
+-                    import ssl
+-                except ImportError:
++            with self.subTest(secure=secure):
++                if secure:
++                    socket_helper.require_localhost_resolution()
++                addr = (socket_helper.HOST, 0)
++                if secure:
++                    try:
++                        import ssl
++                    except ImportError:
++                        sslctx = None
++                    else:
++                        here = os.path.dirname(__file__)
++                        localhost_cert = os.path.join(here, "certdata", "keycert.pem")
++                        sslctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
++                        sslctx.load_cert_chain(localhost_cert)
++    
++                        context = ssl.create_default_context(cafile=localhost_cert)
++                else:
+                     sslctx = None
+-                else:
+-                    here = os.path.dirname(__file__)
+-                    localhost_cert = os.path.join(here, "certdata", "keycert.pem")
+-                    sslctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+-                    sslctx.load_cert_chain(localhost_cert)
+-
+-                    context = ssl.create_default_context(cafile=localhost_cert)
+-            else:
+-                sslctx = None
+-                context = None
+-            self.server = server = TestHTTPServer(addr, self.handle_request,
+-                                                    0.01, sslctx=sslctx)
+-            server.start()
+-            server.ready.wait()
+-            host = 'localhost:%d' % server.server_port
+-            secure_client = secure and sslctx
+-            self.h_hdlr = logging.handlers.HTTPHandler(host, '/frob',
+-                                                       secure=secure_client,
+-                                                       context=context,
+-                                                       credentials=('foo', 'bar'))
+-            self.log_data = None
+-            root_logger.addHandler(self.h_hdlr)
+-
+-            for method in ('GET', 'POST'):
+-                self.h_hdlr.method = method
+-                self.handled.clear()
+-                msg = "sp\xe4m"
+-                logger.error(msg)
+-                handled = self.handled.wait(support.SHORT_TIMEOUT)
+-                self.assertTrue(handled, "HTTP request timed out")
+-                self.assertEqual(self.log_data.path, '/frob')
+-                self.assertEqual(self.command, method)
+-                if method == 'GET':
+-                    d = parse_qs(self.log_data.query)
+-                else:
+-                    d = parse_qs(self.post_data.decode('utf-8'))
+-                self.assertEqual(d['name'], ['http'])
+-                self.assertEqual(d['funcName'], ['test_output'])
+-                self.assertEqual(d['msg'], [msg])
+-
+-            self.server.stop()
+-            self.root_logger.removeHandler(self.h_hdlr)
+-            self.h_hdlr.close()
++                    context = None
++                self.server = server = TestHTTPServer(addr, self.handle_request,
++                                                        0.01, sslctx=sslctx)
++                server.start()
++                server.ready.wait()
++                host = '%s:%d' % ('localhost' if secure else socket_helper.HOST, server.server_port)
++                secure_client = secure and sslctx
++                self.h_hdlr = logging.handlers.HTTPHandler(host, '/frob',
++                                                           secure=secure_client,
++                                                           context=context,
++                                                           credentials=('foo', 'bar'))
++                self.log_data = None
++                root_logger.addHandler(self.h_hdlr)
++    
++                for method in ('GET', 'POST'):
++                    self.h_hdlr.method = method
++                    self.handled.clear()
++                    msg = "sp\xe4m"
++                    logger.error(msg)
++                    handled = self.handled.wait(support.SHORT_TIMEOUT)
++                    self.assertTrue(handled, "HTTP request timed out")
++                    self.assertEqual(self.log_data.path, '/frob')
++                    self.assertEqual(self.command, method)
++                    if method == 'GET':
++                        d = parse_qs(self.log_data.query)
++                    else:
++                        d = parse_qs(self.post_data.decode('utf-8'))
++                    self.assertEqual(d['name'], ['http'])
++                    self.assertEqual(d['funcName'], ['test_output'])
++                    self.assertEqual(d['msg'], [msg])
++    
++                self.server.stop()
++                self.root_logger.removeHandler(self.h_hdlr)
++                self.h_hdlr.close()
+ 
+ class MemoryTest(BaseTest):
+ 
+@@ -3647,6 +3650,7 @@
+         self.assertEqual(handler.flushLevel, logging.ERROR)
+ 
+     def setup_via_listener(self, text, verify=None):
++        socket_helper.require_localhost_resolution()
+         text = text.encode("utf-8")
+         # Ask for a randomly assigned port (by using port 0)
+         t = logging.config.listen(0, verify)
+@@ -3776,6 +3780,7 @@
+     @support.requires_working_socket()
+     def test_listen_server_error(self):
+         # The "ready" event should be set even if the server fails to start.
++        socket_helper.require_localhost_resolution()
+         t = logging.config.listen(-1)
+         t.daemon = True
+         with threading_helper.catch_threading_exception() as cm:
+--- a/Lib/test/test_pathlib/test_pathlib.py
++++ b/Lib/test/test_pathlib/test_pathlib.py
+@@ -1266,6 +1266,8 @@
+         with os_helper.EnvironmentVarGuard() as env:
+             self._test_home(self.cls.home())
+ 
++            if os.name == 'posix':
++                os_helper.require_passwd_entry(os.getuid())
+             env.clear()
+             env['USERPROFILE'] = os.path.join(self.base, 'userprofile')
+             self._test_home(self.cls.home())
+@@ -3229,6 +3231,7 @@
+                      "no home directory on VxWorks")
+     @needs_posix
+     def test_expanduser_posix(self):
++        os_helper.require_passwd_entry(os.getuid())
+         P = self.cls
+         import_helper.import_module('pwd')
+         import pwd
+--- a/Lib/test/test_poplib.py
++++ b/Lib/test/test_poplib.py
+@@ -415,10 +415,20 @@
+         self.assertEqual(ctx.check_hostname, True)
+         with self.assertRaises(ssl.CertificateError):
+             resp = self.client.stls(context=ctx)
++        # A rejected TLS handshake closes the socket. Restore the plain
++        # numeric transport fixture so tearDown can close a live client.
++        self.client = poplib.POP3(HOST, self.server.port,
++                                  timeout=test_support.LOOPBACK_TIMEOUT)
++
++    @unittest.skipUnless(ssl, 'SSL not available')
++    def test_stls_context_hostname(self):
++        socket_helper.require_localhost_resolution()
++        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
++        ctx.load_verify_locations(CAFILE)
++        self.client.close()
+         self.client = poplib.POP3("localhost", self.server.port,
+                                   timeout=test_support.LOOPBACK_TIMEOUT)
+-        resp = self.client.stls(context=ctx)
+-        self.assertEqual(resp, expected)
++        self.assertEqual(self.client.stls(context=ctx), b'+OK Begin TLS negotiation')
+ 
+ 
+ if SUPPORTS_SSL:
+@@ -465,6 +475,7 @@
+         self.assertRaises(poplib.error_proto, self.client.stls)
+ 
+     test_stls_context = test_stls
++    test_stls_context_hostname = test_stls
+ 
+     def test_stls_capa(self):
+         capa = self.client.capa()
+@@ -499,6 +510,7 @@
+         self.assertRaises(poplib.error_proto, self.client.stls)
+ 
+     test_stls_context = test_stls
++    test_stls_context_hostname = test_stls
+ 
+     def test_stls_capa(self):
+         capa = self.client.capa()
+--- a/Lib/test/test_posix.py
++++ b/Lib/test/test_posix.py
+@@ -1253,6 +1253,7 @@
+     @unittest.skipUnless(hasattr(pwd, 'getpwuid'), "test needs pwd.getpwuid()")
+     @unittest.skipUnless(hasattr(os, 'getuid'), "test needs os.getuid()")
+     def test_getgrouplist(self):
++        os_helper.require_passwd_entry(os.getuid())
+         user = pwd.getpwuid(os.getuid())[0]
+         group = pwd.getpwuid(os.getuid())[3]
+         self.assertIn(group, posix.getgrouplist(user, group))
+--- a/Lib/test/test_posixpath.py
++++ b/Lib/test/test_posixpath.py
+@@ -343,10 +343,12 @@
+             # expanduser should fall back to using the password database
+             del env['HOME']
+ 
+-            home = pwd.getpwuid(os.getuid()).pw_dir
+-            # $HOME can end with a trailing /, so strip it (see #17809)
+-            home = home.rstrip("/") or '/'
+-            self.assertEqual(posixpath.expanduser("~"), home)
++            with self.subTest(account_service=True):
++                os_helper.require_passwd_entry(os.getuid())
++                home = pwd.getpwuid(os.getuid()).pw_dir
++                # $HOME can end with a trailing /, so strip it (see #17809)
++                home = home.rstrip("/") or '/'
++                self.assertEqual(posixpath.expanduser("~"), home)
+ 
+             # bpo-10496: If the HOME environment variable is not set and the
+             # user (current identifier or name in the path) doesn't exist in
+--- a/Lib/test/test_pwd.py
++++ b/Lib/test/test_pwd.py
+@@ -87,7 +87,7 @@
+             self.fail('Cannot find non-existent user name')
+ 
+         # Find a non-existent uid.
+-        maxuid = max(e.pw_uid for e in pwd.getpwall())
++        maxuid = max((e.pw_uid for e in pwd.getpwall()), default=0)
+         if maxuid < 2**15:
+             maxuid = 2**15
+         elif maxuid < 2**16:
+--- a/Lib/test/test_pydoc/test_pydoc.py
++++ b/Lib/test/test_pydoc/test_pydoc.py
+@@ -6,6 +6,7 @@
+ import inspect
+ import io
+ import pydoc
++from test.support import socket_helper
+ import py_compile
+ import keyword
+ import _pickle
+@@ -2125,7 +2126,7 @@
+ 
+         serverthread = pydoc._start_server(
+             my_url_handler,
+-            hostname='localhost',
++            hostname=socket_helper.HOST,
+             port=0,
+             )
+         self.assertEqual(serverthread.error, None)
+@@ -2133,7 +2134,7 @@
+         self.addCleanup(
+             lambda: serverthread.stop() if serverthread.serving else None
+             )
+-        self.assertIn('localhost', serverthread.url)
++        self.assertIn(socket_helper.HOST, serverthread.url)
+ 
+         self.addCleanup(urlcleanup)
+         self.assertEqual(
+--- a/Lib/test/test_remote_pdb.py
++++ b/Lib/test/test_remote_pdb.py
+@@ -1,3 +1,4 @@
++from test.support import socket_helper
+ import io
+ import itertools
+ import json
+@@ -1598,6 +1599,7 @@
+         }
+ 
+     def test_attach_to_process_without_colors(self):
++        socket_helper.require_localhost_resolution()
+         with force_color(False):
+             output = self.do_integration_test("ll\nx=42\n")
+         self.assertEqual(output["client"]["stderr"], "")
+@@ -1608,6 +1610,7 @@
+         self.assertNotIn("\x1b", output["client"]["stdout"])
+ 
+     def test_attach_to_process_with_colors(self):
++        socket_helper.require_localhost_resolution()
+         with force_color(True):
+             output = self.do_integration_test("ll\nx=42\n")
+         self.assertEqual(output["client"]["stderr"], "")
+--- a/Lib/test/test_shutil.py
++++ b/Lib/test/test_shutil.py
+@@ -1920,6 +1920,9 @@
+         # testing make_archive with owner and group, with various combinations
+         # this works even if there's not gid/uid support
+         if UID_GID_SUPPORT:
++            os_helper.require_passwd_entry(0)
++            os_helper.require_group_entry(0)
++        if UID_GID_SUPPORT:
+             group = grp.getgrgid(0)[0]
+             owner = pwd.getpwuid(0)[0]
+         else:
+@@ -1946,6 +1949,8 @@
+     @support.requires_zlib()
+     @unittest.skipUnless(UID_GID_SUPPORT, "Requires grp and pwd support")
+     def test_tarfile_root_owner(self):
++        os_helper.require_passwd_entry(0)
++        os_helper.require_group_entry(0)
+         root_dir, base_dir = self._create_files()
+         base_name = os.path.join(self.mkdtemp(), 'archive')
+         group = grp.getgrgid(0)[0]
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -1145,6 +1145,7 @@
+ 
+         # we don't test socket_helper.HOSTv6 because there's a chance it doesn't have
+         # a matching name entry (e.g. 'ip6-localhost')
++        socket_helper.require_localhost_resolution(reverse=True)
+         for host in [socket_helper.HOSTv4]:
+             self.assertIn(host, socket.gethostbyaddr(host)[2])
+ 
+@@ -1660,19 +1661,23 @@
+         self.assertRaises(TypeError, s.ioctl, socket.SIO_LOOPBACK_FAST_PATH, None)
+ 
+     def testGetaddrinfo(self):
+-        try:
+-            socket.getaddrinfo('localhost', 80)
+-        except socket.gaierror as err:
+-            if err.errno == socket.EAI_SERVICE:
+-                # see http://bugs.python.org/issue1282647
+-                self.skipTest("buggy libc version")
+-            raise
++        with self.subTest(hostname_service=True):
++            socket_helper.require_localhost_resolution()
++            try:
++                socket.getaddrinfo('localhost', 80)
++            except socket.gaierror as err:
++                if err.errno == socket.EAI_SERVICE:
++                    # see http://bugs.python.org/issue1282647
++                    self.skipTest("buggy libc version")
++                raise
+         # len of every sequence is supposed to be == 5
+         for info in socket.getaddrinfo(HOST, None):
+             self.assertEqual(len(info), 5)
+         # host can be a domain name, a string representation of an
+         # IPv4/v6 address or None
+-        socket.getaddrinfo('localhost', 80)
++        with self.subTest(domain_name=True):
++            socket_helper.require_localhost_resolution()
++            socket.getaddrinfo('localhost', 80)
+         socket.getaddrinfo('127.0.0.1', 80)
+         socket.getaddrinfo(None, 80)
+         if socket_helper.IPV6_ENABLED:
+@@ -1736,7 +1741,7 @@
+             try:
+                 # The arguments here are undefined and the call may succeed
+                 # or fail.  All we care here is that it doesn't segfault.
+-                socket.getaddrinfo("localhost", None, 0, 0, 0,
++                socket.getaddrinfo(HOST, None, 0, 0, 0,
+                                    socket.AI_NUMERICSERV)
+             except socket.gaierror:
+                 pass
+@@ -5953,7 +5958,7 @@
+             self.assertIsInstance(e, OSError)
+ 
+         addresses = socket.getaddrinfo(
+-            'localhost', port, 0, socket.SOCK_STREAM)
++            HOST, port, 0, socket.SOCK_STREAM)
+         # assert that we got an exception for each address
+         self.assertEqual(len(addresses), len(eg.exceptions))
+ 
+@@ -7343,12 +7348,12 @@
+     def test_reuse_port(self):
+         if not hasattr(socket, "SO_REUSEPORT"):
+             with self.assertRaises(ValueError):
+-                socket.create_server(("localhost", 0), reuse_port=True)
++                socket.create_server((HOST, 0), reuse_port=True)
+         else:
+-            with socket.create_server(("localhost", 0)) as sock:
++            with socket.create_server((HOST, 0)) as sock:
+                 opt = sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT)
+                 self.assertEqual(opt, 0)
+-            with socket.create_server(("localhost", 0), reuse_port=True) as sock:
++            with socket.create_server((HOST, 0), reuse_port=True) as sock:
+                 opt = sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT)
+                 self.assertNotEqual(opt, 0)
+ 
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -2244,7 +2244,9 @@
+         _test_get_server_certificate(self, *self.server_addr, cert=SIGNING_CA)
+ 
+     def test_get_server_certificate_sni(self):
++        socket_helper.require_localhost_resolution()
+         host, port = self.server_addr
++        host = "localhost"
+         server_names = []
+ 
+         # We store servername_cb arguments to make sure they match the host
+@@ -3703,6 +3705,7 @@
+ 
+     def test_socketserver(self):
+         """Using socketserver to create and manage SSL connections."""
++        socket_helper.require_localhost_resolution()
+         server = make_https_server(self, certfile=SIGNED_CERTFILE)
+         # try to connect
+         if support.verbose:
+@@ -4038,7 +4041,7 @@
+         client = client_ctx.wrap_socket(
+             socket.socket(), server_hostname=hostname
+         )
+-        client.connect((hostname, port))
++        client.connect((host, port))
+         client.send(b'data')
+         client.recv()
+         client_addr = client.getsockname()
+--- a/Lib/test/test_sys.py
++++ b/Lib/test/test_sys.py
+@@ -2003,7 +2003,7 @@
+ 
+ # Connect to the test process
+ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-sock.connect(('localhost', {port}))
++sock.connect(('127.0.0.1', {port}))
+ 
+ {prologue}
+ 
+@@ -2039,7 +2039,7 @@
+ 
+         # Create a socket server to communicate with the target process
+         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-        server_socket.bind(('localhost', port))
++        server_socket.bind(('127.0.0.1', port))
+         server_socket.settimeout(SHORT_TIMEOUT)
+         server_socket.listen(1)
+ 
+--- a/Lib/test/test_tarfile.py
++++ b/Lib/test/test_tarfile.py
+@@ -3253,6 +3253,11 @@
+     try:
+         import pwd, grp
+     except ImportError:
++        return False
++    try:
++        os_helper.require_passwd_entry(0)
++        os_helper.require_group_entry(0)
++    except unittest.SkipTest:
+         return False
+     if pwd.getpwuid(0)[0] != 'root':
+         return False
+--- a/Lib/test/test_urllib.py
++++ b/Lib/test/test_urllib.py
+@@ -1,3 +1,4 @@
++from test.support import socket_helper
+ """Regression tests for what was in Python 2's "urllib" module"""
+ 
+ import urllib.parse
+@@ -1613,7 +1614,9 @@
+     def test_url2pathname_resolve_host(self):
+         fn = urllib.request.url2pathname
+         sep = os.path.sep
+-        self.assertEqual(fn('//127.0.0.1/foo/bar', resolve_host=True), f'{sep}foo{sep}bar')
++        with self.subTest(local_address_resolution=True):
++            socket_helper.require_localhost_resolution()
++            self.assertEqual(fn('//127.0.0.1/foo/bar', resolve_host=True), f'{sep}foo{sep}bar')
+         self.assertEqual(fn(f'//{socket.gethostname()}/foo/bar'), f'{sep}foo{sep}bar')
+         self.assertEqual(fn(f'//{socket.gethostname()}/foo/bar', resolve_host=True), f'{sep}foo{sep}bar')
+ 
+@@ -1692,6 +1695,7 @@
+ 
+     def test_thishost(self):
+         """Test the urllib.request.thishost utility function returns a tuple"""
++        socket_helper.require_localhost_resolution()
+         self.assertIsInstance(urllib.request.thishost(), tuple)
+ 
+ 
+--- a/Lib/test/test_urllib2.py
++++ b/Lib/test/test_urllib2.py
+@@ -1,3 +1,4 @@
++from test.support import socket_helper
+ import unittest
+ from test import support
+ from test.support import os_helper
+@@ -764,6 +765,8 @@
+              "localhost", ftplib.FTP_PORT, "", "", "A",
+              [], "baz.gif", "image/gif"),
+             ]:
++            url = url.replace("localhost", socket_helper.HOST)
++            host = socket_helper.HOST
+             req = Request(url)
+             req.timeout = None
+             r = h.ftp_open(req)
+@@ -816,14 +819,16 @@
+         urls = [
+             canonurl,
+             parsed._replace(netloc='localhost').geturl(),
+-            parsed._replace(netloc=socket.gethostbyname('localhost')).geturl(),
+             ]
+-        try:
+-            localaddr = socket.gethostbyname(socket.gethostname())
+-        except socket.gaierror:
+-            localaddr = ''
+-        if localaddr:
+-            urls.append(parsed._replace(netloc=localaddr).geturl())
++        with self.subTest(local_address_resolution=True):
++            socket_helper.require_localhost_resolution()
++            urls.append(parsed._replace(netloc=socket.gethostbyname('localhost')).geturl())
++            try:
++                localaddr = socket.gethostbyname(socket.gethostname())
++            except socket.gaierror:
++                localaddr = ''
++            if localaddr:
++                urls.append(parsed._replace(netloc=localaddr).geturl())
+ 
+         for url in urls:
+             f = open(TESTFN, "wb")
+@@ -854,22 +859,25 @@
+             parsed._replace(netloc='localhost:80').geturl(),
+             "file:///file_does_not_exist.txt",
+             "file://not-a-local-host.com//dir/file.txt",
+-            "file://%s:80%s/%s" % (socket.gethostbyname('localhost'),
++            "file://%s:80%s/%s" % (socket_helper.HOSTv4,
+                                    os.getcwd(), TESTFN),
+             "file://somerandomhost.ontheinternet.com%s/%s" %
+             (os.getcwd(), TESTFN),
+             ]:
+-            try:
+-                f = open(TESTFN, "wb")
++            with self.subTest(url=url):
++                if urlsplit(url).netloc in ('not-a-local-host.com', 'somerandomhost.ontheinternet.com'):
++                    socket_helper.require_localhost_resolution()
+                 try:
+-                    f.write(towrite)
++                    f = open(TESTFN, "wb")
++                    try:
++                        f.write(towrite)
++                    finally:
++                        f.close()
++    
++                    self.assertRaises(urllib.error.URLError,
++                                      h.file_open, Request(url))
+                 finally:
+-                    f.close()
+-
+-                self.assertRaises(urllib.error.URLError,
+-                                  h.file_open, Request(url))
+-            finally:
+-                os.remove(TESTFN)
++                    os.remove(TESTFN)
+ 
+         h = urllib.request.FileHandler()
+         o = h.parent = MockOpener()
+@@ -887,15 +895,18 @@
+             ("file://somehost//foo/something.txt", False),
+             ("file://localhost//foo/something.txt", False),
+             ]:
+-            req = Request(url)
+-            try:
+-                h.file_open(req)
+-            except urllib.error.URLError:
+-                self.assertFalse(ftp)
+-            else:
+-                self.assertIs(o.req, req)
+-                self.assertEqual(req.type, "ftp")
+-            self.assertEqual(req.type == "ftp", ftp)
++            with self.subTest(url=url):
++                if urlsplit(url).netloc != 'localhost':
++                    socket_helper.require_localhost_resolution()
++                req = Request(url)
++                try:
++                    h.file_open(req)
++                except urllib.error.URLError:
++                    self.assertFalse(ftp)
++                else:
++                    self.assertIs(o.req, req)
++                    self.assertEqual(req.type, "ftp")
++                self.assertEqual(req.type == "ftp", ftp)
+ 
+     def test_http(self):
+ 
+--- a/Lib/test/test_urllib2_localnet.py
++++ b/Lib/test/test_urllib2_localnet.py
+@@ -1,3 +1,4 @@
++from test.support import socket_helper
+ import base64
+ import os
+ import email
+@@ -323,7 +324,7 @@
+ 
+ @hashlib_helper.requires_hashdigest("md5", openssl=True)
+ class ProxyAuthTests(unittest.TestCase):
+-    URL = "http://localhost"
++    URL = ("http://" + socket_helper.HOST + "")
+ 
+     USER = "tester"
+     PASSWD = "test123"
+@@ -509,13 +510,13 @@
+     def test_redirection(self):
+         expected_response = b"We got here..."
+         responses = [
+-            (302, [("Location", "http://localhost:%(port)s/somewhere_else")],
++            (302, [("Location", ("http://" + socket_helper.HOST + ":%(port)s/somewhere_else"))],
+              ""),
+             (200, [], expected_response)
+         ]
+ 
+         handler = self.start_server(responses)
+-        data = self.urlopen("http://localhost:%s/" % handler.port)
++        data = self.urlopen(("http://" + socket_helper.HOST + ":%s/") % handler.port)
+         self.assertEqual(data, expected_response)
+         self.assertEqual(handler.requests, ["/", "/somewhere_else"])
+ 
+@@ -530,7 +531,7 @@
+                         )
+         response = [(200, [("Transfer-Encoding", "chunked")], chunked_start)]
+         handler = self.start_server(response)
+-        data = self.urlopen("http://localhost:%s/" % handler.port)
++        data = self.urlopen(("http://" + socket_helper.HOST + ":%s/") % handler.port)
+         self.assertEqual(data, expected_response)
+ 
+     def test_404(self):
+@@ -538,7 +539,7 @@
+         handler = self.start_server([(404, [], expected_response)])
+ 
+         try:
+-            self.urlopen("http://localhost:%s/weeble" % handler.port)
++            self.urlopen(("http://" + socket_helper.HOST + ":%s/weeble") % handler.port)
+         except urllib.error.URLError as f:
+             data = f.read()
+             f.close()
+@@ -551,25 +552,27 @@
+     def test_200(self):
+         expected_response = b"pycon 2008..."
+         handler = self.start_server([(200, [], expected_response)])
+-        data = self.urlopen("http://localhost:%s/bizarre" % handler.port)
++        data = self.urlopen(("http://" + socket_helper.HOST + ":%s/bizarre") % handler.port)
+         self.assertEqual(data, expected_response)
+         self.assertEqual(handler.requests, ["/bizarre"])
+ 
+     def test_200_with_parameters(self):
+         expected_response = b"pycon 2008..."
+         handler = self.start_server([(200, [], expected_response)])
+-        data = self.urlopen("http://localhost:%s/bizarre" % handler.port,
++        data = self.urlopen(("http://" + socket_helper.HOST + ":%s/bizarre") % handler.port,
+                              b"get=with_feeling")
+         self.assertEqual(data, expected_response)
+         self.assertEqual(handler.requests, ["/bizarre", b"get=with_feeling"])
+ 
+     def test_https(self):
++        socket_helper.require_localhost_resolution()
+         handler = self.start_https_server()
+         context = ssl.create_default_context(cafile=CERT_localhost)
+         data = self.urlopen("https://localhost:%s/bizarre" % handler.port, context=context)
+         self.assertEqual(data, b"we care a bit")
+ 
+     def test_https_sni(self):
++        socket_helper.require_localhost_resolution()
+         if ssl is None:
+             self.skipTest("ssl module required")
+         if not ssl.HAS_SNI:
+@@ -587,7 +590,7 @@
+ 
+     def test_sending_headers(self):
+         handler = self.start_server()
+-        req = urllib.request.Request("http://localhost:%s/" % handler.port,
++        req = urllib.request.Request(("http://" + socket_helper.HOST + ":%s/") % handler.port,
+                                      headers={"Range": "bytes=20-39"})
+         with urllib.request.urlopen(req):
+             pass
+@@ -595,7 +598,7 @@
+ 
+     def test_sending_headers_camel(self):
+         handler = self.start_server()
+-        req = urllib.request.Request("http://localhost:%s/" % handler.port,
++        req = urllib.request.Request(("http://" + socket_helper.HOST + ":%s/") % handler.port,
+                                      headers={"X-SoMe-hEader": "foobar"})
+         with urllib.request.urlopen(req):
+             pass
+@@ -604,7 +607,7 @@
+ 
+     def test_basic(self):
+         handler = self.start_server()
+-        with urllib.request.urlopen("http://localhost:%s" % handler.port) as open_url:
++        with urllib.request.urlopen(("http://" + socket_helper.HOST + ":%s") % handler.port) as open_url:
+             for attr in ("read", "close", "info", "geturl"):
+                 self.assertHasAttr(open_url, attr)
+             self.assertTrue(open_url.read(), "calling 'read' failed")
+@@ -612,7 +615,7 @@
+     def test_info(self):
+         handler = self.start_server()
+         open_url = urllib.request.urlopen(
+-            "http://localhost:%s" % handler.port)
++            ("http://" + socket_helper.HOST + ":%s") % handler.port)
+         with open_url:
+             info_obj = open_url.info()
+         self.assertIsInstance(info_obj, email.message.Message,
+@@ -623,15 +626,15 @@
+     def test_geturl(self):
+         # Make sure same URL as opened is returned by geturl.
+         handler = self.start_server()
+-        open_url = urllib.request.urlopen("http://localhost:%s" % handler.port)
++        open_url = urllib.request.urlopen(("http://" + socket_helper.HOST + ":%s") % handler.port)
+         with open_url:
+             url = open_url.geturl()
+-        self.assertEqual(url, "http://localhost:%s" % handler.port)
++        self.assertEqual(url, ("http://" + socket_helper.HOST + ":%s") % handler.port)
+ 
+     def test_iteration(self):
+         expected_response = b"pycon 2008..."
+         handler = self.start_server([(200, [], expected_response)])
+-        data = urllib.request.urlopen("http://localhost:%s" % handler.port)
++        data = urllib.request.urlopen(("http://" + socket_helper.HOST + ":%s") % handler.port)
+         for line in data:
+             self.assertEqual(line, expected_response)
+ 
+@@ -639,7 +642,7 @@
+         lines = [b"We\n", b"got\n", b"here\n", b"verylong " * 8192 + b"\n"]
+         expected_response = b"".join(lines)
+         handler = self.start_server([(200, [], expected_response)])
+-        data = urllib.request.urlopen("http://localhost:%s" % handler.port)
++        data = urllib.request.urlopen(("http://" + socket_helper.HOST + ":%s") % handler.port)
+         for index, line in enumerate(data):
+             self.assertEqual(line, lines[index],
+                              "Fetched line number %s doesn't match expected:\n"
+@@ -655,7 +658,7 @@
+             (200, [], b'any'),
+         ])
+         opener = urllib.request.build_opener()
+-        request = urllib.request.Request("http://localhost:%s" % handler.port)
++        request = urllib.request.Request(("http://" + socket_helper.HOST + ":%s") % handler.port)
+         self.assertEqual(None, request.data)
+ 
+         opener.open(request, "1".encode("us-ascii"))
+--- a/Lib/test/test_xmlrpc.py
++++ b/Lib/test/test_xmlrpc.py
+@@ -644,7 +644,7 @@
+ 
+     if not requestHandler:
+         requestHandler = xmlrpc.server.SimpleXMLRPCRequestHandler
+-    serv = MyXMLRPCServer(("localhost", 0), requestHandler,
++    serv = MyXMLRPCServer((socket_helper.HOST, 0), requestHandler,
+                           encoding=encoding,
+                           logRequests=False, bind_and_activate=False)
+     try:
+@@ -714,7 +714,7 @@
+         def _marshaled_dispatch(self, data, dispatch_method=None, path=None):
+             raise RuntimeError("broken dispatcher")
+ 
+-    serv = MyXMLRPCServer(("localhost", 0), MyRequestHandler,
++    serv = MyXMLRPCServer((socket_helper.HOST, 0), MyRequestHandler,
+                           logRequests=False, bind_and_activate=False)
+     serv.socket.settimeout(3)
+     serv.server_bind()
+@@ -1536,7 +1536,7 @@
+         self.assertTrue(handler.use_builtin_types)
+ 
+     def test_xmlrpcserver_has_use_builtin_types_flag(self):
+-        server = xmlrpc.server.SimpleXMLRPCServer(("localhost", 0),
++        server = xmlrpc.server.SimpleXMLRPCServer((socket_helper.HOST, 0),
+             use_builtin_types=True)
+         server.server_close()
+         self.assertTrue(server.use_builtin_types)
