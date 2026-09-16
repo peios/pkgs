@@ -13,6 +13,17 @@ import subprocess
 import tempfile
 
 IMAGE = "debian:trixie"
+# Coordinator-owned reference exceptions. Native publication policy is unchanged.
+# These rolling upstreams require dependencies newer than Debian stable.
+REFERENCE_IMAGES = {
+    "org.gnome.libxslt": "debian:sid",
+    "org.golang.go": "debian:sid",
+}
+
+def selected_image():
+    recipe = Path(os.environ.get("PEKIT_RECIPE_ROOT", "")).name
+    return REFERENCE_IMAGES.get(recipe, IMAGE)
+
 SCHEMA = 1
 OPS = {"=": "eq", ">=": "ge", ">": "gt", "<=": "le", "<": "lt"}
 
@@ -138,7 +149,7 @@ printf 'peibuild:x:1000:\\n' >> /etc/group
 
 def policy_id():
     root = Path(__file__).resolve().parent
-    return hashlib.sha256((digest(root / "enter.sh") + digest(root / "prepare.py")).encode()).hexdigest()
+    return hashlib.sha256((digest(root / "enter.sh") + digest(root / "prepare.py") + selected_image()).encode()).hexdigest()
 
 
 def load_record(directory, deps, policy):
@@ -181,9 +192,10 @@ def acquire(job, store, deps, policy, output):
         if base.get("policy_sha256") != policy:
             raise ValueError("Debian preparation policy changed during retained job; rebuild")
     else:
-        run("docker", "pull", IMAGE)
-        info = json.loads(run("docker", "image", "inspect", IMAGE, capture=True))[0]
-        base = {"image": IMAGE, "image_id": info["Id"], "repo_digests": info["RepoDigests"],
+        image = selected_image()
+        run("docker", "pull", image)
+        info = json.loads(run("docker", "image", "inspect", image, capture=True))[0]
+        base = {"image": image, "image_id": info["Id"], "repo_digests": info["RepoDigests"],
                 "architecture": info["Architecture"], "os": info["Os"], "policy_sha256": policy}
         atomic(base_path, encoded(base))
     # Never execute the mutable tag after resolving it for this job.
