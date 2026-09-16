@@ -55,9 +55,17 @@ CXXFLAGS = "-O2 -g -pipe -fexceptions -Wall -Wformat -Wformat-security -Wp,-D_FO
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gettext"
 # Regenerate only the configure script affected by the upstream Gnulib m4
-# backport. Gettext 1.0's generated script predates ca635799.
+# backport. Gettext 1.0's generated script predates ca635799.  Pekit's patch
+# application necessarily gives the included m4 file a newer timestamp than
+# the release-generated Autotools files; mark the other, semantically
+# unaffected generated files current so Make does not demand the exact
+# upstream Automake minor merely to reproduce unchanged templates.
 (cd "$SRC/gettext-tools" && autoconf)
+touch "$SRC/gettext-tools/aclocal.m4" "$SRC/gettext-tools/config.h.in"
+find "$SRC/gettext-tools" -name Makefile.in -exec touch {} +
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --libdir=/usr/lib/x86_64-linux-peios \
@@ -66,6 +74,7 @@ cd "$PEKIT_OUT"
   --disable-more-warnings
 make -s -j"$(nproc)"
 make -s install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios has no Info reader, and glibc supplies the libintl implementation.
 # Static and libtool archives are intentionally omitted; consumers link the

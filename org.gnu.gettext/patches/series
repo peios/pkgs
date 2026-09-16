@@ -2,3 +2,4 @@
 # materialisation ([source].patches in pekit.toml).
 gnulib/glibc-const-generics.patch  # all 20 bundled gnulib copies vs glibc >= 2.43 _Generic const-correctness macros
 gnulib/posix-spawn-addchdir-glibc-2.44.patch  # upstream ca635799: avoid recursive _np alias on glibc 2.44
+gnulib/writable-local-temp-test.patch  # exercise copy tests in writable local scratch

@@ -1,0 +1,21 @@
+Description: Use an available writable local temporary directory for copy tests
+Author: Peios maintainers
+Origin: vendor
+Forwarded: no
+Last-Update: 2026-09-16
+
+The build sandbox exposes /var/tmp read-only. Test the same copy operations
+in /tmp when /var/tmp is unavailable for writes; do not skip the test.
+This only changes test fixtures, not installed code.
+
+--- a/gettext-tools/gnulib-tests/test-copy-file-1.sh
++++ b/gettext-tools/gnulib-tests/test-copy-file-1.sh
+@@ -5,7 +5,7 @@
+ 
+ . "${srcdir=.}/init.sh"; path_prepend_ .
+ 
+-if test -d /var/tmp; then
++if test -d /var/tmp && test -w /var/tmp; then
+   TMPDIR=/var/tmp
+ else
+   TMPDIR=/tmp

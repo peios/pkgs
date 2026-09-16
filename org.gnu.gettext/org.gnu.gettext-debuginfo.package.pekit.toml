@@ -6,4 +6,5 @@ description = "Debug symbols for GNU Gettext tools and libraries"
 "org.gnu.gettext" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gettext-debuginfo/"
 ":usr/lib/debug/.build-id/**" = "usr/lib/debug/.build-id"

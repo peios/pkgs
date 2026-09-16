@@ -1,0 +1,6 @@
+# All shipped ELF splits share the family build-ID symbol package.
+[elf]
+debuginfo = "org.gnu.gettext-debuginfo"
+
+[allow_files."payload.manpages.required"]
+"usr/bin/gettext.sh" = "Upstream shell function library sourced with . gettext.sh, not an executable command interface; retained in PATH for upstream API compatibility."
