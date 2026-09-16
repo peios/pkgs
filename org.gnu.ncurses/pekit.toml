@@ -26,6 +26,8 @@ fingerprints = ["19882D92DDA4C400C22C0D56CC2AF4472167BE03"]
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.ncurses"
 LIBDIR=/usr/lib/x86_64-linux-peios
 cd "$PEKIT_OUT"
 sed 's/@USE_CFG_SUFFIX@/w6/g' "$SRC/man/man_db.renames.in" \
@@ -152,7 +154,13 @@ done
 test -f "$PCDIR/ncursesw.pc"
 test -f "$PCDIR/tinfo.pc"
 test -x "$STAGE/usr/bin/ncursesw6-config"
-"$STAGE/usr/bin/ncursesw6-config" --version | grep -Fx "$PEKIT_VERSION"
+# Upstream config reports release.patchdate, while stable archives use release.
+header_version=$(sed -n 's/^#define NCURSES_VERSION[[:space:]]*"\(.*\)"/\1/p' "$STAGE/usr/include/curses.h")
+header_patch=$(sed -n 's/^#define NCURSES_VERSION_PATCH[[:space:]]*\([0-9]*\)/\1/p' "$STAGE/usr/include/curses.h")
+test "$header_version" = "$PEKIT_VERSION"
+test -n "$header_patch"
+"$STAGE/usr/bin/ncursesw6-config" --version | grep -Fx "$header_version.$header_patch"
+PKG_CONFIG_PATH="$PCDIR" pkgconf --modversion ncursesw | grep -Fx "$header_version.$header_patch"
 find "$STAGE/usr/bin" -maxdepth 1 \( -type f -o -type l \) \
   -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/installed-tools"
 printf '%s\n' captoinfo clear infocmp infotocap ncursesw6-config reset tabs tic \
@@ -208,7 +216,7 @@ for elf in "$STAGED_LIBDIR"/lib*.so.6.*; do
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-  if cc --version | head -1 | grep -Fq 'Peios'; then
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
     readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   fi
 done
