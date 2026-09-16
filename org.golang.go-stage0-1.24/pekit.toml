@@ -39,10 +39,15 @@ find "$PREFIX/src" -type f -path '*/testdata/*' -exec sh -c '
     fi
   done
 ' sh {} +
+find "$PREFIX/src" -type f -name .gitignore -delete
+find "$PREFIX/src" -type f -path '*/testdata/*'   \( -name '*.o' -o -name '*.a' \) -delete
+rm -f "$PREFIX/src/all.rc" "$PREFIX/src/clean.rc" "$PREFIX/src/make.rc" "$PREFIX/src/run.rc"
+
 
 '''
 
 [build.main.dependencies.peipkg]
+"org.gnu.coreutils-build-compat" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils"   = "*"
 "org.gnu.binutils"    = "*"
@@ -68,12 +73,21 @@ test "$($PREFIX/bin/go env GOOS)" = linux
 test "$($PREFIX/bin/go env GOARCH)" = amd64
 test -d "$PREFIX/src/cmd/compile"
 test -d "$PREFIX/pkg/tool/linux_amd64"
+python3 "$PEKIT_RECIPE_ROOT/verify-seed.py" "$(pwd)" "$PREFIX"
+mkdir -p "$PEKIT_OUT/smoke"
+printf '%s\n' 'package main' 'func main() { var n int; for i := 1; i <= 10; i++ { n += i }; if n != 55 { panic(n) } }' > "$PEKIT_OUT/smoke/main.go"
+GOROOT="$PREFIX" GOCACHE="$PEKIT_OUT/cache" GOENV=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local CGO_ENABLED=0 \
+  "$PREFIX/bin/go" build -o "$PEKIT_OUT/smoke/main" "$PEKIT_OUT/smoke/main.go"
+"$PEKIT_OUT/smoke/main"
+
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3" = "*"
 "org.git.kernel.dash"   = "*"
 "dev.peios.peiosutils" = "*"
 
 [test.dependencies.apt]
+python3 = "*"
 dash      = "*"
 coreutils = "*"
