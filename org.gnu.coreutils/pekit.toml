@@ -10,11 +10,9 @@
 
 out_dir = "out"
 
-# Four upstream commits after 9.11 fix the uniq and unexpand memory-safety
-# issues tracked as CVE-2026-56391/CVE-2026-56392, a second unexpand overflow,
-# and tee's EAGAIN/short-write handling. A future release containing them will
-# intentionally fail the local series so the now-redundant backports are
-# reviewed and dropped rather than silently applied twice.
+# Coreutils 9.12 incorporates the four security/correctness backports carried
+# for 9.11. Keep only the Peios glibc compatibility patch; the upstream suite
+# and staged security regressions remain mandatory for later releases.
 [source]
 patches = "patches"
 
@@ -26,7 +24,7 @@ root        = "coreutils-{{version}}"
 file_regex = 'coreutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # Soft maintenance floor. Every later stable release is discovered
 # automatically; the upstream and security-regression suites fail closed.
-versions   = ">= 9.11"
+versions   = ">= 9.12"
 
 # GNU's release announcement identifies this as Pádraig Brady's signing key.
 # Pinning it closes the trust-on-first-use gap for unattended version sweeps.
@@ -40,6 +38,8 @@ fingerprints = ["6C37DC12121A5006BC1DB804DF6FD971306037D9"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.coreutils"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -58,6 +58,9 @@ MAKE_STDBUF_CFLAGS='src_libstdbuf_so_CFLAGS=-fPIC $(WERROR_CFLAGS)'
 make -j"$(nproc)" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
 
 make install DESTDIR="$PEKIT_OUT" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
+# The bracket command implements test with a required closing bracket.
+ln -s test.1.gz "$PEKIT_OUT/usr/share/man/man1/[.1.gz"
 
 # Peios has no Info reader at present. Command manuals remain in the common
 # package, and the complete source/documentation remains reproducible through
@@ -115,65 +118,37 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
-# The release suite covers the complete utility set. Neither Pekit sandbox has
-# an NSS entry for its numeric build identity. The Debian profile is UID 1000
-# and its long host-side build prefix also trips one artificial 10 KiB cwd
-# fixture; the Peipkg profile is namespace-root, with only UID/GID 0 mapped and
-# privileged chroot withheld. Audit each profile's exact environment-only set;
-# any added or changed failure remains fatal.
+# Run every configured upstream case. Only the exact measured fixture
+# limitations below are accepted; any added failure or changed reason is fatal.
 cd "$PEKIT_MAIN_OUT"
 MAKE_PIE_CFLAGS='AM_CFLAGS=-fPIE $(WERROR_CFLAGS)'
 MAKE_PIE_LDFLAGS='AM_LDFLAGS=-pie $(IGNORE_UNUSED_LIBRARIES_CFLAGS)'
 MAKE_STDBUF_CFLAGS='src_libstdbuf_so_CFLAGS=-fPIC $(WERROR_CFLAGS)'
 if ! make -j"$(nproc)" check "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"; then
-  actual=$(for result in tests/*.trs tests/*/*.trs; do
-    [ -f "$result" ] || continue
-    grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
+  actual=$(find tests -name '*.trs' -type f | while IFS= read -r result; do
+    grep -Eq '^:test-result: (FAIL|ERROR|XPASS)$' "$result" || continue
     printf '%s\n' "${result%.trs}"
-  done | sort)
-  if [ "$(id -u)" = 0 ]; then
-    expected=$(printf '%s\n' \
-      tests/chgrp/from \
-      tests/chown/basic \
-      tests/chown/separator \
-      tests/cp/preserve-gid \
-      tests/cp/special-bits \
-      tests/help/help-version \
-      tests/id/setgid \
-      tests/id/uid \
-      tests/id/zero \
-      tests/install/install-C-root \
-      tests/ls/nameless-uid \
-      tests/misc/io-errors \
-      tests/mv/sticky-to-xpart \
-      tests/rm/interactive-once \
-      tests/rm/no-give-up \
-      tests/rm/unreadable \
-      tests/touch/now-owned-by-other \
-      tests/truncate/truncate-owned-by-other)
-    touch .coreutils-uid-map-probe
-    if chown 1:1 .coreutils-uid-map-probe 2>.coreutils-uid-map.err; then exit 1; fi
-    grep -F 'Invalid argument' .coreutils-uid-map.err
-    if chroot / /usr/bin/true 2>.coreutils-chroot.err; then exit 1; fi
-    grep -F 'Operation not permitted' .coreutils-chroot.err
-    rm -f .coreutils-uid-map-probe .coreutils-uid-map.err .coreutils-chroot.err
-  else
-    expected=$(printf '%s\n' \
-      tests/chown/separator \
-      tests/help/help-version \
-      tests/id/uid \
-      tests/id/zero \
-      tests/misc/io-errors \
-      tests/rm/deep-2)
-    grep -F 'File name too long' tests/rm/deep-2.log
+  done | LC_ALL=C sort)
+  # The >10 KiB rm fixture fails in Perl's mkdir setup before invoking rm.
+  # Native roots also lack NSS records for the isolated non-root build UID.
+  # Derive this exact allowance from the prerequisite, never from a failure.
+  expected=tests/rm/deep-2
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    [ "$(id -u)" != 0 ]
+    if id -nu >/dev/null 2>&1 || id -ng >/dev/null 2>&1; then exit 1; fi
+    expected=$(printf '%s\n' tests/chown/separator tests/help/help-version \
+      tests/id/uid tests/id/zero tests/misc/io-errors tests/rm/deep-2)
+    grep -F 'cannot find name for user ID' tests/help/help-version.log
+    grep -F 'cannot find name for group ID' tests/misc/io-errors.log
+    for case_name in chown/separator id/uid id/zero; do
+      grep -F 'cannot find name for user ID' "tests/$case_name.log"
+    done
   fi
   [ "$actual" = "$expected" ]
-  if id -nu >/dev/null 2>&1 || id -ng >/dev/null 2>&1; then exit 1; fi
-  grep -F 'cannot find name for user ID' tests/help/help-version.log
-  grep -F 'cannot find name for group ID' tests/misc/io-errors.log
-  grep -F 'cannot find name for user ID' tests/chown/separator.log
-  grep -F 'cannot find name for user ID' tests/id/uid.log
-  grep -F 'cannot find name for user ID' tests/id/zero.log
+  grep -Fx ':test-result: ERROR' tests/rm/deep-2.trs
+  grep -F 'File name too long at -e line 2.' tests/rm/deep-2.log
+  grep -F 'deep-2.sh: set-up failure:' tests/rm/deep-2.log
+  if grep -F '+ rm ---presume-input-tty' tests/rm/deep-2.log; then exit 1; fi
 fi
 BIN="$PEKIT_MAIN_OUT/usr/bin"
 STAGE="$PEKIT_MAIN_OUT"

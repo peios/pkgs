@@ -3,7 +3,8 @@ name        = "org.gnu.coreutils-debuginfo"
 description = "GNU core utilities - debugging symbols"
 
 [dependencies]
-"dev.peios.peiosutils" = "{{version}}-1"
+"org.gnu.coreutils-build-compat" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.coreutils-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"
