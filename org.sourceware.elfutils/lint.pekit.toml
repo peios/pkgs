@@ -1,0 +1,10 @@
+
+# Runtime splits share the family symbol archive.
+[elf]
+debuginfo = "org.sourceware.elfutils-debuginfo"
+
+# Upstream release filenames are reached through the checked ABI-major links.
+[allow_files."elf.soname"]
+"usr/lib/x86_64-linux-peios/libelf-*.so" = "Upstream release filename; mandatory gate checks the exact libelf.so.1 link target and matching DT_SONAME"
+"usr/lib/x86_64-linux-peios/libdw-*.so" = "Upstream release filename; mandatory gate checks the exact libdw.so.1 link target and matching DT_SONAME"
+"usr/lib/x86_64-linux-peios/libasm-*.so" = "Upstream release filename; mandatory gate checks the exact libasm.so.1 link target and matching DT_SONAME"

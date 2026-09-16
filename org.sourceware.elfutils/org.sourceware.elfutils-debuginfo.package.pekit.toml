@@ -6,4 +6,5 @@ description = "elfutils - debugging symbols"
 "org.sourceware.elfutils" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.sourceware.elfutils-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,40 @@
+Description: Use the ELF basename for unnamed single-executable modules
+Author: Peios maintainers
+Origin: vendor
+Forwarded: no
+Last-Update: 2026-09-16
+
+The standard -e argument reports an empty module name. With -m -d, unstrip
+therefore opens the output directory as a file, breaking make-debug-archive
+for a single executable. Resolve the actual ELF path and use its basename
+only for this empty-name case. Named modules retain their existing names.
+The mandatory staged gate builds an archive from a debug executable via -e.
+
+--- a/src/unstrip.c
++++ b/src/unstrip.c
+@@ -2455,8 +2455,25 @@
+   const char *name = dwfl_module_info (mod, NULL, NULL, NULL,
+ 				       NULL, NULL, &file, NULL);
+ 
++  if (modnames && name[0] == '\0')
++    {
++      /* A single -e input has an empty module name.  Resolve its ELF path
++         and use the basename instead of trying to write OUTPUT-DIRECTORY.  */
++      GElf_Addr bias;
++      (void) dwfl_module_getelf (mod, &bias);
++      (void) dwfl_module_info (mod, NULL, NULL, NULL,
++                              NULL, NULL, &file, NULL);
++      if (file != NULL)
++        {
++          const char *slash = strrchr (file, '/');
++          name = slash == NULL ? file : slash + 1;
++        }
++    }
++
+   if (file == NULL && ignore)
+     return;
++  if ((modnames && name[0] == '\0') || (!modnames && file == NULL))
++    error_exit (0, _("cannot determine output file name"));
+ 
+   char *output_file = xasprintf ("%s/%s", output_dir, modnames ? name : file);
+ 
