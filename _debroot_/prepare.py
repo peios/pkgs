@@ -18,6 +18,7 @@ IMAGE = "debian:trixie"
 REFERENCE_IMAGES = {
     "org.gnome.libxslt": "debian:sid",
     "org.golang.go": "debian:sid",
+    "org.rust-lang.rust": "debian:sid",
 }
 
 def selected_image():
