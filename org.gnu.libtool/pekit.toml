@@ -47,7 +47,7 @@ test -s "$SRC/README"
 # farm's hardening policy is not imposed on every future consumer. A second,
 # isolated build below applies the inherited flags to the shipped C library.
 cd "$TOOLS_BUILD"
-env CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" CPPFLAGS="" LDFLAGS="" \
+env CONFIG_SHELL=/usr/bin/sh SHELL=/usr/bin/sh CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" CPPFLAGS="" LDFLAGS="" \
   "$SRC/configure" \
     --prefix=/usr \
     --bindir=/usr/bin \

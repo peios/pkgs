@@ -29,7 +29,7 @@ ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gzip"
 cd "$PEKIT_OUT"
 
-"$SRC/configure" \
+CONFIG_SHELL=/usr/bin/sh SHELL=/usr/bin/sh "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \
   --mandir=/usr/share/man
@@ -176,6 +176,7 @@ test -f "$SMOKE/legacy.gz"
 printf '%s\n' '#!/usr/bin/sh' 'printf "%s\n" gzexe-ok' > "$SMOKE/program"
 chmod 0755 "$SMOKE/program"
 "$BIN/gzexe" "$SMOKE/program"
+test "$(head -n 1 "$SMOKE/program")" = '#!/usr/bin/sh'
 test "$("$SMOKE/program")" = gzexe-ok
 
 for command in gzip gunzip zcat uncompress gzexe zcmp zdiff zegrep zfgrep zforce zgrep znew; do

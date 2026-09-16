@@ -3,3 +3,4 @@
 # upstream and established distribution packaging. Splitting them would make a
 # nominal libtool installation unable to prepare Autoconf projects.
 "split.devel.packages" = "Libtool's primary package intentionally includes the aclocal macros required by libtoolize and Autoconf consumers"
+"package.architecture" = "org.gnu.libtool contains a configured shell command with x86_64 compiler, startup-object and ABI library paths; absence of ELF does not make that command architecture-independent"
