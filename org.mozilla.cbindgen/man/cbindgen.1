@@ -1,0 +1,92 @@
+.TH CBINDGEN 1 "September 2026" "cbindgen" "User Commands"
+.SH NAME
+cbindgen \- generate C, C++, or Cython bindings for a Rust library
+.SH SYNOPSIS
+.B cbindgen
+.RI [ options ] " [crate-directory|source-file]"
+.SH DESCRIPTION
+.B cbindgen
+reads a Rust crate or source file and emits declarations for its public C ABI.
+A crate input normally names the directory containing Cargo.toml.
+Configuration is read from cbindgen.toml unless another path is supplied.
+Generated declarations do not change the ABI or ownership rules of the Rust code.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " PATH"
+Read configuration from PATH.
+.TP
+.BR \-l ", " \-\-lang " LANGUAGE"
+Select c, c++, or cython output.
+.TP
+.BR \-o ", " \-\-output " PATH"
+Write bindings to PATH instead of standard output.
+.TP
+.B \-\-verify
+Compare generated bindings with the file named by \-\-output and fail if different.
+.TP
+.B \-\-crate CRATE_NAME
+Select a crate when the input is a Cargo project or workspace.
+.TP
+.BR \-d ", " \-\-parse-dependencies
+Parse dependency crates as well as the selected crate.
+.TP
+.B \-\-only-target-dependencies
+Fetch dependencies only for the target platform. TARGET overrides the host target.
+.TP
+.B \-\-lockfile PATH
+Use this Cargo.lock file, useful for workspace builds.
+.TP
+.B \-\-metadata PATH
+Reuse JSON from cargo metadata rather than invoking Cargo for dependency metadata.
+.TP
+.BR \-s ", " \-\-style " STYLE"
+Select both, tag, or type declarations.
+.TP
+.B \-\-cpp-compat
+Add C++ compatibility declarations to generated C bindings.
+.TP
+.B \-\-package-version
+Include the package version in the generated header comment.
+.TP
+.B \-\-clean
+Expand macros using a fresh temporary directory.
+.TP
+.B \-\-profile PROFILE
+Use debug or release when expanding macros.
+.TP
+.B \-\-depfile PATH
+Write traversed source-file dependencies. Requires \-\-output.
+.TP
+.B \-\-symfile PATH
+Write a list of symbols suitable for linker integration.
+.TP
+.B \-v
+Increase logging verbosity; repeat for additional detail.
+.TP
+.BR \-q ", " \-\-quiet
+Report errors only.
+.TP
+.BR \-h ", " \-\-help
+Display command help.
+.TP
+.BR \-V ", " \-\-version
+Display the generator version.
+.SH EXAMPLES
+.nf
+cbindgen --lang c --output include/library.h .
+cbindgen --lang c++ --output include/library.hpp .
+cbindgen --verify --output include/library.h .
+.fi
+.SH EXIT STATUS
+Zero indicates success. Generation errors and differing bindings in verification
+mode return a nonzero status.
+.SH FILES
+.TP
+.I cbindgen.toml
+Generator configuration; options cover parsing, naming and output layout.
+.SH NOTES
+Cargo metadata and macro expansion can require dependencies. Reproducible offline
+builds should vendor dependencies and use a controlled Cargo configuration.
+.SH SEE ALSO
+.BR cargo (1),
+.BR rustc (1)

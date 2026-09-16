@@ -1,0 +1,12 @@
+#!/bin/sh
+# Cargo requests link output for actual code generation. Feature probes that
+# request only metadata keep the stable compiler contract (notably rustix).
+set -eu
+compiler=$1
+shift
+for arg do
+  case "$arg" in
+    --emit=*link*) exec env RUSTC_BOOTSTRAP=1 "$compiler" -Zcf-protection=full "$@" ;;
+  esac
+done
+exec "$compiler" "$@"
