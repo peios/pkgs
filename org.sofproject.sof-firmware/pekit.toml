@@ -73,6 +73,9 @@ du -sm "$dest"
 "usr/lib/firmware/**" = "tcb.priv"
 
 [build.main.dependencies.peipkg]
+# GNU archive-copy semantics preserve upstream links and timestamps on Linux
+# build hosts without requesting Peios-only KACS security descriptors.
+"org.gnu.coreutils-build-compat" = "*"
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils"     = "*"
@@ -97,7 +100,15 @@ dest="$PEKIT_MAIN_OUT/usr/lib/firmware/intel"
 [ "$(find "$dest" -type f -name '*.tplg.zst' | wc -l)" -ge 400 ]
 [ "$(find "$dest" -type f -name '*.llext.zst' | wc -l)" -ge 1 ]
 [ "$(find "$dest" -type f -name '*.ldc.zst' | wc -l)" -ge 5 ]
-[ -z "$(find "$dest" -type f ! -name '*.zst' -print -quit)" ]
+[ -z "$(find "$dest" -type f ! -name '*.zst' ! -name '*.zst.peios.sig' -print -quit)" ]
+# Signing runs before this gate. Every compressed payload has exactly its
+# generated signature sidecar, and every sidecar names a regular payload.
+find "$dest" -type f -name '*.zst' -exec sh -c '
+  for blob do test -s "$blob.peios.sig" || exit 1; done
+' sh {} +
+find "$dest" -type f -name '*.peios.sig' -exec sh -c '
+  for signature do test -f "${signature%.peios.sig}" || exit 1; done
+' sh {} +
 find "$dest" -type f -name '*.zst' -exec zstd -q -t {} +
 test -z "$(find "$dest" -xtype l -print)"
 test -L "$dest/sof-ace-tplg"
