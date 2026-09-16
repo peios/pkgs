@@ -10,7 +10,7 @@ out_dir = "out"
 [source.url]
 url         = "https://sourceware.org/pub/bzip2/bzip2-{{version}}.tar.gz"
 listing_url = "https://sourceware.org/pub/bzip2/"
-file_regex  = 'bzip2-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+file_regex  = 'bzip2-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.gz'
 extract     = true
 root        = "bzip2-{{version}}"
 # Soft maintenance floor: automatic sweeps accept every newer stable release.
@@ -27,12 +27,14 @@ fingerprints = ["EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.sourceware.bzip2"
 mkdir -p "$PEKIT_OUT/build"
 cp -a "$SRC/." "$PEKIT_OUT/build/"
 cd "$PEKIT_OUT/build"
 
-CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64"
-LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+CFLAGS_COMMON="${CFLAGS:?}"
+LDFLAGS_COMMON="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Shared ABI and dynamically linked command-line implementation.
 make -f Makefile-libbz2_so -j"$(nproc)" \
@@ -102,6 +104,16 @@ ln -s bzgrep.1 "$MANDIR/bzegrep.1"
 ln -s bzgrep.1 "$MANDIR/bzfgrep.1"
 install -m 0644 manual.html manual.pdf "$DOCDIR/"
 
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
+
 # Distribution debug split: scrub build paths, index detached symbols by GNU
 # build ID, strip installed ELF payloads, and retain referenced source files.
 cd "$PEKIT_OUT"
@@ -115,8 +127,10 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.bzip2 -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.bzip2 -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
     rest=$(printf %s "$bid" | cut -c3-)
@@ -137,9 +151,13 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit      = "*"
 patchelf       = "*"
@@ -179,6 +197,8 @@ EOF
 cc -I"$STAGE/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
   -o "$SMOKE/libbz2" "$SMOKE/libbz2.c" -lbz2
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libbz2"
+cc -I"$STAGE/usr/include" "$SMOKE/libbz2.c" "$LIBDIR/libbz2.a" -o "$SMOKE/libbz2-static"
+"$SMOKE/libbz2-static"
 head -1 "$BINDIR/bzgrep" | grep -Fx '#!/usr/bin/sh'
 head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
 

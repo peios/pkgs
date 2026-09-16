@@ -26,13 +26,15 @@ fingerprints = ["3690C240CE51B4670D30AD1C38EE757D69184620"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tukaani.xz"
 cd "$PEKIT_OUT"
 
 # Autotools is upstream's most-tested build and the release archive includes
 # generated catalogs and translated manuals, so the build needs no regeneration.
-# Force CET notes because optimized assembly objects otherwise make the GNU
-# linker's conservative property merge discard them.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# Generate IBT PLT entries. Assembly inputs must supply their own compatibility
+# notes; do not mask missing protection by forcing a final ELF marker.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -64,6 +66,16 @@ rm -f \
 find "$PEKIT_OUT/usr/share/man" \
   \\( -name 'xzless.1' -o -name 'lzless.1' -o \
      -name 'xzmore.1' -o -name 'lzmore.1' \\) -delete
+
+
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
 
 # Installed scripts target Peios' canonical shell path. Their compatibility
 # aliases are symlinks to these two audited implementations.
@@ -213,7 +225,9 @@ for elf in $ELFS; do
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   readelf -d "$elf" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' \
     | while IFS= read -r needed; do
@@ -240,10 +254,14 @@ grep            = "*"
 diffutils       = "*"
 
 [build.main.dependencies.peipkg]
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.gettext" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"

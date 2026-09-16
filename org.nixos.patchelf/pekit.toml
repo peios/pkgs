@@ -24,6 +24,8 @@ versions    = ">= 0.19.1"
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.nixos.patchelf"
 BUILD="$PEKIT_OUT/build"
 BIN="$PEKIT_OUT/usr/bin/patchelf"
 
@@ -39,6 +41,16 @@ cd "$BUILD"
 make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
+
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 
 # Upstream installs README into a versioned doc directory. Package the source
 # document explicitly under the canonical package name instead.
@@ -120,7 +132,7 @@ make -C "$BUILD" check LDFLAGS= || {
 
 test -x "$BIN"
 test "$("$BIN" --version)" = "patchelf $PEKIT_VERSION"
-test -f "$STAGE/usr/share/man/man1/patchelf.1"
+test -f "$STAGE/usr/share/man/man1/patchelf.1.gz"
 test -f "$STAGE/usr/share/zsh/site-functions/_patchelf"
 test "$(find "$STAGE/usr/bin" -maxdepth 1 -type f | wc -l)" -eq 1
 
@@ -161,7 +173,7 @@ readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-if c++ --version | head -1 | grep -Fq Peios; then
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
   readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
 fi
 test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
@@ -172,6 +184,7 @@ test -n "$(find "$STAGE/usr/src/debug/org.nixos.patchelf" -type f -print -quit)"
 "dev.peios.build-essentials" = "*"
 "org.gnu.gcc-c++"            = "*"
 "org.gnu.findutils"          = "*"
+"org.gnu.gawk"               = "*"
 "org.gnu.grep"               = "*"
 "org.gnu.glibc-bin"          = "*"
 "org.gnu.bash"               = "*"
@@ -182,5 +195,6 @@ build-essential = "*"
 binutils        = "*"
 coreutils       = "*"
 findutils       = "*"
+gawk            = "*"
 grep            = "*"
 libc-bin        = "*"

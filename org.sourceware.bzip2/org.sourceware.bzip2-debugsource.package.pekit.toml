@@ -6,4 +6,5 @@ description = "bzip2 - debug sources"
 "org.sourceware.bzip2-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:LICENSE" = "usr/share/licenses/org.sourceware.bzip2-debugsource/LICENSE"
 ":usr/src/debug/**" = "usr/src/debug"
