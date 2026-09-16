@@ -6,4 +6,5 @@ description = "GNU file comparison utilities - debugging symbols"
 "org.gnu.diffutils" = "{{version}}-1"
 
 [files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.diffutils-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

@@ -35,6 +35,9 @@ fingerprints = [
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Preserve physical DWARF paths until debugedit collects the source files.
+export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.findutils"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -59,10 +62,10 @@ rm -f "$PEKIT_OUT/usr/bin/locate" "$PEKIT_OUT/usr/bin/updatedb" \
       "$PEKIT_OUT/usr/share/man/man1/updatedb.1" \
       "$PEKIT_OUT/usr/share/man/man5/locatedb.5"
 find "$PEKIT_OUT/usr/share/man" -depth -type d -empty -delete
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
 
 # Conventional build-ID debuginfo and the exact DWARF-referenced sources.
 cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
 for elf in usr/bin/find usr/bin/xargs; do
   patchelf --remove-rpath "$elf" 2>/dev/null || true
@@ -93,12 +96,14 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "org.perl.perl"               = "*"
+"org.gnu.gzip"                = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
 perl            = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -134,7 +139,7 @@ cmp "$SMOKE/expected" "$SMOKE/found"
 "$BIN/find" "$SMOKE/tree" -type f -name '*.txt' -print0 \
   | "$BIN/xargs" -0 -n1 basename | sort > "$SMOKE/xargs"
 cmp "$SMOKE/expected" "$SMOKE/xargs"
-printf '%s\\0' "$SMOKE/tree/a" "$SMOKE/tree/b" > "$SMOKE/roots"
+printf '%s\0' "$SMOKE/tree/a" "$SMOKE/tree/b" > "$SMOKE/roots"
 "$BIN/find" -files0-from "$SMOKE/roots" -maxdepth 0 -printf '%f\n' | sort > "$SMOKE/roots-found"
 printf '%s\n' a b > "$SMOKE/roots-expected"
 cmp "$SMOKE/roots-expected" "$SMOKE/roots-found"

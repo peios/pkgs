@@ -6,4 +6,5 @@ description = "GNU Findutils debugging symbols"
 "org.gnu.findutils" = "{{version}}-1"
 
 [files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.findutils-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

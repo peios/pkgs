@@ -36,6 +36,8 @@ cd "$PEKIT_OUT"
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
+
 # Peios currently has no Info reader. The source package retains the complete
 # Texinfo documentation; installed users receive the command manual pages.
 rm -rf "$PEKIT_OUT/usr/share/info"
@@ -71,11 +73,13 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "org.perl.perl"               = "*"
+"org.gnu.gzip"                = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true

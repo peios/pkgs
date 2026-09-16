@@ -6,4 +6,5 @@ description = "GNU cpio archive copier - debugging symbols"
 "org.gnu.cpio" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.cpio-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

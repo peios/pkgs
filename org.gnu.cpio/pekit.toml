@@ -32,6 +32,7 @@ fingerprints = ["325F650C4C2B6AD58807327A3602B07F55D0C732"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 
 # The filename-quoting security fix updates an Autotest source. Regenerate the
 # release harness so the tests exercise its current expected diagnostics.
@@ -44,8 +45,8 @@ cd "$PEKIT_OUT"
   --mandir=/usr/share/man \
   --disable-nls \
   --with-rmt=/usr/libexec/rmt \
-  CFLAGS="-O2 -g -pipe -std=gnu17 -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64 -fPIE" \
-  LDFLAGS="-Wl,-z,relro,-z,now,--as-needed,-z,pack-relative-relocs -pie"
+  CFLAGS="${CFLAGS:?} -std=gnu17 -fPIE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.cpio" \
+  LDFLAGS="${LDFLAGS:?} -pie"
 
 # The security patch documents its new quoting controls in Texinfo, but Peios
 # intentionally does not ship Info output. Retain the signed release's
@@ -53,6 +54,7 @@ cd "$PEKIT_OUT"
 # to regenerate a payload removed below.
 make -j"$(nproc)" MAKEINFO=true
 make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios currently has no Info reader. The complete documentation remains in
 # the corresponding-source package, while the installed command keeps its
@@ -85,6 +87,7 @@ rm -f "$PEKIT_OUT/.dl"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.autoconf" = ">= 2.72"
 "org.gnu.automake" = ">= 1.18"
@@ -93,6 +96,7 @@ rm -f "$PEKIT_OUT/.dl"
 "org.gnu.tar" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 autoconf       = ">= 2.72"
 automake       = ">= 1.18"

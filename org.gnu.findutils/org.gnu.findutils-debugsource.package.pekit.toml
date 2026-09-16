@@ -6,4 +6,5 @@ description = "GNU Findutils debug sources"
 "org.gnu.findutils-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.findutils-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"
