@@ -6,4 +6,5 @@ description = "GNU tar debugging symbols"
 "org.gnu.tar" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.tar-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

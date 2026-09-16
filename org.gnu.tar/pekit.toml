@@ -31,7 +31,12 @@ fingerprints = ["325F650C4C2B6AD58807327A3602B07F55D0C732"]
 [build.main]
 command = """
 set -eu
-SRC="$(pwd)"
+# Autoreconf and the patched Autotest suite generate source-tree files.
+cp -a . "$PEKIT_OUT/source"
+SRC="$PEKIT_OUT/source"
+cd "$SRC"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.tar"
 export CONFIG_SHELL=/usr/bin/bash
 export SHELL=/usr/bin/bash
 
@@ -50,13 +55,16 @@ cd "$PEKIT_OUT"
   --without-posix-acls \
   --without-selinux \
   --with-rmt=/usr/libexec/rmt \
-  CFLAGS="-O2 -g -pipe -std=gnu17 -fstack-protector-strong -D_FORTIFY_SOURCE=3 -D_FILE_OFFSET_BITS=64 -fPIE" \
-  LDFLAGS="-Wl,-z,relro,-z,now,--as-needed,-z,pack-relative-relocs -pie"
+  CFLAGS="${CFLAGS:?} -std=gnu17 -fPIE" \
+  LDFLAGS="${LDFLAGS:?} -pie"
 
 # Peios has no Info reader. MAKEINFO=true preserves that policy without
 # introducing Texinfo solely to regenerate a payload removed after install.
 make -j"$(nproc)" MAKEINFO=true
+# Generate the patched harness while the declared build Autoconf is present.
+make -C tests "$SRC/tests/testsuite"
 make install DESTDIR="$PEKIT_OUT" MAKEINFO=true
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 rm -rf "$PEKIT_OUT/usr/share/info"
 
 # rmt is deliberately not built: Peios does not ship the tape-era remote
@@ -128,7 +136,7 @@ done
 cmp "$SMOKE/deterministic-a.tar" "$SMOKE/deterministic-b.tar"
 
 "$BIN" --version | head -n 1 | grep -F "$PEKIT_VERSION"
-test -f "$STAGE/usr/share/man/man1/tar.1"
+test -f "$STAGE/usr/share/man/man1/tar.1.gz"
 find "$STAGE/usr/share/locale" -name tar.mo -type f | grep -q .
 readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
 readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
