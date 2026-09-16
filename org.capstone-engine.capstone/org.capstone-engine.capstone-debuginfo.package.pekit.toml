@@ -6,4 +6,6 @@ description = "Capstone - debugging symbols"
 "org.capstone-engine.capstone" = "{{version}}-1"
 
 [files]
+"@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone-debuginfo/"
+"@source:LICENSE_LLVM.TXT" = "usr/share/licenses/org.capstone-engine.capstone-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

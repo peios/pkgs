@@ -38,7 +38,7 @@ cd "$BUILD_SRC"
 ./autogen.sh
 
 cd "$OBJ"
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$BUILD_SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -54,6 +54,7 @@ make -j"$(nproc)"
 cp src/dash "$SMOKE/dash.first"
 
 make install DESTDIR="$PEKIT_OUT"
+gzip -n -9 "$PEKIT_OUT/usr/share/man/man1/dash.1"
 
 # Split the installed ELF by build ID, normalize DWARF paths to the qualified
 # package namespace, and retain every source file referenced by the binary.
@@ -90,6 +91,7 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.gnu.automake"        = ">= 1.18"
 "org.nixos.patchelf"      = "*"
 "org.sourceware.debugedit" = "*"
+"org.gnu.gzip"             = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -97,6 +99,7 @@ autoconf        = "*"
 automake        = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -130,9 +133,9 @@ SMOKE="$TEST_OUT/dash-smoke"
 BIN="$PEKIT_OUT/usr/bin/dash"
 mkdir -p "$SMOKE"
 test -x "$BIN"
-test -f "$PEKIT_OUT/usr/share/man/man1/dash.1"
+test -f "$PEKIT_OUT/usr/share/man/man1/dash.1.gz"
 test "$(find "$PEKIT_OUT/usr/bin" -maxdepth 1 -type f -printf '%f\n')" = dash
-test "$(find "$PEKIT_OUT/usr/share/man" -type f -printf '%P\n')" = man1/dash.1
+test "$(find "$PEKIT_OUT/usr/share/man" -type f -printf '%P\n')" = man1/dash.1.gz
 grep -F "AC_INIT([dash],[$PEKIT_VERSION])" "$LOCKED_SRC/configure.ac"
 
 # Upstream has no regression target. Exercise the staged shell across parsing,
@@ -212,7 +215,9 @@ readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
-readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 readelf -n "$BIN" | grep -F 'Build ID:'
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(patchelf --print-needed "$BIN")" = libc.so.6

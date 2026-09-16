@@ -12,7 +12,7 @@ description = "Terminal banner-text renderer and font catalogue"
 
 [dependencies]
 "org.gnu.glibc"               = ">= 2.43"
-sh                  = ">= 1"
+"org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.sed"                 = "*"
 

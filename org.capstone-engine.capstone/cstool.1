@@ -1,0 +1,39 @@
+.TH CSTOOL 1 "Peios" "Capstone" "User Commands"
+.SH NAME
+cstool \- disassemble machine code with Capstone
+.SH SYNOPSIS
+.B cstool
+.RI [ options ]
+.I architecture-mode
+.I hexadecimal-code
+.RI [ start-address ]
+.SH DESCRIPTION
+.B cstool
+is the command-line frontend for the Capstone multi-architecture disassembly
+engine. The architecture and mode are selected by the first operand and the
+bytes to disassemble are supplied as an unseparated hexadecimal string.
+.SH OPTIONS
+.TP
+.B \-d
+Enable detailed instruction information.
+.TP
+.B \-s
+Decode undecodable bytes as data (SKIPDATA mode).
+.TP
+.B \-u
+Show immediate operands as unsigned values.
+.TP
+.B \-v
+Show the version and Capstone core build information.
+.PP
+Run without operands to display the supported architecture-mode combinations.
+The optional start address is hexadecimal.
+.SH EXAMPLES
+.PP
+.B cstool x64 554889e5
+.PP
+Disassembles an x86-64 function prologue.
+.SH SEE ALSO
+.BR objdump (1)
+.SH HOMEPAGE
+https://www.capstone-engine.org/

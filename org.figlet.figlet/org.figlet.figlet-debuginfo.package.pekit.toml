@@ -6,4 +6,5 @@ description = "FIGlet - debugging symbols"
 "org.figlet.figlet" = "{{version}}-1"
 
 [files]
+"@source:LICENSE"   = "usr/share/licenses/org.figlet.figlet-debuginfo/LICENSE"
 ":usr/lib/debug/**" = "usr/lib/debug"

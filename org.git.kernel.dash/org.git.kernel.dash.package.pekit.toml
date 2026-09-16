@@ -23,4 +23,4 @@ path   = "/usr/bin/sh"
 [files]
 "@source:COPYING"             = "usr/share/licenses/org.git.kernel.dash/COPYING"
 ":usr/bin/dash"                = "usr/bin/dash"
-":usr/share/man/man1/dash.1" = "usr/share/man/man1/dash.1"
+":usr/share/man/man1/dash.1.gz" = "usr/share/man/man1/dash.1.gz"

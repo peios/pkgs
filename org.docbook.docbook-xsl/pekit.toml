@@ -37,8 +37,16 @@ CURRENT="$BASE/xsl-stylesheets"
 DOC="$PEKIT_OUT/usr/share/doc/org.docbook.docbook-xsl"
 LICENSES="$PEKIT_OUT/usr/share/licenses/org.docbook.docbook-xsl"
 
+# Native Peios keeps GNU compatibility tools outside the runtime PATH.
+# Debian's declared coreutils dependency installs them on PATH.
+CP=cp
+CHMOD=chmod
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  CP=/usr/libexec/coreutils-build/cp
+  CHMOD=/usr/libexec/coreutils-build/chmod
+fi
 mkdir -p "$XSL" "$DOC" "$LICENSES"
-cp -a "$SRC"/. "$XSL/"
+"$CP" -a "$SRC"/. "$XSL/"
 
 # Ship the complete stylesheet surface rather than only the formats Peios
 # currently consumes. Remove build/test inputs and bundled executable tools:
@@ -108,14 +116,15 @@ EOF
 # determinism explicit instead: no build detritus or bundled binaries remain,
 # directories are 0755, ordinary data 0644, and rebuilding the file inventory
 # from the same locked source yields the same sorted digest list.
-find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
-find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
+find "$PEKIT_OUT/usr/share" -type d -exec "$CHMOD" 0755 {} +
+find "$PEKIT_OUT/usr/share" -type f -exec "$CHMOD" 0644 {} +
 '''
 
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils" = "*"
+"org.gnu.coreutils-build-compat" = "*"
 
 [build.main.dependencies.apt]
 coreutils = "*"
@@ -181,9 +190,10 @@ grep -q 'Offline transform smoke test' "$SMOKE/peios-docbook.xhtml"
 grep -q 'fo:root' "$SMOKE/peios-docbook.fo"
 test -s "$SMOKE/peios-docbook.1"
 
-test -z "$(find "$XSL" -type f \( -name '*.jar' -o -name '*.class' \) -print -quit)"
-find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.one"
-find "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.two"
+test -z "$(find -H "$XSL" -type f \( -name '*.jar' -o -name '*.class' \) -print -quit)"
+find -H "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.one"
+find -H "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.two"
+test -s "$SMOKE/inventory.one"
 cmp "$SMOKE/inventory.one" "$SMOKE/inventory.two"
 rm -rf "$SMOKE"
 '''

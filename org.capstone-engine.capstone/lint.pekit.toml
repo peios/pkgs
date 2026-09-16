@@ -1,0 +1,4 @@
+# This source family deliberately shares one build-ID-indexed symbol package.
+# Keep checking each runtime ELF against that package's actual debug files.
+[elf]
+debuginfo = "org.capstone-engine.capstone-debuginfo"

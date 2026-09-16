@@ -26,7 +26,7 @@ DEST="$PEKIT_OUT/usr/etc"
 mkdir -p "$DEST"
 for name in ethertypes protocols services; do
   test -s "$SRC/etc/$name"
-  install -m 0644 "$SRC/etc/$name" "$DEST/$name"
+  cat "$SRC/etc/$name" > "$DEST/$name"
 done
 """
 

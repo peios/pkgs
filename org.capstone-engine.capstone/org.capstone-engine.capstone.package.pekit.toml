@@ -1,5 +1,7 @@
 # Capstone's command-line disassembler.
 
+side_effects = ["man-db"]
+
 [package]
 name        = "org.capstone-engine.capstone"
 description = "Multi-architecture command-line disassembler"
@@ -11,4 +13,5 @@ description = "Multi-architecture command-line disassembler"
 "@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone/"
 "@source:LICENSE_LLVM.TXT" = "usr/share/licenses/org.capstone-engine.capstone/"
 ":usr/bin/cstool"          = "usr/bin/cstool"
+":usr/share/man/man1/cstool.1.gz" = "usr/share/man/man1/cstool.1.gz"
 ":usr/share/doc/org.capstone-engine.capstone/**" = "usr/share/doc/org.capstone-engine.capstone"

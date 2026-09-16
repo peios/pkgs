@@ -20,8 +20,10 @@ SRC="$(pwd)"
 BUILD="$PEKIT_OUT/build"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 
-CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3"
-LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs"
+# Keep DWARF paths physical until debugedit collects the referenced files.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.capstone-engine.capstone"
+LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt"
 
 cmake -S "$SRC" -B "$BUILD" \
   -DPROJECT_VERSION="$PEKIT_VERSION" \
@@ -39,6 +41,9 @@ cmake -S "$SRC" -B "$BUILD" \
   -DCAPSTONE_BUILD_CSTEST=OFF
 cmake --build "$BUILD" --parallel "$(nproc)"
 DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+mkdir -p "$PEKIT_OUT/usr/share/man/man1"
+gzip -n -9 -c "$PEKIT_RECIPE_ROOT/cstool.1" > \
+  "$PEKIT_OUT/usr/share/man/man1/cstool.1.gz"
 
 DOCDIR="$PEKIT_OUT/usr/share/doc/org.capstone-engine.capstone"
 mkdir -p "$DOCDIR"
@@ -57,8 +62,10 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
     rest=$(printf %s "$bid" | cut -c3-)
@@ -81,12 +88,16 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 cmake          = "*"
 debugedit      = "*"
 patchelf       = "*"
+gzip           = "*"
 
 [test]
 gate = true

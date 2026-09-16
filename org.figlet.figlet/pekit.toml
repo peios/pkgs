@@ -40,6 +40,8 @@ make install \
   DESTDIR="$PEKIT_OUT" BINDIR=/usr/bin MANDIR=/usr/share/man \
   DEFAULTFONTDIR=/usr/share/figlet
 
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
+
 # Peios places the POSIX shell at /usr/bin/sh.
 sed -i '1s|^#!/bin/sh -$|#!/usr/bin/sh -|' \
   "$BIN/figlist" "$BIN/showfigfonts"
@@ -78,6 +80,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.diffutils" = "*"
 "org.gnu.sed"                  = "*"
 "org.sourceware.debugedit"            = "*"
+"org.gnu.gzip"                        = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -85,6 +88,7 @@ coreutils       = "*"
 diffutils       = "*"
 sed             = "*"
 debugedit       = "*"
+gzip            = "*"
 
 [test]
 gate = true
