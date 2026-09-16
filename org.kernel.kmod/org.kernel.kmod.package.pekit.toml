@@ -1,3 +1,5 @@
+side_effects = ["man-db"]
+
 # org.kernel.kmod — the multicall tool plus its modprobe/insmod/rmmod/lsmod/modinfo compat
 # names (plain symlinks). depmod is the exception: it is machine-facing —
 # peipkg's install side effect and `make modules_install` call it, people do
@@ -18,3 +20,6 @@ license     = "GPL-2.0-or-later"
 "@source:tools/COPYING" = "usr/share/licenses/org.kernel.kmod/COPYING"
 ":usr/bin/**"           = "usr/bin"
 ":usr/libexec/**"       = "usr/libexec"
+
+":usr/share/man/**" = "usr/share/man"
+"@source:man/*.scd" = "usr/share/doc/org.kernel.kmod/upstream-manuals/"

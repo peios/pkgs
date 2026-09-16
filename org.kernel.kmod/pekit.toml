@@ -85,6 +85,8 @@ rm -f "$PEKIT_OUT/usr/bin/depmod"
 ln -s ../bin/kmod "$PEKIT_OUT/usr/libexec/depmod"
 rm -rf "$PEKIT_OUT/etc"
 
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man8"
+
 # Produce conventional build-ID-indexed debuginfo and the exact source files
 # referenced by DWARF. Archives retain code but do not carry duplicate debug.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -232,19 +234,26 @@ for elf in "$BIN/kmod" "$LIBKMOD_SO"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
+done
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$STAGE" "$PEKIT_VERSION" "$PEKIT_OUT/manuals"
+for page in "$PEKIT_OUT/manuals/"*.gz; do
+  cmp "$page" "$STAGE/usr/share/man/man8/$(basename "$page")"
 done
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3" = "*"
+"org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.bash" = "*"
 "org.gnu.sed" = "*"
 "org.gnu.grep" = "*"
 "org.gnu.findutils" = "*"
-"org.gnu.gzip" = "*"
 "org.tukaani.xz" = "*"
 "com.facebook.zstd" = "*"
 "dev.peios.kernel-devel" = ">= 0.20.1-rc12-1"
@@ -262,6 +271,8 @@ done
 "org.openssl.openssl-devel" = "*"
 
 [test.dependencies.apt]
+python3 = "*"
+gzip = "*"
 build-essential = "*"
 bash = "*"
 clang = "*"
@@ -275,7 +286,6 @@ zlib1g-dev = "*"
 liblzma-dev = "*"
 libzstd-dev = "*"
 libssl-dev = "*"
-gzip = "*"
 xz-utils = "*"
 zstd = "*"
 grep = "*"
@@ -300,6 +310,8 @@ coreutils = "*"
 "usr/bin/kmod" = "tcb.priv"
 
 [build.main.dependencies.peipkg]
+"org.python.python3" = "*"
+"org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 # The testsuite's harness is bash, and its module playground is an out-of-tree
@@ -314,7 +326,6 @@ coreutils = "*"
 "org.gnu.findutils" = "*"
 # The harness compresses its dummy modules with all three algorithms to
 # exercise libkmod's decompressors.
-"org.gnu.gzip" = "*"
 "org.tukaani.xz" = "*"
 "com.facebook.zstd" = "*"
 "dev.peios.kernel-devel" = ">= 0.20.1-rc12-1"
@@ -332,6 +343,8 @@ coreutils = "*"
 "org.openssl.openssl-devel" = "*"
 
 [build.main.dependencies.apt]
+python3 = "*"
+gzip = "*"
 build-essential = "*"
 bash = "*"
 clang = "*"
@@ -345,7 +358,6 @@ zlib1g-dev = "*"
 liblzma-dev = "*"
 libzstd-dev = "*"
 libssl-dev = "*"
-gzip = "*"
 xz-utils = "*"
 zstd = "*"
 grep = "*"
