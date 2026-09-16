@@ -25,6 +25,8 @@ fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gzip"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -44,6 +46,15 @@ rm -f \
   "$PEKIT_OUT/usr/bin/zmore" \
   "$PEKIT_OUT/usr/share/man/man1/zless.1" \
   "$PEKIT_OUT/usr/share/man/man1/zmore.1"
+
+# Ship deterministic compressed manuals and explicit alias pages for the
+# compatibility commands whose upstream executables share another command's
+# implementation and documentation.
+MAN1="$PEKIT_OUT/usr/share/man/man1"
+"$PEKIT_OUT/usr/bin/gzip" -9n "$MAN1"/*.1
+ln -s gzip.1.gz "$MAN1/uncompress.1.gz"
+ln -s zgrep.1.gz "$MAN1/zegrep.1.gz"
+ln -s zgrep.1.gz "$MAN1/zfgrep.1.gz"
 
 # Every installed script targets Peios' canonical shell path. Keep this list
 # explicit so a newly added upstream command cannot silently escape review.
@@ -102,13 +113,21 @@ ELF="$BIN/gzip"
 SMOKE="$PEKIT_OUT/smoke"
 cd "$STAGE"
 
+# Upstream's help/version sweep exercises the uninstalled zmore script.  Peios
+# intentionally does not ship zmore until it has a pager package, but the
+# script itself must still pass upstream's test.  Supply a test-only pager
+# with the standard non-interactive `more FILE...` contract.
+mkdir -p "$SMOKE/test-bin"
+printf '%s\n' '#!/usr/bin/sh' 'exec cat "$@"' > "$SMOKE/test-bin/more"
+chmod 0755 "$SMOKE/test-bin/more"
+export PATH="$SMOKE/test-bin:$BIN:$PATH"
+
 make -j"$(nproc)" check
 for script in gunzip gzexe zcat zcmp zdiff zegrep zfgrep zforce zgrep znew uncompress; do
   test "$(sed -n '1p' "$BIN/$script")" = '#!/usr/bin/sh'
 done
 
 mkdir -p "$SMOKE"
-export PATH="$BIN:$PATH"
 printf '%s\n' alpha beta 'literal[1]' > "$SMOKE/plain"
 "$BIN/gzip" -c "$SMOKE/plain" > "$SMOKE/plain.gz"
 "$BIN/gzip" -t "$SMOKE/plain.gz"

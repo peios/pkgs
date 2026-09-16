@@ -6,4 +6,5 @@ description = "GNU gzip debugging symbols"
 "org.gnu.gzip" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gzip-debuginfo/COPYING"
 ":usr/lib/debug/**" = "usr/lib/debug"

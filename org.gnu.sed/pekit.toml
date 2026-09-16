@@ -30,11 +30,12 @@ fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.sed"
 cd "$PEKIT_OUT"
 
-# Force the CET property note because Debian's unmarked implicit objects can
-# otherwise make the linker's conservative property merge discard it.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# Generate IBT PLT entries without claiming compatibility for unmarked inputs.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -48,6 +49,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios currently has no Info reader. The generated corresponding-source
 # package retains the complete Texinfo manual; installed users receive the
@@ -86,6 +88,9 @@ rm -f "$PEKIT_OUT/.dl"
 """
 
 [build.main.dependencies.peipkg]
+# Legacy-locale regression cases require the corresponding charset converters.
+"org.gnu.glibc-gconv-extra" = ">= 2.43"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.glibc-bin"          = ">= 2.43"
 "org.gnu.glibc-langpack-en"  = ">= 2.43"
@@ -96,6 +101,7 @@ rm -f "$PEKIT_OUT/.dl"
 "org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"
@@ -170,7 +176,9 @@ readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN'
 readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
-readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 test -n "$(find "$STAGE/usr/share/locale" -type f -name 'sed.mo' -print -quit)"
 test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
@@ -178,6 +186,8 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.sed" -type f -print -quit)"
 '''
 
 [test.dependencies.peipkg]
+# Legacy-locale regression cases require the corresponding charset converters.
+"org.gnu.glibc-gconv-extra" = ">= 2.43"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.glibc-bin"          = ">= 2.43"
 "org.gnu.glibc-langpack-en"  = ">= 2.43"

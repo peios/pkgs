@@ -6,4 +6,5 @@ description = "GNU sed debugging symbols"
 "org.gnu.sed" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.sed-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"
