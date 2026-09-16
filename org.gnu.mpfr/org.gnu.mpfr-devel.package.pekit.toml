@@ -9,6 +9,7 @@ description = "GNU MPFR development files"
 "org.gnu.gmp-devel" = ">= 6.3.0"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpfr-devel/"
 ":usr/include/mpfr.h"                           = "usr/include/mpfr.h"
 ":usr/include/mpf2mpfr.h"                       = "usr/include/mpf2mpfr.h"
 ":usr/lib/x86_64-linux-peios/libmpfr.so"        = "usr/lib/x86_64-linux-peios/libmpfr.so"

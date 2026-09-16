@@ -30,6 +30,8 @@ ignore_expiry = true
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.mpc"
 cd "$PEKIT_OUT"
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
@@ -153,7 +155,7 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.mpc" -type f -print -quit)"
 readelf -W -l "$MPC_SO" | grep -F 'GNU_RELRO'
 readelf -d "$MPC_SO" | grep -F 'BIND_NOW'
 readelf -W -l "$MPC_SO" | grep -E 'GNU_STACK.*RW '
-if cc --version | head -1 | grep -Fq 'Peios'; then
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
   readelf -n "$MPC_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 fi
 if readelf -d "$MPC_SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi

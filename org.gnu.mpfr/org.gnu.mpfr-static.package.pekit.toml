@@ -9,4 +9,5 @@ description = "GNU MPFR static library"
 "org.gnu.gmp-static" = ">= 6.3.0"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpfr-static/"
 ":usr/lib/x86_64-linux-peios/libmpfr.a" = "usr/lib/x86_64-linux-peios/libmpfr.a"

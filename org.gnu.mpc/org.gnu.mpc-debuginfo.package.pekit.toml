@@ -10,4 +10,5 @@ description = "GNU MPC debugging symbols"
 "org.gnu.mpc" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

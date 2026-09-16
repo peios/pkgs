@@ -10,4 +10,5 @@ description = "GNU MPC debug sources"
 "org.gnu.mpc-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

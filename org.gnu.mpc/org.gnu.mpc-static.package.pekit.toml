@@ -12,4 +12,5 @@ description = "GNU MPC static library"
 "org.gnu.gmp-static"  = ">= 6.3.0"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-static/"
 ":usr/lib/x86_64-linux-peios/libmpc.a" = "usr/lib/x86_64-linux-peios/libmpc.a"

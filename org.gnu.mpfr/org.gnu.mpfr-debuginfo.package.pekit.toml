@@ -6,4 +6,5 @@ description = "GNU MPFR debugging symbols"
 "org.gnu.mpfr" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpfr-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

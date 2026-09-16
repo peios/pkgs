@@ -12,6 +12,7 @@ description = "GNU MPC development files"
 "org.gnu.mpfr-devel" = ">= 4.2.2"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-devel/"
 ":usr/include/mpc.h"                           = "usr/include/mpc.h"
 ":usr/lib/x86_64-linux-peios/libmpc.so"        = "usr/lib/x86_64-linux-peios/libmpc.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/mpc.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/mpc.pc"
