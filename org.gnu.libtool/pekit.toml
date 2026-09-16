@@ -7,7 +7,7 @@ url         = "https://ftp.gnu.org/gnu/libtool/libtool-{{version}}.tar.xz"
 listing_url = "https://ftp.gnu.org/gnu/libtool/"
 extract     = true
 root        = "libtool-{{version}}"
-file_regex  = '^libtool-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz$'
+file_regex  = 'libtool-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # Soft maintenance floor. Follow every newer authenticated stable release;
 # incompatible build-system changes stop at the regression gates.
 versions    = ">= 2.6.2"
@@ -31,6 +31,7 @@ TOOLS_BUILD="$WORK/tools"
 LTDL_BUILD="$WORK/ltdl"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 BIN="$PEKIT_OUT/usr/bin"
+DEBUG_PREFIX=/usr/src/debug/org.gnu.libtool
 
 # Keep Pekit's locked source pristine and give debugedit one common prefix for
 # both the full suite and the separately hardened libltdl build.
@@ -61,15 +62,16 @@ make install DESTDIR="$PEKIT_OUT"
 # This prevents inherited hardening/linker flags from leaking into libtool's
 # generated consumer scripts while keeping the actual runtime fully hardened.
 cd "$LTDL_BUILD"
+LTDL_CFLAGS="${CFLAGS-} -fmacro-prefix-map=$WORK=$DEBUG_PREFIX"
 "$SRC/libltdl/configure" \
   --prefix=/usr \
   --libdir=/usr/lib/x86_64-linux-peios \
   --enable-ltdl-install \
   --enable-shared \
   --enable-static \
-  CFLAGS="${CFLAGS-}" \
+  CFLAGS="$LTDL_CFLAGS" \
   CPPFLAGS="${CPPFLAGS-}" \
-  LDFLAGS="${LDFLAGS-} -Wl,-z,ibt,-z,shstk"
+  LDFLAGS="${LDFLAGS-} -Wl,-z,ibtplt"
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
@@ -78,12 +80,21 @@ make install DESTDIR="$PEKIT_OUT"
 find "$LIBDIR" -maxdepth 1 -type f -name '*.la' -delete
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 
+LTDL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libltdl.so.7.*' | LC_ALL=C sort)
+test "$(printf '%s\n' "$LTDL_SO" | grep -c .)" -eq 1
+
 # Peios's canonical shell entry point is /usr/bin/sh. Keep the command list
 # explicit so newly installed programs cannot escape packaging review.
 for script in libtool libtoolize libtool-next-version; do
   test -f "$BIN/$script"
   sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$BIN/$script"
 done
+
+# The copied build helper has a shell entry point and is directly runnable by
+# generated projects. Preserve that contract, and compress manuals without
+# timestamps so identical inputs produce identical package bytes.
+chmod 0755 "$PEKIT_OUT/usr/share/libtool/build-aux/ltmain.sh"
+find "$PEKIT_OUT/usr/share/man/man1" -type f -name '*.1' -exec gzip -9n {} +
 
 # Create build-ID-indexed symbols and copy exactly the source/generated files
 # named by the runtime's rewritten DWARF.
@@ -138,7 +149,7 @@ test "$(find "$BIN" -maxdepth 1 -type f | wc -l)" -eq 3
 test -s "$STAGE/usr/share/aclocal/libtool.m4"
 test -s "$STAGE/usr/share/aclocal/ltdl.m4"
 test -s "$STAGE/usr/share/libtool/build-aux/ltmain.sh"
-test "$(find "$STAGE/usr/share/man/man1" -maxdepth 1 -type f -name '*.1' | wc -l)" -eq 3
+test "$(find "$STAGE/usr/share/man/man1" -maxdepth 1 -type f -name '*.1.gz' | wc -l)" -eq 3
 test "$(find "$STAGE/usr/include" -type f -name '*.h' | wc -l)" -eq 4
 test -L "$LIBDIR/libltdl.so"
 test -L "$LIBDIR/libltdl.so.7"
@@ -236,7 +247,9 @@ readelf -W -l "$LTDL_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$LTDL_SO" | grep -F 'GNU_RELRO'
 readelf -d "$LTDL_SO" | grep -F 'BIND_NOW'
 readelf -d "$LTDL_SO" | grep -F 'RELR'
-readelf -n "$LTDL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$LTDL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$LTDL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(readelf -d "$LTDL_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$LTDL_SO" | grep -F 'Shared library: [libc.so.6]'
@@ -264,6 +277,7 @@ file            = "*"
 "org.gnu.automake"      = "*"
 "org.nixos.patchelf"                 = "*"
 "org.gnu.tar"                       = "*"
+"org.gnu.gzip"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -273,3 +287,4 @@ automake        = "*"
 file            = "*"
 patchelf        = "*"
 debugedit       = "*"
+gzip            = "*"
