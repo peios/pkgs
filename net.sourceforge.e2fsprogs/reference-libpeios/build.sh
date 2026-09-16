@@ -1,0 +1,102 @@
+set -eu
+set -o pipefail 2>/dev/null || true
+
+SRC=$(pwd -P)
+TRIPLET=x86_64-linux-peios
+LIBDIR=usr/lib/$TRIPLET
+DEBUG_PREFIX=/usr/src/debug/dev.peios.libpeios
+DEBUG_ROOT=$PEKIT_OUT$DEBUG_PREFIX
+PKM_UAPI=$PEKIT_VENDOR_OUT/pkm-uapi
+export CARGO_HOME=$PEKIT_OUT/cargo-home
+mkdir -p "$CARGO_HOME"
+cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+
+VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
+test "$VERSION" = "$PEKIT_VERSION"
+test -f "$PKM_UAPI/pkm/pkm.h"
+
+# Keep all source references independent of checkout and build-root paths.
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$PEKIT_WORKSPACE_ROOT=$DEBUG_PREFIX/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=$DEBUG_PREFIX/.build --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=$DEBUG_PREFIX/vendor --remap-path-prefix=$SRC=$DEBUG_PREFIX"
+
+# Tests and the release outputs use only the locked vendor tree.
+cargo test --release --locked --offline --target-dir "$PEKIT_OUT/target"
+CARGO_PROFILE_RELEASE_DEBUG=2 CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO=off \
+  cargo build --release --locked --offline --target-dir "$PEKIT_OUT/target"
+
+# The checked C snapshot must match Rust, the hand-written public headers must
+# match that snapshot, and the built DSO must export exactly the checked API.
+PKM_UAPI="$PKM_UAPI" PEIOS_LIBRARY="$PEKIT_OUT/target/release/libpeios.so" \
+  PEIOS_VERIFY_SNAPSHOT=auto \
+  ./tools/verify-abi.sh
+
+mkdir -p "$PEKIT_OUT/$LIBDIR" "$PEKIT_OUT/usr/include/peios"
+cp "$PEKIT_OUT/target/release/libpeios.so" "$PEKIT_OUT/$LIBDIR/libpeios.so.0"
+ln -s libpeios.so.0 "$PEKIT_OUT/$LIBDIR/libpeios.so"
+cp "$PEKIT_OUT/target/release/libpeios.a" "$PEKIT_OUT/$LIBDIR/libpeios.a"
+cp include/peios.h "$PEKIT_OUT/usr/include/"
+cp include/peios/*.h "$PEKIT_OUT/usr/include/peios/"
+
+mkdir -p "$PEKIT_OUT/$LIBDIR/pkgconfig"
+sed -e 's|@prefix@|/usr|g' \
+    -e "s|@libdir@|/$LIBDIR|g" \
+    -e "s|@version@|$VERSION|g" \
+    peios.pc.in > "$PEKIT_OUT/$LIBDIR/pkgconfig/peios.pc"
+
+# Prove the staged development surface works for both supported link modes.
+PC=$PEKIT_OUT/$LIBDIR/pkgconfig/peios.pc
+test "$(PKG_CONFIG_LIBDIR=$(dirname "$PC") pkg-config --modversion peios)" = "$VERSION"
+PKG_CONFIG_LIBDIR=$(dirname "$PC") pkg-config --libs --static peios | grep -q -- '-lm'
+gcc -I "$PEKIT_OUT/usr/include" -I "$PKM_UAPI" tools/package-smoke.c \
+  -L "$PEKIT_OUT/$LIBDIR" -Wl,-rpath-link,"$PEKIT_OUT/$LIBDIR" -lpeios \
+  -o "$PEKIT_OUT/smoke-dynamic"
+LD_LIBRARY_PATH="$PEKIT_OUT/$LIBDIR" "$PEKIT_OUT/smoke-dynamic"
+gcc -I "$PEKIT_OUT/usr/include" -I "$PKM_UAPI" tools/package-smoke.c \
+  "$PEKIT_OUT/$LIBDIR/libpeios.a" -lm -lrt -lpthread \
+  -o "$PEKIT_OUT/smoke-static"
+"$PEKIT_OUT/smoke-static"
+rm -f "$PEKIT_OUT/smoke-dynamic" "$PEKIT_OUT/smoke-static"
+
+# Split DWARF from the runtime DSO. The static archive keeps its symbol table
+# but not its embedded debug sections.
+SO=$PEKIT_OUT/$LIBDIR/libpeios.so.0
+LIST=$PEKIT_OUT/.debug-sources
+debugedit -b "$SRC" -d "$DEBUG_PREFIX" -l "$LIST" -n "$SO"
+BUILD_ID=$(readelf -n "$SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$BUILD_ID"
+FIRST=$(printf %s "$BUILD_ID" | cut -c1-2)
+REST=$(printf %s "$BUILD_ID" | cut -c3-)
+DEBUG=$PEKIT_OUT/usr/lib/debug/.build-id/$FIRST/$REST.debug
+mkdir -p "$(dirname "$DEBUG")"
+objcopy --only-keep-debug "$SO" "$DEBUG"
+strip --strip-unneeded "$SO"
+objcopy --add-gnu-debuglink="$DEBUG" "$SO"
+strip --strip-debug "$PEKIT_OUT/$LIBDIR/libpeios.a"
+
+mkdir -p "$DEBUG_ROOT"
+tr '\0' '\n' < "$LIST" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  case "$rel" in
+    vendor/*) ORIGIN=$PEKIT_VENDOR_OUT/$rel ;;
+    *)        ORIGIN=$SRC/$rel ;;
+  esac
+  [ -f "$ORIGIN" ] || continue
+  mkdir -p "$DEBUG_ROOT/$(dirname "$rel")"
+  cp "$ORIGIN" "$DEBUG_ROOT/$rel"
+done
+rm -f "$LIST"
+test -n "$(find "$DEBUG_ROOT" -type f -print -quit)"
+
+# ELF policy and reproducibility gates.
+readelf -h "$SO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -dW "$SO" | grep -q 'SONAME.*\[libpeios.so.0\]'
+readelf -lW "$SO" | grep -q 'GNU_RELRO'
+readelf -lW "$SO" | grep -Eq 'GNU_STACK[[:space:]].*RW[[:space:]]'
+readelf -dW "$SO" | grep -q 'BIND_NOW'
+! readelf -dW "$SO" | grep -Eq '(RPATH|RUNPATH)'
+! readelf -SW "$SO" | grep -q '\.debug_info'
+! readelf -SW "$PEKIT_OUT/$LIBDIR/libpeios.a" | grep -q '\.debug_info'
+readelf -SW "$DEBUG" | grep -q '\.debug_info'
+test "$(readelf -n "$DEBUG" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" = "$BUILD_ID"
+! grep -aFl "$SRC" "$SO" "$PEKIT_OUT/$LIBDIR/libpeios.a" "$DEBUG"
+! grep -aFl "$PEKIT_OUT_BASE" "$SO" "$PEKIT_OUT/$LIBDIR/libpeios.a" "$DEBUG"

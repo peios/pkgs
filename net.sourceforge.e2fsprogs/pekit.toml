@@ -77,10 +77,72 @@ of           = "decompressed"
 #       $(sbindir): configure.ac sets `root_sbindir=$sbindir` whenever
 #       --sbindir is non-default. (The same clause governs root_libdir, which
 #       is why --libdir alone already produces the triplet layout.)
+[build.vendor]
+command = '''
+set -eu
+REF="$PEKIT_RECIPE_ROOT/reference-libpeios"
+python3 "$REF/extract.py" "$REF" "$PEKIT_OUT/source"
+cd "$PEKIT_OUT/source/dev.peios.libpeios-0.5.0-1"
+PEKIT_OUT="$PEKIT_OUT/vendor" sh "$REF/vendor.sh"
+'''
+
+[build.vendor.dependencies.peipkg]
+
+[build.vendor.dependencies.apt]
+python3 = "*"
+cargo = ">= 1.85"
+rustc = ">= 1.85"
+git = "*"
+ca-certificates = "*"
+zstd = "*"
+
+[build.reference-sdk]
+needs = ["vendor"]
+command = '''
+set -eu
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" != apt ]; then exit 0; fi
+REF="$PEKIT_RECIPE_ROOT/reference-libpeios"
+SOURCE="$PEKIT_OUT/source"
+python3 - "$PEKIT_VENDOR_OUT/source/dev.peios.libpeios-0.5.0-1" "$SOURCE" <<'COPY'
+import shutil,sys
+shutil.copytree(sys.argv[1],sys.argv[2])
+COPY
+cd "$SOURCE"
+export PEKIT_VENDOR_OUT="$PEKIT_VENDOR_OUT/vendor"
+export PEKIT_VERSION=0.5.0
+sh "$REF/build.sh"
+cp -R "$PEKIT_VENDOR_OUT/pkm-uapi/pkm" "$PEKIT_OUT/usr/include/pkm"
+# The frozen build command already runs cargo test, ABI/export checks and
+# dynamic/static consumer probes before completing its SDK.
+'''
+
+[build.reference-sdk.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+
+[build.reference-sdk.dependencies.apt]
+build-essential = "*"
+python3 = "*"
+cargo = ">= 1.85"
+rustc = ">= 1.85"
+bash = "*"
+gawk = "*"
+diffutils = "*"
+debugedit = "*"
+cbindgen = "*"
+pkgconf = "*"
+
 [build.main]
+needs = ["reference-sdk"]
 command = """
 set -eu
 SRC="$PEKIT_SOURCE_ROOT"
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = apt ]; then
+  REF_SDK="$PEKIT_REFERENCE_SDK_OUT/usr"
+  export CPPFLAGS="${CPPFLAGS:-} -I$REF_SDK/include"
+  export LDFLAGS="${LDFLAGS:-} -L$REF_SDK/lib/x86_64-linux-peios"
+  export LD_LIBRARY_PATH="$REF_SDK/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+
 DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Scrub macro-expanded strings without hiding physical DWARF source paths.
 export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/net.sourceforge.e2fsprogs"
@@ -212,17 +274,32 @@ done
 "org.gnu.tar" = "*"
 "org.gnu.which" = "*"
 
-# No [build.main.dependencies.apt]: this recipe is rung-2 only. Debian has no
-# libpeios, so the apt provider cannot satisfy the patchset's link dependency
-# — the same reason `kernel` is peipkg-only. Build it with --env peipkg.
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit = "*"
+texinfo = "*"
+pkgconf = "*"
+bzip2 = "*"
+gzip = "*"
+tar = "*"
+debianutils = "*"
+
 
 [test]
 gate = true
-needs = ["main"]
+needs = ["main", "reference-sdk"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
 export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
+
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = apt ]; then
+  REF_SDK="$PEKIT_REFERENCE_SDK_OUT/usr"
+  export CPPFLAGS="${CPPFLAGS:-} -I$REF_SDK/include"
+  export LDFLAGS="${LDFLAGS:-} -L$REF_SDK/lib/x86_64-linux-peios"
+  export LD_LIBRARY_PATH="$REF_SDK/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+
 output=$("$BIN/mke2fs" -V 2>&1)
 case "$output" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 test -x "$BIN/e2fsck"
@@ -243,7 +320,7 @@ export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+
 SMOKE="$PEKIT_OUT/.peios-sd-smoke"
 mkdir -p "$SMOKE/tree/dir"
 touch "$SMOKE/tree/file"
-cc -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
+cc ${CPPFLAGS:-} ${LDFLAGS:-} -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
   "$PEKIT_RECIPE_ROOT/tests/sd-fixture.c" -lpeios
 
 ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)'
@@ -309,3 +386,13 @@ rm -rf "$SMOKE"
 "org.kernel.libblkid" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.sourceware.bzip2" = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+texinfo = "*"
+pkgconf = "*"
+bzip2 = "*"
+gzip = "*"
+tar = "*"
+debianutils = "*"
+libblkid1 = "*"
