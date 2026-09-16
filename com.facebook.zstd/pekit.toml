@@ -180,6 +180,8 @@ needs = ["main"]
 gate  = true
 command = '''
 set -eu
+SDK_TEST_OUT="$PEKIT_OUT"
+export SDK_TEST_OUT
 STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE/build"
 PREFIX="$STAGE/usr"
@@ -333,9 +335,13 @@ for elf in "$BIN/zstd" "$BIN/pzstd" "$LIB"; do
         esac
       done
 done
+
+# Test the SDK package closure, not the complete installation prefix.
+sh "$PEKIT_RECIPE_ROOT/sdk-consumer/test.sh"
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3" = "*"
 "dev.peios.build-essentials-c++"            = "*"
 "org.cmake.cmake"                           = "*"
 "org.pkgconf.pkgconf"                       = "*"
@@ -346,6 +352,7 @@ done
 "org.gnu.tar"                               = "*"
 
 [test.dependencies.apt]
+python3 = "*"
 build-essential = "*"
 cmake           = "*"
 liblzma-dev     = "*"
