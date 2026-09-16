@@ -29,13 +29,15 @@ fingerprints = ["8020B2666305EE2FD53E6827C155A4EEE4E527A2"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.which"
 cd "$PEKIT_OUT"
 
-# Force a complete CET property note: conservative linker merging can discard
-# it when an implicit startup object carries no feature marker.
+# Compile protected code and generate IBT PLT entries. Preserve the linker's
+# note merge so an unmarked startup object cannot masquerade as protected.
 CFLAGS="$CFLAGS -fcf-protection=full" \
 CXXFLAGS="$CXXFLAGS -fcf-protection=full" \
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -47,6 +49,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios currently has no Info reader. The corresponding-source package retains
 # the Texinfo source; installed users receive the command manual and concise
@@ -86,6 +89,7 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 # The installed binary is C-only, but upstream's cwm4 configure layer invokes
 # AC_PROG_CXX and tests C++ warning flags even for this package.
 "dev.peios.build-essentials-c++" = "*"
@@ -93,6 +97,7 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
@@ -153,7 +158,9 @@ readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
-readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$BIN" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 needed=$(readelf -d "$BIN" \
   | sed -n 's/.*Shared library: \[\([^]]*\)\].*/\1/p' \

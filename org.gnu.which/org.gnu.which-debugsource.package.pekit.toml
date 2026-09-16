@@ -6,4 +6,5 @@ description = "GNU which debug sources"
 "org.gnu.which-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.which-debugsource/COPYING"
 ":usr/src/debug/**" = "usr/src/debug"
