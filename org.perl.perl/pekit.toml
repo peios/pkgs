@@ -177,6 +177,21 @@ ARCHROOT="$PEKIT_OUT$LIBDIR/perl5/$API"
 CORE="$ARCHROOT/CORE"
 CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
 
+# Package ownership replaces ExtUtils' private install manifest. Normalize the
+# interpreter marker on the five shipped modules/tools that upstream labels
+# with a build-tree or PATH-dependent Perl spelling.
+find "$PEKIT_OUT/usr" -type f -name .packlist -delete
+for script in "$ARCHROOT/File/DosGlob.pm" \\
+  "$PEKIT_OUT/usr/share/perl5/$API/ExtUtils/Miniperl.pm" \\
+  "$PEKIT_OUT/usr/share/perl5/$API/ExtUtils/xsubpp" \\
+  "$PEKIT_OUT/usr/share/perl5/$API/Getopt/Long.pm" \\
+  "$PEKIT_OUT/usr/share/perl5/$API/Getopt/Long/Parser.pm"; do
+  sed -i '1s|^#!.*perl|#!/usr/bin/perl|' "$script"
+done
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -f -n -9 {} +
+ln -s perl.1.gz "$PEKIT_OUT/usr/share/man/man1/perl$V.1.gz"
+
+
 # Config is consumed by ExtUtils when future XS modules are built. It must
 # describe the Peios target, never the Debian reference builder or Pekit's
 # disposable staging path.
@@ -279,9 +294,37 @@ grep '^ldflags=' "$BUILD/config.sh" | grep -F -- '-z,now'
 
 if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
   export NO_NETWORK_TESTING=1
+  # Peios hostname lookups require resolvd, absent in the offline test root;
+  # /etc/hosts is not a native resolver prerequisite. Keep the module load and
+  # run all nine lookup assertions whenever libc can resolve localhost. A
+  # broken Net::hostent wrapper must not be mistaken for unavailable DNS.
+  HOSTENT_TEST="$BUILD/lib/Net/hostent.t"
+  cp "$HOSTENT_TEST" "$PEKIT_OUT/Net-hostent.t.upstream"
+  chmod u+w "$HOSTENT_TEST"
+  trap 'cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"' EXIT HUP INT TERM
+  LD_LIBRARY_PATH="$BUILD:$DEPLIBDIR" "$BUILD/perl" -I"$BUILD/lib" - "$HOSTENT_TEST" <<'PERL'
+use strict;
+use warnings;
+my $path = shift;
+open my $in, '<', $path or die "$path: $!";
+local $/;
+my $source = <$in>;
+close $in;
+my $anchor = "SKIP: {\nskip ";
+my $replacement = qq~SKIP: {\nskip "Peios offline worker has no libc localhost resolver", 9\n    if (!defined(\$h) && !CORE::gethostbyname('localhost'));\nskip ~;
+my $count = ($source =~ s/\Q$anchor\E/$replacement/);
+die "unexpected Net::hostent prerequisite" unless $count == 1;
+open my $out, '>', $path or die "$path: $!";
+print {$out} $source;
+close $out or die "$path: $!";
+PERL
 fi
 PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \
   make -C "$BUILD" LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
+if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
+  cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"
+  trap - EXIT HUP INT TERM
+fi
 
 ARCHROOT="$STAGE$LIBDIR/perl5/$API"
 CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
@@ -359,6 +402,8 @@ libbz2-dev      = "*"
 netbase         = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.coreutils-build-compat" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"             = "*"
 "org.sourceware.debugedit"                      = ">= 5.2"
 "org.debian.netbase"          = ">= 6.6"
@@ -367,6 +412,7 @@ netbase         = "*"
 "org.sourceware.bzip2-devel"  = ">= 1.0.8"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 zlib1g-dev      = "*"
 libbz2-dev      = "*"

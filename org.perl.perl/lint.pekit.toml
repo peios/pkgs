@@ -1,2 +1,5 @@
+[elf]
+debuginfo = "org.perl.perl-debuginfo"
+
 [allow]
 "source.signature.required" = "CPAN publishes Sigstore bundles rather than OpenPGP signatures; Pekit cannot yet verify their identities and transparency proofs, so the immutable lock remains the acceptance gate"
