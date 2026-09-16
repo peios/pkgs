@@ -1,0 +1,18 @@
+# This source family deliberately shares one build-ID-indexed symbol package.
+# Keep checking each runtime ELF against that package's actual debug files.
+[elf]
+debuginfo = "org.gnu.gcc-debuginfo"
+
+[allow_files."payload.junk"]
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtbegin.o" = "GCC startup object linked into user programs, not a build leftover"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtbeginS.o" = "GCC shared/PIE startup object linked into user programs"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtbeginT.o" = "GCC static-link startup object linked into user programs"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtend.o" = "GCC termination object linked into user programs"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtendS.o" = "GCC shared/PIE termination object linked into user programs"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtfastmath.o" = "GCC floating-point startup object selected by compiler flags"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtprec32.o" = "GCC x87 precision startup object selected by compiler flags"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtprec64.o" = "GCC x87 precision startup object selected by compiler flags"
+"usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/*/crtprec80.o" = "GCC x87 precision startup object selected by compiler flags"
+
+[allow_files."split.devel.packages"]
+"usr/lib/x86_64-linux-peios/libcc1.so" = "GDB dlopens this unversioned runtime plugin; it must remain with libcc1, not in a development split"

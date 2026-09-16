@@ -1,0 +1,35 @@
+.TH GCC-AR 1 "" "Peios" "User Commands"
+.SH NAME
+gcc-ar, gcc-nm, gcc-ranlib \- invoke GNU binary utilities with the GCC LTO plugin
+.SH SYNOPSIS
+.B gcc-ar
+.RI [ "-B prefix" ] " ar-arguments ..."
+.br
+.B gcc-nm
+.RI [ "-B prefix" ] " nm-arguments ..."
+.br
+.B gcc-ranlib
+.RI [ "-B prefix" ] " ranlib-arguments ..."
+.SH DESCRIPTION
+These GCC wrappers invoke the corresponding GNU binary utility with the
+link-time optimization (LTO) plugin belonging to this compiler installation.
+Use them when inspecting or archiving objects produced with GCC's
+.B -flto
+option, particularly when the objects do not also contain native machine code.
+.PP
+Arguments are forwarded to the underlying utility, with the plugin options
+added by the wrapper. The optional
+.B -B
+prefix changes the wrapper's search path for tools and the plugin.
+Target-prefixed names provide the same interface for the named target.
+.SH OPTIONS
+See the corresponding utility manual for archive operations, symbol-display
+options, archive-index operations, and their exit status conventions.
+.SH SEE ALSO
+.BR ar (1),
+.BR nm (1),
+.BR ranlib (1),
+.BR gcc (1)
+.PP
+The GCC manual's link-time optimization documentation describes using these
+wrappers with static libraries.

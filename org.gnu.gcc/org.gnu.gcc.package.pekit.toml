@@ -61,7 +61,7 @@ path   = "/usr/bin/cc"
 # that ships it is versioned on pkm's SemVer (the PKM/KACS ABI), which says
 # nothing about which Linux syscalls exist; `linux-kernel-headers` is the
 # Linux scale, published as a versioned provide for exactly this.
-"dev.peios.kernel-headers" = ">= 6.16"
+"dev.peios.linux-kernel-headers" = ">= 6.16"
 # GCC 16 injects -latomic_asneeded into every link by default
 # (LINK_LIBATOMIC_SPEC, %{!fno-link-libatomic:...}), so the as-needed link
 # script is part of the compiler's own contract, like libgcc.
@@ -92,9 +92,10 @@ path   = "/usr/bin/cc"
 # they do not need help2man — they were simply matched by no glob and dropped.
 # cpp.1 goes with cpp, g++.1 with gcc-c++; the man7 pages (fsf-funding, gfdl,
 # gpl) are the driver's licence/doc references and belong with the driver.
-":usr/share/man/man1/gcc.1"       = "usr/share/man/man1/gcc.1"
-":usr/share/man/man1/gcov.1"      = "usr/share/man/man1/gcov.1"
-":usr/share/man/man1/gcov-dump.1" = "usr/share/man/man1/gcov-dump.1"
-":usr/share/man/man1/gcov-tool.1" = "usr/share/man/man1/gcov-tool.1"
-":usr/share/man/man1/lto-dump.1"  = "usr/share/man/man1/lto-dump.1"
+":usr/share/man/man1/gcc.1.gz"       = "usr/share/man/man1/gcc.1.gz"
+":usr/share/man/man1/cc.1.gz"        = "usr/share/man/man1/cc.1.gz"
+":usr/share/man/man1/gcc-*.1.gz"     = "usr/share/man/man1"
+":usr/share/man/man1/x86_64-linux-peios-gcc*.1.gz" = "usr/share/man/man1"
+":usr/share/man/man1/gcov*.1.gz"     = "usr/share/man/man1"
+":usr/share/man/man1/lto-dump.1.gz"  = "usr/share/man/man1/lto-dump.1.gz"
 ":usr/share/man/man7/**"          = "usr/share/man/man7"

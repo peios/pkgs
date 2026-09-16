@@ -117,6 +117,10 @@ fingerprints = [
 #       reason.
 #   --enable-__cxa_atexit     : correct C++ static-dtor ordering (distro default).
 #   --with-system-zlib        : link the root's libz, not the bundled copy.
+#   --with-gnu-ld / --enable-symvers=gnu : retain libstdc++'s GLIBCXX_* and
+#       CXXABI_* symbol-version contract.  GCC otherwise disables those
+#       definitions when its configure probe cannot positively identify GNU
+#       ld, leaving consumers with no loader-enforced C++ ABI requirements.
 #
 # Hardening the COMPILER ITSELF, not just what it emits (PEI-159). gcc and cc1
 # were EXEC with no BIND_NOW — the least hardened binaries on the system, while
@@ -276,16 +280,19 @@ CONFIGURE=../../../source/configure
   --with-gcc-major-version-only \
   --with-pkgversion="Peios $PEKIT_VERSION" \
   --disable-libsanitizer --disable-libssp --disable-werror \
-  --with-system-zlib \
-  LDFLAGS="$LDFLAGS $CET_LDFLAGS" \
+  --with-system-zlib --with-gnu-ld --enable-symvers=gnu \
+  LDFLAGS="$LDFLAGS" \
   CPPFLAGS_FOR_TARGET="$TARGET_SYSINC" \
   CFLAGS_FOR_TARGET="$CFLAGS $TARGET_SYSINC" \
   CXXFLAGS_FOR_TARGET="$CXXFLAGS $TARGET_SYSINC" \
-  LDFLAGS_FOR_TARGET="$LDFLAGS $CET_LDFLAGS"
-# STAGE1_CFLAGS/STAGE1_CXXFLAGS cover the stage-1 compiler and the helper
-# subconfigures created during stage1-bubble. GCC otherwise replaces the
-# configured distro flags with plain `-g`; on native Peios that makes the
-# strict CET linker correctly reject those unmarked objects before bootstrap.
+  LDFLAGS_FOR_TARGET="$LDFLAGS"
+# STAGE1_CFLAGS/STAGE1_CXXFLAGS cover the throwaway stage-1 compiler and the
+# helper subconfigures created during stage1-bubble. Do not put cet-report in
+# configure-time LDFLAGS: libstdc++'s shared-libgcc probe deliberately replaces
+# CFLAGS with `-lgcc_s`, so strict all-input CET checking rejects the unmarked
+# probe object and incorrectly disables GNU symbol versioning. The target
+# runtimes still compile with CET and the post-build ELF gate below rejects a
+# final DSO lacking the complete IBT/SHSTK property.
 # BOOT_CFLAGS and BOOT_LDFLAGS carry the hardening into stages 2/3 — see the
 # [env] note above. Pass them on the make line because that is where GCC reads
 # them, as Fedora's gcc.spec does. In particular, configure's LDFLAGS only
@@ -304,6 +311,10 @@ make -j"$JOBS" \
 
 
 make install DESTDIR="$PEKIT_OUT"
+
+# Compress manuals reproducibly and install documentation for driver aliases
+# and LTO-aware binutils wrappers. This step can be rerun without recompiling.
+sh "$PEKIT_RECIPE_ROOT/packages.pekit/finalize-manpages.sh"
 
 # GCC may still drop the target runtime libs in the multilib os-dir
 # ($LIBDIR/../lib64); relocate into the triplet dir so they resolve on Peios and
@@ -450,6 +461,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 # Builds the shipped Info manuals. DejaGNU/Expect are not yet packaged for
 # Peios; the recipe records that native exception at the regression gate.
 "org.gnu.texinfo" = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -463,6 +475,7 @@ zlib1g-dev = "*"
 debugedit = "*"
 patchelf = "*"
 texinfo = "*"
+gzip = "*"
 file = "*"
 
 [test]
@@ -495,6 +508,10 @@ fi
 GCC_DIR="${PEKIT_OUT%%/out/*}"
 
 cd "$PEKIT_OUT/build"
+
+# Tests run in a fresh dependency root. Prefer the just-built C++/GCC
+# runtimes for the staged compiler and every child process it starts.
+export LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR:/usr/lib/$TRIPLET"
 
 # GCC's own DejaGNU suites are the regression gate on reference builders.
 # Peios does not yet package DejaGNU/Expect, so the native composition records
@@ -578,7 +595,7 @@ if command -v runtest >/dev/null 2>&1; then
   {
     for area in 17_intro 21_strings/basic_string 29_atomics 30_threads/thread; do
       find "$SRC/libstdc++-v3/testsuite/$area" -type f \
-        \\( -name '*.cc' -o -name '*.c' \\)
+        \( -name '*.cc' -o -name '*.c' \)
     done
   } | sed "s#^$SRC/libstdc++-v3/testsuite/##" | LC_ALL=C sort -u > "$LIBSTDCXX_LIST"
   test "$(wc -l < "$LIBSTDCXX_LIST")" -ge 400
@@ -814,6 +831,18 @@ for stem in libstdc++ libatomic libgomp libitm libquadmath; do
   fi
   if readelf -d "$so" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
+
+# libstdc++'s exported version definitions are part of its public ABI.  A
+# library with only version requirements (and no GLIBCXX/CXXABI definitions)
+# still links, but every versioned consumer emits loader warnings and loses
+# the intended ABI compatibility check.  Fail closed before splitting it into
+# runtime packages.
+LIBSTDCXX_SO=$(find "$PEKIT_OUT$LIBDIR" -maxdepth 1 -type f -name 'libstdc++.so.6.*' | LC_ALL=C sort | head -1)
+test -n "$LIBSTDCXX_SO"
+readelf -SW "$LIBSTDCXX_SO" | grep -Fq '.gnu.version_d'
+readelf --version-info "$LIBSTDCXX_SO" | grep -Eq 'Name: GLIBCXX_3[.]4([[:space:]]|$)'
+readelf --version-info "$LIBSTDCXX_SO" | grep -Eq 'Name: CXXABI_1[.]3([[:space:]]|$)'
+
 LIBGCC_SO="$PEKIT_OUT$LIBDIR/libgcc_s.so.1"
 test -s "$LIBGCC_SO"
 readelf -d "$LIBGCC_SO" | grep -Eq 'SONAME.*[[]libgcc_s[.]so[.]1[]]'
@@ -914,7 +943,7 @@ done
 # complete installed payload. Every regular file and symlink below /usr must
 # belong to exactly one package. A new upstream-installed path or an overlap
 # therefore blocks release until its split is intentionally decided.
-find usr \\( -type f -o -type l \\) | LC_ALL=C sort | while IFS= read -r path; do
+find usr \( -type f -o -type l \) | LC_ALL=C sort | while IFS= read -r path; do
   owners=
   add_owner() {
     case " $owners " in
@@ -961,17 +990,17 @@ find usr \\( -type f -o -type l \\) | LC_ALL=C sort | while IFS= read -r path; d
       case "$path" in usr/share/gcc-$GCC_MAJOR/python/*) ;; *) add_owner org.gnu.gcc;; esac
       ;;
     usr/share/locale/*) add_owner org.gnu.gcc;;
-    usr/share/man/man1/gcc.1|usr/share/man/man1/gcov.1|usr/share/man/man1/gcov-dump.1|usr/share/man/man1/gcov-tool.1|usr/share/man/man1/lto-dump.1|usr/share/man/man7/*)
+    usr/share/man/man1/gcc.1.gz|usr/share/man/man1/cc.1.gz|usr/share/man/man1/gcc-*.1.gz|usr/share/man/man1/$TRIPLET-gcc*.1.gz|usr/share/man/man1/gcov*.1.gz|usr/share/man/man1/lto-dump.1.gz|usr/share/man/man7/*)
       add_owner org.gnu.gcc
       ;;
   esac
 
   case "$path" in
-    usr/bin/g++|usr/bin/c++|usr/bin/x86_64-linux-peios-g++|usr/bin/x86_64-linux-peios-c++|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1plus|usr/share/man/man1/g++.1)
+    usr/bin/g++|usr/bin/c++|usr/bin/x86_64-linux-peios-g++|usr/bin/x86_64-linux-peios-c++|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1plus|usr/share/man/man1/g++.1.gz|usr/share/man/man1/c++.1.gz|usr/share/man/man1/$TRIPLET-g++.1.gz|usr/share/man/man1/$TRIPLET-c++.1.gz)
       add_owner org.gnu.gcc-c++;;
   esac
   case "$path" in
-    usr/bin/cpp|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1|usr/share/man/man1/cpp.1)
+    usr/bin/cpp|usr/lib/$TRIPLET/gcc/$TRIPLET/$GCC_MAJOR/cc1|usr/share/man/man1/cpp.1.gz)
       add_owner org.gnu.gcc-cpp;;
     usr/lib/debug/*) add_owner org.gnu.gcc-debuginfo;;
     usr/src/debug/*) add_owner org.gnu.gcc-debugsource;;
@@ -1012,11 +1041,23 @@ find usr \\( -type f -o -type l \\) | LC_ALL=C sort | while IFS= read -r path; d
   fi
 done
 
-rm -rf "$PEKIT_MAIN_OUT/build"
+# Retain the build tree so the release gate can run again for a subsequent
+# publish --no-build. Workspace clean owns removal of regeneratable output.
+
+# Manuals are reproducibly compressed; every public executable/driver alias
+# has a readable manual in this family, including the LTO binutils wrappers.
+find usr/share/man -type f -exec gzip -t -- {} +
+for executable in usr/bin/*; do
+  test -f "usr/share/man/man1/${executable##*/}.1.gz" || {
+    echo "gcc: missing manual for $executable" >&2
+    exit 1
+  }
+done
 
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
 "org.gnu.binutils" = "*"
 "dev.peios.peiosutils" = "*"
@@ -1024,8 +1065,18 @@ rm -rf "$PEKIT_MAIN_OUT/build"
 "org.gnu.gawk" = "*"
 "org.gnu.grep" = "*"
 "org.gnu.sed" = "*"
+# The staged compiler supplies GCC itself, but still needs system headers,
+# startup objects, and the shared libraries loaded by cc1/cc1plus.
+"org.gnu.glibc-devel" = "*"
+"dev.peios.linux-kernel-headers" = ">= 6.16"
+"org.gnu.gmp" = "*"
+"org.gnu.mpfr" = "*"
+"org.gnu.mpc" = "*"
+"io.sourceforge.libisl.isl" = "*"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [test.dependencies.apt]
+gzip = "*"
 binutils = "*"
 build-essential = "*"
 coreutils = "*"
