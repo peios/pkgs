@@ -1,0 +1,7 @@
+# This source family deliberately shares one build-ID-indexed symbol package.
+# Keep checking each runtime ELF against that package's actual debug files.
+[elf]
+debuginfo = "io.github.numactl.numactl-debuginfo"
+
+[allow_files."payload.manpages.required"]
+"usr/bin/numademo" = "Upstream's deliberately low-level NUMA policy demonstration binary has no command-line contract or maintained manual; the supported user interface is numactl(8)."

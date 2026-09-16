@@ -1,0 +1,12 @@
+[package]
+name         = "io.github.rust-lang.bindgen-debugsource"
+architecture = "noarch"
+description  = "Bindgen debug sources"
+license      = "BSD-3-Clause"
+
+[dependencies]
+"io.github.rust-lang.bindgen-debuginfo" = "= {{version}}-1"
+
+[files]
+"@source:LICENSE"     = "usr/share/licenses/io.github.rust-lang.bindgen-debugsource/LICENSE"
+":usr/src/debug/**"   = "usr/src/debug"

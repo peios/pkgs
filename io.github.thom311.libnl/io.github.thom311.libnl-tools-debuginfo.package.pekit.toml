@@ -1,0 +1,13 @@
+# io.github.thom311.libnl-tools-debuginfo — build-ID-indexed symbols for the
+# command suite, CLI support library and dynamically loaded modules.
+
+[package]
+name        = "io.github.thom311.libnl-tools-debuginfo"
+description = "Netlink protocol command-line tools - debugging symbols"
+
+[dependencies]
+"io.github.thom311.libnl-tools" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl-tools-debuginfo/"
+":usr/lib/debug-libnl-tools/**" = "usr/lib/debug"

@@ -7,6 +7,7 @@ description = "Flex C++ header and libfl development interface"
 "io.github.westes.flex-libs" = "{{version}}-1"
 
 [files]
+"@source:COPYING"                       = "usr/share/licenses/io.github.westes.flex-devel/"
 ":usr/include/FlexLexer.h"             = "usr/include/FlexLexer.h"
 ":usr/lib/x86_64-linux-peios/libfl.so" = "usr/lib/x86_64-linux-peios/libfl.so"
 ":usr/lib/x86_64-linux-peios/libfl.a"  = "usr/lib/x86_64-linux-peios/libfl.a"

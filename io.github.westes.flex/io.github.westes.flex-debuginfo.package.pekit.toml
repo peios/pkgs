@@ -7,4 +7,5 @@ description = "Flex and libfl debugging symbols"
 "io.github.westes.flex-libs" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/io.github.westes.flex-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

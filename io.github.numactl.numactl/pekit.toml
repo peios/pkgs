@@ -26,6 +26,11 @@ cp -a "$SRC/." "$BOOTSTRAP/"
 cd "$BOOTSTRAP"
 autoreconf -fiv
 cd "$BUILD"
+# Keep DWARF paths physical until debugedit collects their actual source files.
+# Only macro-expanded strings need remapping at compile time.
+DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/io.github.numactl.numactl" \
+LDFLAGS="${LDFLAGS:-}" \
 "$BOOTSTRAP/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -41,6 +46,8 @@ make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
 find "$STAGED_LIBDIR" -maxdepth 1 -name '*.la' -delete
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
 
 # Split build-ID-indexed debug data and stage every DWARF-referenced source.
 # Static archives retain code while dropping their debug sections.
@@ -95,6 +102,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 "org.gnu.sed"                 = "*"
 "org.nixos.patchelf"             = "*"
 "org.pkgconf.pkgconf"              = "*"
+"org.gnu.gzip"                     = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -104,6 +112,7 @@ debugedit       = "*"
 libtool         = "*"
 patchelf        = "*"
 pkg-config      = "*"
+gzip            = "*"
 
 [test]
 gate = true

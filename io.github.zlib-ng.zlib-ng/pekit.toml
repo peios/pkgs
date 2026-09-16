@@ -36,11 +36,10 @@ NATIVE_BUILD="$PEKIT_OUT/build-native"
 DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 DEBUG_DEST=/usr/src/debug/io.github.zlib-ng.zlib-ng
 
-# Preserve workspace policy explicitly through CMake's cache.  Linker IBT and
-# SHSTK flags force a complete CET property note even though architecture-
-# specific objects are compiled under separate intrinsic flag sets.
+# Preserve workspace policy explicitly through CMake's cache. Generate IBT
+# PLT entries; architecture-specific objects must supply their own CET markings.
 export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 # Leaving BUILD_SHARED_LIBS unset is intentional: zlib-ng then emits both the
 # shared and PIC static libraries.  Runtime CPU detection keeps a baseline
@@ -78,6 +77,14 @@ DESTDIR="$PEKIT_OUT" cmake --install "$COMPAT_BUILD"
 cmake -S "$SRC" -B "$NATIVE_BUILD" "$@" -DZLIB_COMPAT=OFF
 cmake --build "$NATIVE_BUILD" -j"$(nproc)"
 DESTDIR="$PEKIT_OUT" cmake --install "$NATIVE_BUILD"
+
+# The compatibility ABI deliberately has an upstream-versioned real filename,
+# while the native ABI follows the zlib-ng release. Resolve both from their
+# installed SONAME links before splitting debug information.
+COMPAT_REAL=$(readlink "$LIBDIR/libz.so.1")
+NATIVE_REAL=$(readlink "$LIBDIR/libz-ng.so.2")
+test -f "$LIBDIR/$COMPAT_REAL"
+test -f "$LIBDIR/$NATIVE_REAL"
 
 # Static objects retain link symbols but not duplicate DWARF.  Shared-library
 # debug info is rewritten, indexed by build ID, and paired with exactly the
@@ -185,8 +192,13 @@ NATIVE_REAL=$(readlink "$LIBDIR/libz-ng.so.2")
 test "$NATIVE_REAL" = "libz-ng.so.$PEKIT_VERSION"
 test -f "$LIBDIR/$NATIVE_REAL"
 
-find "$PREFIX" -mindepth 1 \( -type f -o -type l \) \
-  -printf '%P\n' | LC_ALL=C sort > "$PEKIT_OUT/.actual-install"
+# Compare the upstream runtime/development install surface only. Debug symbols
+# and retained sources are Pekit-generated split payloads with their own
+# exhaustive checks below, so they do not belong in this manifest.
+find "$PREFIX" -mindepth 1 \
+  \( -path "$PREFIX/lib/debug" -o -path "$PREFIX/src/debug" \) -prune -o \
+  \( -type f -o -type l \) -printf '%P\n' \
+  | LC_ALL=C sort > "$PEKIT_OUT/.actual-install"
 printf '%s\n' \
   include/zconf-ng.h \
   include/zconf.h \
@@ -309,7 +321,9 @@ for elf in "usr/lib/$TRIPLET/$COMPAT_REAL" "usr/lib/$TRIPLET/$NATIVE_REAL"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi

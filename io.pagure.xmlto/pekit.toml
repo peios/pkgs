@@ -67,7 +67,7 @@ fi
 # them, so those formats are unavailable; `xmlto man` and `xmlto html` are
 # what the kernel tools need and neither touches them.
 CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=/usr/src/debug/io.pagure.xmlto" \
-LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt" \
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   XMLTO_BASH_PATH=/bin/bash \
   XSLTPROC=/bin/xsltproc \
@@ -83,6 +83,8 @@ LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
 make -j"$(nproc)"
 # Upstream's complete xmlif conditional-processing regression suite.
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
 rm -rf "$PEKIT_OUT/usr/share/doc"
 
 # xmlif is the sole ELF. Split its build-ID debug data and retain every
@@ -140,6 +142,7 @@ rm -f "$PEKIT_OUT/.dl"
 "org.docbook.docbook-xsl"        = "*"
 "org.oasis-open.docbook-xml"     = "*"
 "org.gnu.glibc-bin"                      = "*"
+"org.gnu.gzip"                           = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -152,6 +155,7 @@ docbook-xsl     = "*"
 docbook-xml     = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -161,7 +165,7 @@ set -eu
 test -x "$PEKIT_MAIN_OUT/usr/bin/xmlto"
 test -x "$PEKIT_MAIN_OUT/usr/bin/xmlif"
 test -d "$PEKIT_MAIN_OUT/usr/share/xmlto/format"
-test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/xmlto.1"
+test -s "$PEKIT_MAIN_OUT/usr/share/man/man1/xmlto.1.gz"
 
 # Run the upstream release suite from the explicit package gate.
 PEKIT_OUT="$PEKIT_MAIN_OUT"
@@ -201,7 +205,9 @@ readelf -W -l "$ELF" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$ELF" | grep -F 'GNU_RELRO'
 readelf -d "$ELF" | grep -F 'BIND_NOW'
 readelf -d "$ELF" | grep -F 'RELR'
-readelf -n "$ELF" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$ELF" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
 if readelf -d "$ELF" | grep -E '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 if strings "$ELF" | grep -F "$ROOT"; then exit 1; fi
 set -- "$PEKIT_OUT"/usr/lib/debug/.build-id/*/*.debug

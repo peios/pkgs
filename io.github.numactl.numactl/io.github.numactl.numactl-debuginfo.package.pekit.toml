@@ -7,4 +7,6 @@ description = "numactl and libnuma debugging symbols"
 "io.github.numactl.numactl" = "{{version}}-1"
 
 [files]
+"@source:LICENSE.GPL2"    = "usr/share/licenses/io.github.numactl.numactl-debuginfo/"
+"@source:LICENSE.LGPL2.1" = "usr/share/licenses/io.github.numactl.numactl-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

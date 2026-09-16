@@ -6,4 +6,5 @@ description = "xmlto debugging symbols"
 "io.pagure.xmlto" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/io.pagure.xmlto-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

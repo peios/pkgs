@@ -5,9 +5,12 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://github.com/thom311/libnl/releases/download/libnl{{major}}_{{minor}}_{{patch}}/libnl-{{version}}.tar.gz"
-listing_url = "https://github.com/thom311/libnl/releases"
+listing_url = "https://api.github.com/repos/thom311/libnl/releases?per_page=100"
 extract     = true
 root        = "libnl-{{version}}"
 file_regex  = 'libnl-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
@@ -31,17 +34,20 @@ set -eu
 SRC="$(pwd)"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 INCLUDEDIR="$PEKIT_OUT/usr/include/libnl3"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+
+# Map macro strings now; debugedit maps DWARF after collecting physical sources.
+export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
+export CXXFLAGS="${CXXFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
 
 cd "$PEKIT_OUT"
 # classid and pktloc are upstream-maintained lookup databases, not mutable
 # machine configuration. Peipkg payloads are immutable and do not own /etc,
 # so install them under the shared-data tree and compile the CLI to match.
 #
-# Every shipped object is built from C/C++ with the inherited
-# -fcf-protection flag. Force the linker to retain both CET properties: its
-# conservative note merge otherwise drops them when Debian's unmarked startup
-# objects participate in the final link.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# Build C/C++ with the inherited -fcf-protection flag and generate IBT PLT
+# entries. Do not assert CET compatibility on behalf of unmarked startup objects.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -68,6 +74,11 @@ make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
 
+# Upstream supplies manuals for the six commands with maintained command-line
+# contracts. Compress them deterministically; the remaining installed tools
+# are covered by precise lint exceptions rather than fabricated manuals.
+find "$PEKIT_OUT/usr/share/man/man8" -type f -name '*.8' -exec gzip -9n {} +
+
 # Libtool metadata embeds private link details. The dynamically loaded CLI
 # modules have no meaningful static form, while the seven public libraries do.
 find "$PEKIT_OUT/usr" -name '*.la' -delete
@@ -77,7 +88,6 @@ find "$LIBDIR/libnl/cli" -type f -name '*.a' -delete
 # redundant rpaths, split build-ID-indexed debug data and copy the exact source
 # paths referenced by rewritten DWARF.
 cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.elflist"
 : > "$PEKIT_OUT/.srclist"
 find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort \
@@ -98,9 +108,17 @@ while IFS= read -r f; do
   test -n "$bid"
   p2=$(printf %s "$bid" | cut -c1-2)
   rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  case "$f" in
+    usr/bin/*|usr/lib/x86_64-linux-peios/libnl-cli-3.so.*|usr/lib/x86_64-linux-peios/libnl/cli/*)
+      debug_root=usr/lib/debug-libnl-tools
+      ;;
+    *)
+      debug_root=usr/lib/debug-libnl
+      ;;
+  esac
+  mkdir -p "$debug_root/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "$debug_root/.build-id/$p2/$rest.debug"
+  chmod 0644 "$debug_root/.build-id/$p2/$rest.debug"
   strip "$f"
 done < "$PEKIT_OUT/.elflist"
 
@@ -130,6 +148,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
 "org.ninja-build.ninja"                   = "*"
 "org.nixos.patchelf"                 = "*"
 "org.pkgconf.pkgconf"                 = "*"
+"org.gnu.gzip"                        = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -141,6 +160,7 @@ meson            = "*"
 ninja-build      = "*"
 patchelf         = "*"
 pkgconf          = "*"
+gzip             = "*"
 
 [test]
 gate = true
@@ -153,6 +173,11 @@ set -eu
 # itself is packaged; PEI-678 tracks that remaining self-hosted dependency gap.
 cd "$PEKIT_MAIN_OUT"
 make -j"$(nproc)" check
+# Surface upstream's internal namespace skips, which Check counts as passing.
+# Kernel roundtrips still require the separate namespace-capable acceptance runner.
+if test -f tests/check-all.log; then
+  grep 'skip test due to having no private netns' tests/check-all.log || :
+fi
 if pkg-config --exists check; then
   test -x tests/check-all
   test -x tests/check-direct
@@ -166,7 +191,9 @@ INCLUDEDIR="$STAGE/usr/include/libnl3"
 REAL_LIBS=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libnl-*.so.*' | LC_ALL=C sort)
 test "$(printf '%s\n' "$REAL_LIBS" | grep -c .)" -eq 7
 for lib in $REAL_LIBS; do
-  readelf -d "$lib" | grep -E 'Library soname: \\[libnl-[a-z0-9-]+\\.so\\.200\\]'
+  # Put '-' first in the bracket expression.  Peios grep correctly rejects
+  # the ambiguous trailing form as an invalid range.
+  readelf -d "$lib" | grep -E 'Library soname: \[libnl-[-a-z0-9]+\.so\.200\]'
 done
 for link in libnl-3.so libnl-3.so.200 libnl-genl-3.so libnl-route-3.so \
             libnl-nf-3.so libnl-xfrm-3.so libnl-idiag-3.so libnl-cli-3.so; do
@@ -244,7 +271,9 @@ find "$STAGE/usr/bin" "$LIBDIR" -type f | LC_ALL=C sort | while IFS= read -r f; 
   printf '%s\n' "$f"
 done > "$ELFLIST"
 test "$(wc -l < "$ELFLIST")" -gt 20
-test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" \
+test "$(find "$STAGE/usr/lib/debug-libnl/.build-id" \
+              "$STAGE/usr/lib/debug-libnl-tools/.build-id" \
+              -type f -name '*.debug' | wc -l)" \
   -eq "$(wc -l < "$ELFLIST")"
 test -n "$(find "$STAGE/usr/src/debug/io.github.thom311.libnl" -type f -print -quit)"
 while IFS= read -r f; do
@@ -253,7 +282,9 @@ while IFS= read -r f; do
   readelf -W -l "$f" | grep -F 'GNU_RELRO'
   readelf -d "$f" | grep -F 'BIND_NOW'
   readelf -d "$f" | grep -F 'RELR'
-  readelf -n "$f" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$f" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done < "$ELFLIST"
 rm -rf "$SMOKE"

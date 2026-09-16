@@ -6,4 +6,5 @@ description = "xmlto sources referenced by packaged debugging data"
 "io.pagure.xmlto-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/io.pagure.xmlto-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

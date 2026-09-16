@@ -1,0 +1,17 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.rust-lang.bindgen"
+description = "C-to-Rust FFI bindings generator from the bindgen-cli crate"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+# bindgen dlopens libclang.so at runtime (clang-sys runtime loading);
+# kernel parity keeps it on the same major as the kernel's clang.
+"org.llvm.clang" = ">= 18.1.8, < 19"
+"org.llvm.clang-devel" = ">= 18.1.8, < 19"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/io.github.rust-lang.bindgen/"
+":usr/bin/bindgen" = "usr/bin/bindgen"
+":usr/share/man/man1/bindgen.1.gz" = "usr/share/man/man1/bindgen.1.gz"

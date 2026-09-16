@@ -27,11 +27,18 @@ command = """
 set -eu
 SRC="$(pwd)"
 cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Let debugedit collect physical source paths before remapping DWARF.
+CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.westes.flex" \
+CXXFLAGS="${CXXFLAGS:-${CFLAGS:--O2 -g}} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.westes.flex" \
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --libdir=/usr/lib/x86_64-linux-peios \
   --enable-shared --enable-static --disable-nls
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
+ln -sf flex.1.gz "$PEKIT_OUT/usr/share/man/man1/flex++.1.gz"
 
 # Peios has no Info reader. Keep the command manual, but do not ship orphaned
 # release prose or libtool archives.
@@ -77,6 +84,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.bison" = "*"
 "org.gnu.m4" = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -84,6 +94,7 @@ bison = "*"
 debugedit = "*"
 m4 = "*"
 patchelf = "*"
+gzip = "*"
 
 [test]
 gate = true
@@ -107,7 +118,7 @@ test "$(readlink "$LIBDIR/libfl.so.2")" = libfl.so.2.0.0
 SMOKE="$PEKIT_OUT/flex-smoke"
 mkdir -p "$SMOKE"
 printf '%s\n' '%option noyywrap nodefault' '%%' \
-  '[0-9]+ { printf("N:%s\\n", yytext); }' '[[:space:]]+ ;' '. return 2;' \
+  '[0-9]+ { printf("N:%s\n", yytext); }' '[[:space:]]+ ;' '. return 2;' \
   '%%' 'int main(void) { return yylex(); }' > "$SMOKE/scanner.l"
 "$BIN" --warn -o "$SMOKE/scanner.c" "$SMOKE/scanner.l"
 cc -Werror -o "$SMOKE/scanner" "$SMOKE/scanner.c"
