@@ -15,6 +15,7 @@ description = "GNU Multiple Precision Arithmetic Library - development files"
 "org.gnu.gmp-c++" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gmp-devel/"
 ":usr/include/gmp.h"                          = "usr/include/gmp.h"
 ":usr/include/gmpxx.h"                         = "usr/include/gmpxx.h"
 ":usr/lib/x86_64-linux-peios/libgmp.so"       = "usr/lib/x86_64-linux-peios/libgmp.so"

@@ -11,4 +11,5 @@ description = "GNU Multiple Precision Arithmetic Library - debugging symbols"
 "org.gnu.gmp-c++" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gmp-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

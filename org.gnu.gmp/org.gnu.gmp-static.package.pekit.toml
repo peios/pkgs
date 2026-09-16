@@ -10,5 +10,6 @@ description = "GNU Multiple Precision Arithmetic Library - static libraries"
 "org.gnu.gmp-devel" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gmp-static/"
 ":usr/lib/x86_64-linux-peios/libgmp.a"   = "usr/lib/x86_64-linux-peios/libgmp.a"
 ":usr/lib/x86_64-linux-peios/libgmpxx.a" = "usr/lib/x86_64-linux-peios/libgmpxx.a"

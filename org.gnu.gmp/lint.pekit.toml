@@ -1,1 +1,4 @@
+# Runtime splits share one build-ID-indexed symbol package.
+[elf]
+debuginfo = "org.gnu.gmp-debuginfo"
 [allow]

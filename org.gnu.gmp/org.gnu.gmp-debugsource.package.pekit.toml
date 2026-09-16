@@ -9,4 +9,5 @@ description = "GNU Multiple Precision Arithmetic Library - debug sources"
 "org.gnu.gmp-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.gmp-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

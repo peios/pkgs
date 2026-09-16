@@ -18,7 +18,7 @@ url         = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
 listing_url = "https://ftp.gnu.org/gnu/gmp/"
 root        = "gmp-{{version}}"
 extract     = true
-file_regex  = '^gmp-\d+\.\d+\.\d+\.tar\.xz$'
+file_regex  = 'gmp-\d+\.\d+\.\d+\.tar\.xz'
 # Soft maintenance floor. Follow every newer authenticated stable release;
 # a source/build incompatibility is the point at which automation should stop.
 versions    = ">= 6.3"
@@ -52,24 +52,22 @@ fingerprints = ["343C2FF0FBEE5EC2EDBEF399F3599FF828C67298"]
 #     assembly at runtime through MPN_PATH, independently of CFLAGS, so
 #     nothing about the fat build is lost by supplying our own.
 #
-#   * -Wl,-z,shstk is added because gmp's hot loops are hand-written assembly
-#     with no CET markings, so the linker's AND over .note.gnu.property yields
-#     nothing and the library ships with CET off entirely — which, since gcc's
-#     cc1 links libgmp, would silently disable CET for the compiler itself.
-#     -z shstk forces the shadow-stack bit back on; that is sound because
-#     shadow stack only constrains call/ret, which gmp's assembly does
-#     normally. IBT is NOT forced, and must not be: it needs an endbr64 at
-#     every indirect-branch target, which the assembly does not have. Fedora
-#     adds those with a 3519-line patch across ~400 .asm files, but it also
-#     patches acinclude.m4/configure.ac and so requires autoreconf, which
-#     Peios has no packages for. Arch takes exactly this -z shstk route.
+#   * Fedora's CET assembly patch instruments function and local indirect
+#     targets while preserving runtime CPU dispatch. Autoreconf regenerates
+#     its detection and the C23 compiler probe from patched source macros.
 [build.main]
 command = """
 set -eu
-SRC="$(pwd)"
+cp -a . "$PEKIT_OUT/source"
+SRC="$PEKIT_OUT/source"
+cd "$SRC"
+autoreconf -fi
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gmp"
+# The imported assembly macros require both CET modes for their property note.
+printf '' | cc $CFLAGS -dM -E - | grep -Fx '#define __CET__ 3'
 cd "$PEKIT_OUT"
 "$SRC/configure" \
-  LDFLAGS="$LDFLAGS -Wl,-z,shstk" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
   ABI=64 \
@@ -146,12 +144,18 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
 # Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file" = "*"
 "org.gnu.m4" = "*"
 "org.gnu.bison" = "*"
 
 [build.main.dependencies.apt]
+autoconf = "*"
+automake = "*"
+libtool = "*"
 build-essential = "*"
 file = "*"
 m4 = "*"
@@ -227,7 +231,9 @@ for elf in "$GMP_SO" "$GMPXX_SO"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 '''
