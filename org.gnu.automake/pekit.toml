@@ -24,8 +24,12 @@ versions = ">= 1.18"
 [source.url.signature]
 url          = "{{source_url}}.sig"
 of           = "artifact"
-key_files    = ["keys/karl-berry.asc"]
-fingerprints = ["17D3311B14BC0F248267BF020716748A30D155AD"]
+# Automake 1.19 announcement identifies Kamila Szewczyk's full fingerprint:
+# https://www.mail-archive.com/automake%40gnu.org/msg21205.html
+# Key exported from https://ftp.gnu.org/gnu/gnu-keyring.gpg, independently
+# matched to that announcement; retain Karl Berry for earlier releases.
+key_files    = ["keys/karl-berry.asc", "keys/kamila-szewczyk.asc"]
+fingerprints = ["17D3311B14BC0F248267BF020716748A30D155AD", "6C222EA6B2BD216AA406516AC868F0B6DE38409D"]
 
 [build.main]
 command = """
@@ -35,6 +39,7 @@ cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 # Peios does not currently ship an Info reader; the manual and other upstream
 # documentation remain available in the corresponding-source package.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
@@ -61,6 +66,17 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
+# Check the staged Perl tools against their staged modules, independently of
+# whichever Automake version happens to be installed in the dependency root.
+set -- "$PEKIT_MAIN_OUT"/usr/share/automake-*
+test "$#" -eq 1
+export PERL5LIB="$1"
+export AUTOMAKE_UNINSTALLED=1
+case "$("$PEKIT_MAIN_OUT/usr/bin/automake" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+test -x "$PEKIT_MAIN_OUT/usr/bin/aclocal"
+case "$("$PEKIT_MAIN_OUT/usr/bin/aclocal" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+unset PERL5LIB AUTOMAKE_UNINSTALLED
+
 # The core suite exercises generated C and C++ projects. Optional integrations
 # for tools such as Libtool, Gettext, DejaGnu and Vala skip cleanly when those
 # tools are absent, avoiding bootstrap cycles in the package set.
@@ -69,8 +85,7 @@ set -eu
 # the suite unpacks its prebuilt amhello fixture.
 cd "$PEKIT_MAIN_OUT"
 TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
-case "$("$PEKIT_MAIN_OUT/usr/bin/automake" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
-test -x "$PEKIT_MAIN_OUT/usr/bin/aclocal"
+
 '''
 
 [test.dependencies.peipkg]

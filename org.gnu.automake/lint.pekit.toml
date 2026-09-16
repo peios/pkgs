@@ -1,0 +1,2 @@
+[allow_files."split.devel.packages"]
+"usr/share/aclocal/README" = "Documents aclocal macro search paths and installation conventions; runtime help for this build tool, not a library development interface"
