@@ -18,6 +18,8 @@ versions = "= 4.5"
 command = """
 set -eu
 SRC="$(pwd)"
+CHMOD=chmod
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then CHMOD=/usr/libexec/coreutils-build/chmod; fi
 DTD="$PEKIT_OUT/usr/share/xml/docbook/schema/dtd/$PEKIT_VERSION"
 ARCHIVE="$SRC/docbook-xml-$PEKIT_VERSION.zip"
 mkdir -p "$DTD"
@@ -70,18 +72,24 @@ PY
 
 # Normalise data permissions so archive metadata cannot make the payload
 # unexpectedly writable or executable.
-find "$PEKIT_OUT/usr/share" -type d -exec chmod 0755 {} +
-find "$PEKIT_OUT/usr/share" -type f -exec chmod 0644 {} +
+find "$PEKIT_OUT/usr/share" -type d -print | while IFS= read -r path; do
+  "$CHMOD" 0755 "$path"
+done
+find "$PEKIT_OUT/usr/share" -type f -print | while IFS= read -r path; do
+  "$CHMOD" 0644 "$path"
+done
 """
 
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash"                      = "*"
 "dev.peios.peiosutils"       = "*"
 "org.gnu.findutils"                 = "*"
+"org.gnu.coreutils-build-compat"    = "*"
 "org.python.python3"                   = "*"
 "org.gnome.libxml2-utils" = "*"
 
 [build.main.dependencies.apt]
+coreutils      = "*"
 python3       = "*"
 libxml2-utils = "*"
 
