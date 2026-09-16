@@ -6,4 +6,5 @@ description = "Ninja debugging symbols"
 "org.ninja-build.ninja" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/org.ninja-build.ninja-debuginfo/COPYING"
 ":usr/lib/debug/**" = "usr/lib/debug"

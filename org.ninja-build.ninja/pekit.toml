@@ -15,6 +15,8 @@ versions  = ">= 1.13.2"
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.ninja-build.ninja"
 BUILD="$PEKIT_OUT/build"
 BIN="$PEKIT_OUT/usr/bin/ninja"
 
@@ -30,6 +32,7 @@ cp ninja ninja.bootstrap
 ./ninja.bootstrap ninja
 
 install -Dm0755 ninja "$BIN"
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpage.py" "$BIN" "$PEKIT_OUT/usr/share/man/man1/ninja.1.gz"
 install -Dm0644 "$SRC/misc/bash-completion" \
   "$PEKIT_OUT/usr/share/bash-completion/completions/ninja"
 install -Dm0644 "$SRC/misc/zsh-completion" \
@@ -78,6 +81,11 @@ SMOKE="$PEKIT_OUT/smoke"
 # A bootstrap followed by a self-hosted rebuild must be byte-identical.
 cmp -s "$BUILD/ninja.bootstrap" "$BUILD/ninja"
 test "$("$BIN" --version)" = "$PEKIT_VERSION"
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpage.py" "$BIN" "$PEKIT_OUT/ninja.1.gz"
+cmp "$PEKIT_OUT/ninja.1.gz" "$STAGE/usr/share/man/man1/ninja.1.gz"
+
+# Upstream scripts locate the tested executable relative to the working directory.
+cd "$BUILD"
 
 # Dependency-closed upstream regression coverage. The jobserver client suite
 # needs util-linux's taskset; the pseudo-terminal suite needs script and Bash.
@@ -111,7 +119,7 @@ readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
 readelf -W -l "$BIN" | grep -E 'GNU_STACK.*RW '
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-if c++ --version | head -1 | grep -Fq 'Peios'; then
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
   readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
 fi
 DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')

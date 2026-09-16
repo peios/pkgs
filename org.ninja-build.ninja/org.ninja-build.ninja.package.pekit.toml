@@ -1,3 +1,5 @@
+side_effects = ["man-db"]
+
 [package]
 name        = "org.ninja-build.ninja"
 description = "High-speed build executor"
@@ -17,3 +19,4 @@ description = "High-speed build executor"
 ":usr/share/bash-completion/**"    = "usr/share/bash-completion"
 ":usr/share/zsh/site-functions/**" = "usr/share/zsh/site-functions"
 ":usr/share/vim/vimfiles/**"       = "usr/share/vim/vimfiles"
+":usr/share/man/man1/ninja.1.gz" = "usr/share/man/man1/ninja.1.gz"
