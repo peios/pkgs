@@ -6,6 +6,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://ftp.gnu.org/gnu/grep/grep-{{version}}.tar.xz"
 listing_url = "https://ftp.gnu.org/gnu/grep/"
@@ -29,6 +32,8 @@ fingerprints = ["155D3FC500C834486D1EEA677FD9FCCB000BEEEE"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.grep"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -40,13 +45,21 @@ cd "$PEKIT_OUT"
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
+
+# The grep manual documents both compatibility command names.
+ln -sf grep.1.gz "$PEKIT_OUT/usr/share/man/man1/egrep.1.gz"
+ln -sf grep.1.gz "$PEKIT_OUT/usr/share/man/man1/fgrep.1.gz"
 
 # Peios currently has no Info reader. The corresponding-source package keeps
 # the complete Texinfo manual. Normalize compatibility wrappers to usr-merge.
 rm -rf "$PEKIT_OUT/usr/share/info"
 for wrapper in "$PEKIT_OUT/usr/bin/egrep" "$PEKIT_OUT/usr/bin/fgrep"; do
   test -f "$wrapper"
-  sed -i '1s|^#!/bin/sh|#!/usr/bin/sh|' "$wrapper"
+  # Upstream currently emits a Bash shebang even though these wrappers only
+  # use POSIX shell syntax.  Normalize it unconditionally to Peios' packaged
+  # /usr/bin/sh provider rather than retaining a needless Bash dependency.
+  sed -i '1c#!/usr/bin/sh' "$wrapper"
 done
 
 BIN="$PEKIT_OUT/usr/bin"
@@ -84,6 +97,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.glibc-bin"          = ">= 2.43"
 "org.gnu.glibc-gconv-extra"  = ">= 2.43"
@@ -100,6 +114,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"

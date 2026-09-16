@@ -1,0 +1,34 @@
+Description: Preserve literal backslashes in Spencer regex fixture input
+Author: Peios maintainers
+Origin: vendor
+Forwarded: no
+Last-Update: 2026-09-16
+
+POSIX echo leaves backslash handling implementation-defined. Generate test
+input with printf so native and reference shells send identical bytes to
+grep. This keeps all patterns and expected results unchanged.
+
+--- a/tests/spencer1.awk
++++ b/tests/spencer1.awk
+@@ -11,8 +11,8 @@
+ }
+ 
+ $0 !~ /^#/  && NF == 3 {
+-#	printf ("status=$(echo '%s'| { grep -E -e '%s' > /dev/null 2>&1; echo $?; cat >/dev/null; })\n",$3, $2);
+-        printf ("status=$(echo '%s'| { grep -E -e '%s' >/dev/null 2>&1 ; echo $?; })\n",$3, $2);
++#	printf ("status=$(printf '%%s\\n' '%s'| { grep -E -e '%s' > /dev/null 2>&1; echo $?; cat >/dev/null; })\n",$3, $2);
++        printf ("status=$(printf '%%s\\n' '%s'| { grep -E -e '%s' >/dev/null 2>&1 ; echo $?; })\n",$3, $2);
+         printf ("if test $status -ne %s ; then\n", $1);
+         printf ("\techo Spencer test \\#%d failed\n", ++n);
+         printf ("\tfailures=1\n");
+--- a/tests/spencer1-locale.awk
++++ b/tests/spencer1-locale.awk
+@@ -22,7 +22,7 @@
+ 
+ function test(locale)
+ {
+-        printf ("status=$(echo '%s'| { LC_ALL=%s grep -E -e '%s' >/dev/null 2>&1 ; echo $?; })\n",$3, locale, $2);
++        printf ("status=$(printf '%%s\\n' '%s'| { LC_ALL=%s grep -E -e '%s' >/dev/null 2>&1 ; echo $?; })\n",$3, locale, $2);
+         printf ("if test $status -ne %s ; then\n", $1);
+         printf ("\techo Spencer test \\#%d failed \\(%s\\)\n", ++n, locale);
+         printf ("\tfailures=1\n");

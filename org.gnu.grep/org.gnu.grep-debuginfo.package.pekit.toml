@@ -6,4 +6,5 @@ description = "GNU Grep debugging symbols"
 "org.gnu.grep" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.grep-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"
