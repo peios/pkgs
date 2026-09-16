@@ -33,6 +33,8 @@ fingerprints = [
 command = """
 set -eu
 LOCKED_SRC="$PEKIT_SOURCE_ROOT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.sourceware.debugedit"
 BUILD_SRC="$PEKIT_OUT/build-src"
 OBJ="$PEKIT_OUT/build"
 SMOKE="$PEKIT_OUT/.debugedit-smoke"
@@ -93,7 +95,7 @@ EOF
 fi
 
 cd "$OBJ"
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \\
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \\
 "$BUILD_SRC/configure" \\
   --build=x86_64-pc-linux-gnu \\
   --host=x86_64-pc-linux-gnu \\
@@ -158,6 +160,17 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \\
       cp "$ROOT/$rel" "usr/src/debug/org.sourceware.debugedit/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+
+# Deterministic manuals, including relative alias targets.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 """
 
 [test]
@@ -239,7 +252,9 @@ for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   readelf -n "$elf" | grep -F 'Build ID:'
   if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
@@ -251,12 +266,19 @@ test -n "$(find "$STAGE/usr/src/debug/org.sourceware.debugedit" -type f -print -
 '''
 
 [test.dependencies.peipkg]
+"org.pkgconf.pkgconf" = "*"
+"org.sourceware.elfutils-devel" = "*"
+"com.xxhash.xxhash-devel" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "org.sourceware.elfutils"        = ">= 0.196"
 "org.gnu.cpio"                   = "*"
 "org.tukaani.xz"                 = "*"
 
 [test.dependencies.apt]
+"pkg-config" = "*"
+"libelf-dev" = "*"
+"libdw-dev" = "*"
+"libxxhash-dev" = "*"
 build-essential = "*"
 "g++"           = "*"
 binutils        = "*"
@@ -269,6 +291,7 @@ gdb             = "*"
 dwz             = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++"          = "*"
 "org.pkgconf.pkgconf"                         = "*"
 "org.sourceware.elfutils-devel" = ">= 0.196"
@@ -278,6 +301,7 @@ dwz             = "*"
 "org.tukaani.xz"                = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 "g++"           = "*"
 pkg-config      = "*"

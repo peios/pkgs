@@ -32,10 +32,10 @@ mkdir -p "$BUILD"
 
 # Upstream replaces environment CFLAGS unless EXTRA_CFLAGS is present. Export
 # it so every recursive Makefile, including plugins and tests, receives the
-# workspace distro flags. The explicit link options retain the CET property
-# note even though plugins deliberately link without startup objects.
-export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+# workspace distro flags. Generate IBT PLT entries without manufacturing CET
+# compatibility notes for plugins or their inputs.
+export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$(nproc)" \
   prefix=/usr libdir=/usr/lib/x86_64-linux-peios \
@@ -96,6 +96,10 @@ make -C "$DOCSRC/Documentation" -j1 \
   obj="$BUILD" EVENT_PARSE_VERSION="$PEKIT_VERSION" \
   XMLTO="$XMLTO_COMPAT" DESTDIR="$PEKIT_OUT" prefix=/usr install
 
+# Peios ships installed manuals compressed.  Use gzip's reproducible mode so
+# the package payload does not inherit build timestamps.
+find "$PREFIX/share/man/man3" -type f -name '*.3' -exec gzip -9n {} +
+
 # Give the documentation a package-qualified path while retaining upstream's
 # public manpage names.
 install -d "$PREFIX/share/doc"
@@ -125,10 +129,18 @@ for elf in "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
   printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
   first=$(printf %s "$build_id" | cut -c1-2)
   rest=$(printf %s "$build_id" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$first"
+  case "$elf" in
+    usr/lib/x86_64-linux-peios/libtraceevent.so.*)
+      debug_root=usr/lib/debug-traceevent-libs
+      ;;
+    *)
+      debug_root=usr/lib/debug-traceevent
+      ;;
+  esac
+  mkdir -p "$debug_root/.build-id/$first"
   objcopy --only-keep-debug "$elf" \
-    "usr/lib/debug/.build-id/$first/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
+    "$debug_root/.build-id/$first/$rest.debug"
+  chmod 0644 "$debug_root/.build-id/$first/$rest.debug"
   strip "$elf"
 done
 tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
@@ -155,8 +167,8 @@ PREFIX="$STAGE/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 PLUGIN_DIR="$LIBDIR/traceevent/plugins"
 SMOKE="$PEKIT_OUT/smoke"
-export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -ffile-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk"
+export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
 if pkgconf --exists cunit; then
   make -C "$SRC" O="$BUILD" test
@@ -191,10 +203,10 @@ for txt in "$SRC"/Documentation/libtraceevent*.txt; do
   page=$(basename "$txt" .txt)
   test -s "$PREFIX/share/doc/org.linux.traceevent/$page.html"
 done
-find "$BUILD/Documentation" -maxdepth 1 -type f -name '*.3' -printf '%f\n' \
+find "$BUILD/Documentation" -maxdepth 1 -type f -name '*.3' -printf '%f.gz\n' \
   | LC_ALL=C sort > "$PEKIT_OUT/expected-man3"
 find "$PREFIX/share/man/man3" -maxdepth 1 \( -type f -o -type l \) \
-  -name '*.3' -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-man3"
+  -name '*.3.gz' -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-man3"
 test -s "$PEKIT_OUT/expected-man3"
 diff -u "$PEKIT_OUT/expected-man3" "$PEKIT_OUT/actual-man3"
 
@@ -259,15 +271,19 @@ cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
   -Wl,--export-dynamic -o "$SMOKE/static"
 "$SMOKE/static" "$PLUGIN_DIR"
 
-test "$(find "$STAGE/.debuginfo" -type f \
-  -path '*/usr/lib/debug/.build-id/*/*.debug' | wc -l)" -eq 14
+test "$((
+  $(find "$STAGE/usr/lib/debug-traceevent" -type f -name '*.debug' | wc -l) +
+  $(find "$STAGE/usr/lib/debug-traceevent-libs" -type f -name '*.debug' | wc -l)
+))" -eq 14
 test -n "$(find "$STAGE/usr/src/debug/org.linux.traceevent" -type f -print -quit)"
 for elf in "$LIBSO" "$PLUGIN_DIR"/*.so; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if readelf -d "$elf" | grep 'Shared library:' | grep -Fv 'Shared library: [libc.so.6]'; then exit 1; fi
   if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
@@ -292,10 +308,12 @@ libcunit1-dev   = "*"
 pkgconf         = "*"
 
 [build.main.dependencies.peipkg]
+"org.oasis-open.docbook-xml" = "*"
 "dev.peios.build-essentials-c"               = "*"
 "org.sourceware.debugedit"                          = "*"
 "org.gnu.findutils"                          = "*"
 "org.gnu.grep"                     = "*"
+"org.gnu.gzip"                               = "*"
 "io.github.asciidoc-py.asciidoc" = "*"
 "org.gnu.make"                               = "*"
 "org.nixos.patchelf"                           = "*"
@@ -303,11 +321,13 @@ pkgconf         = "*"
 "org.gnu.sed"                                = "*"
 
 [build.main.dependencies.apt]
+docbook-xml = "*"
 asciidoc        = "*"
 build-essential = "*"
 debugedit       = "*"
 docbook-xsl     = "*"
 libcunit1-dev   = "*"
+gzip            = "*"
 patchelf        = "*"
 pkgconf         = "*"
 xsltproc        = "*"

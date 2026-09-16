@@ -6,4 +6,5 @@ description = "Debugedit debug sources"
 "org.sourceware.debugedit-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.sourceware.debugedit-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

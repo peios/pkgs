@@ -9,4 +9,5 @@ name        = "org.mozilla.ca-certificates"
 description = "Mozilla CA root certificates - input to the Peios trust store"
 
 [files]
+"@recipe:packages.pekit/licenses/MPL-2.0.txt" = "usr/share/licenses/org.mozilla.ca-certificates/MPL-2.0.txt"
 ":usr/share/ca-certificates/mozilla.crt" = "usr/share/ca-certificates/mozilla.crt"
