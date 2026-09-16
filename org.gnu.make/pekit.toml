@@ -31,11 +31,12 @@ command = """
 set -eu
 SRC="$(pwd)"
 BIN="$PEKIT_OUT/usr/bin/make"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.make"
 cd "$PEKIT_OUT"
 
-# Force the CET property note because Debian's unmarked startup objects can
-# otherwise make the linker's conservative note merge discard it.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# Generate IBT PLT entries without claiming compatibility for unmarked inputs.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -50,6 +51,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios does not currently ship an Info reader. Keep the command manual and
 # translated diagnostics, but omit orphaned Info and package documentation.
@@ -58,7 +60,6 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 # Split the shipped ELF by build ID, normalize its DWARF paths to the
 # canonical package namespace and retain every referenced source file.
 cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 patchelf --remove-rpath usr/bin/make 2>/dev/null || true
 : > "$PEKIT_OUT/.srclist"
 debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.make \
@@ -85,6 +86,7 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit"          = "*"
 "org.gnu.gettext"            = "*"
@@ -92,6 +94,7 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 gettext         = "*"
@@ -119,7 +122,7 @@ grep -Eq '^[0-9]+ Tests? in [0-9]+ Categor(y|ies) Complete .* No Failures' test-
 
 test -x "$BIN"
 test -f "$STAGE/usr/include/gnumake.h"
-test -f "$STAGE/usr/share/man/man1/make.1"
+test -f "$STAGE/usr/share/man/man1/make.1.gz"
 test -n "$(find "$STAGE/usr/share/locale" -type f -name 'make.mo' -print -quit)"
 test "$(find "$STAGE/usr/bin" -type f | wc -l)" -eq 1
 
@@ -174,7 +177,9 @@ readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
-readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 if strings "$BIN" | grep -F "$ROOT"; then exit 1; fi
 """

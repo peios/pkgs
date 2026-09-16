@@ -6,4 +6,5 @@ description = "GNU Awk interpreter, helper and extension debugging symbols"
 "org.gnu.gawk" = "{{version}}-1"
 
 [files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.gawk-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

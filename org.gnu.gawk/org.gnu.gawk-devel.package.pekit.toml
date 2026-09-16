@@ -6,4 +6,5 @@ description = "GNU Awk loadable extension development interface"
 "org.gnu.gawk" = "{{version}}-1"
 
 [files]
+"@source:COPYING"       = "usr/share/licenses/org.gnu.gawk-devel/"
 ":usr/include/gawkapi.h" = "usr/include/gawkapi.h"

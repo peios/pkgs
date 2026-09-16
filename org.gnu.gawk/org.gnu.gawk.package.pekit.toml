@@ -2,9 +2,6 @@
 name        = "org.gnu.gawk"
 description = "GNU pattern scanning and processing language"
 
-[provides]
-awk  = "{{version}}"
-
 [dependencies]
 "org.gnu.glibc"                 = ">= 2.43"
 "org.gnu.gmp"                   = ">= 6.3.0"

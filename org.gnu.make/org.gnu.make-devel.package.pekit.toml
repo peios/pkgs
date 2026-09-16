@@ -1,0 +1,11 @@
+[package]
+name = "org.gnu.make-devel"
+description = "GNU Make loadable-module development header"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.make" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.make-devel/COPYING"
+":usr/include/gnumake.h" = "usr/include/gnumake.h"

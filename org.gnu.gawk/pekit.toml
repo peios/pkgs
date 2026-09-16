@@ -28,9 +28,13 @@ fingerprints = ["D1967C63788713177D861ED7DF597815937EC0D2"]
 [build.main]
 command = """
 set -eu
-SRC="$(pwd)"
+# Keep the upstream directory-inode test inside a single mount. At a source
+# bind-mount boundary readdir("..") and stat("..") name different inodes.
+cp -a . "$PEKIT_OUT/source"
+SRC="$PEKIT_OUT/source"
 cd "$PEKIT_OUT"
 
+CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.gnu.gawk -fmacro-prefix-map=$SRC=/usr/src/debug/org.gnu.gawk/source" \
 "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \
@@ -38,12 +42,17 @@ cd "$PEKIT_OUT"
   --mandir=/usr/share/man \
   --disable-nls \
   --enable-extensions \
-  --enable-pma \
+  --disable-pma \
   --with-mpfr=/usr \
   --without-readline
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
+  -exec gzip -n -9 -- {} +
+ln -sf gawk.1.gz "$PEKIT_OUT/usr/share/man/man1/awk.1.gz"
+ln -sf gawk.1.gz \
+  "$PEKIT_OUT/usr/share/man/man1/gawk-$PEKIT_VERSION.1.gz"
 
 # Peios has no Info reader. Avoid libtool archives, and normalize the bug
 # reporter's shell path for the /usr-native filesystem contract.
@@ -107,6 +116,9 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.glibc-langpack-ja"  = ">= 2.43"
 "org.gnu.glibc-langpack-ru"  = ">= 2.43"
 "org.gnu.mpfr-devel"         = ">= 4.2.2"
+"org.sourceware.debugedit"   = "*"
+"org.nixos.patchelf"         = "*"
+"org.gnu.gzip"               = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -114,6 +126,7 @@ debugedit       = "*"
 locales-all     = "*"
 libmpfr-dev     = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -122,22 +135,19 @@ command = '''
 set -eu
 # Run the complete native regression suite before accepting an upstream
 # release. This covers the language, locale handling, MPFR mode, persistent
-# arrays, debugger and loadable extensions. Pekit's test namespace has no
-# usable network and maps the builder to uid 0, so accept only the two probes
-# that exercise precisely those unavailable facilities.
+# arrays, debugger and loadable extensions. PMA is intentionally disabled:
+# its process-wide ASLR manipulation is outside Peios's process contract.
+# Pekit's test namespace has no usable network, so accept only the probe that
+# exercises precisely that unavailable facility.
 cd "$PEKIT_MAIN_OUT"
 if ! PAGER=cat make -j"$(nproc)" check; then
   actual=$(find test -maxdepth 1 -type f -name '_*' -printf '%f\n' \
     | LC_ALL=C sort)
-  expected=$(printf '%s\n' _nonfatal3 _pma)
+  expected=$(printf '%s\n' _nonfatal3)
   [ "$actual" = "$expected" ]
-  test "$(cat test/_pma)" = \
-    'gawk: fatal: using persistent memory is not allowed when running as root.'
   test "$(wc -l < test/_nonfatal3)" -eq 2
   grep -Fqx '1' test/_nonfatal3
-  grep -Fqx \
-    'gawk: nonfatal3.awk:4: warning: remote host and port information (localhost, 0) invalid: System error' \
-    test/_nonfatal3
+  grep -Eq '^gawk: nonfatal3\.awk:4: warning: remote host and port information \(localhost, 0\) invalid: (System error|Temporary failure in name resolution)$' test/_nonfatal3
 fi
 GAWK="$PEKIT_MAIN_OUT/usr/bin/gawk"
 STAGE="$PEKIT_MAIN_OUT"
