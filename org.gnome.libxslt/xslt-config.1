@@ -1,0 +1,47 @@
+.TH XSLT-CONFIG 1 "September 2026" "libxslt" "User Commands"
+.SH NAME
+xslt-config \- report compiler and linker flags for libxslt
+.SH SYNOPSIS
+.B xslt-config
+.RI [ OPTION ]...
+.SH DESCRIPTION
+Report build settings for the installed libxslt library.
+For new build systems, pkg-config with the libxslt module is also available.
+.SH OPTIONS
+.TP
+.B --cflags
+Print preprocessor and compiler flags.
+.TP
+.B --libs
+Print library linking flags, including private dependencies.
+.TP
+.B --libs --dynamic
+Print shared-library linking flags. The options must occur in this order.
+.TP
+.B --version
+Print the libxslt release version and exit.
+.TP
+.B --plugins
+Print the configured plugin directory and exit. Peios disables loadable plugins.
+.TP
+.B --prefix
+Print the configured installation prefix.
+.TP
+.BI --prefix= DIR
+Override the prefix used for subsequent flag calculations.
+.TP
+.B --exec-prefix
+Print the configured executable prefix.
+.TP
+.BI --exec-prefix= DIR
+Override the executable prefix for subsequent options.
+.TP
+.B --help
+Print usage information and exit.
+.SH EXAMPLE
+.nf
+cc example.c $(xslt-config --cflags --libs --dynamic) -o example
+.fi
+.SH SEE ALSO
+.BR xsltproc (1),
+.BR pkg-config (1)

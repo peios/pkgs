@@ -16,4 +16,4 @@ description = "xsltproc command-line XSLT processor"
 [files]
 "@source:Copyright"      = "usr/share/licenses/org.gnome.libxslt-utils/"
 ":usr/bin/xsltproc"      = "usr/bin/xsltproc"
-":usr/share/man/man1/**" = "usr/share/man/man1"
+":usr/share/man/man1/xsltproc.1.gz" = "usr/share/man/man1/xsltproc.1.gz"

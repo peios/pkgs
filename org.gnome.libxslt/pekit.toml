@@ -28,11 +28,13 @@ SRC="$PEKIT_SOURCE_ROOT"
 BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnome.libxslt"
 
 mkdir -p "$BUILD"
 cd "$BUILD"
 
-LDFLAGS="${LDFLAGS:-} -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -74,6 +76,13 @@ find "$PREFIX" -name '*.la' -delete
 # and xslt-config interface and is omitted by established distributions.
 rm -f "$LIBDIR/xsltConf.sh"
 
+LIBXSLT_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxslt.so.1.1.*')
+LIBEXSLT_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libexslt.so.0.8.*')
+test "$(printf '%s\n' "$LIBXSLT_SO" | grep -c .)" -eq 1
+test "$(printf '%s\n' "$LIBEXSLT_SO" | grep -c .)" -eq 1
+install -m 0644 "$PEKIT_RECIPE_ROOT/xslt-config.1" "$PREFIX/share/man/man1/xslt-config.1"
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \;
+
 # Create conventional build-ID-indexed symbols and copy exactly the source
 # files named by rewritten DWARF into the debugsource payload.
 strip --strip-debug "$LIBDIR/libxslt.a" "$LIBDIR/libexslt.a"
@@ -102,7 +111,6 @@ LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
   mkdir -p "$PREFIX/src/debug/org.gnome.libxslt/$(dirname "$rel")"
   cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxslt/$rel"
 done
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
   "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 '''
@@ -113,6 +121,9 @@ rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
 "org.gnome.libxml2-devel"  = ">= 2.15.3-1"
 "org.gnome.libxml2-static" = ">= 2.15.3-1"
 "org.gnu.glibc-gconv-extra"        = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 "org.perl.perl"            = "*"
 
 [build.main.dependencies.apt]
@@ -121,6 +132,7 @@ pkg-config      = "*"
 libxml2-dev     = ">= 2.15.1"
 debugedit       = "*"
 patchelf        = "*"
+gzip = "*"
 perl            = "*"
 
 [test]
@@ -319,14 +331,16 @@ cc "$SMOKE/consumer.c" -I"$PREFIX/include" \
 "$SMOKE/static-consumer"
 
 # Enforce the workspace hardening contract after final stripping and prohibit
-# embedded build-tree loader paths. Explicit CET link stamping keeps IBT/SHSTK
-# observable even when a reference-rung CRT object lacks the property note.
+# embedded build-tree loader paths. Native CET properties are mandatory;
+# reference startup objects do not promise them.
 for elf in "$LIBXSLT_SO" "$LIBEXSLT_SO" "$PREFIX/bin/xsltproc"; do
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 readelf -d "$LIBXSLT_SO" | grep -F 'Shared library: [libxml2.so.16]'
@@ -347,6 +361,9 @@ rm -rf "$SMOKE" "$STAGE/.repro" "$STAGE/build"
 "org.gnome.libxml2-devel"  = ">= 2.15.3-1"
 "org.gnome.libxml2-static" = ">= 2.15.3-1"
 "org.gnu.glibc-gconv-extra"        = "*"
+"org.sourceware.debugedit" = "*"
+"org.nixos.patchelf" = "*"
+"org.gnu.gzip" = "*"
 "org.perl.perl"            = "*"
 
 [test.dependencies.apt]
@@ -355,4 +372,5 @@ pkg-config      = "*"
 libxml2-dev     = ">= 2.15.1"
 debugedit       = "*"
 patchelf        = "*"
+gzip = "*"
 perl            = "*"

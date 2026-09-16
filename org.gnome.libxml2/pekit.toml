@@ -12,7 +12,7 @@ listing_url = "https://download.gnome.org/sources/libxml2/cache.json"
 # The filename's project stem ends in a digit, which Pekit's embedded-version
 # extractor could otherwise read as a prerelease. The listing is dedicated to
 # libxml2, so match the numeric archive suffix directly.
-file_regex  = 'libxml2-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+file_regex  = 'libxml2-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'
 extract     = true
 root        = "libxml2-{{version}}"
 # Soft maintenance floor. New stable releases advance automatically; the
@@ -31,12 +31,15 @@ SRC="$PEKIT_SOURCE_ROOT"
 BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Preserve physical DWARF paths until debugedit collects the source files.
+export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnome.libxml2"
 
 mkdir -p "$BUILD"
 cd "$BUILD"
 
 "$SRC/configure" \
-  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
   --prefix=/usr \
@@ -88,13 +91,15 @@ install -m 0644 "$SRC/dist-doc/xmlcatalog.1" \
   "$PREFIX/share/man/man1/xmlcatalog.1"
 cp -a "$SRC/dist-doc/html/." \
   "$PREFIX/share/doc/org.gnome.libxml2/html/"
+gzip -9n "$PREFIX/share/man/man1/xml2-config.1" \
+  "$PREFIX/share/man/man1/xmllint.1" \
+  "$PREFIX/share/man/man1/xmlcatalog.1"
 
 LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.1.*' \
   | LC_ALL=C sort)
 # Create conventional build-ID-indexed symbols and copy exactly the source
 # files named by rewritten DWARF into the debugsource payload.
 strip --strip-debug "$LIBDIR/libxml2.a"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
 for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
   patchelf --remove-rpath "$elf"
@@ -105,10 +110,14 @@ for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
   test -n "$bid"
   p2=$(printf %s "$bid" | cut -c1-2)
   rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  case "$elf" in
+    "$LIBXML_SO") DEBUGROOT="$PREFIX/lib/debug-libxml2" ;;
+    *) DEBUGROOT="$PREFIX/lib/debug-libxml2-utils" ;;
+  esac
+  mkdir -p "$DEBUGROOT/.build-id/$p2"
   objcopy --only-keep-debug "$elf" \
-    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+    "$DEBUGROOT/.build-id/$p2/$rest.debug"
+  chmod 0644 "$DEBUGROOT/.build-id/$p2/$rest.debug"
   strip "$elf"
 done
 
@@ -127,6 +136,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.pkgconf.pkgconf"                = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"          = "*"
 "org.gnu.glibc-gconv-extra"   = "*"
+"org.gnu.gzip"                = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -134,6 +144,7 @@ pkg-config      = "*"
 zlib1g-dev      = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -161,7 +172,12 @@ LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 XMLLINT="$STAGE/usr/bin/xmllint"
 export LD_LIBRARY_PATH="$STAGE/usr/lib/x86_64-linux-peios"
 printf '%s\n' '<root><child>ok</child></root>' | "$XMLLINT" --noout -
-case "$("$XMLLINT" --version 2>&1)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+major=${PEKIT_VERSION%%.*}
+rest=${PEKIT_VERSION#*.}
+minor=${rest%%.*}
+patch=${rest#*.}
+numeric_version=$((major * 10000 + minor * 100 + patch))
+"$XMLLINT" --version 2>&1 | grep -F "using libxml version $numeric_version"
 
 SMOKE="$PEKIT_OUT/libxml2-smoke"
 mkdir -p "$SMOKE"
@@ -234,9 +250,11 @@ test "$("$XMLLINT" --xpath 'string(/root/item)' "$SMOKE/input.xml")" = 42
 "$XMLLINT" --c14n "$SMOKE/input.xml" > "$SMOKE/canonical.xml"
 grep -Fx '<root><item>42</item></root>' "$SMOKE/canonical.xml"
 
-test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test "$(find "$PREFIX/lib/debug-libxml2/.build-id" \
+  "$PREFIX/lib/debug-libxml2-utils/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
 test -n "$(find "$PREFIX/src/debug/org.gnome.libxml2" -type f -print -quit)"
-for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+for dbg in $(find "$PREFIX/lib/debug-libxml2/.build-id" \
+  "$PREFIX/lib/debug-libxml2-utils/.build-id" -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -F '.debug_info'
 done
 for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
@@ -244,7 +262,9 @@ for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 readelf -d "$LIBXML_SO" | grep -F 'Shared library: [libz.so.1]'

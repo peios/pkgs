@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnu.bc-debuginfo"
+description = "GNU bc and dc debugging symbols"
+
+[dependencies]
+"org.gnu.bc" = "{{version}}-1"
+
+[files]
+"@source:COPYING*"  = "usr/share/licenses/org.gnu.bc-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"
