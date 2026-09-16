@@ -342,6 +342,8 @@ for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
   readelf -S "$debug_file" | grep -F '.debug_info'
 done
 
+python3 "$PEKIT_RECIPE_ROOT/test-sdk-closure.py" "$PEKIT_MAIN_OUT" "$PEKIT_OUT/sdk-closure" "$SMOKE"
+
 rm -f "$PEKIT_OUT/.actual-install" "$PEKIT_OUT/.expected-install" \
   "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
   "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.expected-debugsource" \
@@ -350,12 +352,14 @@ rm -rf "$PEKIT_MAIN_OUT/build-compat" "$PEKIT_MAIN_OUT/build-native" "$PEKIT_MAI
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.cmake.cmake"     = "*"
 "org.sourceware.debugedit"             = "*"
 "org.pkgconf.pkgconf"               = "*"
 
 [test.dependencies.apt]
+python3 = "*"
 build-essential = "*"
 cmake           = "*"
 debugedit       = "*"

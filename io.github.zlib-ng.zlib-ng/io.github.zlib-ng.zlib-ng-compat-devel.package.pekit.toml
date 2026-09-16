@@ -18,3 +18,6 @@ license     = "Zlib"
 ":usr/lib/x86_64-linux-peios/libz.so"                    = "usr/lib/x86_64-linux-peios/libz.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/zlib.pc"          = "usr/lib/x86_64-linux-peios/pkgconfig/zlib.pc"
 ":usr/lib/x86_64-linux-peios/cmake/ZLIB/**"              = "usr/lib/x86_64-linux-peios/cmake/ZLIB"
+
+# Upstream CMake exports load both shared and static targets together.
+":usr/lib/x86_64-linux-peios/libz.a"           = "usr/lib/x86_64-linux-peios/libz.a"

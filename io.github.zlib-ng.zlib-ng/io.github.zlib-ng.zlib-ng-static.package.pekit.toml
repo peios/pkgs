@@ -1,6 +1,6 @@
 [package]
 name        = "io.github.zlib-ng.zlib-ng-static"
-description = "zlib-ng native API static library"
+description = "zlib-ng native API static SDK umbrella"
 license     = "Zlib"
 
 [provides]
@@ -12,4 +12,3 @@ license     = "Zlib"
 
 [files]
 "@source:LICENSE.md"                           = "usr/share/licenses/io.github.zlib-ng.zlib-ng-static/"
-":usr/lib/x86_64-linux-peios/libz-ng.a"        = "usr/lib/x86_64-linux-peios/libz-ng.a"
