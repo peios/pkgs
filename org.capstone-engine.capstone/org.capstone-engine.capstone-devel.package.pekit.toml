@@ -3,6 +3,7 @@ name        = "org.capstone-engine.capstone-devel"
 description = "Capstone - headers and development metadata"
 
 [dependencies]
+"org.capstone-engine.capstone" = "{{version}}-1"
 "org.capstone-engine.capstone-libs" = "{{version}}-1"
 
 [files]
@@ -12,3 +13,4 @@ description = "Capstone - headers and development metadata"
 ":usr/lib/x86_64-linux-peios/libcapstone.so"    = "usr/lib/x86_64-linux-peios/libcapstone.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/**"      = "usr/lib/x86_64-linux-peios/pkgconfig"
 ":usr/lib/x86_64-linux-peios/cmake/capstone/**" = "usr/lib/x86_64-linux-peios/cmake/capstone"
+":usr/lib/x86_64-linux-peios/libcapstone.a" = "usr/lib/x86_64-linux-peios/libcapstone.a"
