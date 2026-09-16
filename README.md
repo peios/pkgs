@@ -332,6 +332,18 @@ and use `--env peipkg-net`; all compiler and test targets continue through the
 ordinary offline `peipkg` environment. Never give the whole build network
 access.
 
+`peipkg-net` picks the acquisition root from the recipe's declared vendor
+dependencies. A vendor target whose native set declares `org.golang.go`
+acquires in the native Peipkg root. Go resolves hosts with its own resolver,
+and the root gets `/etc/ssl/certs/ca-certificates.crt` from the declared
+`org.mozilla.ca-certificates` bundle. Such recipes should set
+`GOTOOLCHAIN=local`, so a `go.mod` bump fails instead of downloading another
+compiler. Every other vendor target, including all Cargo and pip acquisition,
+uses a clean Debian root built from its declared apt set. Peios glibc resolves
+hosts only through resolvd, which a build root does not run. Declare both sets
+either way. The Debian reference environment builds from the apt set, so
+native acquisition does not replace it.
+
 If a delegated first-party recipe needs a remote upstream tree as a build
 input, package that tree separately under the upstream's qualified identity.
 The source recipe owns authenticated acquisition and a committed lock; the
