@@ -50,6 +50,8 @@ test                   = true
 [payload]
 junk                 = true
 scripts              = true
+# Peios exposes Python through /bin; wheel entry points use that runtime view.
+interpreters = ["/bin/sh", "/usr/bin/sh", "/bin/bash", "/usr/bin/bash", "/usr/bin/env", "/usr/bin/python3", "/bin/python3", "/usr/bin/perl"]
 symlinks.dangling    = "forbidden"
 symlinks.absolute    = "forbidden"
 filenames            = "portable"
@@ -58,7 +60,7 @@ manpages.required    = true
 manpages.compression = "gzip"
 pkgconfig            = true
 license_file         = "usr/share/licenses/{{name}}/"
-dirs.lib             = ["lib", "lib64", "usr/lib", "usr/lib64", "usr/lib/x86_64-linux-peios"]
+dirs.lib             = ["lib", "lib64", "usr/lib", "usr/lib64", "usr/lib/*-linux-*"]
 
 [split]
 devel.packages = "*-devel"
