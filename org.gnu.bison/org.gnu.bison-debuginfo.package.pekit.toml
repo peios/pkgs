@@ -6,4 +6,5 @@ description = "GNU Bison - debugging symbols"
 "org.gnu.bison" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.bison-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

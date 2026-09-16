@@ -37,6 +37,8 @@ fingerprints = ["7DF84374B1EE1F9764BBE25D0DDCAA3278D5264E"]
 command = """
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.bison"
 cd "$PEKIT_OUT"
 
 "$SRC/configure" \
@@ -46,6 +48,7 @@ cd "$PEKIT_OUT"
   --mandir=/usr/share/man
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios is /usr-native and deliberately has no legacy /bin alias. Upstream's
 # generated yacc frontend retains a /bin/sh shebang, so normalize it to the
@@ -90,6 +93,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++" = "*"
 # The upstream suite exercises generated scanners and Autoconf integration.
 "io.github.westes.flex" = "*"
@@ -100,6 +104,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.gettext" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 flex = "*"
 autoconf = ">= 2.72"

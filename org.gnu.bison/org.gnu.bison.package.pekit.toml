@@ -1,5 +1,5 @@
 # GNU Bison itself: parser generator, yacc compatibility frontend, skeletons,
-# Autoconf macros, translations and command manuals.
+# translations and command manuals.
 
 side_effects = ["man-db"]
 
@@ -18,7 +18,6 @@ description = "GNU Bison - parser generator and yacc-compatible frontend"
 "@source:COPYING"                      = "usr/share/licenses/org.gnu.bison/"
 ":usr/bin/**"                          = "usr/bin"
 ":usr/share/bison/**"                  = "usr/share/bison"
-":usr/share/aclocal/bison*.m4"         = "usr/share/aclocal"
 ":usr/share/locale/**/bison.mo"        = "usr/share/locale"
 ":usr/share/locale/**/bison-gnulib.mo" = "usr/share/locale"
 ":usr/share/man/**"                    = "usr/share/man"

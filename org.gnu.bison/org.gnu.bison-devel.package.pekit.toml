@@ -3,10 +3,14 @@
 
 [package]
 name        = "org.gnu.bison-devel"
-description = "GNU Bison - traditional liby development library"
+description = "GNU Bison - liby library and parser internationalisation macro"
 
 [dependencies]
 "org.gnu.bison" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.bison-devel/"
 ":usr/lib/x86_64-linux-peios/liby.a" = "usr/lib/x86_64-linux-peios/liby.a"
+
+# Autoconf integration for projects using internationalised generated parsers.
+":usr/share/aclocal/bison*.m4" = "usr/share/aclocal"
