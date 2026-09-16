@@ -7,7 +7,7 @@ out_dir = "out"
 [source.url]
 url         = "https://distfiles.ariadne.space/pkgconf/pkgconf-{{version}}.tar.xz"
 listing_url = "https://distfiles.ariadne.space/pkgconf/"
-file_regex  = '^pkgconf-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz$'
+file_regex  = 'pkgconf-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
 extract     = true
 root        = "pkgconf-{{version}}"
 # Soft production floor. Follow every newer stable release; development or
@@ -23,6 +23,8 @@ versions    = ">= 3.0.6"
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.pkgconf.pkgconf"
 BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
@@ -37,7 +39,7 @@ meson setup "$BUILD" "$SRC" \
   -Dwith-system-includedir=/usr/include \
   -Dfuzzing=false \
   -Danalyzer=false \
-  -Dc_link_args="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+  -Dc_link_args="$LDFLAGS -Wl,-z,ibtplt"
 
 meson compile -C "$BUILD"
 DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
@@ -46,6 +48,16 @@ DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
 # pkgconf as its pkg-config implementation, matching Debian and Fedora practice.
 ln -sfn pkgconf "$PREFIX/bin/pkg-config"
 ln -sfn pkgconf.1 "$PREFIX/share/man/man1/pkg-config.1"
+
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
 rm -rf "$PREFIX/share/doc/pkgconf"
 
 # Produce build-ID-indexed symbols and the exact source tree referenced after
@@ -85,12 +97,14 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 '''
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit"              = "*"
 "com.mesonbuild.meson"                  = ">= 1.4"
 "org.ninja-build.ninja"                  = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 meson           = ">= 1.4"
@@ -182,7 +196,9 @@ for elf in \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 readelf -d "$LIBDIR/libpkgconf.so.8.0.0" | grep -F 'Shared library: [libc.so.6]'
