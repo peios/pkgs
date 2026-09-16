@@ -47,8 +47,10 @@ test "$(cat version)" = "$PEKIT_VERSION"
 # then compile it with the distribution's packaged glibc zic.
 make -o version AWK=gawk DATAFORM=main REDO=posix_only tzdata.zi leapseconds
 
-zic -b slim -d "$FIRST" tzdata.zi
-zic -b slim -d "$SECOND" tzdata.zi
+# IANA 2026b documents a final-time-type bug in zic 2023d..2026a slim
+# output. Fat output preserves that transition on both old and new compilers.
+zic -b fat -d "$FIRST" tzdata.zi
+zic -b fat -d "$SECOND" tzdata.zi
 
 cp -R "$FIRST/." "$DEST/"
 for file in iso3166.tab zone.tab zone1970.tab zonenow.tab tzdata.zi leapseconds; do
@@ -93,6 +95,20 @@ for zone in UTC Etc/UTC Europe/London America/New_York Asia/Tokyo; do
   grep -a -q '^TZif' "$DEST/$zone"
 done
 cmp "$DEST/UTC" "$DEST/Etc/UTC"
+# A final DST/type transition with no UTC-offset change must remain observable.
+# This synthetic fixture stays valid as real-world timezone rules evolve.
+cat > "$PEKIT_OUT/last-type" <<'EOF'
+Rule Test 1999 max - Mar lastSun 1:00u 1:00 D
+Rule Test 1999 max - Oct lastSun 1:00u 0 S
+Zone Test/LastType -7:00 Test T%sT 2000 Mar 27
+                  -7:00 Test TDT 2000 Oct 29 1:00u
+                  -6:00 - NST
+EOF
+zic -b fat -d "$PEKIT_OUT/fixture" "$PEKIT_OUT/last-type"
+TZDIR="$PEKIT_OUT/fixture" zdump -v -c 2000,2001 Test/LastType > "$PEKIT_OUT/last-type.transitions"
+grep -F 'Sun Oct 29 00:59:59 2000 UT = Sat Oct 28 18:59:59 2000 TDT isdst=1 gmtoff=-21600' "$PEKIT_OUT/last-type.transitions"
+grep -F 'Sun Oct 29 01:00:00 2000 UT = Sat Oct 28 19:00:00 2000 NST isdst=0 gmtoff=-21600' "$PEKIT_OUT/last-type.transitions"
+
 TZDIR="$DEST" zdump -v -c 2026,2027 Europe/London > "$PEKIT_OUT/london.transitions"
 grep -F 'Sun Mar 29 01:00:00 2026 UT = Sun Mar 29 02:00:00 2026 BST' \
   "$PEKIT_OUT/london.transitions" >/dev/null
