@@ -70,6 +70,7 @@ install -m 0644 "$SRC/man/pod2texi.1" \
   "$PEKIT_OUT/usr/share/man/man1/pod2texi.1"
 install -m 0644 "$SRC/man/texinfo.5" \
   "$PEKIT_OUT/usr/share/man/man5/texinfo.5"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 """
 
 [test]
@@ -87,6 +88,7 @@ mkdir -p "$SMOKE"
 # that suite's exact single missing-module error after every other TAP test
 # has completed; Debian carries Test::Deep and must pass without this branch.
 if ! make -C "$STAGE/tta/perl" -j"$(nproc)" check; then
+  test "${PEKIT_NATIVE_ROOT:-}" = 1
   actual=$(find "$STAGE/tta/perl" -name '*.trs' -type f | while IFS= read -r result; do
     grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
     printf '%s\n' "${result#"$STAGE/tta/perl"/}"
@@ -170,10 +172,25 @@ test -n "$(find "$STAGE/usr/share/locale" -type f \
   -name 'texinfo.mo' -print -quit)"
 test -n "$(find "$STAGE/usr/share/locale" -type f \
   -name 'texinfo_document.mo' -print -quit)"
-find "$STAGE/usr/bin" -type f -exec perl -c {} \;
+find "$STAGE/usr/bin" -type f | while IFS= read -r script; do
+  perl -c "$script"
+done
+
+# libintl-perl's modules are imported, never command entry points. Preserve
+# upstream's explicit refusal to execute them and bound the lint allowance.
+MODULES="$STAGE/usr/share/texi2any/lib/libintl-perl/lib/Locale"
+test -d "$MODULES"
+find "$MODULES" -type f -name '*.pm' | while IFS= read -r module; do
+  IFS= read -r first < "$module"
+  case "$first" in
+    '#!'*) test "$first" = '#! /bin/false';;
+  esac
+done
+
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.tar" = "*"
 "dev.peios.build-essentials-c" = "*"
 "com.darwinsys.file"           = "*"
 "org.gnu.glibc-langpack-en"    = ">= 2.43"
@@ -182,6 +199,7 @@ find "$STAGE/usr/bin" -type f -exec perl -c {} \;
 "org.perl.perl"                = "*"
 
 [test.dependencies.apt]
+tar = "*"
 build-essential   = "*"
 file              = "*"
 gettext           = "*"
@@ -190,6 +208,7 @@ locales-all       = "*"
 perl              = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"   = "*"
 "com.darwinsys.file" = "*"
 "org.gnu.glibc-langpack-en"    = ">= 2.43"
@@ -198,6 +217,7 @@ perl              = "*"
 "org.perl.perl"    = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential   = "*"
 file              = "*"
 gettext           = "*"

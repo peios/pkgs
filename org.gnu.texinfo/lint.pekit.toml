@@ -1,0 +1,3 @@
+
+[allow_files."payload.scripts"]
+"usr/share/texi2any/lib/libintl-perl/lib/Locale/**/*.pm" = "Imported Perl modules intentionally start with upstream /bin/false to reject direct execution; the gate requires that exact sentinel on every shebang in this module subtree"
