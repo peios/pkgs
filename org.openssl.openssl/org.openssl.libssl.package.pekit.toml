@@ -10,4 +10,4 @@ description = "OpenSSL TLS runtime library"
 
 [files]
 "@source:LICENSE.txt"                        = "usr/share/licenses/org.openssl.libssl/"
-":usr/lib/x86_64-linux-peios/libssl.so.3"    = "usr/lib/x86_64-linux-peios/libssl.so.3"
+":usr/lib/x86_64-linux-peios/libssl.so.4"    = "usr/lib/x86_64-linux-peios/libssl.so.4"

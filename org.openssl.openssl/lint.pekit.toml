@@ -1,0 +1,2 @@
+[elf]
+debuginfo = "org.openssl.openssl-debuginfo"

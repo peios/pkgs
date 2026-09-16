@@ -10,6 +10,5 @@ description = "OpenSSL general-purpose cryptography runtime"
 [files]
 "@source:LICENSE.txt"                            = "usr/share/licenses/org.openssl.libcrypto/"
 ":usr/etc/ssl/**"                                = "usr/etc/ssl"
-":usr/lib/x86_64-linux-peios/libcrypto.so.3"     = "usr/lib/x86_64-linux-peios/libcrypto.so.3"
-":usr/lib/x86_64-linux-peios/engines-3/**"       = "usr/lib/x86_64-linux-peios/engines-3"
+":usr/lib/x86_64-linux-peios/libcrypto.so.4"     = "usr/lib/x86_64-linux-peios/libcrypto.so.4"
 ":usr/lib/x86_64-linux-peios/ossl-modules/**"    = "usr/lib/x86_64-linux-peios/ossl-modules"

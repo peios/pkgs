@@ -1,0 +1,241 @@
+# Runtime-only, co-installable OpenSSL 3 ABI compatibility lane.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/openssl/openssl/releases/download/openssl-{{version}}/openssl-{{version}}.tar.gz"
+listing_url = "https://openssl-library.org/source/"
+extract     = true
+root        = "openssl-{{version}}"
+file_regex  = 'openssl-3\.5\.[0-9]+\.tar\.gz'
+# This retained ABI lane follows authenticated 3.5 LTS patches (supported to April 2030).
+# Its maintenance-line bound retains a supported ABI, not one fixed patch release.
+versions    = ">= 3.5.8, < 3.6.0"
+
+# OpenSSL publishes detached signatures and the complete release certificate
+# on its official download page. The pinned full primary fingerprint is the
+# canonical trust anchor named there; key rotation is an explicit trust event.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files = [
+  "keys/openssl-release.asc",
+  "keys/openssl-release-retired.asc",
+]
+fingerprints = [
+  "B146647E45A7B33947AB226B2A2C87D161692D40",
+  "BA5473A2B0587B07FB27CF2D216094DFD0CB81EF",
+]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+mkdir -p "$BUILD"
+# Keep the system trust-store paths, but give ABI 3 its own config and provider
+# directory. Assert upstream anchors so layout drift requires review.
+perl -0777 -i -pe '
+  s/#define OPENSSL_CONF "openssl.cnf"/#define OPENSSL_CONF "openssl3.cnf"/ == 1 or die "OpenSSL config anchor changed";
+  s{#define CTLOG_FILE OPENSSLDIR "/ct_log_list.cnf"}{#define CTLOG_FILE OPENSSLDIR "/ct_log_list-openssl3.cnf"} == 1 or die "OpenSSL CT log anchor changed";
+' "$SRC/include/internal/common.h"
+cd "$BUILD"
+export HASHBANGPERL=/usr/bin/perl
+CFLAGS="${CFLAGS-} -Wa,--noexecstack" \
+LDFLAGS="${LDFLAGS-} -Wl,-z,ibtplt" \
+perl "$SRC/Configure" linux-x86_64 --prefix=/usr \
+  --libdir=lib/x86_64-linux-peios --openssldir=/etc/ssl \
+  enable-ec_nistp_64_gcc_128 shared
+# This value is consumed both by compilation and installation.
+perl -i -pe 's{^MODULESDIR=.*$}{MODULESDIR=/usr/lib/x86_64-linux-peios/ossl-modules-3}' Makefile
+grep -Fx "MODULESDIR=$LIBDIR/ossl-modules-3" Makefile
+make -j"$(nproc)"
+make install_sw DESTDIR="$PEKIT_OUT/sdk"
+mkdir -p "$PEKIT_OUT$LIBDIR" "$PEKIT_OUT/usr/etc/ssl"
+cp "$PEKIT_OUT/sdk$LIBDIR/libcrypto.so.3" "$PEKIT_OUT$LIBDIR/"
+cp "$PEKIT_OUT/sdk$LIBDIR/libssl.so.3" "$PEKIT_OUT$LIBDIR/"
+mkdir -p "$PEKIT_OUT$LIBDIR/engines-3" "$PEKIT_OUT$LIBDIR/ossl-modules-3"
+cp "$PEKIT_OUT/sdk$LIBDIR/engines-3/"*.so "$PEKIT_OUT$LIBDIR/engines-3/"
+cp "$PEKIT_OUT/sdk$LIBDIR/ossl-modules-3/"*.so "$PEKIT_OUT$LIBDIR/ossl-modules-3/"
+cp "$SRC/apps/openssl.cnf" "$PEKIT_OUT/usr/etc/ssl/openssl3.cnf"
+cp "$SRC/apps/ct_log_list.cnf" "$PEKIT_OUT/usr/etc/ssl/ct_log_list-openssl3.cnf"
+# Split build-ID-indexed symbols and stage all DWARF-referenced sources.
+# Static archives retain code while dropping their debug sections.
+cd "$PEKIT_OUT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+: > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.buildids"
+find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
+  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
+  case "$f" in
+    *.a) strip --strip-debug "$f"; continue;;
+  esac
+  readelf -h "$f" >/dev/null 2>&1 || continue
+  patchelf --remove-rpath "$f"
+  debugedit -b "$ROOT" -d /usr/src/debug/dev.openssl.openssl3 \
+    -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  printf '%s\n' "$bid" >> "$PEKIT_OUT/.buildids"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$f"
+done
+tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    case "$rel" in */) continue;; esac
+    [ -f "$ROOT/$rel" ] || continue
+    mkdir -p "usr/src/debug/dev.openssl.openssl3/$(dirname "$rel")"
+    cp "$ROOT/$rel" "usr/src/debug/dev.openssl.openssl3/$rel"
+  done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
+  "$PEKIT_OUT/.buildids"
+'''
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+SRC="$(pwd)"
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+LIBDIR=/usr/lib/x86_64-linux-peios
+STAGED_LIBDIR="$STAGE$LIBDIR"
+CONF="$STAGE/usr/etc/ssl/openssl3.cnf"
+BIN="$STAGE/sdk/usr/bin/openssl"
+SMOKE="$PEKIT_OUT/smoke"
+test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
+# Peios host lookup is resolvd-only; the offline worker runs no resolver
+# service. This one OCSP fixture needs two local connections, not a name-service
+# integration test. Use numeric loopback only on the native rung, retaining all
+# three upstream assertions. The reference rung tests the original hostname.
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
+  OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
+  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
+  restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
+  trap restore_ocsp_recipe EXIT HUP INT TERM
+  grep -q 'localhost:' "$OCSP_ORIG"
+  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
+fi
+make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  restore_ocsp_recipe
+  trap - EXIT HUP INT TERM
+fi
+# The public payload contains runtime files only. The SDK and command here are
+# private test/build fixtures; no file mapping can publish them.
+test ! -e "$STAGE/usr/bin"
+test ! -e "$STAGE/usr/include"
+test ! -e "$STAGED_LIBDIR/pkgconfig"
+test ! -e "$STAGED_LIBDIR/ossl-modules"
+for stem in crypto ssl; do
+  test ! -e "$STAGED_LIBDIR/lib$stem.so"
+  test ! -e "$STAGED_LIBDIR/lib$stem.a"
+  readelf -d "$STAGED_LIBDIR/lib$stem.so.3" | grep -F "Library soname: [lib$stem.so.3]"
+done
+test "$(find "$STAGED_LIBDIR/engines-3" -type f -name '*.so' | wc -l)" -eq 4
+test "$(find "$STAGED_LIBDIR/ossl-modules-3" -type f -name '*.so' | wc -l)" -eq 1
+test -f "$STAGED_LIBDIR/ossl-modules-3/legacy.so"
+OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" version -a > "$PEKIT_OUT/version"
+grep -F "OpenSSL $PEKIT_VERSION" "$PEKIT_OUT/version"
+grep -F 'OPENSSLDIR: "/etc/ssl"' "$PEKIT_OUT/version"
+grep -F "MODULESDIR: \"$LIBDIR/ossl-modules-3\"" "$PEKIT_OUT/version"
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <openssl/crypto.h>
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <string.h>
+#include <stdlib.h>
+int main(void) {
+  if (OPENSSL_version_major() != 3) return 1;
+  char *override = getenv("OPENSSL_CONF") ? OPENSSL_strdup(getenv("OPENSSL_CONF")) : NULL;
+  if (unsetenv("OPENSSL_CONF")) return 8;
+  char *config = CONF_get1_default_config_file();
+  if (!config || strcmp(config, "/etc/ssl/openssl3.cnf")) return 5;
+  OPENSSL_free(config);
+  if (override) {
+    if (setenv("OPENSSL_CONF", override, 1)) return 9;
+    OPENSSL_free(override);
+  }
+  if (strcmp(OPENSSL_info(OPENSSL_INFO_MODULES_DIR),
+             "/usr/lib/x86_64-linux-peios/ossl-modules-3")) return 6;
+  if (strcmp(X509_get_default_cert_file(), "/etc/ssl/cert.pem") ||
+      strcmp(X509_get_default_cert_dir(), "/etc/ssl/certs")) return 2;
+  if (!OPENSSL_init_ssl(0, NULL)) return 3;
+  EVP_MD *sha = EVP_MD_fetch(NULL, "SHA256", "provider=default");
+  if (!sha) return 7;
+  EVP_MD_free(sha);
+  OSSL_PROVIDER *p = OSSL_PROVIDER_load(NULL, "legacy");
+  EVP_MD *md = EVP_MD_fetch(NULL, "MD4", "provider=legacy");
+  SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+  if (!p || !md || !ctx) return 4;
+  EVP_MD_free(md); SSL_CTX_free(ctx); OSSL_PROVIDER_unload(p);
+  return 0;
+}
+EOF
+cc -I"$STAGE/sdk/usr/include" "$SMOKE/consumer.c" \
+  -L"$STAGED_LIBDIR" -Wl,-l:libssl.so.3 -Wl,-l:libcrypto.so.3 -o "$SMOKE/consumer"
+readelf -d "$SMOKE/consumer" | grep -F 'Shared library: [libssl.so.3]'
+readelf -d "$SMOKE/consumer" | grep -F 'Shared library: [libcrypto.so.3]'
+OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules-3" \
+LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/consumer"
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 7
+test -n "$(find "$STAGE/usr/src/debug/dev.openssl.openssl3" -type f -print -quit)"
+find "$STAGED_LIBDIR" -type f | while IFS= read -r elf; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -F GNU_RELRO
+  readelf -d "$elf" | grep -F BIND_NOW
+  readelf -d "$elf" | grep -F RELR
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.peiosutils"         = "*"
+"org.gnu.diffutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.make"                 = "*"
+"org.perl.perl"                = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.sed"                  = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+perl            = "*"
+pkg-config      = "*"
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c"   = "*"
+"org.sourceware.debugedit"            = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.diffutils" = "*"
+"org.gnu.grep"      = "*"
+"org.gnu.make"      = "*"
+"org.nixos.patchelf"             = "*"
+"org.perl.perl"                 = "*"
+"org.pkgconf.pkgconf"              = "*"
+"org.gnu.sed"                  = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+patchelf        = "*"
+perl            = "*"
+pkg-config      = "*"

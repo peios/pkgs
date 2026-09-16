@@ -1,0 +1,2 @@
+[allow]
+"source.versions.ceiling" = "Retained OpenSSL 3 ABI uses the maintained 3.5 LTS line (through April 2030); follows authenticated patch releases while org.openssl.openssl tracks current upstream"

@@ -8,4 +8,5 @@ description = "OpenSSL debugging symbols"
 "org.openssl.openssl"   = "{{version}}-1"
 
 [files]
+"@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

@@ -6,4 +6,5 @@ description = "OpenSSL debug sources"
 "org.openssl.openssl-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

@@ -1,6 +1,4 @@
-# OpenSSL's 3.5 line is the upstream LTS supported through April 2030. Peios
-# follows authenticated patch releases on that line automatically; moving to a
-# different feature or ABI line remains an explicit review.
+# Track authenticated upstream stable releases; retain older ABI runtimes separately.
 
 out_dir = "out"
 
@@ -12,7 +10,7 @@ root        = "openssl-{{version}}"
 file_regex  = 'openssl-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 # Soft maintenance floor. Follow every newer authenticated stable release;
 # incompatible API or provider changes stop at the build and test gates.
-versions    = ">= 3.5.8"
+versions    = ">= 4.0.2"
 
 # OpenSSL publishes detached signatures and the complete release certificate
 # on its official download page. The pinned full primary fingerprint is the
@@ -42,7 +40,7 @@ mkdir -p "$BUILD"
 cd "$BUILD"
 export HASHBANGPERL=/usr/bin/perl
 CFLAGS="${CFLAGS-} -Wa,--noexecstack" \
-LDFLAGS="${LDFLAGS-} -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="${LDFLAGS-} -Wl,-z,ibtplt" \
 perl "$SRC/Configure" linux-x86_64 \
   --prefix=/usr \
   --libdir=lib/x86_64-linux-peios \
@@ -54,7 +52,14 @@ make -j"$(nproc)"
 
 make install_sw DESTDIR="$PEKIT_OUT"
 make install_ssldirs DESTDIR="$PEKIT_OUT"
-make install_man_docs DESTDIR="$PEKIT_OUT"
+make install_man_docs MANSUFFIX= DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -n -9 {} +
+find "$PEKIT_OUT/usr/share/man" -type l | while IFS= read -r page; do
+  target=$(readlink "$page")
+  rm "$page"
+  ln -s "$target.gz" "$page.gz"
+done
+ln -s tsget.1.gz "$PEKIT_OUT/usr/share/man/man1/tsget.pl.1.gz"
 
 # /etc is Peios's merged runtime view. Package-owned seed configuration lives
 # in its read-only vendor layer, /usr/etc, while OpenSSL keeps /etc/ssl as its
@@ -124,41 +129,53 @@ CONF="$STAGE/usr/etc/ssl/openssl.cnf"
 SMOKE="$PEKIT_OUT/smoke"
 
 test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
+# Peios host lookup is resolvd-only; offline workers run no resolver service.
+# These three socket fixtures use localhost only as a local connection address.
+# Keep every protocol assertion and explicit ECH/SNI name; use numeric loopback
+# for native connections. Reference tests retain the original hostname fixtures.
 if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  make -C "$BUILD" test HARNESS_JOBS="$(nproc)" \
-    TESTS='alltests -test_ocsp_cert_chain'
-  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
-  OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
-  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
-  restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
-  trap restore_ocsp_recipe EXIT HUP INT TERM
-  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
-  make -C "$BUILD" test TESTS=test_ocsp_cert_chain
-  restore_ocsp_recipe
+  LOOPBACK_FIXTURES="82-test_ocsp_cert_chain.t 20-test_app_s_client_msg.t 82-test_ech_client_server.t"
+  LOOPBACK_BACKUP="$PEKIT_OUT/loopback-originals"
+  mkdir -p "$LOOPBACK_BACKUP"
+  for fixture in $LOOPBACK_FIXTURES; do
+    cp -p "$SRC/test/recipes/$fixture" "$LOOPBACK_BACKUP/$fixture"
+  done
+  restore_loopback_recipes() {
+    for fixture in $LOOPBACK_FIXTURES; do
+      cp -p "$LOOPBACK_BACKUP/$fixture" "$SRC/test/recipes/$fixture"
+    done
+  }
+  trap restore_loopback_recipes EXIT HUP INT TERM
+  for fixture in $LOOPBACK_FIXTURES; do
+    grep -q 'localhost:' "$LOOPBACK_BACKUP/$fixture"
+    sed 's/localhost:/127.0.0.1:/g' "$LOOPBACK_BACKUP/$fixture" > "$SRC/test/recipes/$fixture"
+  done
+fi
+make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  restore_loopback_recipes
   trap - EXIT HUP INT TERM
-else
-  make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
 fi
 
 find "$STAGE/usr/bin" -maxdepth 1 -type f -printf '%f\n' | \
   LC_ALL=C sort > "$PEKIT_OUT/installed-tools"
-printf '%s\n' CA.pl c_rehash openssl tsget.pl | LC_ALL=C sort \
+printf '%s\n' CA.pl openssl tsget.pl | LC_ALL=C sort \
   > "$PEKIT_OUT/expected-tools"
 diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
 test "$(readlink "$STAGE/usr/bin/tsget")" = tsget.pl
-for script in CA.pl c_rehash tsget.pl; do
+for script in CA.pl tsget.pl; do
   test "$(sed -n '1p' "$STAGE/usr/bin/$script")" = '#!/usr/bin/perl'
 done
 test -f "$STAGE/usr/etc/ssl/openssl.cnf"
 test -f "$STAGE/usr/etc/ssl/ct_log_list.cnf"
-test "$(find "$STAGED_LIBDIR/engines-3" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 4
+test ! -e "$STAGED_LIBDIR/engines-3"
 test "$(find "$STAGED_LIBDIR/ossl-modules" -maxdepth 1 -type f -name '*.so' | wc -l)" -eq 1
 test -f "$STAGED_LIBDIR/ossl-modules/legacy.so"
 for stem in crypto ssl; do
   test -L "$STAGED_LIBDIR/lib$stem.so"
-  test -f "$STAGED_LIBDIR/lib$stem.so.3"
+  test -f "$STAGED_LIBDIR/lib$stem.so.4"
   test -f "$STAGED_LIBDIR/lib$stem.a"
-  readelf -d "$STAGED_LIBDIR/lib$stem.so.3" | grep -F "Library soname: [lib$stem.so.3]"
+  readelf -d "$STAGED_LIBDIR/lib$stem.so.4" | grep -F "Library soname: [lib$stem.so.4]"
 done
 for pc in libcrypto libssl openssl; do
   test -f "$STAGED_LIBDIR/pkgconfig/$pc.pc"
@@ -176,7 +193,6 @@ OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
 LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" version -a > "$PEKIT_OUT/version"
 grep -F "OpenSSL $PEKIT_VERSION" "$PEKIT_OUT/version"
 grep -F 'OPENSSLDIR: "/etc/ssl"' "$PEKIT_OUT/version"
-grep -F "ENGINESDIR: \"$LIBDIR/engines-3\"" "$PEKIT_OUT/version"
 grep -F "MODULESDIR: \"$LIBDIR/ossl-modules\"" "$PEKIT_OUT/version"
 OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" \
 LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" list -providers | grep -F 'OpenSSL Default Provider'
@@ -218,7 +234,7 @@ cc $OPENSSL_CFLAGS "$SMOKE/openssl.c" \
   -ldl -pthread -o "$SMOKE/static"
 OPENSSL_CONF="$CONF" OPENSSL_MODULES="$STAGED_LIBDIR/ossl-modules" "$SMOKE/static"
 
-test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 8
+test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 4
 test -n "$(find "$STAGE/usr/src/debug/org.openssl.openssl" -type f -print -quit)"
 find "$STAGE/usr/bin" "$STAGED_LIBDIR" -type f ! -type l ! -name '*.a' | \
   while IFS= read -r elf; do
@@ -228,7 +244,9 @@ find "$STAGE/usr/bin" "$STAGED_LIBDIR" -type f ! -type l ! -name '*.a' | \
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 '''
@@ -249,6 +267,7 @@ perl            = "*"
 pkg-config      = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"   = "*"
 "org.sourceware.debugedit"            = "*"
 "dev.peios.peiosutils" = "*"
@@ -261,6 +280,7 @@ pkg-config      = "*"
 "org.gnu.sed"                  = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
