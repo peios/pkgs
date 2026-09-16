@@ -7,10 +7,6 @@ description   = "Laptop audio codec and amplifier firmware"
 license       = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/audio-codecs/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/audio-codecs/usr/share/licenses/**" = "usr/share/licenses"

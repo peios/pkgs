@@ -33,6 +33,7 @@ BUILD="$PEKIT_OUT/build"
 LIBDIR=/usr/lib/x86_64-linux-peios
 STAGED_LIBDIR="$PEKIT_OUT$LIBDIR"
 
+export CFLAGS="$CFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.kernel.pahole/source -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.kernel.pahole/build/main"
 cmake -S "$SRC" -B "$BUILD" \
   -DCMAKE_INSTALL_PREFIX=/usr \
   -DCMAKE_BUILD_TYPE=Release \
@@ -49,6 +50,9 @@ rm -f "$PEKIT_OUT/usr/bin/ostra-cg"
 rm -rf "$PEKIT_OUT/usr/share/dwarves/runtime/python"
 
 BIN="$PEKIT_OUT/usr/bin"
+
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man1"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name "*.gz" -exec gzip -9n {} +
 
 # Produce conventional build-ID-indexed debuginfo and exact debug sources.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
@@ -101,7 +105,7 @@ printf '%s\n' \
   prefcnt scncopy syscse | LC_ALL=C sort > "$PEKIT_OUT/expected-tools"
 diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
 while IFS= read -r tool; do test -x "$BIN/$tool"; done < "$PEKIT_OUT/expected-tools"
-test -f "$STAGE/usr/share/man/man1/pahole.1"
+test -f "$STAGE/usr/share/man/man1/pahole.1.gz"
 test -f "$STAGE/usr/share/dwarves/runtime/Makefile"
 test -f "$STAGE/usr/share/dwarves/runtime/ctracer_relay.c"
 
@@ -162,27 +166,37 @@ find "$BIN" "$STAGED_LIBDIR" -type f | LC_ALL=C sort | while IFS= read -r file; 
   readelf -W -l "$file" | grep -F 'GNU_RELRO'
   readelf -d "$file" | grep -F 'BIND_NOW'
   readelf -d "$file" | grep -F 'RELR'
-  if cc --version | head -1 | grep -Fq 'Peios'; then
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
     readelf -n "$file" | grep -E 'x86 feature:.*IBT.*SHSTK'
   fi
   if readelf -d "$file" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 test "$(wc -l < "$PEKIT_OUT/elf-list")" -eq 13
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$STAGE" "$PEKIT_VERSION" "$PEKIT_OUT/manuals"
+for page in "$PEKIT_OUT/manuals/"*.gz; do
+  cmp "$page" "$STAGE/usr/share/man/man1/$(basename "$page")"
+done
 '''
 
 [test.dependencies.peipkg]
+"org.python.python3" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"               = "*"
 "org.sourceware.elfutils-devel"              = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"     = "*"
 "org.llvm.llvm"                              = "*"
 
 [test.dependencies.apt]
+python3 = "*"
+gzip = "*"
 build-essential = "*"
 libdw-dev       = "*"
 zlib1g-dev      = "*"
 llvm            = "*"
 
 [build.main.dependencies.peipkg]
+"org.python.python3" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"                 = "*"
 "org.cmake.cmake"                 = "*"
 "org.sourceware.elfutils-devel"   = "*"
@@ -191,6 +205,8 @@ llvm            = "*"
 "org.llvm.llvm"                              = "*"
 
 [build.main.dependencies.apt]
+python3 = "*"
+gzip = "*"
 build-essential = "*"
 cmake            = "*"
 libdw-dev        = "*"

@@ -7,4 +7,5 @@ license     = "LGPL-2.1-or-later"
 "org.kernel.libblkid" = "{{version}}-1"
 
 [files]
+"@source:libblkid/COPYING" = "usr/share/licenses/org.kernel.libblkid-debuginfo/COPYING"
 ":usr/lib/debug/**" = "usr/lib/debug"

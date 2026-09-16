@@ -7,10 +7,6 @@ description   = "NVIDIA GPU firmware for nouveau and nova (GSP)"
 license       = "LicenseRef-NVIDIA-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/nvidia-graphics/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/nvidia-graphics/usr/share/licenses/**" = "usr/share/licenses"

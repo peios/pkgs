@@ -1,0 +1,12 @@
+[package]
+name        = "org.kernel.util-linux-hexdump-debuginfo"
+description = "util-linux hexdump debugging symbols"
+license     = "BSD-4-Clause-UC AND GPL-2.0-or-later"
+
+[dependencies]
+"org.kernel.util-linux-hexdump" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.util-linux-hexdump-debuginfo/COPYING"
+":hexdump-debug/usr/lib/debug/**" = "usr/lib/debug"
+"@source:text-utils/hexdump.c" = "usr/share/licenses/org.kernel.util-linux-hexdump-debuginfo/hexdump.c"

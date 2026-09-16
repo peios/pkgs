@@ -7,10 +7,6 @@ description   = "Miscellaneous x86 peripheral firmware"
 license       = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/misc/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/misc/usr/share/licenses/**" = "usr/share/licenses"

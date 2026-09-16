@@ -7,10 +7,6 @@ description   = "Storage HBA, Fibre Channel, and card-reader firmware"
 license       = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND LicenseRef-ENE-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/storage/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/storage/usr/share/licenses/**" = "usr/share/licenses"

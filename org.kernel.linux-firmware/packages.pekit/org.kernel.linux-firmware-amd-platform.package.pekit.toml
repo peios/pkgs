@@ -7,10 +7,6 @@ description   = "AMD platform firmware: PSP/SEV (ccp), Platform Management Frame
 license       = "LicenseRef-AMD-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/amd-platform/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/amd-platform/usr/share/licenses/**" = "usr/share/licenses"

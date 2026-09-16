@@ -1,0 +1,2 @@
+[allow_files."payload.filenames"]
+"usr/lib/firmware/brcm/brcmfmac*-*.txt.zst*" = "Broadcom SDIO and PCIe board-data names embed exact upstream DMI vendor/product strings; the kernel constructs these lookup names verbatim, including spaces."

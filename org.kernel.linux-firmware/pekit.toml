@@ -71,6 +71,10 @@ python3 = "*"
 [build.main]
 command = """
 set -eu
+# Upstream copy-firmware.sh requires GNU install -d and realpath -m.  Keep the
+# production Peiosutils implementation as the system core suite, but select
+# the deliberately relocated GNU compatibility tools for this build helper.
+export PATH="/usr/libexec/coreutils-build:$PATH"
 python3 "$PEKIT_RECIPE_ROOT/tools/sort-firmware.py" \
   --families "$PEKIT_RECIPE_ROOT/families.toml" \
   --source "$(pwd)" \
@@ -87,14 +91,14 @@ du -sm "$PEKIT_OUT"/family/* | sort -rn
 [build.main.sign.pip]
 "family/*/usr/lib/firmware/**" = "tcb.priv"
 
-# dash for the stage itself and for copy-firmware.sh; GNU Coreutils, findutils,
-# grep and sed for what that script shells out to (install, realpath, find,
-# grep, sed). The peipkg root has nothing a stage does not name.
+# dash for the stage itself and for copy-firmware.sh; relocated GNU Coreutils,
+# findutils, grep and sed for what that script shells out to (install,
+# realpath, find, grep, sed). The peipkg root has nothing a stage does not name.
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash"     = "*"
 "org.python.python3"      = "*"
 "com.facebook.zstd"       = "*"
-"dev.peios.peiosutils" = "*"
+"org.gnu.coreutils-build-compat" = "*"
 "org.gnu.findutils"       = "*"
 "org.gnu.grep"            = "*"
 "org.gnu.sed"             = "*"

@@ -7,10 +7,6 @@ description   = "Wired Ethernet adapter and PHY firmware"
 license       = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/nic/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/nic/usr/share/licenses/**" = "usr/share/licenses"

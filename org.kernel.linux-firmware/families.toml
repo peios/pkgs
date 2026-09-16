@@ -123,7 +123,7 @@ license  = "LicenseRef-NVIDIA-Firmware"
 
 [family.audio-codecs]
 description = "Laptop audio codec and amplifier firmware"
-drivers  = ["cs35l41", "cs35l56", "cs42l43", "cs42l45", "ti-tas2781", "ti-tas2783", "ti-tas2563", "PCM6240",
+drivers  = ["cs35l41", "cs35l56", "cs42l43", "cs42l45", "ti-tas257x", "ti-tas2781", "ti-tas2783", "ti-tas2563", "PCM6240",
             "snd-hda-codec-ca0132"]
 licenses = ["LICENSE.cirrus", "LICENCE.ti-tspa", "LICENCE.ca0132"]
 license  = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"

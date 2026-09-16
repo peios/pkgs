@@ -7,10 +7,6 @@ description   = "Intel Wireless Wi-Fi (iwlwifi) firmware"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/iwlwifi/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/iwlwifi/usr/share/licenses/**" = "usr/share/licenses"

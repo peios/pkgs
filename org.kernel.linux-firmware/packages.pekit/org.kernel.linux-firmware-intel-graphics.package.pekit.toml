@@ -7,10 +7,6 @@ description   = "Intel graphics firmware (i915, xe: GuC, HuC, DMC)"
 license       = "LicenseRef-Intel-Firmware"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/intel-graphics/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/intel-graphics/usr/share/licenses/**" = "usr/share/licenses"

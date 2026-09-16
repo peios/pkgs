@@ -7,10 +7,6 @@ description   = "Qualcomm Atheros Wi-Fi and Bluetooth firmware"
 license       = "LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Firmware AND BSD-3-Clause"
 license_class = "firmware"
 
-[provides]
-
-[replaces]
-
 [files]
 ":family/atheros/usr/lib/firmware/**"   = "usr/lib/firmware"
 ":family/atheros/usr/share/licenses/**" = "usr/share/licenses"
