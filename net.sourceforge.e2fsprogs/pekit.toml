@@ -79,7 +79,11 @@ of           = "decompressed"
 #       is why --libdir alone already produces the triplet layout.)
 [build.main]
 command = """
+set -eu
 SRC="$PEKIT_SOURCE_ROOT"
+DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Scrub macro-expanded strings without hiding physical DWARF source paths.
+export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/net.sourceforge.e2fsprogs"
 cd "$PEKIT_OUT"
 
 # CC is left to the environment: the workspace CFLAGS already carry -g (the
@@ -145,7 +149,7 @@ done
 # split debug info build-id-indexed under usr/lib/debug/.build-id; strip the
 # shipped ELF; stage the referenced sources. The .c sources live in
 # $PEKIT_SOURCE_ROOT (the compiler saw absolute paths to it).
-SRCROOT="$PEKIT_SOURCE_ROOT"
+SRCROOT="$DEBUG_ROOT"
 cd "$PEKIT_OUT"
 : > "$PEKIT_OUT/.srclist"
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
@@ -155,8 +159,10 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
   patchelf --remove-rpath "$f" 2>/dev/null || true
-  debugedit -b "$SRCROOT" -d /usr/src/debug/net.sourceforge.e2fsprogs -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$SRCROOT" -d /usr/src/debug/net.sourceforge.e2fsprogs -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
     rest=$(printf %s "$bid" | cut -c3-)
@@ -174,6 +180,12 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   cp "$SRCROOT/$rel" "usr/src/debug/net.sourceforge.e2fsprogs/$rel"
 done
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9fn {} +
+find "$PEKIT_OUT/usr/share/man" -type l | while IFS= read -r link; do
+  target=$(readlink "$link")
+  ln -s "$target.gz" "$link.gz"
+  rm "$link"
+done
 """
 
 [build.main.dependencies.peipkg]
@@ -284,7 +296,16 @@ rm -rf "$SMOKE"
 
 '''
 
+# make check rebuilds test helpers and unpacks the upstream fixture corpus.
 [test.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
+"dev.peios.build-essentials-c" = "*"
 "dev.peios.libpeios" = "*"
+"dev.peios.libpeios-devel" = "*"
+"org.git.kernel.dash" = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.tar" = "*"
+"org.gnu.texinfo" = "*"
+"org.gnu.which" = "*"
 "org.kernel.libblkid" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.sourceware.bzip2" = "*"

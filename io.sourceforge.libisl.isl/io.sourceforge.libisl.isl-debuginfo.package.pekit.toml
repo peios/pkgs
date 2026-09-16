@@ -8,4 +8,5 @@ description = "Integer Set Library - debugging symbols"
 "io.sourceforge.libisl.isl" = "{{version}}-1"
 
 [files]
+"@source:LICENSE" = "usr/share/licenses/io.sourceforge.libisl.isl-debuginfo/"
 ":usr/lib/debug/**" = "usr/lib/debug"

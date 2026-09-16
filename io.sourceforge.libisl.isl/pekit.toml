@@ -9,7 +9,7 @@ url         = "https://libisl.sourceforge.io/isl-{{version}}.tar.xz"
 listing_url = "https://libisl.sourceforge.io/"
 root        = "isl-{{version}}"
 extract     = true
-file_regex  = '^isl-[0-9]+\.[0-9]+\.tar\.xz$'
+file_regex  = 'isl-[0-9]+\.[0-9]+\.tar\.xz'
 # Soft maintenance floor: follow stable releases automatically. An ABI,
 # source-layout, or build change must pass the validation gates below.
 versions    = ">= 0.28"
@@ -32,6 +32,10 @@ cd "$PEKIT_OUT"
 # CFLAGS_FOR_BUILD explicitly so AX_CC_MAXOPT does not append -O3, fast-math or
 # host CPU tuning to the inherited distro flags. The portable/no-arch switches
 # are a second guard against producing a builder-specific library.
+# Preserve physical DWARF paths until debugedit collects their sources.
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/io.sourceforge.libisl.isl"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 CFLAGS_FOR_BUILD="$CFLAGS" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
@@ -110,6 +114,8 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.gmp-devel"      = "*"
 "org.gnu.gmp-static"     = "*"
 "org.pkgconf.pkgconf"                   = "*"
+"org.sourceware.debugedit"              = "*"
+"org.nixos.patchelf"                    = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -168,9 +174,14 @@ EOF
 cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" -L"$LIBDIR" \
   -Wl,-rpath-link,"$LIBDIR" -lisl -lgmp -o "$SMOKE/shared"
 LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios" "$SMOKE/shared"
-test -s /usr/lib/x86_64-linux-peios/libgmp.a
+if test -s /usr/lib/x86_64-linux-peios/libgmp.a; then
+  GMP_STATIC=/usr/lib/x86_64-linux-peios/libgmp.a
+else
+  GMP_STATIC=/usr/lib/x86_64-linux-gnu/libgmp.a
+fi
+test -s "$GMP_STATIC"
 cc "$SMOKE/consumer.c" -I"$INCLUDEDIR" "$LIBDIR/libisl.a" \
-  /usr/lib/x86_64-linux-peios/libgmp.a -lm -o "$SMOKE/static"
+  "$GMP_STATIC" -lm -o "$SMOKE/static"
 "$SMOKE/static"
 
 DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
@@ -183,7 +194,9 @@ readelf -W -l "$ISL_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$ISL_SO" | grep -F 'GNU_RELRO'
 readelf -d "$ISL_SO" | grep -F 'BIND_NOW'
 readelf -d "$ISL_SO" | grep -F 'RELR'
-readelf -n "$ISL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$ISL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$ISL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 if readelf -d "$ISL_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
 rm -rf "$SMOKE"

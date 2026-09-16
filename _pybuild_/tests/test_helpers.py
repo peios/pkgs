@@ -23,9 +23,9 @@ loader.exec_module(tools)
 
 
 class Paths(unittest.TestCase):
-    def test_debian_uses_interpreter_scheme(self):
+    def test_debian_stages_distribution_layout(self):
         with patch.object(python_paths.sysconfig, 'get_path', return_value='/usr/local/lib/python3.13/dist-packages'):
-            self.assertEqual(str(python_paths.staged_site('/stage', 'apt')), '/stage/usr/local/lib/python3.13/dist-packages')
+            self.assertEqual(str(python_paths.staged_site('/stage', 'apt')), f'/stage/usr/lib/x86_64-linux-peios/python{sys.version_info.major}.{sys.version_info.minor}/site-packages')
 
     def test_native_matches_running_minor(self):
         expected = f'/usr/lib/x86_64-linux-peios/python{sys.version_info.major}.{sys.version_info.minor}/site-packages'

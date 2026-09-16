@@ -2,6 +2,6 @@
 "source.signature.required" = "PyPI publishes immutable release files and hashes but no detached source signatures"
 
 [allow_files."payload.filenames"]
-"usr/lib/x86_64-linux-peios/python3.14/site-packages/setuptools/_vendor/jaraco/text/Lorem ipsum.txt" = "Upstream vendored package data addressed by this exact resource name; renaming it would break importlib.resources consumers."
-"usr/lib/x86_64-linux-peios/python3.14/site-packages/setuptools/launcher manifest.xml" = "Upstream launcher template addressed by this exact resource name; renaming it would change Setuptools behavior."
-"usr/lib/x86_64-linux-peios/python3.14/site-packages/setuptools/script (dev).tmpl" = "Upstream script template addressed by this exact resource name; renaming it would change Setuptools behavior."
+"usr/lib/x86_64-linux-peios/python3.*/site-packages/setuptools/_vendor/jaraco/text/Lorem ipsum.txt" = "Upstream vendored package data addressed by this exact resource name; renaming it would break importlib.resources consumers."
+"usr/lib/x86_64-linux-peios/python3.*/site-packages/setuptools/launcher manifest.xml" = "Upstream launcher template addressed by this exact resource name; renaming it would change Setuptools behavior."
+"usr/lib/x86_64-linux-peios/python3.*/site-packages/setuptools/script (dev).tmpl" = "Upstream script template addressed by this exact resource name; renaming it would change Setuptools behavior."

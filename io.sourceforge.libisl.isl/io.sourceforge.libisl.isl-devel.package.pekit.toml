@@ -12,6 +12,7 @@ description = "Integer Set Library - development files"
 "org.gnu.gmp-devel"                 = ">= 6.3.0"
 
 [files]
+"@source:LICENSE" = "usr/share/licenses/io.sourceforge.libisl.isl-devel/"
 ":usr/include/isl/**"                      = "usr/include/isl"
 ":usr/lib/x86_64-linux-peios/libisl.so"    = "usr/lib/x86_64-linux-peios/libisl.so"
 ":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

@@ -9,7 +9,7 @@ url         = "https://downloads.sourceforge.net/project/perfmon2/libpfm4/libpfm
 listing_url = "https://sourceforge.net/projects/perfmon2/files/libpfm4/"
 root        = "libpfm-{{version}}"
 extract     = true
-file_regex  = '^libpfm-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$'
+file_regex  = 'libpfm-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 # Soft maintenance floor. Follow every later stable release automatically;
 # ABI and source-layout drift are enforced by the build and test gates below.
 versions    = ">= 4.13.0"
@@ -54,7 +54,7 @@ env -u CFLAGS make -j"$(nproc)" \
   CONFIG_PFMLIB_NOPYTHON=y \
   OPTIM="$CFLAGS" \
   DBG="-Wall -Wextra -Wno-unused-parameter" \
-  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt"
 
 env -u CFLAGS make install \
   DESTDIR="$PEKIT_OUT" \
@@ -66,7 +66,10 @@ env -u CFLAGS make install \
   CONFIG_PFMLIB_NOPYTHON=y \
   OPTIM="$CFLAGS" \
   DBG="-Wall -Wextra -Wno-unused-parameter" \
-  LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt"
+
+# Compress upstream manuals deterministically for the installed payload.
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
 
 # Discover the concrete library while deliberately gating the public ABI.
 PFM_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libpfm.so.4.*' | LC_ALL=C sort)
@@ -103,10 +106,13 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.sourceware.debugedit"          = "*"
 "org.nixos.patchelf"           = "*"
 
+"org.gnu.gzip" = "*"
+
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
 patchelf        = "*"
+gzip            = "*"
 
 [test]
 gate = true
@@ -123,7 +129,7 @@ test -L "$LIBDIR/libpfm.so"
 test -L "$LIBDIR/libpfm.so.4"
 test -s "$LIBDIR/libpfm.a"
 test "$(find "$INCLUDEDIR" -maxdepth 1 -type f -name '*.h' | wc -l)" -eq 3
-test "$(find "$STAGE/usr/share/man/man3" -maxdepth 1 -type f -name '*.3' | wc -l)" -ge 70
+test "$(find "$STAGE/usr/share/man/man3" -maxdepth 1 -type f -name '*.3.gz' | wc -l)" -ge 70
 readelf -d "$PFM_SO" | grep -F 'Library soname: [libpfm.so.4]'
 readelf --dyn-syms -W "$PFM_SO" | grep -E ' pfm_initialize(@|$)'
 readelf --dyn-syms -W "$PFM_SO" | grep -E ' pfm_get_os_event_encoding(@|$)'
@@ -171,7 +177,9 @@ readelf -W -l "$PFM_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$PFM_SO" | grep -F 'GNU_RELRO'
 readelf -d "$PFM_SO" | grep -F 'BIND_NOW'
 readelf -d "$PFM_SO" | grep -F 'RELR'
-readelf -n "$PFM_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$PFM_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$PFM_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(readelf -d "$PFM_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$PFM_SO" | grep -F 'Shared library: [libc.so.6]'

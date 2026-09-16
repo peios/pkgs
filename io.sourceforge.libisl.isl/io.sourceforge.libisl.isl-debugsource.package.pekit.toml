@@ -9,4 +9,5 @@ description = "Integer Set Library - debug sources"
 "io.sourceforge.libisl.isl-debuginfo" = "{{version}}-1"
 
 [files]
+"@source:LICENSE" = "usr/share/licenses/io.sourceforge.libisl.isl-debugsource/"
 ":usr/src/debug/**" = "usr/src/debug"

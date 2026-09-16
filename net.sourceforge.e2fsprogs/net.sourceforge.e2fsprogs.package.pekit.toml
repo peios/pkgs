@@ -9,7 +9,7 @@
 # (org.kernel.libblkid owns it) — drop it from the usr/share/man/** glob so we
 # don't carry a man page for an absent library.
 excludes = [
-  ":usr/share/man/man3/libblkid.3",
+  ":usr/share/man/man3/libblkid.3.gz",
 ]
 
 # PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that

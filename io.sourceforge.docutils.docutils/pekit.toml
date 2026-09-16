@@ -33,6 +33,8 @@ SRC="$(pwd -P)"
 # helper is the one place that policy lives; see _pybuild_/README.md.
 python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
   --backend flit_core.buildapi --out "$PEKIT_OUT" "$SRC"
+SITE=$(python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/python_paths.py" "$PEKIT_OUT")
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$SITE" "$PEKIT_VERSION"
 """
 
 [build.main.dependencies.peipkg]
@@ -50,22 +52,25 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
-# In the Debian reference rung, install-wheel follows Debian's sysconfig path;
-# in the native rung it follows Peios' triplet path.
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = apt ]; then
-  SITE="$PEKIT_MAIN_OUT$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-else
-  set -- "$PEKIT_MAIN_OUT"/usr/lib/x86_64-linux-peios/python3.*/site-packages
-  [ "$#" -eq 1 ] && [ -d "$1" ] || {
-    echo "docutils: expected exactly one Peios site-packages directory" >&2
-    exit 1
-  }
-  SITE="$1"
-fi
+# Keep the source checkout off Python stdin script import paths.
+cd "$PEKIT_OUT"
+# Use the same interpreter-versioned package layout as the wheel installer.
+SITE=$(python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/python_paths.py" "$PEKIT_MAIN_OUT")
 
 test -f "$SITE/docutils/core.py"
 test -f "$SITE/docutils/parsers/rst/__init__.py"
 test -f "$SITE"/docutils-*.dist-info/METADATA
+python3 - "$PEKIT_MAIN_OUT" <<'PYMAN'
+import gzip
+from pathlib import Path
+import sys
+stage = Path(sys.argv[1])
+for tool in (stage / 'usr/bin').iterdir():
+    text = gzip.decompress((stage / 'usr/share/man/man1' / (tool.name + '.1.gz')).read_bytes()).decode()
+    assert text.startswith('.TH "' + tool.name.upper() + '" ')
+    assert '--help' in text and '--version' in text
+PYMAN
+
 
 python3 - "$PEKIT_MAIN_OUT/usr/bin" <<'PY'
 from pathlib import Path

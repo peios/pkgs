@@ -18,3 +18,10 @@ tool that is itself installed this way. Recipes reach it through
 Third-party recipes outside this workspace cannot use it; the steps it
 performs are documented for them under Developing for Peios -> Shipping
 software -> Python packages.
+
+Both native and Debian qualification builds stage library wheels below
+`/usr/lib/x86_64-linux-peios/pythonX.Y/site-packages`, using the executing
+interpreter's major/minor version. Native Python must report exactly that
+path through sysconfig. Debian's `/usr/local` default is not a package
+payload destination; reference gates import explicitly from the staged tree.
+Reference archives are never promoted as native packages.
