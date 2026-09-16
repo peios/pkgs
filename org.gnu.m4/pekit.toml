@@ -1,15 +1,18 @@
 # GNU M4 — the macro processor used by Autoconf and many native source builds.
-# The signed release archive carries its generated build system, avoiding a
-# bootstrap dependency on M4 itself.
+# Regenerate configure for the carried Gnulib/glibc compatibility fix using
+# the declared bootstrap Autoconf toolchain.
 
 out_dir = "out"
+
+[source]
+patches = "patches"
 
 [source.url]
 url         = "https://ftp.gnu.org/gnu/m4/m4-{{version}}.tar.xz"
 listing_url = "https://ftp.gnu.org/gnu/m4/"
 extract     = true
 root        = "m4-{{version}}"
-file_regex  = 'm4-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+file_regex  = 'm4-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'
 # Soft maintenance floor. Follow every newer authenticated stable release;
 # incompatible macro-language changes stop at the build and test gates.
 versions    = ">= 1.4.21"
@@ -26,15 +29,23 @@ fingerprints = ["71C2CC22B1C4602927D2F3AAA7A16B4A2527436A"]
 [build.main]
 command = """
 set -eu
-SRC="$(pwd)"
+cp -a . "$PEKIT_OUT/source"
+SRC="$PEKIT_OUT/source"
+cd "$SRC"
+# Only a configure macro changed. Keep other shipped generated inputs current.
+autoconf
+# Only configure logic changed; retain upstream Automake and config-header outputs.
+touch aclocal.m4 config.h.in
+find "$SRC" -name Makefile.in -exec touch {} +
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.m4"
 BIN="$PEKIT_OUT/usr/bin/m4"
 cd "$PEKIT_OUT"
 
 # Peios has no legacy /bin contract. Compile syscmd/esyscmd to invoke the
-# declared Dash runtime directly. Force the CET property note because
-# Debian's unmarked startup objects otherwise make the linker's conservative
-# note merge discard it even though the program is built with -fcf-protection.
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+# declared Dash runtime directly. Generate IBT PLT entries without overriding
+# the linker's compatibility-note merge for unmarked startup objects.
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -48,6 +59,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
 # Peios does not currently ship an Info reader. Preserve the command manual
 # and translated diagnostics, but omit orphaned Info and package docs.
@@ -83,6 +95,8 @@ rm -f "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
+"org.gnu.autoconf" = "*"
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.sourceware.debugedit"          = "*"
 "org.gnu.gettext"            = "*"
@@ -90,6 +104,8 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.perl.perl"               = "*"
 
 [build.main.dependencies.apt]
+autoconf = "*"
+gzip = "*"
 build-essential = "*"
 gettext         = "*"
 perl            = "*"
@@ -114,7 +130,7 @@ if grep -R -E '^# (FAIL|ERROR):[[:space:]]+[1-9]' --include='test-suite.log' .; 
 fi
 
 test -x "$BIN"
-test -f "$STAGE/usr/share/man/man1/m4.1"
+test -f "$STAGE/usr/share/man/man1/m4.1.gz"
 test -n "$(find "$STAGE/usr/share/locale" -type f -name 'm4.mo' -print -quit)"
 test "$(find "$STAGE/usr/bin" -type f | wc -l)" -eq 1
 
@@ -153,7 +169,9 @@ readelf -W -l "$BIN" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$BIN" | grep -F 'GNU_RELRO'
 readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
-readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 '''
 
