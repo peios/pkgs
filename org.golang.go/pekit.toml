@@ -130,6 +130,7 @@ rm -rf "$PEKIT_OUT/.gocache"
 '''
 
 [build.main.dependencies.peipkg]
+"org.gnu.coreutils-build-compat" = "*"
 "org.golang.go-stage0-1.24"    = ">= 1.24.6-1"
 "dev.peios.build-essentials-c" = ">= 1.0.0-1"
 "org.gnu.bash"                  = "*"
@@ -170,9 +171,36 @@ test -d "$PACKAGED_GOROOT/src/runtime"
 # Peios intentionally uses Go's netgo/osusergo path instead of glibc NSS. The
 # two root-only chown cases cannot apply in bubblewrap's single-ID user namespace.
 unset GOFLAGS CGO_ENABLED
+# Nested user namespaces are intentionally disabled by the worker sandbox.
+# Probe the prerequisite before recording the exact upstream cases that need it.
+cat > "$PEKIT_OUT/userns-probe.go" <<'EOF'
+package main
+import ("errors"; "fmt"; "os"; "os/exec"; "syscall")
+func main() {
+ if len(os.Args)>1 { return }
+ self, err := os.Executable(); if err != nil { panic(err) }
+ cmd := exec.Command(self, "child")
+ cmd.SysProcAttr = &syscall.SysProcAttr{
+  Cloneflags: syscall.CLONE_NEWUSER,
+  UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getuid(), Size: 1}},
+  GidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getgid(), Size: 1}},
+  GidMappingsEnableSetgroups: false,
+ }
+ err = cmd.Run()
+ if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.ENOSPC) { fmt.Println("blocked"); return }
+ if err != nil { panic(err) }
+ fmt.Println("available")
+}
+EOF
+SKIP='TestRootChown|TestRootLchown'
+namespace_status=$(go run "$PEKIT_OUT/userns-probe.go")
+if [ "$namespace_status" = blocked ]; then
+  NAMESPACE_TESTS='TestCloneNEWUSERAndRemap|TestEmptyCredGroupsDisableSetgroups|TestGroupCleanupUserNamespace|TestUnshareUidGidMapping|TestPidFDWithUserNS'
+  printf 'Uncovered: nested user namespaces disabled by build isolation: %s\n' "$NAMESPACE_TESTS"
+  SKIP="$SKIP|$NAMESPACE_TESTS"
+fi
 STD_PACKAGES=$(go list std)
-go test -short -count=1 -tags=netgo,osusergo \
-  -skip '^(TestRootChown|TestRootLchown)$' $STD_PACKAGES cmd/go
+go test -short -count=1 -tags=netgo,osusergo -skip "^($SKIP)$" $STD_PACKAGES cmd/go
 
 # All remaining checks use the exact stripped and pruned package payload.
 GOROOT="$PACKAGED_GOROOT"
