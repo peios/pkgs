@@ -5,10 +5,13 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://download.samba.org/pub/rsync/src/rsync-{{version}}.tar.gz"
 listing_url = "https://download.samba.org/pub/rsync/src/"
-file_regex  = '^rsync-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$'
+file_regex  = 'rsync-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 extract     = true
 root        = "rsync-{{version}}"
 # Soft maintenance floor. Follow every newer authenticated stable release;
@@ -39,7 +42,7 @@ cd "$BUILD"
 # and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead.
 CFLAGS="$CFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
 CXXFLAGS="$CXXFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
-LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
+LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   "$SRC/configure" \
     --prefix=/usr \
     --bindir=/usr/bin \
@@ -54,6 +57,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk" \
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -n -9 {} +
 
 # Installed interpreters are platform contracts, not PATH-dependent host
 # choices. The upstream scripts remain otherwise byte-for-byte release code.
@@ -99,10 +103,15 @@ RSYNC="$PREFIX/bin/rsync"
 SMOKE="$PEKIT_OUT/smoke"
 VERSION_OUT="$PEKIT_OUT/rsync-version"
 
-RSYNC_EXCLUDE=
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  RSYNC_EXCLUDE='chgrp,daemon-auth-users-comma-only,daemon-chroot,daemon-groupmap-wild,dir-sgid,macos-setgid-ordinary-mode-regression,ownership-depth,preallocate,protected-regular,rrsync-backup-dir-inband-pivot,rrsync-pull-delivers-content'
-fi
+# The worker has a single UID/GID mapping. Exclude only cases whose concrete
+# identity or trusted procfs-owner prerequisite is unavailable; all other
+# security assertions remain mandatory. Short scratch paths avoid upstream's
+# documented 256-byte batch filename limit.
+cc "$PEKIT_RECIPE_ROOT/tools/punch-probe.c" -o "$PEKIT_OUT/punch-probe"
+export PEKIT_RSYNC_PUNCH_PROBE="$PEKIT_OUT/punch-probe"
+RSYNC_EXCLUDE=$(python3 "$PEKIT_RECIPE_ROOT/tools/test-prerequisites.py")
+export scratchbase=/tmp/rsync-tests
+mkdir -p "$scratchbase"
 RSYNC_EXCLUDE="$RSYNC_EXCLUDE" RSYNC_UNSHARED=1 make -C "$BUILD" -j"$(nproc)" check
 
 test "$(head -n 1 "$PREFIX/bin/rsync-ssl")" = '#!/bin/bash'
@@ -152,8 +161,14 @@ readelf -W -l "$RSYNC" | grep -E 'GNU_STACK.*RW '
 readelf -W -l "$RSYNC" | grep -F 'GNU_RELRO'
 readelf -d "$RSYNC" | grep -F 'BIND_NOW'
 readelf -d "$RSYNC" | grep -F 'RELR'
-readelf -n "$RSYNC" | grep -E 'x86 feature:.*IBT.*SHSTK'
-for soname in libc.so.6 libcrypto.so.3 libxxhash.so.0 libzstd.so.1 libz.so.1; do
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$RSYNC" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+# Validate the actual linked cryptography ABI selected by the declared SDK.
+# This accepts OpenSSL's supported major ABI rather than freezing an old SONAME.
+crypto_major=$(printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_MAJOR\n' | cc -E -P -x c - | tail -n 1)
+case "$crypto_major" in 3|4) ;; *) echo "Unreviewed OpenSSL ABI: $crypto_major" >&2; exit 1;; esac
+for soname in libc.so.6 "libcrypto.so.$crypto_major" libxxhash.so.0 libzstd.so.1 libz.so.1; do
   readelf -d "$RSYNC" | grep -F "Shared library: [$soname]"
 done
 if readelf -d "$RSYNC" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
@@ -162,16 +177,25 @@ if strings "$RSYNC" | grep -F "$ROOT"; then exit 1; fi
 '''
 
 [test.dependencies.peipkg]
+"org.openssl.openssl-devel" = "*"
+"com.xxhash.xxhash-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "org.gnu.bash"                   = "*"
 "org.python.python3"             = "*"
 
 [test.dependencies.apt]
+libssl-dev = "*"
+libxxhash-dev = "*"
+libzstd-dev = "*"
+zlib1g-dev = "*"
 bash            = "*"
 build-essential = "*"
 python3         = "*"
 
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++"      = "*"
 "org.sourceware.debugedit"                   = "*"
 "org.gnu.bash"              = "*"
@@ -182,6 +206,7 @@ python3         = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 bash            = "*"
 build-essential = "*"
 debugedit       = "*"
