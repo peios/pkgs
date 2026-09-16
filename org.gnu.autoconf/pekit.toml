@@ -35,6 +35,7 @@ cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
 # Peios does not currently ship an Info reader; the manual remains available
 # online and in the corresponding-source package.
 rm -rf "$PEKIT_OUT/usr/share/info"
@@ -45,27 +46,36 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 "org.gnu.bash"           = "*"
 "org.gnu.m4"                       = ">= 1.4.16"
 "org.perl.perl"                     = ">= 5.6"
+"org.gnu.gzip"                      = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 bash  = "*"
 m4    = ">= 1.4.16"
 perl  = ">= 5.6"
+gzip  = "*"
 
 [test]
 gate = true
 needs = ["main"]
 command = '''
 set -eu
+# The staged tools need their staged Perl and M4 data, before installation.
+export autom4te_perllibdir="$PEKIT_MAIN_OUT/usr/share/autoconf"
 case "$("$PEKIT_MAIN_OUT/usr/bin/autoconf" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 
+unset autom4te_perllibdir
 # Run the upstream release suite from the explicit package gate.
 PEKIT_OUT="$PEKIT_MAIN_OUT"
 cd "$PEKIT_OUT"
 # The release tarball is already bootstrapped, so the core suite has no
 # dependency cycle through Automake or Libtool. Their integration cases (and
 # Gettext's autopoint cases) skip cleanly when those optional tools are absent.
-make check
+# Autotest supports independent test groups; bound concurrency to avoid
+# multiplying compiler memory use on large build hosts.
+jobs=$(nproc)
+if [ "$jobs" -gt 8 ]; then jobs=8; fi
+make check TESTSUITEFLAGS="-j$jobs"
 '''
 
 [test.dependencies.peipkg]
