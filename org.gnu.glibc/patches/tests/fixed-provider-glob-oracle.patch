@@ -1,0 +1,45 @@
+Description: Separate host-account glob oracles from fixed-provider libc checks
+Author: Peios maintainers
+Origin: vendor
+Forwarded: not-needed
+Last-Update: 2026-09-16
+
+The host shell can resolve the Debian build user from /etc/passwd while the
+Peios libc under test intentionally cannot. Under an explicit test-only flag,
+omit only these host-account comparisons. The recipe independently requires
+positive, escaped and missing-name glob tests against its Peios NSS fixture.
+All filesystem-pattern and HOME-based cases remain unchanged.
+
+--- a/posix/globtest.sh
++++ b/posix/globtest.sh
+@@ -458,6 +458,12 @@
+   fi
+ fi
+ 
++# Peios libc uses its authority provider, not the host shell's passwd source.
++# Named-user cases run separately with a controlled Peios provider. Preserve
++# every non-account glob case in this script in the accountless build root.
++if test "${PEIOS_ACCOUNTLESS_GLOB_TEST:-0}" = 1; then
++  echo 'UNSUPPORTED: host-account tilde oracle; covered by staged Peios provider'
++else
+ # Test tilde expansion with username
+ failed=0
+ ${test_program_prefix} \
+@@ -471,6 +477,8 @@
+   else
+     echo "Tilde3 test could not be run" >> $logfile
+   fi
++fi
++
+ fi
+ 
+ # Tilde expansion shouldn't match a file
+@@ -775,7 +783,7 @@
+ \`~/dir1/file1_9'
+ \`~/dir3\\*/file2'
+ EOF
+-if eval test -d ~"$USER"/; then
++if test "${PEIOS_ACCOUNTLESS_GLOB_TEST:-0}" != 1 && eval test -d ~"$USER"/; then
+   user=`echo "$USER" | sed -n -e 's/^\([^\\]\)\([^\\][^\\]*\)$/~\1\\\\\2/p'`
+   if test -n "$user"; then
+     ${test_program_prefix} \

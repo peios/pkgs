@@ -22,6 +22,12 @@ excludes = [
   ":usr/bin/sotruss",
   ":usr/bin/sprof",
   ":usr/bin/xtrace",
+  ":usr/share/man/man1/mtrace.1.gz",
+  ":usr/share/man/man1/pcprofiledump.1.gz",
+  ":usr/share/man/man1/pldd.1.gz",
+  ":usr/share/man/man1/sotruss.1.gz",
+  ":usr/share/man/man1/sprof.1.gz",
+  ":usr/share/man/man1/xtrace.1.gz",
 ]
 
 [package]
@@ -72,3 +78,5 @@ description = "GNU C Library - programs, locale infrastructure and the C.UTF-8 l
 # populated /var content). It is the admin template `makedb` operates with, so
 # it belongs with the programs, not in the runtime.
 ":var/db/Makefile" = "usr/share/glibc/db/Makefile"
+
+":usr/share/man/**" = "usr/share/man/"

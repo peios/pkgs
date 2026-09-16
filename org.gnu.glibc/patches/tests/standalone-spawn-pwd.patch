@@ -1,0 +1,30 @@
+Description: Use a standalone pwd helper for spawn-through-symlink tests
+Author: Peios maintainers
+Origin: vendor
+Forwarded: no
+Last-Update: 2026-09-16
+
+The three spawn/chdir variants invoke pwd through subdir/pwd-symlink while
+passing argv[0]=pwd. Peiosutils intentionally dispatches by the kernel's
+executed path when those names differ, so this helper exits before exercising
+getcwd. Prefer the declared standalone GNU build helper, already first in the
+native PATH, for the explicit symlink case too. Reference roots without that
+private helper retain upstream's original selection. No libc code, spawn
+operation, PATH-search case or expected result changes.
+
+--- a/posix/tst-spawn-chdir.c
++++ b/posix/tst-spawn-chdir.c
+@@ -61,7 +61,12 @@
+ const char *
+ get_pwd_program (void)
+ {
+-  const char *const paths[] = { "/bin/pwd", "/usr/bin/pwd" };
++  /* This test invokes pwd through a differently named symlink.  The native
++     Peios multicall userland deliberately dispatches by the kernel's executed
++     path, not argv[0].  Use the declared standalone build utility when present;
++     reference distributions retain their ordinary standalone pwd program.  */
++  const char *const paths[] = { "/usr/libexec/coreutils-build/pwd",
++                              "/bin/pwd", "/usr/bin/pwd" };
+   for (size_t i = 0; i < array_length (paths); ++i)
+     if (access (paths[i], X_OK) == 0)
+       return paths[i];

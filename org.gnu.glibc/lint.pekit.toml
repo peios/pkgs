@@ -1,2 +1,35 @@
 [allow]
 "package.name.style" = "The language-pack member uses a validated multipack template whose rendered org.gnu.glibc-langpack-* names are reverse-DNS package names"
+
+# Every ELF split uses the same build-ID symbol package.
+[elf]
+debuginfo = "org.gnu.glibc-debuginfo"
+
+[allow_files."elf.relr"]
+"usr/lib/x86_64-linux-peios/libthread_db.so.1" = "Upstream nptl_db explicitly disables DT_RELR so a debugger using an older host libc can load the target thread-debugging library; other hardening remains mandatory"
+
+[allow_files."payload.junk"]
+"usr/lib/x86_64-linux-peios/Mcrt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/Scrt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/crt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/crti.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/crtn.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/gcrt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/grcrt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+"usr/lib/x86_64-linux-peios/rcrt1.o" = "Public glibc startup/link input required by compiler links, not a build leftover"
+
+[allow_files."elf.rpath"]
+"usr/lib/x86_64-linux-peios/gconv/EUC-CN.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/EUC-JISX0213.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/EUC-JP-MS.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/EUC-JP.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/EUC-KR.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/EUC-TW.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/ISO-2022-CN-EXT.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/ISO-2022-CN.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/ISO-2022-JP-3.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/ISO-2022-JP.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/ISO-2022-KR.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/JOHAB.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/SHIFT_JISX0213.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"
+"usr/lib/x86_64-linux-peios/gconv/UHC.so" = "Upstream converter resolves sibling encoding helper DSOs through $ORIGIN; staged tests require exactly that local path and exercise module loading"

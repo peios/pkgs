@@ -117,7 +117,7 @@ fi
 export CFLAGS="$CFLAGS -ffile-prefix-map=$SRC=$DEBUG_DEST/source -fdebug-prefix-map=$BUILD=$DEBUG_DEST/build"
 export CXXFLAGS="$CXXFLAGS -ffile-prefix-map=$SRC=$DEBUG_DEST/source -fdebug-prefix-map=$BUILD=$DEBUG_DEST/build"
 
-mkdir -p "$BUILD" "$SMOKE"
+mkdir -p "$BUILD"
 cd "$BUILD"
 # Hardening is requested through glibc's own switches rather than flags — see
 # the [env] note above. --enable-cet is the matching in-library half of
@@ -185,6 +185,20 @@ make -j"$JOBS"
 # split below, so package and publish treat it as an explicit release gate.
 make -j"$JOBS" info
 make install DESTDIR="$PEKIT_OUT"
+
+# The upstream shell/Perl polyglot executes correctly, but cannot be syntax
+# checked as a shell script. Use its declared Perl interpreter directly.
+python3 - "$PEKIT_OUT/usr/bin/mtrace" <<'PY_MTRACE'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+text = path.read_text()
+body = text.index('# Copyright')
+assert text.startswith('#! /bin/sh\n') and 'exec perl' in text[:body]
+path.write_text('#!/usr/bin/perl\n' + text[body:])
+PY_MTRACE
+perl -c "$PEKIT_OUT/usr/bin/mtrace"
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION"
 
 # Validate every shipped dynamic ELF/module, scrub build paths from DWARF,
 # split debug out (build-id indexed), and strip the binaries (~5x smaller).
@@ -328,7 +342,6 @@ ELF_COUNT=$(wc -l < "$PEKIT_OUT/.elfs")
 BUILD_ID_COUNT=$(cut -d' ' -f1 "$PEKIT_OUT/.buildids" | LC_ALL=C sort -u | wc -l)
 test "$ELF_COUNT" -ge 250
 test "$BUILD_ID_COUNT" -eq "$ELF_COUNT"
-rm -rf "$SMOKE"
 rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
   "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.inodes"
 '''
@@ -354,6 +367,9 @@ MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
 [ "$JOBS" -gt 4 ] && JOBS=4
 [ "$JOBS" -lt 1 ] && JOBS=1
 mkdir -p "$SMOKE"
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  test -x /usr/libexec/coreutils-build/pwd
+fi
 cleanup()
 {
   rm -f "$STAGED_LIBDIR/libnss_peios.so.2" \
@@ -409,7 +425,9 @@ if awk '
 ' /proc/cpuinfo; then
   SHSTK_XFAIL=test-xfail-tst-shstk-legacy-1g=yes
 fi
-TIMEOUTFACTOR=10 make -j"$JOBS" check subdirs="$CHECK_SUBDIRS" \
+# The upstream shell oracle sees host accounts absent from the fixed provider.
+# Named and escaped tilde expansion is required below with a Peios NSS fixture.
+PEIOS_ACCOUNTLESS_GLOB_TEST=1 TIMEOUTFACTOR=10 make -j"$JOBS" check subdirs="$CHECK_SUBDIRS" \
   "tests-unsupported=$POLICY_UNSUPPORTED $NSS_POLICY_UNSUPPORTED" \
   CFLAGS-tst-qsort4.c=-fno-exceptions \
   CFLAGS-tst-cancel1.c=-fno-exceptions \
@@ -543,6 +561,25 @@ readelf -d "$LIBM" | grep -F 'Library soname: [libm.so.6]'
 readelf --version-info "$LIBC" | grep -F "GLIBC_$PEKIT_VERSION"
 "$LOADER" --library-path "$STAGED_LIBDIR" \
   "$PEKIT_OUT/usr/bin/getconf" GNU_LIBC_VERSION | grep -Fx "glibc $PEKIT_VERSION"
+
+# Require intentional converter lookup paths to stay local. Removing these
+# paths breaks sibling encoding helpers outside the global loader search path.
+for module in "$STAGED_LIBDIR"/gconv/*.so; do
+  runpaths=$(readelf -d "$module" | sed -n '/(RPATH)\|(RUNPATH)/s/.*\[\(.*\)\].*/\1/p')
+  test -z "$runpaths" || test "$runpaths" = '$ORIGIN'
+done
+printf '\346\227\245\346\234\254\350\252\236\n' > "$SMOKE/japanese-utf8"
+GCONV_PATH="$STAGED_LIBDIR/gconv" "$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/iconv" -f UTF-8 -t EUC-JP "$SMOKE/japanese-utf8" > "$SMOKE/japanese-euc"
+GCONV_PATH="$STAGED_LIBDIR/gconv" "$LOADER" --library-path "$STAGED_LIBDIR" \
+  "$PEKIT_OUT/usr/bin/iconv" -f EUC-JP -t UTF-8 "$SMOKE/japanese-euc" > "$SMOKE/japanese-roundtrip"
+cmp "$SMOKE/japanese-utf8" "$SMOKE/japanese-roundtrip"
+perl -c "$PEKIT_OUT/usr/bin/mtrace"
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$SMOKE/manuals"
+find "$SMOKE/manuals/usr/share/man" -type f -name '*.gz' | while IFS= read -r page; do
+  cmp "$page" "$PEKIT_OUT${page#"$SMOKE/manuals"}"
+done
+
 
 # Build and execute both dynamic and static consumers against the staged
 # headers, CRT objects and linker scripts.  The program covers allocation,
@@ -942,6 +979,41 @@ install -m 0755 "$SMOKE/libnss_peios.so.2" "$STAGED_LIBDIR/libnss_peios_net.so.2
 "$LOADER" --library-path "$STAGED_LIBDIR" \
   "$PEKIT_OUT/usr/bin/getent" passwd 4242 \
   | grep -Fx 'authority:x:4242:4242:Peios authority principal:/nonexistent:/usr/bin/false'
+# Cover named-user tilde expansion through the same provider production uses.
+cat > "$SMOKE/authority-glob.c" <<'EOF'
+#define _GNU_SOURCE 1
+#include <glob.h>
+#include <string.h>
+
+int main(void)
+{
+  const char *patterns[] = { "~authority", "~a\\uthority",
+                             "~authority/", "~a\\uthority\\/" };
+  /* The fixture home is not a directory: NOCHECK drops its trailing slash. */
+  const char *expected[] = { "/nonexistent", "/nonexistent",
+                             "/nonexistent", "/nonexistent" };
+  for (unsigned i = 0; i < sizeof patterns / sizeof patterns[0]; ++i) {
+    glob_t result = {0};
+    int rc = glob(patterns[i], GLOB_TILDE | GLOB_NOCHECK, 0, &result);
+    int bad = rc != 0 || result.gl_pathc != 1
+              || strcmp(result.gl_pathv[0], expected[i]) != 0;
+    globfree(&result);
+    if (bad) return 10 + i;
+  }
+  glob_t missing = {0};
+  int rc = glob("~peios-missing-glob-user", GLOB_TILDE_CHECK, 0, &missing);
+  globfree(&missing);
+  return rc == GLOB_NOMATCH ? 0 : 20;
+}
+EOF
+cc --sysroot="$PEKIT_OUT" -isystem "$PEKIT_OUT/usr/include" \
+  -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include \
+  -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
+  "$SMOKE/authority-glob.c" \
+  -Wl,--dynamic-linker="$LIBDIR/ld-linux-x86-64.so.2" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" -o "$SMOKE/authority-glob"
+"$LOADER" --library-path "$STAGED_LIBDIR" "$SMOKE/authority-glob"
+
 "$LOADER" --library-path "$STAGED_LIBDIR" \
   "$PEKIT_OUT/usr/bin/getent" group authority \
   | grep -Fx 'authority:x:4242:'
@@ -1294,6 +1366,8 @@ rm -rf "$SMOKE"
 '''
 
 [test.main.dependencies.peipkg]
+# The spawn/chdir suite invokes pwd through an arbitrary symlink name.
+"org.gnu.coreutils-build-compat" = "*"
 "dev.peios.build-essentials-c" = "*"
 # Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
 # it to legacy GCC, while qualified GCC can satisfy the same provide later.

@@ -16,18 +16,13 @@ description = "GNU C Library - profiling and tracing utilities"
 # so keep the tested family revision exact rather than allowing a partial
 # module/runtime upgrade.
 "org.gnu.glibc" = "{{version}}-1"
-# xtrace and sotruss are Bash scripts, and xtrace invokes sed.  mtrace starts
-# as a shell wrapper, executes Perl for the parser and invokes addr2line when a
-# traced binary is supplied, so these are runtime inputs rather than build-only
-# conveniences.
+# xtrace and sotruss are Bash scripts, and xtrace invokes sed. mtrace runs
+# directly under Perl and invokes addr2line when a traced binary is supplied.
 "org.gnu.bash"     = "*"
 "org.gnu.binutils" = "*"
 "org.gnu.sed"      = "*"
 "org.perl.perl"    = "*"
-# mtrace begins as /bin/sh before execing Perl; scripts also use base utilities
-# supplied by Peiosutils. Keep the POSIX shell role explicit independently of
-# the Bash implementation required by xtrace/sotruss.
-sh                 = ">= 1"
+# The scripts use base utilities supplied by Peiosutils.
 "dev.peios.peiosutils"         = "*"
 
 [files]
@@ -45,3 +40,10 @@ sh                 = ">= 1"
 ":usr/lib/x86_64-linux-peios/libpcprofile.so" = "usr/lib/x86_64-linux-peios/libpcprofile.so"
 # LD_AUDIT module used by sotruss.
 ":usr/lib/x86_64-linux-peios/audit/**" = "usr/lib/x86_64-linux-peios/audit/"
+
+":usr/share/man/man1/mtrace.1.gz" = "usr/share/man/man1/mtrace.1.gz"
+":usr/share/man/man1/pcprofiledump.1.gz" = "usr/share/man/man1/pcprofiledump.1.gz"
+":usr/share/man/man1/pldd.1.gz" = "usr/share/man/man1/pldd.1.gz"
+":usr/share/man/man1/sotruss.1.gz" = "usr/share/man/man1/sotruss.1.gz"
+":usr/share/man/man1/sprof.1.gz" = "usr/share/man/man1/sprof.1.gz"
+":usr/share/man/man1/xtrace.1.gz" = "usr/share/man/man1/xtrace.1.gz"
