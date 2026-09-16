@@ -2,8 +2,7 @@
 # dev .so symlinks, and the static archives, for building tools against libbfd /
 # libopcodes / libctf / libsframe.
 
-# libgprofng.a belongs to binutils-gprofng, which ships the whole libgprofng.*
-# set so the profiler is self-contained; exclude it from the *.a sweep below.
+# libgprofng.a belongs to binutils-gprofng-devel; keep the profiler optional.
 excludes = [
   ":usr/lib/x86_64-linux-peios/libgprofng.a",
 ]
@@ -13,9 +12,10 @@ name        = "org.gnu.binutils-devel"
 description = "GNU binary utilities - development files"
 
 [dependencies]
-"org.gnu.binutils" = "{{version}}"
+"org.gnu.binutils" = "{{version}}-1"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.binutils-devel/"
 ":usr/include/**"                                = "usr/include"
 # Dev .so symlinks (listed explicitly so the version-named runtime libs above are
 # not double-claimed by a lib*.so glob).

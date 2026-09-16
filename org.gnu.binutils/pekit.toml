@@ -11,6 +11,9 @@
 
 out_dir = "out"
 
+[source_package]
+workspace_inputs = ["org.gnu.gcc/_cross/config-sub-peios.sh"]
+
 # gprofng/posix-sh-compat-symlinks: upstream writes gprofng's five gp-* legacy
 # symlinks with a bash brace expansion, which a POSIX sh leaves unexpanded.
 # Drop when a binutils release carries the fix upstream.
@@ -58,6 +61,9 @@ command = """
 set -eu
 
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.binutils"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.binutils"
 TRIPLET=x86_64-linux-peios
 
 # config.sub lives beside the gcc recipe (shared with it); PEKIT_OUT is
@@ -123,6 +129,21 @@ cd "$PEKIT_OUT"
   --with-system-zlib --without-debuginfod --disable-nls --disable-werror
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# The top-level install omits gprofng's doc subdirectory. Its signed release
+# already contains the generated manuals; stage those exact upstream pages.
+install -m 0644 "$SRC"/gprofng/doc/*.1 "$PEKIT_OUT/usr/share/man/man1/"
+ln -s ld.1 "$PEKIT_OUT/usr/share/man/man1/ld.bfd.1"
+for name in archive collect-app display-html display-src display-text; do
+  ln -s "gprofng-$name.1" "$PEKIT_OUT/usr/share/man/man1/gp-$name.1"
+done
+ln -s gprofng-display-gmon.1 "$PEKIT_OUT/usr/share/man/man1/gprofng-gmon.1"
+# Compress regular pages and retarget relative manual aliases together.
+find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
+find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r man; do
+  target=$(readlink "$man")
+  rm "$man"
+  ln -s "$target.gz" "$man.gz"
+done
 
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 # Peios currently has no system Info-document registration policy. Keep the man
@@ -137,15 +158,22 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 # strip-debug.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
+: > "$PEKIT_OUT/.elf-inodes"
 find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
   case "$f" in
     *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
     *.o) continue;;
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
+  # Installed tool aliases are hardlinks (including ld/ld.bfd). Splitting an
+  # already stripped alias would overwrite its shared build-ID symbols.
+  inode=$(stat -c '%d:%i' "$f")
+  if grep -Fxq "$inode" "$PEKIT_OUT/.elf-inodes"; then continue; fi
+  printf '%s\\n' "$inode" >> "$PEKIT_OUT/.elf-inodes"
   patchelf --remove-rpath "$f" 2>/dev/null || true
   patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.binutils -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.binutils -l "$PEKIT_OUT/.dl" -n "$f"
+  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
   bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   if [ -n "$bid" ]; then
     p2=$(printf %s "$bid" | cut -c1-2)
@@ -163,13 +191,14 @@ tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
   mkdir -p "usr/src/debug/org.gnu.binutils/$(dirname "$rel")"
   cp "$ROOT/$rel" "usr/src/debug/org.gnu.binutils/$rel"
 done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 """
 
 # Build deps. Native build: the c++ floor supplies the compiler, make, the
 # assembler/linker this package is replacing, and the debug-split tools
 # (debugedit, patchelf, strip/objcopy) the post-install pipeline invokes.
 [build.main.dependencies.peipkg]
+"org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++" = "*"
 # Libtool uses file(1) to classify objects and libraries during configure.
 "com.darwinsys.file" = "*"
@@ -183,6 +212,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 
 [build.main.dependencies.apt]
+gzip = "*"
 build-essential = "*"
 debugedit = "*"
 file = "*"
@@ -196,12 +226,12 @@ needs = ["main"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
+export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
 case "$("$BIN/ld" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 case "$("$BIN/as" --version)" in *x86_64-linux-peios*) ;; *) exit 1;; esac
 
 # Exercise the target, deterministic archives, executable-stack policy and
 # installed linker search layout in the independently composed test root.
-export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios"
 SMOKE="$PEKIT_OUT/binutils-smoke"
 mkdir -p "$SMOKE"
 printf '%s\n' '.globl _start' '_start:' '  xor %edi, %edi' \
@@ -235,12 +265,16 @@ rm -rf "$SMOKE"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.gawk" = "*"
+"org.gnu.diffutils" = "*"
 "org.gnu.grep" = "*"
 "org.gnu.sed" = "*"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [test.dependencies.apt]
 dash = "*"
 coreutils = "*"
+diffutils = "*"
 gawk = "*"
 grep = "*"
 sed = "*"
+zlib1g = "*"

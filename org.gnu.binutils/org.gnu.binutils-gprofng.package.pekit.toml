@@ -10,18 +10,21 @@
 # gprofng injects into the program being profiled, which is why they live in
 # their own directory rather than beside the ordinary shared libraries.
 
+side_effects = ["man-db"]
+
 [package]
 name        = "org.gnu.binutils-gprofng"
 description = "GNU Next Generation Profiler for analysing application performance"
 
 [dependencies]
 # Programs and libraries built against this binutils; libgprofng links libbfd.
-"org.gnu.binutils" = "{{version}}"
+"org.gnu.binutils" = "{{version}}-1"
 # gprofng is C++, and gprofng-display-html is an installed Perl program.
 "org.gnu.gcc-libstdc++" = "*"
 "org.perl.perl" = ">= 5.6"
 
 [files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.binutils-gprofng/"
 # Drivers plus the gp-* compatibility names. Those five are symlinks onto the
 # gprofng-* binaries, and only exist at all because of the patch in
 # patches/gprofng/ — upstream writes them with a bash brace expansion that a
@@ -30,11 +33,9 @@ description = "GNU Next Generation Profiler for analysing application performanc
 ":usr/bin/gprofng"   = "usr/bin/gprofng"
 ":usr/bin/gprofng-*" = "usr/bin/"
 ":usr/bin/gp-*"      = "usr/bin/"
-# The profiler's own library — runtime, dev symlink and archive together.
-# Fedora does the same (%{_libdir}/libgprofng.*), and it is what keeps the
-# package self-contained: leaving the libgprofng.so dev symlink in
-# binutils-devel would point it at a libgprofng.so.0 living in this package,
-# so binutils-devel alone would install a dangling symlink.
-":usr/lib/x86_64-linux-peios/libgprofng.so*"  = "usr/lib/x86_64-linux-peios/"
-":usr/lib/x86_64-linux-peios/libgprofng.a"    = "usr/lib/x86_64-linux-peios/libgprofng.a"
+# Private runtime library; its linker name and archive are in -gprofng-devel.
+":usr/lib/x86_64-linux-peios/libgprofng.so.*" = "usr/lib/x86_64-linux-peios/"
+":usr/share/man/man1/gprofng*.1.gz" = "usr/share/man/man1/"
+":usr/share/man/man1/gp-*.1.gz" = "usr/share/man/man1/"
+
 ":usr/lib/x86_64-linux-peios/gprofng/**"      = "usr/lib/x86_64-linux-peios/gprofng/"

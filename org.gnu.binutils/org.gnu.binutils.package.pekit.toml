@@ -12,6 +12,8 @@ excludes = [
   ":usr/bin/gprofng",
   ":usr/bin/gprofng-*",
   ":usr/bin/gp-*",
+  ":usr/share/man/man1/gprofng*.1.gz",
+  ":usr/share/man/man1/gp-*.1.gz",
 ]
 
 # PSPU §5.24: this payload carries the command manuals.
