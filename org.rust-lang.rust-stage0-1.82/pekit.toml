@@ -85,10 +85,22 @@ test "$("$PREFIX/bin/cargo" --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test -f "$PREFIX/lib/rustlib/manifest-rustc"
 test -f "$PREFIX/lib/rustlib/manifest-cargo"
 test -f "$PREFIX/lib/rustlib/manifest-rust-std-x86_64-unknown-linux-gnu"
+python3 "$PEKIT_RECIPE_ROOT/verify-seed.py" "$(pwd)" "$PREFIX"
+SMOKE="$PEKIT_OUT/seed-smoke"
+mkdir -p "$SMOKE/src"
+printf '%s\n' 'fn main() { let values: Vec<_> = (1..=10).collect(); assert_eq!(values.iter().sum::<i32>(), 55); }' > "$SMOKE/src/main.rs"
+"$PREFIX/bin/rustc" -C linker=gcc "$SMOKE/src/main.rs" -o "$SMOKE/direct"
+"$SMOKE/direct"
+printf '%s\n' '[package]' 'name = "seed-smoke"' 'version = "0.1.0"' 'edition = "2021"' > "$SMOKE/Cargo.toml"
+CARGO_HOME="$SMOKE/cargo-home" RUSTFLAGS="-Clinker=gcc" RUSTC="$PREFIX/bin/rustc" "$PREFIX/bin/cargo" run --offline --manifest-path "$SMOKE/Cargo.toml"
+
 '''
 
 [test.dependencies.peipkg]
+"org.gnu.gcc" = "*"
+"org.python.python3" = "*"
 "dev.peios.build-essentials" = "*"
 
 [test.dependencies.apt]
+python3 = "*"
 build-essential = "*"
