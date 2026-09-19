@@ -1,11 +1,6 @@
-# llvm-devel — the LLVM headers for compiling against libLLVM (rustc's
-# system-LLVM build is the consumer: its llvm-wrapper C++ shim includes
-# these and links through llvm-config, which ships in the llvm package
-# alongside the unversioned .so links).
-
 [package]
 name        = "org.llvm.llvm-devel"
-description = "LLVM - headers for building against libLLVM"
+description = "LLVM headers, static libraries and CMake development metadata"
 license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 
 [provides]
@@ -13,6 +8,9 @@ license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 [replaces]
 
 [dependencies]
+"org.llvm.llvm" = "{{version}}-1"
+"io.github.zlib-ng.zlib-ng-compat-devel" = ">= 2.3.3"
+"com.facebook.zstd-devel" = ">= 1.5.7"
 "org.llvm.llvm-libs" = "{{version}}-1"
 
 [files]
@@ -25,3 +23,11 @@ license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 ":usr/lib/x86_64-linux-peios/libLTO.so"     = "usr/lib/x86_64-linux-peios/libLTO.so"
 ":usr/lib/x86_64-linux-peios/libRemarks.so" = "usr/lib/x86_64-linux-peios/libRemarks.so"
 ":usr/lib/x86_64-linux-peios/cmake/llvm/**" = "usr/lib/x86_64-linux-peios/cmake/llvm"
+
+":.manuals/llvm-devel/usr/share/man/**" = "usr/share/man"
+
+# Upstream exported CMake targets require their static archive locations.
+":usr/lib/x86_64-linux-peios/libLLVM*.a" = "usr/lib/x86_64-linux-peios"
+
+# Versioned compiler linker alias; the runtime SONAME is libLLVM.so.<major.minor>.
+":usr/lib/x86_64-linux-peios/libLLVM-*.so"     = "usr/lib/x86_64-linux-peios"

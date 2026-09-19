@@ -1,0 +1,67 @@
+Description: Build a relocatable installed llvm-config without private build roots
+Origin: vendor, PEIOS packaging
+
+--- a/llvm/tools/llvm-config/CMakeLists.txt
++++ b/llvm/tools/llvm-config/CMakeLists.txt
+@@ -16,6 +16,14 @@
+   # for the native `llvm-config`!
+   DISABLE_LLVM_LINK_LLVM_DYLIB
+   )
++
++# The packaged tool is relocatable and must not retain private build roots.
++# Keep the upstream build-tree llvm-config unchanged for development and tests.
++add_llvm_executable(llvm-config-installed
++  llvm-config.cpp
++  DISABLE_LLVM_LINK_LLVM_DYLIB
++  )
++target_compile_definitions(llvm-config-installed PRIVATE PEIOS_INSTALLED_LLVM_CONFIG=1)
+ 
+ # Compute the substitution values for various items.
+ get_property(SUPPORT_SYSTEM_LIBS TARGET LLVMSupport PROPERTY LLVM_SYSTEM_LIBS)
+--- a/llvm/tools/llvm-config/llvm-config.cpp
++++ b/llvm/tools/llvm-config/llvm-config.cpp
+@@ -288,7 +288,9 @@
+   // that we can report the correct information when run from a development
+   // tree.
+   bool IsInDevelopmentTree;
++#ifndef PEIOS_INSTALLED_LLVM_CONFIG
+   enum { CMakeStyle, CMakeBuildModeStyle } DevelopmentTreeLayout;
++#endif
+   llvm::SmallString<256> CurrentPath(GetExecutablePath(argv[0]));
+   std::string CurrentExecPrefix;
+   std::string ActiveObjRoot;
+@@ -306,6 +308,7 @@
+   CurrentExecPrefix =
+       sys::path::parent_path(sys::path::parent_path(CurrentPath)).str();
+ 
++#ifndef PEIOS_INSTALLED_LLVM_CONFIG
+   // Check to see if we are inside a development tree by comparing to possible
+   // locations (prefix style or CMake style).
+   if (sys::fs::equivalent(CurrentExecPrefix, LLVM_OBJ_ROOT)) {
+@@ -322,11 +325,16 @@
+     DevelopmentTreeLayout = CMakeStyle; // Initialized to avoid warnings.
+   }
+ 
++#else
++  IsInDevelopmentTree = false;
++#endif
++
+   // Compute various directory locations based on the derived location
+   // information.
+   std::string ActivePrefix, ActiveBinDir, ActiveIncludeDir, ActiveLibDir,
+               ActiveCMakeDir;
+   std::string ActiveIncludeOption;
++#ifndef PEIOS_INSTALLED_LLVM_CONFIG
+   if (IsInDevelopmentTree) {
+     ActiveIncludeDir = std::string(LLVM_SRC_ROOT) + "/include";
+     ActivePrefix = CurrentExecPrefix;
+@@ -355,6 +363,9 @@
+     ActiveIncludeOption =
+         ("-I" + ActiveIncludeDir + " " + "-I" + ActiveObjRoot + "/include");
+   } else {
++#else
++  {
++#endif
+     ActivePrefix = CurrentExecPrefix;
+     {
+       SmallString<256> Path(LLVM_INSTALL_INCLUDEDIR);

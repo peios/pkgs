@@ -1,0 +1,28 @@
+From: Peios Package Maintainers <packages@peios.dev>
+Subject: [PATCH] clang: remove hmaptool's unused ctypes dependency
+
+hmaptool imports ctypes.ArgumentError solely to reject a negative integer in
+next_power_of_two().  It otherwise implements the header-map format with the
+standard struct module.  Raise the ordinary built-in ValueError instead so the
+tool and its tests work with Python builds that intentionally omit the optional
+libffi-backed ctypes extension.
+
+--- a/clang/utils/hmaptool/hmaptool
++++ b/clang/utils/hmaptool/hmaptool
+@@ -1,7 +1,6 @@
+ #!/usr/bin/env python3
+ from __future__ import absolute_import, division, print_function
+ 
+-from ctypes import ArgumentError
+ import json
+ import optparse
+ import os
+@@ -136,7 +135,7 @@ def action_dump(name, args):
+ 
+ def next_power_of_two(value):
+     if value < 0:
+-        raise ArgumentError
++        raise ValueError
+     return 1 if value == 0 else 2**(value - 1).bit_length()
+ 
+ def action_write(name, args):

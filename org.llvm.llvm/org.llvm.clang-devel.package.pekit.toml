@@ -3,6 +3,7 @@ name        = "org.llvm.clang-devel"
 description = "Clang development headers and CMake metadata"
 
 [dependencies]
+"org.llvm.clang" = "{{version}}-1"
 "org.llvm.clang-libs" = "{{version}}-1"
 "org.llvm.llvm-devel" = "{{version}}-1"
 
@@ -13,3 +14,6 @@ description = "Clang development headers and CMake metadata"
 ":usr/lib/x86_64-linux-peios/libclang-cpp.so" = "usr/lib/x86_64-linux-peios/libclang-cpp.so"
 ":usr/lib/x86_64-linux-peios/libclang.so"     = "usr/lib/x86_64-linux-peios/libclang.so"
 ":usr/lib/x86_64-linux-peios/cmake/clang/**"  = "usr/lib/x86_64-linux-peios/cmake/clang"
+
+# Upstream exported CMake targets require their static archive locations.
+":usr/lib/x86_64-linux-peios/libclang*.a" = "usr/lib/x86_64-linux-peios"

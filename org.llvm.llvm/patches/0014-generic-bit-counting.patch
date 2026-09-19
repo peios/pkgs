@@ -1,0 +1,1517 @@
+Description: Backport unsigned generic bit counting with full-width constant evaluation.
+Origin: backport, https://github.com/llvm/llvm-project/pull/82359
+Origin: backport, https://github.com/llvm/llvm-project/pull/83431
+Forwarded: not-needed
+ Applies the reviewed eleven-commit correction chain recorded in the provenance manifest.
+ Adapted to LLVM18 Builtins.def, Context::classify(QualType), and pushInt APIs.
+ Local typed stack cleanup fixes generic zero-without-fallback failure ownership;
+ the unrelated upstream bswap implementation is excluded. Full rebuild required.
+
+--- a/clang/docs/LanguageExtensions.rst
++++ b/clang/docs/LanguageExtensions.rst
+@@ -3437,6 +3437,78 @@
+   // Computes a unique stable name for the given type.
+   constexpr const char * __builtin_sycl_unique_stable_name( type-id );
+ 
++``__builtin_popcountg``
++-----------------------
++
++``__builtin_popcountg`` returns the number of 1 bits in the argument. The
++argument can be of any unsigned integer type.
++
++**Syntax**:
++
++.. code-block:: c++
++
++  int __builtin_popcountg(type x)
++
++**Examples**:
++
++.. code-block:: c++
++
++  unsigned int x = 1;
++  int x_pop = __builtin_popcountg(x);
++
++  unsigned long y = 3;
++  int y_pop = __builtin_popcountg(y);
++
++  unsigned _BitInt(128) z = 7;
++  int z_pop = __builtin_popcountg(z);
++
++**Description**:
++
++``__builtin_popcountg`` is meant to be a type-generic alternative to the
++``__builtin_popcount{,l,ll}`` builtins, with support for other integer types,
++such as ``unsigned __int128`` and C23 ``unsigned _BitInt(N)``.
++
++``__builtin_clzg`` and ``__builtin_ctzg``
++-----------------------------------------
++
++``__builtin_clzg`` (respectively ``__builtin_ctzg``) returns the number of
++leading (respectively trailing) 0 bits in the first argument. The first argument
++can be of any unsigned integer type.
++
++If the first argument is 0 and an optional second argument of ``int`` type is
++provided, then the second argument is returned. If the first argument is 0, but
++only one argument is provided, then the behavior is undefined.
++
++**Syntax**:
++
++.. code-block:: c++
++
++  int __builtin_clzg(type x[, int fallback])
++  int __builtin_ctzg(type x[, int fallback])
++
++**Examples**:
++
++.. code-block:: c++
++
++  unsigned int x = 1;
++  int x_lz = __builtin_clzg(x);
++  int x_tz = __builtin_ctzg(x);
++
++  unsigned long y = 2;
++  int y_lz = __builtin_clzg(y);
++  int y_tz = __builtin_ctzg(y);
++
++  unsigned _BitInt(128) z = 4;
++  int z_lz = __builtin_clzg(z);
++  int z_tz = __builtin_ctzg(z);
++
++**Description**:
++
++``__builtin_clzg`` (respectively ``__builtin_ctzg``) is meant to be a
++type-generic alternative to the ``__builtin_clz{,l,ll}`` (respectively
++``__builtin_ctz{,l,ll}``) builtins, with support for other integer types, such
++as ``unsigned __int128`` and C23 ``unsigned _BitInt(N)``.
++
+ Multiprecision Arithmetic Builtins
+ ----------------------------------
+ 
+@@ -5254,10 +5326,12 @@
+ * ``__builtin_clzl``
+ * ``__builtin_clzll``
+ * ``__builtin_clzs``
++* ``__builtin_clzg``
+ * ``__builtin_ctz``
+ * ``__builtin_ctzl``
+ * ``__builtin_ctzll``
+ * ``__builtin_ctzs``
++* ``__builtin_ctzg``
+ * ``__builtin_ffs``
+ * ``__builtin_ffsl``
+ * ``__builtin_ffsll``
+@@ -5278,6 +5352,7 @@
+ * ``__builtin_popcount``
+ * ``__builtin_popcountl``
+ * ``__builtin_popcountll``
++* ``__builtin_popcountg``
+ * ``__builtin_rotateleft8``
+ * ``__builtin_rotateleft16``
+ * ``__builtin_rotateleft32``
+--- a/clang/docs/ReleaseNotes.rst
++++ b/clang/docs/ReleaseNotes.rst
+@@ -329,6 +329,14 @@
+ * Clang now defines macro ``__LLVM_INSTR_PROFILE_GENERATE`` when compiling with
+   PGO instrumentation profile generation, and ``__LLVM_INSTR_PROFILE_USE`` when
+   compiling with PGO profile use.
++
++Generic bit-counting builtins
++-----------------------------
++
++- Added ``__builtin_popcountg``, ``__builtin_clzg``, and ``__builtin_ctzg``
++  for unsigned integer types including extended and bit-precise integers.
++  They support constant evaluation without promoting their first operand.
++  Leading/trailing-zero builtins accept an optional ``int`` zero fallback.
+ 
+ New Compiler Flags
+ ------------------
+--- a/clang/include/clang/Basic/Builtins.def
++++ b/clang/include/clang/Basic/Builtins.def
+@@ -530,6 +530,9 @@
+ BUILTIN(__builtin_popcount  , "iUi"  , "ncE")
+ BUILTIN(__builtin_popcountl , "iULi" , "ncE")
+ BUILTIN(__builtin_popcountll, "iULLi", "ncE")
++BUILTIN(__builtin_popcountg, "i.", "nctE")
++BUILTIN(__builtin_clzg, "i.", "nctE")
++BUILTIN(__builtin_ctzg, "i.", "nctE")
+ BUILTIN(__builtin_clrsb  , "ii"  , "ncE")
+ BUILTIN(__builtin_clrsbl , "iLi" , "ncE")
+ BUILTIN(__builtin_clrsbll, "iLLi", "ncE")
+--- a/clang/include/clang/Basic/DiagnosticSemaKinds.td
++++ b/clang/include/clang/Basic/DiagnosticSemaKinds.td
+@@ -11949,12 +11949,14 @@
+   "'__builtin_launder' is not allowed">;
+ 
+ def err_builtin_invalid_arg_type: Error <
+-  "%ordinal0 argument must be a "
+-  "%select{vector, integer or floating point type|matrix|"
+-  "pointer to a valid matrix element type|"
+-  "signed integer or floating point type|vector type|"
+-  "floating point type|"
+-  "vector of integers}1 (was %2)">;
++  "%ordinal0 argument must be "
++  "%select{a vector, integer or floating point type|a matrix|"
++  "a pointer to a valid matrix element type|"
++  "a signed integer or floating point type|a vector type|"
++  "a floating point type|"
++  "a vector of integers|"
++  "an unsigned integer|"
++  "an 'int'}1 (was %2)">;
+ 
+ def err_builtin_matrix_disabled: Error<
+   "matrix types extension is disabled. Pass -fenable-matrix to enable it">;
+--- a/clang/lib/AST/ExprConstant.cpp
++++ b/clang/lib/AST/ExprConstant.cpp
+@@ -12289,6 +12289,7 @@
+   case Builtin::BI__builtin_clzl:
+   case Builtin::BI__builtin_clzll:
+   case Builtin::BI__builtin_clzs:
++  case Builtin::BI__builtin_clzg:
+   case Builtin::BI__lzcnt16: // Microsoft variants of count leading-zeroes
+   case Builtin::BI__lzcnt:
+   case Builtin::BI__lzcnt64: {
+@@ -12296,14 +12297,28 @@
+     if (!EvaluateInteger(E->getArg(0), Val, Info))
+       return false;
+ 
+-    // When the argument is 0, the result of GCC builtins is undefined, whereas
+-    // for Microsoft intrinsics, the result is the bit-width of the argument.
+-    bool ZeroIsUndefined = BuiltinOp != Builtin::BI__lzcnt16 &&
+-                           BuiltinOp != Builtin::BI__lzcnt &&
+-                           BuiltinOp != Builtin::BI__lzcnt64;
+-
+-    if (ZeroIsUndefined && !Val)
+-      return Error(E);
++    std::optional<APSInt> Fallback;
++    if (BuiltinOp == Builtin::BI__builtin_clzg && E->getNumArgs() > 1) {
++      APSInt FallbackTemp;
++      if (!EvaluateInteger(E->getArg(1), FallbackTemp, Info))
++        return false;
++      Fallback = FallbackTemp;
++    }
++
++    if (!Val) {
++      if (Fallback)
++        return Success(*Fallback, E);
++
++      // When the argument is 0, the result of GCC builtins is undefined,
++      // whereas for Microsoft intrinsics, the result is the bit-width of the
++      // argument.
++      bool ZeroIsUndefined = BuiltinOp != Builtin::BI__lzcnt16 &&
++                             BuiltinOp != Builtin::BI__lzcnt &&
++                             BuiltinOp != Builtin::BI__lzcnt64;
++
++      if (ZeroIsUndefined)
++        return Error(E);
++    }
+ 
+     return Success(Val.countl_zero(), E);
+   }
+@@ -12345,12 +12360,26 @@
+   case Builtin::BI__builtin_ctz:
+   case Builtin::BI__builtin_ctzl:
+   case Builtin::BI__builtin_ctzll:
+-  case Builtin::BI__builtin_ctzs: {
++  case Builtin::BI__builtin_ctzs:
++  case Builtin::BI__builtin_ctzg: {
+     APSInt Val;
+     if (!EvaluateInteger(E->getArg(0), Val, Info))
+       return false;
+-    if (!Val)
++
++    std::optional<APSInt> Fallback;
++    if (BuiltinOp == Builtin::BI__builtin_ctzg && E->getNumArgs() > 1) {
++      APSInt FallbackTemp;
++      if (!EvaluateInteger(E->getArg(1), FallbackTemp, Info))
++        return false;
++      Fallback = FallbackTemp;
++    }
++
++    if (!Val) {
++      if (Fallback)
++        return Success(*Fallback, E);
++
+       return Error(E);
++    }
+ 
+     return Success(Val.countr_zero(), E);
+   }
+@@ -12461,6 +12490,7 @@
+   case Builtin::BI__builtin_popcount:
+   case Builtin::BI__builtin_popcountl:
+   case Builtin::BI__builtin_popcountll:
++  case Builtin::BI__builtin_popcountg:
+   case Builtin::BI__popcnt16: // Microsoft variants of popcount
+   case Builtin::BI__popcnt:
+   case Builtin::BI__popcnt64: {
+--- a/clang/lib/AST/Interp/InterpBuiltin.cpp
++++ b/clang/lib/AST/Interp/InterpBuiltin.cpp
+@@ -16,6 +16,16 @@
+ namespace clang {
+ namespace interp {
+ 
++static unsigned callArgSize(const InterpState &S, const CallExpr *C) {
++  unsigned O = 0;
++
++  for (const Expr *E : C->arguments()) {
++    O += align(primSize(*S.getContext().classify(E->getType())));
++  }
++
++  return O;
++}
++
+ template <typename T>
+ static T getParam(const InterpFrame *Frame, unsigned Index) {
+   assert(Frame->getFunction()->getNumParams() > Index);
+@@ -53,11 +63,7 @@
+     Offset = align(primSize(T));
+ 
+   APSInt R;
+-  INT_TYPE_SWITCH(T, {
+-    T Val = Stk.peek<T>(Offset);
+-    R = APSInt(
+-        APInt(Val.bitWidth(), static_cast<uint64_t>(Val), T::isSigned()));
+-  });
++  INT_TYPE_SWITCH(T, R = Stk.peek<T>(Offset).toAPSInt());
+ 
+   return R;
+ }
+@@ -634,6 +640,66 @@
+   return true;
+ }
+ 
++static bool interp__builtin_clz(InterpState &S, CodePtr OpPC,
++                                const InterpFrame *Frame, const Function *Func,
++                                const CallExpr *Call) {
++  unsigned CallSize = callArgSize(S, Call);
++  unsigned BuiltinOp = Func->getBuiltinID();
++  PrimType ValT = *S.getContext().classify(Call->getArg(0)->getType());
++  const APSInt Val = peekToAPSInt(S.Stk, ValT, CallSize);
++
++  // GCC count-leading-zero builtins are undefined for zero without fallback;
++  // the Microsoft intrinsics return the argument's bit width instead.
++  bool ZeroIsUndefined = BuiltinOp != Builtin::BI__lzcnt16 &&
++                         BuiltinOp != Builtin::BI__lzcnt &&
++                         BuiltinOp != Builtin::BI__lzcnt64;
++  if (Val == 0) {
++    if (BuiltinOp == Builtin::BI__builtin_clzg && Call->getNumArgs() == 2) {
++      PrimType FallbackT = *S.getContext().classify(Call->getArg(1)->getType());
++      const APSInt Fallback = peekToAPSInt(S.Stk, FallbackT);
++      pushInt(S, Fallback.getSExtValue());
++      return true;
++    }
++    if (ZeroIsUndefined) {
++      // LLVM18's caller runs argument cleanup only on success. This failing
++      // generic call has exactly one argument and has not pushed a result;
++      // destroy its typed stack value, including owned arbitrary-width limbs.
++      if (BuiltinOp == Builtin::BI__builtin_clzg) {
++        assert(Call->getNumArgs() == 1 && "fallback handled above");
++        INT_TYPE_SWITCH(ValT, S.Stk.discard<T>());
++      }
++      return false;
++    }
++  }
++  pushInt(S, Val.countl_zero());
++  return true;
++}
++
++static bool interp__builtin_ctz(InterpState &S, CodePtr OpPC,
++                                const InterpFrame *Frame, const Function *Func,
++                                const CallExpr *Call) {
++  unsigned CallSize = callArgSize(S, Call);
++  PrimType ValT = *S.getContext().classify(Call->getArg(0)->getType());
++  const APSInt Val = peekToAPSInt(S.Stk, ValT, CallSize);
++  if (Val == 0) {
++    if (Func->getBuiltinID() == Builtin::BI__builtin_ctzg &&
++        Call->getNumArgs() == 2) {
++      PrimType FallbackT = *S.getContext().classify(Call->getArg(1)->getType());
++      const APSInt Fallback = peekToAPSInt(S.Stk, FallbackT);
++      pushInt(S, Fallback.getSExtValue());
++      return true;
++    }
++    // See the matching clzg failure cleanup above.
++    if (Func->getBuiltinID() == Builtin::BI__builtin_ctzg) {
++      assert(Call->getNumArgs() == 1 && "fallback handled above");
++      INT_TYPE_SWITCH(ValT, S.Stk.discard<T>());
++    }
++    return false;
++  }
++  pushInt(S, Val.countr_zero());
++  return true;
++}
++
+ bool InterpretBuiltin(InterpState &S, CodePtr OpPC, const Function *F,
+                       const CallExpr *Call) {
+   InterpFrame *Frame = S.Current;
+@@ -769,6 +835,7 @@
+   case Builtin::BI__builtin_popcount:
+   case Builtin::BI__builtin_popcountl:
+   case Builtin::BI__builtin_popcountll:
++  case Builtin::BI__builtin_popcountg:
+   case Builtin::BI__popcnt16: // Microsoft variants of popcount
+   case Builtin::BI__popcnt:
+   case Builtin::BI__popcnt64:
+@@ -845,6 +912,27 @@
+   case Builtin::BI__addressof:
+   case Builtin::BI__builtin_addressof:
+     if (!interp__builtin_addressof(S, OpPC, Frame, F, Call))
++      return false;
++    break;
++
++  case Builtin::BI__builtin_clz:
++  case Builtin::BI__builtin_clzl:
++  case Builtin::BI__builtin_clzll:
++  case Builtin::BI__builtin_clzs:
++  case Builtin::BI__builtin_clzg:
++  case Builtin::BI__lzcnt16: // Microsoft variants of count leading-zeroes
++  case Builtin::BI__lzcnt:
++  case Builtin::BI__lzcnt64:
++    if (!interp__builtin_clz(S, OpPC, Frame, F, Call))
++      return false;
++    break;
++
++  case Builtin::BI__builtin_ctz:
++  case Builtin::BI__builtin_ctzl:
++  case Builtin::BI__builtin_ctzll:
++  case Builtin::BI__builtin_ctzs:
++  case Builtin::BI__builtin_ctzg:
++    if (!interp__builtin_ctz(S, OpPC, Frame, F, Call))
+       return false;
+     break;
+ 
+--- a/clang/lib/CodeGen/CGBuiltin.cpp
++++ b/clang/lib/CodeGen/CGBuiltin.cpp
+@@ -3130,36 +3130,66 @@
+   case Builtin::BI__builtin_ctzs:
+   case Builtin::BI__builtin_ctz:
+   case Builtin::BI__builtin_ctzl:
+-  case Builtin::BI__builtin_ctzll: {
+-    Value *ArgValue = EmitCheckedArgForBuiltin(E->getArg(0), BCK_CTZPassedZero);
++  case Builtin::BI__builtin_ctzll:
++  case Builtin::BI__builtin_ctzg: {
++    bool HasFallback = BuiltinIDIfNoAsmLabel == Builtin::BI__builtin_ctzg &&
++                       E->getNumArgs() > 1;
++
++    Value *ArgValue =
++        HasFallback ? EmitScalarExpr(E->getArg(0))
++                    : EmitCheckedArgForBuiltin(E->getArg(0), BCK_CTZPassedZero);
+ 
+     llvm::Type *ArgType = ArgValue->getType();
+     Function *F = CGM.getIntrinsic(Intrinsic::cttz, ArgType);
+ 
+     llvm::Type *ResultType = ConvertType(E->getType());
+-    Value *ZeroUndef = Builder.getInt1(getTarget().isCLZForZeroUndef());
++    Value *ZeroUndef =
++        Builder.getInt1(HasFallback || getTarget().isCLZForZeroUndef());
+     Value *Result = Builder.CreateCall(F, {ArgValue, ZeroUndef});
+     if (Result->getType() != ResultType)
+-      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
++      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/false,
+                                      "cast");
+-    return RValue::get(Result);
++    if (!HasFallback)
++      return RValue::get(Result);
++
++    Value *Zero = Constant::getNullValue(ArgType);
++    Value *IsZero = Builder.CreateICmpEQ(ArgValue, Zero, "iszero");
++    Value *FallbackValue = EmitScalarExpr(E->getArg(1));
++    Value *ResultOrFallback =
++        Builder.CreateSelect(IsZero, FallbackValue, Result, "ctzg");
++    return RValue::get(ResultOrFallback);
+   }
+   case Builtin::BI__builtin_clzs:
+   case Builtin::BI__builtin_clz:
+   case Builtin::BI__builtin_clzl:
+-  case Builtin::BI__builtin_clzll: {
+-    Value *ArgValue = EmitCheckedArgForBuiltin(E->getArg(0), BCK_CLZPassedZero);
++  case Builtin::BI__builtin_clzll:
++  case Builtin::BI__builtin_clzg: {
++    bool HasFallback = BuiltinIDIfNoAsmLabel == Builtin::BI__builtin_clzg &&
++                       E->getNumArgs() > 1;
++
++    Value *ArgValue =
++        HasFallback ? EmitScalarExpr(E->getArg(0))
++                    : EmitCheckedArgForBuiltin(E->getArg(0), BCK_CLZPassedZero);
+ 
+     llvm::Type *ArgType = ArgValue->getType();
+     Function *F = CGM.getIntrinsic(Intrinsic::ctlz, ArgType);
+ 
+     llvm::Type *ResultType = ConvertType(E->getType());
+-    Value *ZeroUndef = Builder.getInt1(getTarget().isCLZForZeroUndef());
++    Value *ZeroUndef =
++        Builder.getInt1(HasFallback || getTarget().isCLZForZeroUndef());
+     Value *Result = Builder.CreateCall(F, {ArgValue, ZeroUndef});
+     if (Result->getType() != ResultType)
+-      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+-                                     "cast");
+-    return RValue::get(Result);
++      Result =
++          Builder.CreateIntCast(Result, ResultType, /*isSigned*/ false, "cast");
++    if (!HasFallback)
++      return RValue::get(Result);
++
++    Value *Zero = Constant::getNullValue(ArgType);
++    Value *IsZero = Builder.CreateICmpEQ(ArgValue, Zero, "iszero");
++    Value *FallbackValue = EmitScalarExpr(E->getArg(1));
++    Value *ResultOrFallback =
++        Builder.CreateSelect(IsZero, FallbackValue, Result, "clzg");
++    return RValue::get(ResultOrFallback);
+   }
+   case Builtin::BI__builtin_ffs:
+   case Builtin::BI__builtin_ffsl:
+@@ -3219,7 +3249,8 @@
+   case Builtin::BI__popcnt64:
+   case Builtin::BI__builtin_popcount:
+   case Builtin::BI__builtin_popcountl:
+-  case Builtin::BI__builtin_popcountll: {
++  case Builtin::BI__builtin_popcountll:
++  case Builtin::BI__builtin_popcountg: {
+     Value *ArgValue = EmitScalarExpr(E->getArg(0));
+ 
+     llvm::Type *ArgType = ArgValue->getType();
+@@ -3228,8 +3259,8 @@
+     llvm::Type *ResultType = ConvertType(E->getType());
+     Value *Result = Builder.CreateCall(F, ArgValue);
+     if (Result->getType() != ResultType)
+-      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+-                                     "cast");
++      Result =
++          Builder.CreateIntCast(Result, ResultType, /*isSigned*/ false, "cast");
+     return RValue::get(Result);
+   }
+   case Builtin::BI__builtin_unpredictable: {
+--- a/clang/lib/Sema/SemaChecking.cpp
++++ b/clang/lib/Sema/SemaChecking.cpp
+@@ -2143,6 +2143,71 @@
+   return false;
+ }
+ 
++/// Checks that __builtin_popcountg was called with a single argument, which is
++/// an unsigned integer.
++static bool SemaBuiltinPopcountg(Sema &S, CallExpr *TheCall) {
++  if (checkArgCount(S, TheCall, 1))
++    return true;
++
++  ExprResult ArgRes = S.DefaultLvalueConversion(TheCall->getArg(0));
++  if (ArgRes.isInvalid())
++    return true;
++
++  Expr *Arg = ArgRes.get();
++  TheCall->setArg(0, Arg);
++
++  QualType ArgTy = Arg->getType();
++
++  if (!ArgTy->isUnsignedIntegerType()) {
++    S.Diag(Arg->getBeginLoc(), diag::err_builtin_invalid_arg_type)
++        << 1 << /*unsigned integer ty*/ 7 << ArgTy;
++    return true;
++  }
++  return false;
++}
++
++/// Checks that __builtin_{clzg,ctzg} was called with a first argument, which is
++/// an unsigned integer, and an optional second argument, which is promoted to
++/// an 'int'.
++static bool SemaBuiltinCountZeroBitsGeneric(Sema &S, CallExpr *TheCall) {
++  if (checkArgCountRange(S, TheCall, 1, 2))
++    return true;
++
++  ExprResult Arg0Res = S.DefaultLvalueConversion(TheCall->getArg(0));
++  if (Arg0Res.isInvalid())
++    return true;
++
++  Expr *Arg0 = Arg0Res.get();
++  TheCall->setArg(0, Arg0);
++
++  QualType Arg0Ty = Arg0->getType();
++
++  if (!Arg0Ty->isUnsignedIntegerType()) {
++    S.Diag(Arg0->getBeginLoc(), diag::err_builtin_invalid_arg_type)
++        << 1 << /*unsigned integer ty*/ 7 << Arg0Ty;
++    return true;
++  }
++
++  if (TheCall->getNumArgs() > 1) {
++    ExprResult Arg1Res = S.UsualUnaryConversions(TheCall->getArg(1));
++    if (Arg1Res.isInvalid())
++      return true;
++
++    Expr *Arg1 = Arg1Res.get();
++    TheCall->setArg(1, Arg1);
++
++    QualType Arg1Ty = Arg1->getType();
++
++    if (!Arg1Ty->isSpecificBuiltinType(BuiltinType::Int)) {
++      S.Diag(Arg1->getBeginLoc(), diag::err_builtin_invalid_arg_type)
++          << 2 << /*'int' ty*/ 8 << Arg1Ty;
++      return true;
++    }
++  }
++
++  return false;
++}
++
+ ExprResult
+ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
+                                CallExpr *TheCall) {
+@@ -2171,6 +2236,15 @@
+ 
+   FPOptions FPO;
+   switch (BuiltinID) {
++  case Builtin::BI__builtin_popcountg:
++    if (SemaBuiltinPopcountg(*this, TheCall))
++      return ExprError();
++    break;
++  case Builtin::BI__builtin_clzg:
++  case Builtin::BI__builtin_ctzg:
++    if (SemaBuiltinCountZeroBitsGeneric(*this, TheCall))
++      return ExprError();
++    break;
+   case Builtin::BI__builtin___CFStringMakeConstantString:
+     // CFStringMakeConstantString is currently not implemented for GOFF (i.e.,
+     // on z/OS) and for XCOFF (i.e., on AIX). Emit unsupported
+--- a/clang/test/AST/Interp/builtin-functions.cpp
++++ b/clang/test/AST/Interp/builtin-functions.cpp
+@@ -282,6 +282,24 @@
+   static_assert(__builtin_popcountl(0) == 0, "");
+   static_assert(__builtin_popcountll(~0ull) == __CHAR_BIT__ * sizeof(unsigned long long), "");
+   static_assert(__builtin_popcountll(0) == 0, "");
++  static_assert(__builtin_popcountg((unsigned char)~0) == __CHAR_BIT__ * sizeof(unsigned char), "");
++  static_assert(__builtin_popcountg((unsigned char)0) == 0, "");
++  static_assert(__builtin_popcountg((unsigned short)~0) == __CHAR_BIT__ * sizeof(unsigned short), "");
++  static_assert(__builtin_popcountg((unsigned short)0) == 0, "");
++  static_assert(__builtin_popcountg(~0u) == __CHAR_BIT__ * sizeof(unsigned int), "");
++  static_assert(__builtin_popcountg(0u) == 0, "");
++  static_assert(__builtin_popcountg(~0ul) == __CHAR_BIT__ * sizeof(unsigned long), "");
++  static_assert(__builtin_popcountg(0ul) == 0, "");
++  static_assert(__builtin_popcountg(~0ull) == __CHAR_BIT__ * sizeof(unsigned long long), "");
++  static_assert(__builtin_popcountg(0ull) == 0, "");
++#ifdef __SIZEOF_INT128__
++  static_assert(__builtin_popcountg(~(unsigned __int128)0) == __CHAR_BIT__ * sizeof(unsigned __int128), "");
++  static_assert(__builtin_popcountg((unsigned __int128)0) == 0, "");
++#endif
++#ifndef __AVR__
++  static_assert(__builtin_popcountg(~(unsigned _BitInt(128))0) == __CHAR_BIT__ * sizeof(unsigned _BitInt(128)), "");
++  static_assert(__builtin_popcountg((unsigned _BitInt(128))0) == 0, "");
++#endif
+ 
+   /// From test/Sema/constant-builtins-2.c
+   char popcount1[__builtin_popcount(0) == 0 ? 1 : -1];
+@@ -294,6 +312,17 @@
+   char popcount8[__builtin_popcountll(0LL) == 0 ? 1 : -1];
+   char popcount9[__builtin_popcountll(0xF0F0LL) == 8 ? 1 : -1];
+   char popcount10[__builtin_popcountll(~0LL) == BITSIZE(long long) ? 1 : -1];
++  char popcount11[__builtin_popcountg(0U) == 0 ? 1 : -1];
++  char popcount12[__builtin_popcountg(0xF0F0U) == 8 ? 1 : -1];
++  char popcount13[__builtin_popcountg(~0U) == BITSIZE(int) ? 1 : -1];
++  char popcount14[__builtin_popcountg(~0UL) == BITSIZE(long) ? 1 : -1];
++  char popcount15[__builtin_popcountg(~0ULL) == BITSIZE(long long) ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++  char popcount16[__builtin_popcountg(~(unsigned __int128)0) == BITSIZE(__int128) ? 1 : -1];
++#endif
++#ifndef __AVR__
++  char popcount17[__builtin_popcountg(~(unsigned _BitInt(128))0) == BITSIZE(_BitInt(128)) ? 1 : -1];
++#endif
+ }
+ 
+ namespace parity {
+@@ -363,3 +392,142 @@
+   char ffs6[__builtin_ffsl(0x10L) == 5 ? 1 : -1];
+   char ffs7[__builtin_ffsll(0x100LL) == 9 ? 1 : -1];
+ }
++
++namespace clz {
++  char clz1[__builtin_clz(1) == BITSIZE(int) - 1 ? 1 : -1];
++  char clz2[__builtin_clz(7) == BITSIZE(int) - 3 ? 1 : -1];
++  char clz3[__builtin_clz(1 << (BITSIZE(int) - 1)) == 0 ? 1 : -1];
++  int clz4 = __builtin_clz(0);
++  char clz5[__builtin_clzl(0xFL) == BITSIZE(long) - 4 ? 1 : -1];
++  char clz6[__builtin_clzll(0xFFLL) == BITSIZE(long long) - 8 ? 1 : -1];
++  char clz7[__builtin_clzs(0x1) == BITSIZE(short) - 1 ? 1 : -1];
++  char clz8[__builtin_clzs(0xf) == BITSIZE(short) - 4 ? 1 : -1];
++  char clz9[__builtin_clzs(0xfff) == BITSIZE(short) - 12 ? 1 : -1];
++
++  int clz10 = __builtin_clzg((unsigned char)0);
++  char clz11[__builtin_clzg((unsigned char)0, 42) == 42 ? 1 : -1];
++  char clz12[__builtin_clzg((unsigned char)0x1) == BITSIZE(char) - 1 ? 1 : -1];
++  char clz13[__builtin_clzg((unsigned char)0x1, 42) == BITSIZE(char) - 1 ? 1 : -1];
++  char clz14[__builtin_clzg((unsigned char)0xf) == BITSIZE(char) - 4 ? 1 : -1];
++  char clz15[__builtin_clzg((unsigned char)0xf, 42) == BITSIZE(char) - 4 ? 1 : -1];
++  char clz16[__builtin_clzg((unsigned char)(1 << (BITSIZE(char) - 1))) == 0 ? 1 : -1];
++  char clz17[__builtin_clzg((unsigned char)(1 << (BITSIZE(char) - 1)), 42) == 0 ? 1 : -1];
++  int clz18 = __builtin_clzg((unsigned short)0);
++  char clz19[__builtin_clzg((unsigned short)0, 42) == 42 ? 1 : -1];
++  char clz20[__builtin_clzg((unsigned short)0x1) == BITSIZE(short) - 1 ? 1 : -1];
++  char clz21[__builtin_clzg((unsigned short)0x1, 42) == BITSIZE(short) - 1 ? 1 : -1];
++  char clz22[__builtin_clzg((unsigned short)0xf) == BITSIZE(short) - 4 ? 1 : -1];
++  char clz23[__builtin_clzg((unsigned short)0xf, 42) == BITSIZE(short) - 4 ? 1 : -1];
++  char clz24[__builtin_clzg((unsigned short)(1 << (BITSIZE(short) - 1))) == 0 ? 1 : -1];
++  char clz25[__builtin_clzg((unsigned short)(1 << (BITSIZE(short) - 1)), 42) == 0 ? 1 : -1];
++  int clz26 = __builtin_clzg(0U);
++  char clz27[__builtin_clzg(0U, 42) == 42 ? 1 : -1];
++  char clz28[__builtin_clzg(0x1U) == BITSIZE(int) - 1 ? 1 : -1];
++  char clz29[__builtin_clzg(0x1U, 42) == BITSIZE(int) - 1 ? 1 : -1];
++  char clz30[__builtin_clzg(0xfU) == BITSIZE(int) - 4 ? 1 : -1];
++  char clz31[__builtin_clzg(0xfU, 42) == BITSIZE(int) - 4 ? 1 : -1];
++  char clz32[__builtin_clzg(1U << (BITSIZE(int) - 1)) == 0 ? 1 : -1];
++  char clz33[__builtin_clzg(1U << (BITSIZE(int) - 1), 42) == 0 ? 1 : -1];
++  int clz34 = __builtin_clzg(0UL);
++  char clz35[__builtin_clzg(0UL, 42) == 42 ? 1 : -1];
++  char clz36[__builtin_clzg(0x1UL) == BITSIZE(long) - 1 ? 1 : -1];
++  char clz37[__builtin_clzg(0x1UL, 42) == BITSIZE(long) - 1 ? 1 : -1];
++  char clz38[__builtin_clzg(0xfUL) == BITSIZE(long) - 4 ? 1 : -1];
++  char clz39[__builtin_clzg(0xfUL, 42) == BITSIZE(long) - 4 ? 1 : -1];
++  char clz40[__builtin_clzg(1UL << (BITSIZE(long) - 1)) == 0 ? 1 : -1];
++  char clz41[__builtin_clzg(1UL << (BITSIZE(long) - 1), 42) == 0 ? 1 : -1];
++  int clz42 = __builtin_clzg(0ULL);
++  char clz43[__builtin_clzg(0ULL, 42) == 42 ? 1 : -1];
++  char clz44[__builtin_clzg(0x1ULL) == BITSIZE(long long) - 1 ? 1 : -1];
++  char clz45[__builtin_clzg(0x1ULL, 42) == BITSIZE(long long) - 1 ? 1 : -1];
++  char clz46[__builtin_clzg(0xfULL) == BITSIZE(long long) - 4 ? 1 : -1];
++  char clz47[__builtin_clzg(0xfULL, 42) == BITSIZE(long long) - 4 ? 1 : -1];
++  char clz48[__builtin_clzg(1ULL << (BITSIZE(long long) - 1)) == 0 ? 1 : -1];
++  char clz49[__builtin_clzg(1ULL << (BITSIZE(long long) - 1), 42) == 0 ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++  int clz50 = __builtin_clzg((unsigned __int128)0);
++  char clz51[__builtin_clzg((unsigned __int128)0, 42) == 42 ? 1 : -1];
++  char clz52[__builtin_clzg((unsigned __int128)0x1) == BITSIZE(__int128) - 1 ? 1 : -1];
++  char clz53[__builtin_clzg((unsigned __int128)0x1, 42) == BITSIZE(__int128) - 1 ? 1 : -1];
++  char clz54[__builtin_clzg((unsigned __int128)0xf) == BITSIZE(__int128) - 4 ? 1 : -1];
++  char clz55[__builtin_clzg((unsigned __int128)0xf, 42) == BITSIZE(__int128) - 4 ? 1 : -1];
++#endif
++#ifndef __AVR__
++  int clz58 = __builtin_clzg((unsigned _BitInt(128))0);
++  char clz59[__builtin_clzg((unsigned _BitInt(128))0, 42) == 42 ? 1 : -1];
++  char clz60[__builtin_clzg((unsigned _BitInt(128))0x1) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++  char clz61[__builtin_clzg((unsigned _BitInt(128))0x1, 42) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++  char clz62[__builtin_clzg((unsigned _BitInt(128))0xf) == BITSIZE(_BitInt(128)) - 4 ? 1 : -1];
++  char clz63[__builtin_clzg((unsigned _BitInt(128))0xf, 42) == BITSIZE(_BitInt(128)) - 4 ? 1 : -1];
++#endif
++}
++
++namespace ctz {
++  char ctz1[__builtin_ctz(1) == 0 ? 1 : -1];
++  char ctz2[__builtin_ctz(8) == 3 ? 1 : -1];
++  char ctz3[__builtin_ctz(1 << (BITSIZE(int) - 1)) == BITSIZE(int) - 1 ? 1 : -1];
++  int ctz4 = __builtin_ctz(0);
++  char ctz5[__builtin_ctzl(0x10L) == 4 ? 1 : -1];
++  char ctz6[__builtin_ctzll(0x100LL) == 8 ? 1 : -1];
++  char ctz7[__builtin_ctzs(1 << (BITSIZE(short) - 1)) == BITSIZE(short) - 1 ? 1 : -1];
++  int ctz8 = __builtin_ctzg((unsigned char)0);
++  char ctz9[__builtin_ctzg((unsigned char)0, 42) == 42 ? 1 : -1];
++  char ctz10[__builtin_ctzg((unsigned char)0x1) == 0 ? 1 : -1];
++  char ctz11[__builtin_ctzg((unsigned char)0x1, 42) == 0 ? 1 : -1];
++  char ctz12[__builtin_ctzg((unsigned char)0x10) == 4 ? 1 : -1];
++  char ctz13[__builtin_ctzg((unsigned char)0x10, 42) == 4 ? 1 : -1];
++  char ctz14[__builtin_ctzg((unsigned char)(1 << (BITSIZE(char) - 1))) == BITSIZE(char) - 1 ? 1 : -1];
++  char ctz15[__builtin_ctzg((unsigned char)(1 << (BITSIZE(char) - 1)), 42) == BITSIZE(char) - 1 ? 1 : -1];
++  int ctz16 = __builtin_ctzg((unsigned short)0);
++  char ctz17[__builtin_ctzg((unsigned short)0, 42) == 42 ? 1 : -1];
++  char ctz18[__builtin_ctzg((unsigned short)0x1) == 0 ? 1 : -1];
++  char ctz19[__builtin_ctzg((unsigned short)0x1, 42) == 0 ? 1 : -1];
++  char ctz20[__builtin_ctzg((unsigned short)0x10) == 4 ? 1 : -1];
++  char ctz21[__builtin_ctzg((unsigned short)0x10, 42) == 4 ? 1 : -1];
++  char ctz22[__builtin_ctzg((unsigned short)(1 << (BITSIZE(short) - 1))) == BITSIZE(short) - 1 ? 1 : -1];
++  char ctz23[__builtin_ctzg((unsigned short)(1 << (BITSIZE(short) - 1)), 42) == BITSIZE(short) - 1 ? 1 : -1];
++  int ctz24 = __builtin_ctzg(0U);
++  char ctz25[__builtin_ctzg(0U, 42) == 42 ? 1 : -1];
++  char ctz26[__builtin_ctzg(0x1U) == 0 ? 1 : -1];
++  char ctz27[__builtin_ctzg(0x1U, 42) == 0 ? 1 : -1];
++  char ctz28[__builtin_ctzg(0x10U) == 4 ? 1 : -1];
++  char ctz29[__builtin_ctzg(0x10U, 42) == 4 ? 1 : -1];
++  char ctz30[__builtin_ctzg(1U << (BITSIZE(int) - 1)) == BITSIZE(int) - 1 ? 1 : -1];
++  char ctz31[__builtin_ctzg(1U << (BITSIZE(int) - 1), 42) == BITSIZE(int) - 1 ? 1 : -1];
++  int ctz32 = __builtin_ctzg(0UL);
++  char ctz33[__builtin_ctzg(0UL, 42) == 42 ? 1 : -1];
++  char ctz34[__builtin_ctzg(0x1UL) == 0 ? 1 : -1];
++  char ctz35[__builtin_ctzg(0x1UL, 42) == 0 ? 1 : -1];
++  char ctz36[__builtin_ctzg(0x10UL) == 4 ? 1 : -1];
++  char ctz37[__builtin_ctzg(0x10UL, 42) == 4 ? 1 : -1];
++  char ctz38[__builtin_ctzg(1UL << (BITSIZE(long) - 1)) == BITSIZE(long) - 1 ? 1 : -1];
++  char ctz39[__builtin_ctzg(1UL << (BITSIZE(long) - 1), 42) == BITSIZE(long) - 1 ? 1 : -1];
++  int ctz40 = __builtin_ctzg(0ULL);
++  char ctz41[__builtin_ctzg(0ULL, 42) == 42 ? 1 : -1];
++  char ctz42[__builtin_ctzg(0x1ULL) == 0 ? 1 : -1];
++  char ctz43[__builtin_ctzg(0x1ULL, 42) == 0 ? 1 : -1];
++  char ctz44[__builtin_ctzg(0x10ULL) == 4 ? 1 : -1];
++  char ctz45[__builtin_ctzg(0x10ULL, 42) == 4 ? 1 : -1];
++  char ctz46[__builtin_ctzg(1ULL << (BITSIZE(long long) - 1)) == BITSIZE(long long) - 1 ? 1 : -1];
++  char ctz47[__builtin_ctzg(1ULL << (BITSIZE(long long) - 1), 42) == BITSIZE(long long) - 1 ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++  int ctz48 = __builtin_ctzg((unsigned __int128)0);
++  char ctz49[__builtin_ctzg((unsigned __int128)0, 42) == 42 ? 1 : -1];
++  char ctz50[__builtin_ctzg((unsigned __int128)0x1) == 0 ? 1 : -1];
++  char ctz51[__builtin_ctzg((unsigned __int128)0x1, 42) == 0 ? 1 : -1];
++  char ctz52[__builtin_ctzg((unsigned __int128)0x10) == 4 ? 1 : -1];
++  char ctz53[__builtin_ctzg((unsigned __int128)0x10, 42) == 4 ? 1 : -1];
++  char ctz54[__builtin_ctzg((unsigned __int128)1 << (BITSIZE(__int128) - 1)) == BITSIZE(__int128) - 1 ? 1 : -1];
++  char ctz55[__builtin_ctzg((unsigned __int128)1 << (BITSIZE(__int128) - 1), 42) == BITSIZE(__int128) - 1 ? 1 : -1];
++#endif
++#ifndef __AVR__
++  int ctz56 = __builtin_ctzg((unsigned _BitInt(128))0);
++  char ctz57[__builtin_ctzg((unsigned _BitInt(128))0, 42) == 42 ? 1 : -1];
++  char ctz58[__builtin_ctzg((unsigned _BitInt(128))0x1) == 0 ? 1 : -1];
++  char ctz59[__builtin_ctzg((unsigned _BitInt(128))0x1, 42) == 0 ? 1 : -1];
++  char ctz60[__builtin_ctzg((unsigned _BitInt(128))0x10) == 4 ? 1 : -1];
++  char ctz61[__builtin_ctzg((unsigned _BitInt(128))0x10, 42) == 4 ? 1 : -1];
++  char ctz62[__builtin_ctzg((unsigned _BitInt(128))1 << (BITSIZE(_BitInt(128)) - 1)) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++  char ctz63[__builtin_ctzg((unsigned _BitInt(128))1 << (BITSIZE(_BitInt(128)) - 1), 42) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++#endif
++}
+--- /dev/null
++++ b/clang/test/AST/Interp/peios-generic-counting-invalid.cpp
+@@ -0,0 +1,26 @@
++// RUN: not %clang_cc1 -std=c++17 -ferror-limit 0 -fsyntax-only %s 2>&1 | FileCheck %s
++// RUN: not %clang_cc1 -std=c++17 -ferror-limit 0 -fexperimental-new-constant-interpreter -fsyntax-only %s 2>&1 | FileCheck %s
++// CHECK-COUNT-8: error: constexpr variable '{{.*}}' must be initialized by a constant expression
++// CHECK-NOT: error:
++// Checked by the package gate for all eight named errors and absence of crash
++// markers, and separately under a validated reference-provider leak detector.
++constexpr int valid_before = __builtin_popcountg((unsigned _BitInt(257))-1);
++static_assert(valid_before == 257);
++constexpr int nested_clz_0(unsigned __int128 x) { return 5 + __builtin_clzg(x); }
++constexpr int invalid_clz_0 = nested_clz_0(0);
++constexpr int nested_ctz_0(unsigned __int128 x) { return 5 + __builtin_ctzg(x); }
++constexpr int invalid_ctz_0 = nested_ctz_0(0);
++constexpr int nested_clz_1(unsigned _BitInt(65) x) { return 5 + __builtin_clzg(x); }
++constexpr int invalid_clz_1 = nested_clz_1(0);
++constexpr int nested_ctz_1(unsigned _BitInt(65) x) { return 5 + __builtin_ctzg(x); }
++constexpr int invalid_ctz_1 = nested_ctz_1(0);
++constexpr int nested_clz_2(unsigned _BitInt(128) x) { return 5 + __builtin_clzg(x); }
++constexpr int invalid_clz_2 = nested_clz_2(0);
++constexpr int nested_ctz_2(unsigned _BitInt(128) x) { return 5 + __builtin_ctzg(x); }
++constexpr int invalid_ctz_2 = nested_ctz_2(0);
++constexpr int nested_clz_3(unsigned _BitInt(257) x) { return 5 + __builtin_clzg(x); }
++constexpr int invalid_clz_3 = nested_clz_3(0);
++constexpr int nested_ctz_3(unsigned _BitInt(257) x) { return 5 + __builtin_ctzg(x); }
++constexpr int invalid_ctz_3 = nested_ctz_3(0);
++constexpr int valid_after = __builtin_ctzg((unsigned _BitInt(257))1 << 256);
++static_assert(valid_after == 256);
+--- /dev/null
++++ b/clang/test/AST/Interp/peios-generic-counting.cpp
+@@ -0,0 +1,46 @@
++// RUN: %clang_cc1 -std=c++17 -fsyntax-only %s
++// RUN: %clang_cc1 -std=c++17 -fexperimental-new-constant-interpreter -fsyntax-only %s
++// Narrow operands must not be promoted, and wide operands retain all bits.
++using U65 = unsigned _BitInt(65);
++using U128 = unsigned _BitInt(128);
++using U257 = unsigned _BitInt(257);
++static_assert(__builtin_popcountg((unsigned char)255) == 8);
++static_assert(__builtin_clzg((unsigned char)1) == 7);
++static_assert(__builtin_ctzg((unsigned char)128) == 7);
++static_assert(__builtin_popcountg((unsigned __int128)-1) == 128);
++static_assert(__builtin_clzg((unsigned __int128)1) == 127);
++static_assert(__builtin_ctzg((unsigned __int128)1 << 127) == 127);
++static_assert(__builtin_popcountg((U65)-1) == 65);
++static_assert(__builtin_popcountg((U128)-1) == 128);
++static_assert(__builtin_popcountg((U257)-1) == 257);
++static_assert(__builtin_clzg((U257)1) == 256);
++static_assert(__builtin_ctzg((U257)1 << 256) == 256);
++static_assert(__builtin_clzg((U257)0, -7) == -7);
++static_assert(__builtin_ctzg((U257)0, -11) == -11);
++constexpr int fallback_effects() {
++  int calls = 0;
++  int result = __builtin_clzg((U257)1, ++calls);
++  result += __builtin_ctzg((U257)1, ++calls);
++  result += __builtin_clzg((U257)0, ++calls);
++  result += __builtin_ctzg((U257)0, ++calls);
++  return result == 263 && calls == 4;
++}
++static_assert(fallback_effects());
++int main() {
++  volatile unsigned _BitInt(1) one = 1;
++  volatile unsigned _BitInt(2) two = 3;
++  if (__builtin_popcountg(one) != 1 || __builtin_popcountg(two) != 2) return 7;
++  volatile unsigned char byte = 255;
++  volatile U257 wide = (U257)1 << 256;
++  volatile U257 zero = 0;
++  if (__builtin_popcountg(byte) != 8 || __builtin_clzg(byte) != 0 ||
++      __builtin_ctzg(byte) != 0) return 1;
++  if (__builtin_popcountg(wide) != 1 || __builtin_clzg(wide) != 0 ||
++      __builtin_ctzg(wide) != 256) return 2;
++  int calls = 0;
++  if (__builtin_clzg(wide, ++calls) != 0 || calls != 1) return 3;
++  if (__builtin_ctzg(wide, ++calls) != 256 || calls != 2) return 4;
++  if (__builtin_clzg(zero, ++calls) != 3 || calls != 3) return 5;
++  if (__builtin_ctzg(zero, ++calls) != 4 || calls != 4) return 6;
++  return 0;
++}
+--- /dev/null
++++ b/clang/test/CodeGen/builtins-bitint.c
+@@ -0,0 +1,126 @@
++// NOTE: Assertions have been autogenerated by utils/update_cc_test_checks.py UTC_ARGS: --version 4
++// RUN: %clang_cc1 -triple arm-unknown-unknown -O0 -std=c23 -emit-llvm %s -o - | FileCheck %s --check-prefix=CHECK-O0
++// RUN: %clang_cc1 -triple arm-unknown-unknown -O1 -std=c23 -emit-llvm %s -o - | FileCheck %s --check-prefix=CHECK-O1
++
++// Verify that the result from the intrinsic call is zero extended to avoid that
++// we get a negative result from popcountg/ctzg/clzg.
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_popcountg_ubi1(
++// CHECK-O0-SAME: ) #[[ATTR0:[0-9]+]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i1, align 1
++// CHECK-O0-NEXT:    store i1 true, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i1, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i1 @llvm.ctpop.i1(i1 [[TMP0]])
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i1 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_popcountg_ubi1(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0:[0-9]+]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 1
++//
++int test_popcountg_ubi1() {
++  unsigned _BitInt(1) a = 1uwb;
++  return __builtin_popcountg(a);
++}
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_popcountg_ubi2(
++// CHECK-O0-SAME: ) #[[ATTR0]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i2, align 1
++// CHECK-O0-NEXT:    store i2 -1, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i2, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i2 @llvm.ctpop.i2(i2 [[TMP0]])
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i2 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_popcountg_ubi2(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 2
++//
++int test_popcountg_ubi2() {
++  unsigned _BitInt(2) a = 3uwb;
++  return __builtin_popcountg(a);
++}
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_ctzg_ubi1(
++// CHECK-O0-SAME: ) #[[ATTR0]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i1, align 1
++// CHECK-O0-NEXT:    store i1 false, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i1, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i1 @llvm.cttz.i1(i1 [[TMP0]], i1 false)
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i1 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_ctzg_ubi1(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 1
++//
++int test_ctzg_ubi1() {
++  unsigned _BitInt(1) a = 0uwb;
++  return __builtin_ctzg(a);
++}
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_ctzg_ubi2(
++// CHECK-O0-SAME: ) #[[ATTR0]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i2, align 1
++// CHECK-O0-NEXT:    store i2 0, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i2, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i2 @llvm.cttz.i2(i2 [[TMP0]], i1 false)
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i2 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_ctzg_ubi2(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 2
++//
++int test_ctzg_ubi2() {
++  unsigned _BitInt(2) a = 0uwb;
++  return __builtin_ctzg(a);
++}
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_clzg_ubi1(
++// CHECK-O0-SAME: ) #[[ATTR0]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i1, align 1
++// CHECK-O0-NEXT:    store i1 false, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i1, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i1 @llvm.ctlz.i1(i1 [[TMP0]], i1 false)
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i1 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_clzg_ubi1(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 1
++//
++int test_clzg_ubi1() {
++  unsigned _BitInt(1) a = 0uwb;
++  return __builtin_clzg(a);
++}
++
++// CHECK-O0-LABEL: define dso_local arm_aapcscc i32 @test_clzg_ubi2(
++// CHECK-O0-SAME: ) #[[ATTR0]] {
++// CHECK-O0-NEXT:  entry:
++// CHECK-O0-NEXT:    [[A:%.*]] = alloca i2, align 1
++// CHECK-O0-NEXT:    store i2 0, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP0:%.*]] = load i2, ptr [[A]], align 1
++// CHECK-O0-NEXT:    [[TMP1:%.*]] = call i2 @llvm.ctlz.i2(i2 [[TMP0]], i1 false)
++// CHECK-O0-NEXT:    [[CAST:%.*]] = zext i2 [[TMP1]] to i32
++// CHECK-O0-NEXT:    ret i32 [[CAST]]
++//
++// CHECK-O1-LABEL: define dso_local arm_aapcscc noundef i32 @test_clzg_ubi2(
++// CHECK-O1-SAME: ) local_unnamed_addr #[[ATTR0]] {
++// CHECK-O1-NEXT:  entry:
++// CHECK-O1-NEXT:    ret i32 2
++//
++int test_clzg_ubi2() {
++  unsigned _BitInt(2) a = 0uwb;
++  return __builtin_clzg(a);
++}
+--- a/clang/test/CodeGen/builtins.c
++++ b/clang/test/CodeGen/builtins.c
+@@ -919,4 +919,251 @@
+ // CHECK: %[[V3:.*]] = load i128, ptr %[[ARG0_ADDR]], align 16
+ // CHECK: store i128 %[[V3]], ptr %[[ARGDATA]], align 1
+ 
++// CHECK-LABEL: define{{.*}} void @test_builtin_popcountg
++void test_builtin_popcountg(unsigned char uc, unsigned short us,
++                            unsigned int ui, unsigned long ul,
++                            unsigned long long ull, unsigned __int128 ui128,
++                            unsigned _BitInt(128) ubi128) {
++  volatile int pop;
++  pop = __builtin_popcountg(uc);
++  // CHECK: %1 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %2 = call i8 @llvm.ctpop.i8(i8 %1)
++  // CHECK-NEXT: %cast = zext i8 %2 to i32
++  // CHECK-NEXT: store volatile i32 %cast, ptr %pop, align 4
++  pop = __builtin_popcountg(us);
++  // CHECK-NEXT: %3 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %4 = call i16 @llvm.ctpop.i16(i16 %3)
++  // CHECK-NEXT: %cast1 = zext i16 %4 to i32
++  // CHECK-NEXT: store volatile i32 %cast1, ptr %pop, align 4
++  pop = __builtin_popcountg(ui);
++  // CHECK-NEXT: %5 = load i32, ptr %ui.addr, align 4
++  // CHECK-NEXT: %6 = call i32 @llvm.ctpop.i32(i32 %5)
++  // CHECK-NEXT: store volatile i32 %6, ptr %pop, align 4
++  pop = __builtin_popcountg(ul);
++  // CHECK-NEXT: %7 = load i64, ptr %ul.addr, align 8
++  // CHECK-NEXT: %8 = call i64 @llvm.ctpop.i64(i64 %7)
++  // CHECK-NEXT: %cast2 = trunc i64 %8 to i32
++  // CHECK-NEXT: store volatile i32 %cast2, ptr %pop, align 4
++  pop = __builtin_popcountg(ull);
++  // CHECK-NEXT: %9 = load i64, ptr %ull.addr, align 8
++  // CHECK-NEXT: %10 = call i64 @llvm.ctpop.i64(i64 %9)
++  // CHECK-NEXT: %cast3 = trunc i64 %10 to i32
++  // CHECK-NEXT: store volatile i32 %cast3, ptr %pop, align 4
++  pop = __builtin_popcountg(ui128);
++  // CHECK-NEXT: %11 = load i128, ptr %ui128.addr, align 16
++  // CHECK-NEXT: %12 = call i128 @llvm.ctpop.i128(i128 %11)
++  // CHECK-NEXT: %cast4 = trunc i128 %12 to i32
++  // CHECK-NEXT: store volatile i32 %cast4, ptr %pop, align 4
++  pop = __builtin_popcountg(ubi128);
++  // CHECK-NEXT: %13 = load i128, ptr %ubi128.addr, align 8
++  // CHECK-NEXT: %14 = call i128 @llvm.ctpop.i128(i128 %13)
++  // CHECK-NEXT: %cast5 = trunc i128 %14 to i32
++  // CHECK-NEXT: store volatile i32 %cast5, ptr %pop, align 4
++  // CHECK-NEXT: ret void
++}
++
++// CHECK-LABEL: define{{.*}} void @test_builtin_clzg
++void test_builtin_clzg(unsigned char uc, unsigned short us, unsigned int ui,
++                       unsigned long ul, unsigned long long ull,
++                       unsigned __int128 ui128, unsigned _BitInt(128) ubi128,
++                       signed char sc, short s, int i) {
++  volatile int lz;
++  lz = __builtin_clzg(uc);
++  // CHECK: %1 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %2 = call i8 @llvm.ctlz.i8(i8 %1, i1 true)
++  // CHECK-NEXT: %cast = zext i8 %2 to i32
++  // CHECK-NEXT: store volatile i32 %cast, ptr %lz, align 4
++  lz = __builtin_clzg(us);
++  // CHECK-NEXT: %3 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %4 = call i16 @llvm.ctlz.i16(i16 %3, i1 true)
++  // CHECK-NEXT: %cast1 = zext i16 %4 to i32
++  // CHECK-NEXT: store volatile i32 %cast1, ptr %lz, align 4
++  lz = __builtin_clzg(ui);
++  // CHECK-NEXT: %5 = load i32, ptr %ui.addr, align 4
++  // CHECK-NEXT: %6 = call i32 @llvm.ctlz.i32(i32 %5, i1 true)
++  // CHECK-NEXT: store volatile i32 %6, ptr %lz, align 4
++  lz = __builtin_clzg(ul);
++  // CHECK-NEXT: %7 = load i64, ptr %ul.addr, align 8
++  // CHECK-NEXT: %8 = call i64 @llvm.ctlz.i64(i64 %7, i1 true)
++  // CHECK-NEXT: %cast2 = trunc i64 %8 to i32
++  // CHECK-NEXT: store volatile i32 %cast2, ptr %lz, align 4
++  lz = __builtin_clzg(ull);
++  // CHECK-NEXT: %9 = load i64, ptr %ull.addr, align 8
++  // CHECK-NEXT: %10 = call i64 @llvm.ctlz.i64(i64 %9, i1 true)
++  // CHECK-NEXT: %cast3 = trunc i64 %10 to i32
++  // CHECK-NEXT: store volatile i32 %cast3, ptr %lz, align 4
++  lz = __builtin_clzg(ui128);
++  // CHECK-NEXT: %11 = load i128, ptr %ui128.addr, align 16
++  // CHECK-NEXT: %12 = call i128 @llvm.ctlz.i128(i128 %11, i1 true)
++  // CHECK-NEXT: %cast4 = trunc i128 %12 to i32
++  // CHECK-NEXT: store volatile i32 %cast4, ptr %lz, align 4
++  lz = __builtin_clzg(ubi128);
++  // CHECK-NEXT: %13 = load i128, ptr %ubi128.addr, align 8
++  // CHECK-NEXT: %14 = call i128 @llvm.ctlz.i128(i128 %13, i1 true)
++  // CHECK-NEXT: %cast5 = trunc i128 %14 to i32
++  // CHECK-NEXT: store volatile i32 %cast5, ptr %lz, align 4
++  lz = __builtin_clzg(uc, sc);
++  // CHECK-NEXT: %15 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %16 = call i8 @llvm.ctlz.i8(i8 %15, i1 true)
++  // CHECK-NEXT: %cast6 = zext i8 %16 to i32
++  // CHECK-NEXT: %iszero = icmp eq i8 %15, 0
++  // CHECK-NEXT: %17 = load i8, ptr %sc.addr, align 1
++  // CHECK-NEXT: %conv = sext i8 %17 to i32
++  // CHECK-NEXT: %clzg = select i1 %iszero, i32 %conv, i32 %cast6
++  // CHECK-NEXT: store volatile i32 %clzg, ptr %lz, align 4
++  lz = __builtin_clzg(us, uc);
++  // CHECK-NEXT: %18 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %19 = call i16 @llvm.ctlz.i16(i16 %18, i1 true)
++  // CHECK-NEXT: %cast7 = zext i16 %19 to i32
++  // CHECK-NEXT: %iszero8 = icmp eq i16 %18, 0
++  // CHECK-NEXT: %20 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %conv9 = zext i8 %20 to i32
++  // CHECK-NEXT: %clzg10 = select i1 %iszero8, i32 %conv9, i32 %cast7
++  // CHECK-NEXT: store volatile i32 %clzg10, ptr %lz, align 4
++  lz = __builtin_clzg(ui, s);
++  // CHECK-NEXT: %21 = load i32, ptr %ui.addr, align 4
++  // CHECK-NEXT: %22 = call i32 @llvm.ctlz.i32(i32 %21, i1 true)
++  // CHECK-NEXT: %iszero11 = icmp eq i32 %21, 0
++  // CHECK-NEXT: %23 = load i16, ptr %s.addr, align 2
++  // CHECK-NEXT: %conv12 = sext i16 %23 to i32
++  // CHECK-NEXT: %clzg13 = select i1 %iszero11, i32 %conv12, i32 %22
++  // CHECK-NEXT: store volatile i32 %clzg13, ptr %lz, align 4
++  lz = __builtin_clzg(ul, us);
++  // CHECK-NEXT: %24 = load i64, ptr %ul.addr, align 8
++  // CHECK-NEXT: %25 = call i64 @llvm.ctlz.i64(i64 %24, i1 true)
++  // CHECK-NEXT: %cast14 = trunc i64 %25 to i32
++  // CHECK-NEXT: %iszero15 = icmp eq i64 %24, 0
++  // CHECK-NEXT: %26 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %conv16 = zext i16 %26 to i32
++  // CHECK-NEXT: %clzg17 = select i1 %iszero15, i32 %conv16, i32 %cast14
++  // CHECK-NEXT: store volatile i32 %clzg17, ptr %lz, align 4
++  lz = __builtin_clzg(ull, i);
++  // CHECK-NEXT: %27 = load i64, ptr %ull.addr, align 8
++  // CHECK-NEXT: %28 = call i64 @llvm.ctlz.i64(i64 %27, i1 true)
++  // CHECK-NEXT: %cast18 = trunc i64 %28 to i32
++  // CHECK-NEXT: %iszero19 = icmp eq i64 %27, 0
++  // CHECK-NEXT: %29 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %clzg20 = select i1 %iszero19, i32 %29, i32 %cast18
++  // CHECK-NEXT: store volatile i32 %clzg20, ptr %lz, align 4
++  lz = __builtin_clzg(ui128, i);
++  // CHECK-NEXT: %30 = load i128, ptr %ui128.addr, align 16
++  // CHECK-NEXT: %31 = call i128 @llvm.ctlz.i128(i128 %30, i1 true)
++  // CHECK-NEXT: %cast21 = trunc i128 %31 to i32
++  // CHECK-NEXT: %iszero22 = icmp eq i128 %30, 0
++  // CHECK-NEXT: %32 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %clzg23 = select i1 %iszero22, i32 %32, i32 %cast21
++  // CHECK-NEXT: store volatile i32 %clzg23, ptr %lz, align 4
++  lz = __builtin_clzg(ubi128, i);
++   // CHECK-NEXT: %33 = load i128, ptr %ubi128.addr, align 8
++  // CHECK-NEXT: %34 = call i128 @llvm.ctlz.i128(i128 %33, i1 true)
++  // CHECK-NEXT: %cast24 = trunc i128 %34 to i32
++  // CHECK-NEXT: %iszero25 = icmp eq i128 %33, 0
++  // CHECK-NEXT: %35 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %clzg26 = select i1 %iszero25, i32 %35, i32 %cast24
++  // CHECK-NEXT: store volatile i32 %clzg26, ptr %lz, align 4
++  // CHECK-NEXT: ret void
++}
++
++// CHECK-LABEL: define{{.*}} void @test_builtin_ctzg
++void test_builtin_ctzg(unsigned char uc, unsigned short us, unsigned int ui,
++                       unsigned long ul, unsigned long long ull,
++                       unsigned __int128 ui128, unsigned _BitInt(128) ubi128,
++                       signed char sc, short s, int i) {
++  volatile int tz;
++  tz = __builtin_ctzg(uc);
++  // CHECK: %1 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %2 = call i8 @llvm.cttz.i8(i8 %1, i1 true)
++  // CHECK-NEXT: %cast = zext i8 %2 to i32
++  // CHECK-NEXT: store volatile i32 %cast, ptr %tz, align 4
++  tz = __builtin_ctzg(us);
++  // CHECK-NEXT: %3 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %4 = call i16 @llvm.cttz.i16(i16 %3, i1 true)
++  // CHECK-NEXT: %cast1 = zext i16 %4 to i32
++  // CHECK-NEXT: store volatile i32 %cast1, ptr %tz, align 4
++  tz = __builtin_ctzg(ui);
++  // CHECK-NEXT: %5 = load i32, ptr %ui.addr, align 4
++  // CHECK-NEXT: %6 = call i32 @llvm.cttz.i32(i32 %5, i1 true)
++  // CHECK-NEXT: store volatile i32 %6, ptr %tz, align 4
++  tz = __builtin_ctzg(ul);
++  // CHECK-NEXT: %7 = load i64, ptr %ul.addr, align 8
++  // CHECK-NEXT: %8 = call i64 @llvm.cttz.i64(i64 %7, i1 true)
++  // CHECK-NEXT: %cast2 = trunc i64 %8 to i32
++  // CHECK-NEXT: store volatile i32 %cast2, ptr %tz, align 4
++  tz = __builtin_ctzg(ull);
++  // CHECK-NEXT: %9 = load i64, ptr %ull.addr, align 8
++  // CHECK-NEXT: %10 = call i64 @llvm.cttz.i64(i64 %9, i1 true)
++  // CHECK-NEXT: %cast3 = trunc i64 %10 to i32
++  // CHECK-NEXT: store volatile i32 %cast3, ptr %tz, align 4
++  tz = __builtin_ctzg(ui128);
++  // CHECK-NEXT: %11 = load i128, ptr %ui128.addr, align 16
++  // CHECK-NEXT: %12 = call i128 @llvm.cttz.i128(i128 %11, i1 true)
++  // CHECK-NEXT: %cast4 = trunc i128 %12 to i32
++  // CHECK-NEXT: store volatile i32 %cast4, ptr %tz, align 4
++  tz = __builtin_ctzg(ubi128);
++  // CHECK-NEXT: %13 = load i128, ptr %ubi128.addr, align 8
++  // CHECK-NEXT: %14 = call i128 @llvm.cttz.i128(i128 %13, i1 true)
++  // CHECK-NEXT: %cast5 = trunc i128 %14 to i32
++  // CHECK-NEXT: store volatile i32 %cast5, ptr %tz, align 4
++  tz = __builtin_ctzg(uc, sc);
++  // CHECK-NEXT: %15 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %16 = call i8 @llvm.cttz.i8(i8 %15, i1 true)
++  // CHECK-NEXT: %cast6 = zext i8 %16 to i32
++  // CHECK-NEXT: %iszero = icmp eq i8 %15, 0
++  // CHECK-NEXT: %17 = load i8, ptr %sc.addr, align 1
++  // CHECK-NEXT: %conv = sext i8 %17 to i32
++  // CHECK-NEXT: %ctzg = select i1 %iszero, i32 %conv, i32 %cast6
++  // CHECK-NEXT: store volatile i32 %ctzg, ptr %tz, align 4
++  tz = __builtin_ctzg(us, uc);
++  // CHECK-NEXT: %18 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %19 = call i16 @llvm.cttz.i16(i16 %18, i1 true)
++  // CHECK-NEXT: %cast7 = zext i16 %19 to i32
++  // CHECK-NEXT: %iszero8 = icmp eq i16 %18, 0
++  // CHECK-NEXT: %20 = load i8, ptr %uc.addr, align 1
++  // CHECK-NEXT: %conv9 = zext i8 %20 to i32
++  // CHECK-NEXT: %ctzg10 = select i1 %iszero8, i32 %conv9, i32 %cast7
++  // CHECK-NEXT: store volatile i32 %ctzg10, ptr %tz, align 4
++  tz = __builtin_ctzg(ui, s);
++  // CHECK-NEXT: %21 = load i32, ptr %ui.addr, align 4
++  // CHECK-NEXT: %22 = call i32 @llvm.cttz.i32(i32 %21, i1 true)
++  // CHECK-NEXT: %iszero11 = icmp eq i32 %21, 0
++  // CHECK-NEXT: %23 = load i16, ptr %s.addr, align 2
++  // CHECK-NEXT: %conv12 = sext i16 %23 to i32
++  // CHECK-NEXT: %ctzg13 = select i1 %iszero11, i32 %conv12, i32 %22
++  // CHECK-NEXT: store volatile i32 %ctzg13, ptr %tz, align 4
++  tz = __builtin_ctzg(ul, us);
++  // CHECK-NEXT: %24 = load i64, ptr %ul.addr, align 8
++  // CHECK-NEXT: %25 = call i64 @llvm.cttz.i64(i64 %24, i1 true)
++  // CHECK-NEXT: %cast14 = trunc i64 %25 to i32
++  // CHECK-NEXT: %iszero15 = icmp eq i64 %24, 0
++  // CHECK-NEXT: %26 = load i16, ptr %us.addr, align 2
++  // CHECK-NEXT: %conv16 = zext i16 %26 to i32
++  // CHECK-NEXT: %ctzg17 = select i1 %iszero15, i32 %conv16, i32 %cast14
++  // CHECK-NEXT: store volatile i32 %ctzg17, ptr %tz, align 4
++  tz = __builtin_ctzg(ull, i);
++  // CHECK-NEXT: %27 = load i64, ptr %ull.addr, align 8
++  // CHECK-NEXT: %28 = call i64 @llvm.cttz.i64(i64 %27, i1 true)
++  // CHECK-NEXT: %cast18 = trunc i64 %28 to i32
++  // CHECK-NEXT: %iszero19 = icmp eq i64 %27, 0
++  // CHECK-NEXT: %29 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %ctzg20 = select i1 %iszero19, i32 %29, i32 %cast18
++  // CHECK-NEXT: store volatile i32 %ctzg20, ptr %tz, align 4
++  tz = __builtin_ctzg(ui128, i);
++  // CHECK-NEXT: %30 = load i128, ptr %ui128.addr, align 16
++  // CHECK-NEXT: %31 = call i128 @llvm.cttz.i128(i128 %30, i1 true)
++  // CHECK-NEXT: %cast21 = trunc i128 %31 to i32
++  // CHECK-NEXT: %iszero22 = icmp eq i128 %30, 0
++  // CHECK-NEXT: %32 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %ctzg23 = select i1 %iszero22, i32 %32, i32 %cast21
++  // CHECK-NEXT: store volatile i32 %ctzg23, ptr %tz, align 4
++  tz = __builtin_ctzg(ubi128, i);
++  // CHECK-NEXT: %33 = load i128, ptr %ubi128.addr, align 8
++  // CHECK-NEXT: %34 = call i128 @llvm.cttz.i128(i128 %33, i1 true)
++  // CHECK-NEXT: %cast24 = trunc i128 %34 to i32
++  // CHECK-NEXT: %iszero25 = icmp eq i128 %33, 0
++  // CHECK-NEXT: %35 = load i32, ptr %i.addr, align 4
++  // CHECK-NEXT: %ctzg26 = select i1 %iszero25, i32 %35, i32 %cast24
++  // CHECK-NEXT: store volatile i32 %ctzg26, ptr %tz, align 4
++  // CHECK-NEXT: ret void
++}
++
+ #endif
+--- a/clang/test/CodeGen/ubsan-builtin-checks.c
++++ b/clang/test/CodeGen/ubsan-builtin-checks.c
+@@ -23,6 +23,9 @@
+ 
+   // CHECK: call void @__ubsan_handle_invalid_builtin
+   __builtin_ctzll(n);
++
++  // CHECK: call void @__ubsan_handle_invalid_builtin
++  __builtin_ctzg((unsigned int)n);
+ }
+ 
+ // CHECK: define{{.*}} void @check_clz
+@@ -44,4 +47,7 @@
+ 
+   // CHECK: call void @__ubsan_handle_invalid_builtin
+   __builtin_clzll(n);
++
++  // CHECK: call void @__ubsan_handle_invalid_builtin
++  __builtin_clzg((unsigned int)n);
+ }
+--- a/clang/test/Sema/constant-builtins-2.c
++++ b/clang/test/Sema/constant-builtins-2.c
+@@ -218,6 +218,64 @@
+ char clz7[__builtin_clzs(0x1) == BITSIZE(short) - 1 ? 1 : -1];
+ char clz8[__builtin_clzs(0xf) == BITSIZE(short) - 4 ? 1 : -1];
+ char clz9[__builtin_clzs(0xfff) == BITSIZE(short) - 12 ? 1 : -1];
++int clz10 = __builtin_clzg((unsigned char)0); // expected-error {{not a compile-time constant}}
++char clz11[__builtin_clzg((unsigned char)0, 42) == 42 ? 1 : -1];
++char clz12[__builtin_clzg((unsigned char)0x1) == BITSIZE(char) - 1 ? 1 : -1];
++char clz13[__builtin_clzg((unsigned char)0x1, 42) == BITSIZE(char) - 1 ? 1 : -1];
++char clz14[__builtin_clzg((unsigned char)0xf) == BITSIZE(char) - 4 ? 1 : -1];
++char clz15[__builtin_clzg((unsigned char)0xf, 42) == BITSIZE(char) - 4 ? 1 : -1];
++char clz16[__builtin_clzg((unsigned char)(1 << (BITSIZE(char) - 1))) == 0 ? 1 : -1];
++char clz17[__builtin_clzg((unsigned char)(1 << (BITSIZE(char) - 1)), 42) == 0 ? 1 : -1];
++int clz18 = __builtin_clzg((unsigned short)0); // expected-error {{not a compile-time constant}}
++char clz19[__builtin_clzg((unsigned short)0, 42) == 42 ? 1 : -1];
++char clz20[__builtin_clzg((unsigned short)0x1) == BITSIZE(short) - 1 ? 1 : -1];
++char clz21[__builtin_clzg((unsigned short)0x1, 42) == BITSIZE(short) - 1 ? 1 : -1];
++char clz22[__builtin_clzg((unsigned short)0xf) == BITSIZE(short) - 4 ? 1 : -1];
++char clz23[__builtin_clzg((unsigned short)0xf, 42) == BITSIZE(short) - 4 ? 1 : -1];
++char clz24[__builtin_clzg((unsigned short)(1 << (BITSIZE(short) - 1))) == 0 ? 1 : -1];
++char clz25[__builtin_clzg((unsigned short)(1 << (BITSIZE(short) - 1)), 42) == 0 ? 1 : -1];
++int clz26 = __builtin_clzg(0U); // expected-error {{not a compile-time constant}}
++char clz27[__builtin_clzg(0U, 42) == 42 ? 1 : -1];
++char clz28[__builtin_clzg(0x1U) == BITSIZE(int) - 1 ? 1 : -1];
++char clz29[__builtin_clzg(0x1U, 42) == BITSIZE(int) - 1 ? 1 : -1];
++char clz30[__builtin_clzg(0xfU) == BITSIZE(int) - 4 ? 1 : -1];
++char clz31[__builtin_clzg(0xfU, 42) == BITSIZE(int) - 4 ? 1 : -1];
++char clz32[__builtin_clzg(1U << (BITSIZE(int) - 1)) == 0 ? 1 : -1];
++char clz33[__builtin_clzg(1U << (BITSIZE(int) - 1), 42) == 0 ? 1 : -1];
++int clz34 = __builtin_clzg(0UL); // expected-error {{not a compile-time constant}}
++char clz35[__builtin_clzg(0UL, 42) == 42 ? 1 : -1];
++char clz36[__builtin_clzg(0x1UL) == BITSIZE(long) - 1 ? 1 : -1];
++char clz37[__builtin_clzg(0x1UL, 42) == BITSIZE(long) - 1 ? 1 : -1];
++char clz38[__builtin_clzg(0xfUL) == BITSIZE(long) - 4 ? 1 : -1];
++char clz39[__builtin_clzg(0xfUL, 42) == BITSIZE(long) - 4 ? 1 : -1];
++char clz40[__builtin_clzg(1UL << (BITSIZE(long) - 1)) == 0 ? 1 : -1];
++char clz41[__builtin_clzg(1UL << (BITSIZE(long) - 1), 42) == 0 ? 1 : -1];
++int clz42 = __builtin_clzg(0ULL); // expected-error {{not a compile-time constant}}
++char clz43[__builtin_clzg(0ULL, 42) == 42 ? 1 : -1];
++char clz44[__builtin_clzg(0x1ULL) == BITSIZE(long long) - 1 ? 1 : -1];
++char clz45[__builtin_clzg(0x1ULL, 42) == BITSIZE(long long) - 1 ? 1 : -1];
++char clz46[__builtin_clzg(0xfULL) == BITSIZE(long long) - 4 ? 1 : -1];
++char clz47[__builtin_clzg(0xfULL, 42) == BITSIZE(long long) - 4 ? 1 : -1];
++char clz48[__builtin_clzg(1ULL << (BITSIZE(long long) - 1)) == 0 ? 1 : -1];
++char clz49[__builtin_clzg(1ULL << (BITSIZE(long long) - 1), 42) == 0 ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++int clz50 = __builtin_clzg((unsigned __int128)0); // expected-error {{not a compile-time constant}}
++char clz51[__builtin_clzg((unsigned __int128)0, 42) == 42 ? 1 : -1];
++char clz52[__builtin_clzg((unsigned __int128)0x1) == BITSIZE(__int128) - 1 ? 1 : -1];
++char clz53[__builtin_clzg((unsigned __int128)0x1, 42) == BITSIZE(__int128) - 1 ? 1 : -1];
++char clz54[__builtin_clzg((unsigned __int128)0xf) == BITSIZE(__int128) - 4 ? 1 : -1];
++char clz55[__builtin_clzg((unsigned __int128)0xf, 42) == BITSIZE(__int128) - 4 ? 1 : -1];
++char clz56[__builtin_clzg((unsigned __int128)(1 << (BITSIZE(__int128) - 1))) == 0 ? 1 : -1];
++char clz57[__builtin_clzg((unsigned __int128)(1 << (BITSIZE(__int128) - 1)), 42) == 0 ? 1 : -1];
++#endif
++int clz58 = __builtin_clzg((unsigned _BitInt(128))0); // expected-error {{not a compile-time constant}}
++char clz59[__builtin_clzg((unsigned _BitInt(128))0, 42) == 42 ? 1 : -1];
++char clz60[__builtin_clzg((unsigned _BitInt(128))0x1) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++char clz61[__builtin_clzg((unsigned _BitInt(128))0x1, 42) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++char clz62[__builtin_clzg((unsigned _BitInt(128))0xf) == BITSIZE(_BitInt(128)) - 4 ? 1 : -1];
++char clz63[__builtin_clzg((unsigned _BitInt(128))0xf, 42) == BITSIZE(_BitInt(128)) - 4 ? 1 : -1];
++char clz64[__builtin_clzg((unsigned _BitInt(128))(1 << (BITSIZE(_BitInt(128)) - 1))) == 0 ? 1 : -1];
++char clz65[__builtin_clzg((unsigned _BitInt(128))(1 << (BITSIZE(_BitInt(128)) - 1)), 42) == 0 ? 1 : -1];
+ 
+ char ctz1[__builtin_ctz(1) == 0 ? 1 : -1];
+ char ctz2[__builtin_ctz(8) == 3 ? 1 : -1];
+@@ -226,6 +284,64 @@
+ char ctz5[__builtin_ctzl(0x10L) == 4 ? 1 : -1];
+ char ctz6[__builtin_ctzll(0x100LL) == 8 ? 1 : -1];
+ char ctz7[__builtin_ctzs(1 << (BITSIZE(short) - 1)) == BITSIZE(short) - 1 ? 1 : -1];
++int ctz8 = __builtin_ctzg((unsigned char)0); // expected-error {{not a compile-time constant}}
++char ctz9[__builtin_ctzg((unsigned char)0, 42) == 42 ? 1 : -1];
++char ctz10[__builtin_ctzg((unsigned char)0x1) == 0 ? 1 : -1];
++char ctz11[__builtin_ctzg((unsigned char)0x1, 42) == 0 ? 1 : -1];
++char ctz12[__builtin_ctzg((unsigned char)0x10) == 4 ? 1 : -1];
++char ctz13[__builtin_ctzg((unsigned char)0x10, 42) == 4 ? 1 : -1];
++char ctz14[__builtin_ctzg((unsigned char)(1 << (BITSIZE(char) - 1))) == BITSIZE(char) - 1 ? 1 : -1];
++char ctz15[__builtin_ctzg((unsigned char)(1 << (BITSIZE(char) - 1)), 42) == BITSIZE(char) - 1 ? 1 : -1];
++int ctz16 = __builtin_ctzg((unsigned short)0); // expected-error {{not a compile-time constant}}
++char ctz17[__builtin_ctzg((unsigned short)0, 42) == 42 ? 1 : -1];
++char ctz18[__builtin_ctzg((unsigned short)0x1) == 0 ? 1 : -1];
++char ctz19[__builtin_ctzg((unsigned short)0x1, 42) == 0 ? 1 : -1];
++char ctz20[__builtin_ctzg((unsigned short)0x10) == 4 ? 1 : -1];
++char ctz21[__builtin_ctzg((unsigned short)0x10, 42) == 4 ? 1 : -1];
++char ctz22[__builtin_ctzg((unsigned short)(1 << (BITSIZE(short) - 1))) == BITSIZE(short) - 1 ? 1 : -1];
++char ctz23[__builtin_ctzg((unsigned short)(1 << (BITSIZE(short) - 1)), 42) == BITSIZE(short) - 1 ? 1 : -1];
++int ctz24 = __builtin_ctzg(0U); // expected-error {{not a compile-time constant}}
++char ctz25[__builtin_ctzg(0U, 42) == 42 ? 1 : -1];
++char ctz26[__builtin_ctzg(0x1U) == 0 ? 1 : -1];
++char ctz27[__builtin_ctzg(0x1U, 42) == 0 ? 1 : -1];
++char ctz28[__builtin_ctzg(0x10U) == 4 ? 1 : -1];
++char ctz29[__builtin_ctzg(0x10U, 42) == 4 ? 1 : -1];
++char ctz30[__builtin_ctzg(1U << (BITSIZE(int) - 1)) == BITSIZE(int) - 1 ? 1 : -1];
++char ctz31[__builtin_ctzg(1U << (BITSIZE(int) - 1), 42) == BITSIZE(int) - 1 ? 1 : -1];
++int ctz32 = __builtin_ctzg(0UL); // expected-error {{not a compile-time constant}}
++char ctz33[__builtin_ctzg(0UL, 42) == 42 ? 1 : -1];
++char ctz34[__builtin_ctzg(0x1UL) == 0 ? 1 : -1];
++char ctz35[__builtin_ctzg(0x1UL, 42) == 0 ? 1 : -1];
++char ctz36[__builtin_ctzg(0x10UL) == 4 ? 1 : -1];
++char ctz37[__builtin_ctzg(0x10UL, 42) == 4 ? 1 : -1];
++char ctz38[__builtin_ctzg(1UL << (BITSIZE(long) - 1)) == BITSIZE(long) - 1 ? 1 : -1];
++char ctz39[__builtin_ctzg(1UL << (BITSIZE(long) - 1), 42) == BITSIZE(long) - 1 ? 1 : -1];
++int ctz40 = __builtin_ctzg(0ULL); // expected-error {{not a compile-time constant}}
++char ctz41[__builtin_ctzg(0ULL, 42) == 42 ? 1 : -1];
++char ctz42[__builtin_ctzg(0x1ULL) == 0 ? 1 : -1];
++char ctz43[__builtin_ctzg(0x1ULL, 42) == 0 ? 1 : -1];
++char ctz44[__builtin_ctzg(0x10ULL) == 4 ? 1 : -1];
++char ctz45[__builtin_ctzg(0x10ULL, 42) == 4 ? 1 : -1];
++char ctz46[__builtin_ctzg(1ULL << (BITSIZE(long long) - 1)) == BITSIZE(long long) - 1 ? 1 : -1];
++char ctz47[__builtin_ctzg(1ULL << (BITSIZE(long long) - 1), 42) == BITSIZE(long long) - 1 ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++int ctz48 = __builtin_ctzg((unsigned __int128)0); // expected-error {{not a compile-time constant}}
++char ctz49[__builtin_ctzg((unsigned __int128)0, 42) == 42 ? 1 : -1];
++char ctz50[__builtin_ctzg((unsigned __int128)0x1) == 0 ? 1 : -1];
++char ctz51[__builtin_ctzg((unsigned __int128)0x1, 42) == 0 ? 1 : -1];
++char ctz52[__builtin_ctzg((unsigned __int128)0x10) == 4 ? 1 : -1];
++char ctz53[__builtin_ctzg((unsigned __int128)0x10, 42) == 4 ? 1 : -1];
++char ctz54[__builtin_ctzg((unsigned __int128)1 << (BITSIZE(__int128) - 1)) == BITSIZE(__int128) - 1 ? 1 : -1];
++char ctz55[__builtin_ctzg((unsigned __int128)1 << (BITSIZE(__int128) - 1), 42) == BITSIZE(__int128) - 1 ? 1 : -1];
++#endif
++int ctz56 = __builtin_ctzg((unsigned _BitInt(128))0); // expected-error {{not a compile-time constant}}
++char ctz57[__builtin_ctzg((unsigned _BitInt(128))0, 42) == 42 ? 1 : -1];
++char ctz58[__builtin_ctzg((unsigned _BitInt(128))0x1) == 0 ? 1 : -1];
++char ctz59[__builtin_ctzg((unsigned _BitInt(128))0x1, 42) == 0 ? 1 : -1];
++char ctz60[__builtin_ctzg((unsigned _BitInt(128))0x10) == 4 ? 1 : -1];
++char ctz61[__builtin_ctzg((unsigned _BitInt(128))0x10, 42) == 4 ? 1 : -1];
++char ctz62[__builtin_ctzg((unsigned _BitInt(128))1 << (BITSIZE(_BitInt(128)) - 1)) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
++char ctz63[__builtin_ctzg((unsigned _BitInt(128))1 << (BITSIZE(_BitInt(128)) - 1), 42) == BITSIZE(_BitInt(128)) - 1 ? 1 : -1];
+ 
+ char popcount1[__builtin_popcount(0) == 0 ? 1 : -1];
+ char popcount2[__builtin_popcount(0xF0F0) == 8 ? 1 : -1];
+@@ -237,6 +353,15 @@
+ char popcount8[__builtin_popcountll(0LL) == 0 ? 1 : -1];
+ char popcount9[__builtin_popcountll(0xF0F0LL) == 8 ? 1 : -1];
+ char popcount10[__builtin_popcountll(~0LL) == BITSIZE(long long) ? 1 : -1];
++char popcount11[__builtin_popcountg(0U) == 0 ? 1 : -1];
++char popcount12[__builtin_popcountg(0xF0F0U) == 8 ? 1 : -1];
++char popcount13[__builtin_popcountg(~0U) == BITSIZE(int) ? 1 : -1];
++char popcount14[__builtin_popcountg(~0UL) == BITSIZE(long) ? 1 : -1];
++char popcount15[__builtin_popcountg(~0ULL) == BITSIZE(long long) ? 1 : -1];
++#ifdef __SIZEOF_INT128__
++char popcount16[__builtin_popcountg(~(unsigned __int128)0) == BITSIZE(__int128) ? 1 : -1];
++#endif
++char popcount17[__builtin_popcountg(~(unsigned _BitInt(128))0) == BITSIZE(_BitInt(128)) ? 1 : -1];
+ 
+ char parity1[__builtin_parity(0) == 0 ? 1 : -1];
+ char parity2[__builtin_parity(0xb821) == 0 ? 1 : -1];
+--- /dev/null
++++ b/clang/test/Sema/constant-builtins-all-args-evaluated.cpp
+@@ -0,0 +1,34 @@
++// RUN: %clang_cc1 -fsyntax-only -verify %s
++// expected-no-diagnostics
++
++constexpr int test_clzg_0() {
++  int x = 0;
++  (void)__builtin_clzg(0U, ++x);
++  return x;
++}
++
++static_assert(test_clzg_0() == 1);
++
++constexpr int test_clzg_1() {
++  int x = 0;
++  (void)__builtin_clzg(1U, ++x);
++  return x;
++}
++
++static_assert(test_clzg_1() == 1);
++
++constexpr int test_ctzg_0() {
++  int x = 0;
++  (void)__builtin_ctzg(0U, ++x);
++  return x;
++}
++
++static_assert(test_ctzg_0() == 1);
++
++constexpr int test_ctzg_1() {
++  int x = 0;
++  (void)__builtin_ctzg(1U, ++x);
++  return x;
++}
++
++static_assert(test_ctzg_1() == 1);
+--- /dev/null
++++ b/clang/test/Sema/count-builtins.c
+@@ -0,0 +1,87 @@
++// RUN: %clang_cc1 -std=c23 -triple=x86_64-pc-linux-gnu -fsyntax-only -verify -Wpedantic %s
++
++typedef int int2 __attribute__((ext_vector_type(2)));
++
++void test_builtin_popcountg(short s, int i, __int128 i128, _BitInt(128) bi128,
++                            double d, int2 i2) {
++  __builtin_popcountg();
++  // expected-error@-1 {{too few arguments to function call, expected 1, have 0}}
++  __builtin_popcountg(i, i);
++  // expected-error@-1 {{too many arguments to function call, expected 1, have 2}}
++  __builtin_popcountg(s);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'short')}}
++  __builtin_popcountg(i);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int')}}
++  __builtin_popcountg(i128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '__int128')}}
++  __builtin_popcountg(bi128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '_BitInt(128)')}}
++  __builtin_popcountg(d);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'double')}}
++  __builtin_popcountg(i2);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int2' (vector of 2 'int' values))}}
++}
++
++void test_builtin_clzg(short s, int i, unsigned int ui, __int128 i128,
++                       _BitInt(128) bi128, double d, int2 i2) {
++  __builtin_clzg();
++  // expected-error@-1 {{too few arguments to function call, expected 1, have 0}}
++  __builtin_clzg(i, i, i);
++  // expected-error@-1 {{too many arguments to function call, expected at most 2, have 3}}
++  __builtin_clzg(s);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'short')}}
++  __builtin_clzg(i);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int')}}
++  __builtin_clzg(i128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '__int128')}}
++  __builtin_clzg(bi128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '_BitInt(128)')}}
++  __builtin_clzg(d);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'double')}}
++  __builtin_clzg(i2);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int2' (vector of 2 'int' values))}}
++  __builtin_clzg(i2);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int2' (vector of 2 'int' values))}}
++  __builtin_clzg(ui, ui);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'unsigned int')}}
++  __builtin_clzg(ui, i128);
++  // expected-error@-1 {{2nd argument must be an 'int' (was '__int128')}}
++  __builtin_clzg(ui, bi128);
++  // expected-error@-1 {{2nd argument must be an 'int' (was '_BitInt(128)')}}
++  __builtin_clzg(ui, d);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'double')}}
++  __builtin_clzg(ui, i2);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'int2' (vector of 2 'int' values))}}
++}
++
++void test_builtin_ctzg(short s, int i, unsigned int ui, __int128 i128,
++                       _BitInt(128) bi128, double d, int2 i2) {
++  __builtin_ctzg();
++  // expected-error@-1 {{too few arguments to function call, expected 1, have 0}}
++  __builtin_ctzg(i, i, i);
++  // expected-error@-1 {{too many arguments to function call, expected at most 2, have 3}}
++  __builtin_ctzg(s);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'short')}}
++  __builtin_ctzg(i);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int')}}
++  __builtin_ctzg(i128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '__int128')}}
++  __builtin_ctzg(bi128);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was '_BitInt(128)')}}
++  __builtin_ctzg(d);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'double')}}
++  __builtin_ctzg(i2);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int2' (vector of 2 'int' values))}}
++  __builtin_ctzg(i2);
++  // expected-error@-1 {{1st argument must be an unsigned integer (was 'int2' (vector of 2 'int' values))}}
++  __builtin_ctzg(ui, ui);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'unsigned int')}}
++  __builtin_ctzg(ui, i128);
++  // expected-error@-1 {{2nd argument must be an 'int' (was '__int128')}}
++  __builtin_ctzg(ui, bi128);
++  // expected-error@-1 {{2nd argument must be an 'int' (was '_BitInt(128)')}}
++  __builtin_ctzg(ui, d);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'double')}}
++  __builtin_ctzg(ui, i2);
++  // expected-error@-1 {{2nd argument must be an 'int' (was 'int2' (vector of 2 'int' values))}}
++}

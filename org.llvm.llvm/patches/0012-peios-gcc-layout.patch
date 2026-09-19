@@ -1,0 +1,122 @@
+Description: Discover the Peios multiarch GCC installation and standard headers
+Origin: Peios packaging; native signed GCC 16 root driver regression
+Forwarded: not-needed
+
+--- a/clang/lib/Driver/ToolChains/Gnu.cpp
++++ b/clang/lib/Driver/ToolChains/Gnu.cpp
+@@ -2230,6 +2230,14 @@
+   if (TargetTriple.getVendor() == llvm::Triple::UnknownVendor)
+     CandidateTripleAliases.push_back(TripleNoVendor);
+ 
++  // Peios installs GCC beneath its target library directory. Keep this
++  // before the generic locations, and retain normal fallback discovery for
++  // reference/cross roots which do not contain a Peios GCC installation.
++  if (TargetTriple.isOSLinux() &&
++      TargetTriple.getArch() == llvm::Triple::x86_64 &&
++      TargetTriple.getEnvironmentName() == "peios")
++    CandidateLibDirs.push_back("/lib/x86_64-linux-peios");
++
+   CollectLibDirsAndTriples(TargetTriple, BiarchVariantTriple, CandidateLibDirs,
+                            CandidateTripleAliases, CandidateBiarchLibDirs,
+                            CandidateBiarchTripleAliases);
+@@ -3370,6 +3378,16 @@
+   const Multilib &Multilib = GCCInstallation.getMultilib();
+   const GCCVersion &Version = GCCInstallation.getVersion();
+ 
++  // Peios uses lib/<triple>/gcc/<triple>/<version>, while libstdc++
++  // headers remain at include/c++/<version> relative to the same prefix.
++  // Derive that prefix from the selected installation, preserving sysroots
++  // and explicit --gcc-install-dir rather than reaching into the host.
++  if (TripleStr == "x86_64-linux-peios" &&
++      addLibStdCXXIncludePaths(LibDir.str() + "/../../include/c++/" + Version.Text,
++                               TripleStr, Multilib.includeSuffix(), DriverArgs,
++                               CC1Args))
++    return true;
++
+   // Try /../$triple/include/c++/$version (gcc --print-multiarch is not empty).
+   if (addLibStdCXXIncludePaths(
+           LibDir.str() + "/../" + TripleStr + "/include/c++/" + Version.Text,
+--- a/clang/lib/Driver/ToolChains/Linux.cpp
++++ b/clang/lib/Driver/ToolChains/Linux.cpp
+@@ -41,6 +41,16 @@
+ std::string Linux::getMultiarchTriple(const Driver &D,
+                                       const llvm::Triple &TargetTriple,
+                                       StringRef SysRoot) const {
++  // The Peios GCC/glibc packages use their vendor-free target spelling.
++  // Fall back to the ordinary Linux layout when building against a foreign
++  // reference root. LLVM DSOs alone do not constitute a libc SDK; require
++  // the glibc startup object before selecting this multiarch layout.
++  if (TargetTriple.getArch() == llvm::Triple::x86_64 &&
++      TargetTriple.getEnvironmentName() == "peios" &&
++      (D.getVFS().exists(concat(SysRoot, "/usr/lib/x86_64-linux-peios/crt1.o")) ||
++       D.getVFS().exists(concat(SysRoot, "/lib/x86_64-linux-peios/crt1.o"))))
++    return "x86_64-linux-peios";
++
+   llvm::Triple::EnvironmentType TargetEnvironment =
+       TargetTriple.getEnvironment();
+   bool IsAndroid = TargetTriple.isAndroid();
+--- /dev/null
++++ b/clang/test/Driver/peios-gcc-layout.cpp
+@@ -0,0 +1,62 @@
++// UNSUPPORTED: system-windows
++//
++// A bounded synthetic SDK: no host headers/libraries and no real GCC needed.
++// The adjacent "host" GCC is deliberately newer and contains poison headers.
++// RUN: rm -rf %t
++// RUN: mkdir -p %t/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16 %t/peios/usr/include/c++/16/x86_64-linux-peios %t/peios/usr/include/c++/16/backward %t/peios/usr/include/x86_64-linux-peios %t/resource
++// RUN: touch %t/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/crtbegin.o %t/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/crtbeginS.o %t/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/crtendS.o
++// RUN: touch %t/peios/usr/lib/x86_64-linux-peios/crt1.o %t/peios/usr/lib/x86_64-linux-peios/Scrt1.o %t/peios/usr/lib/x86_64-linux-peios/crti.o %t/peios/usr/lib/x86_64-linux-peios/crtn.o
++// RUN: echo '#define PEIOS_VECTOR 16' > %t/peios/usr/include/c++/16/vector
++// RUN: echo '#define PEIOS_CONFIG 16' > %t/peios/usr/include/c++/16/x86_64-linux-peios/target_config.h
++// RUN: echo '#define PEIOS_LIBC 16' > %t/peios/usr/include/x86_64-linux-peios/root_only.h
++// RUN: mkdir -p %t/host/usr/bin %t/host/usr/lib/gcc/x86_64-linux-gnu/99 %t/host/usr/include/c++/99/x86_64-linux-gnu
++// RUN: touch %t/host/usr/lib/gcc/x86_64-linux-gnu/99/crtbegin.o
++// RUN: echo '#error host SDK leaked' > %t/host/usr/include/c++/99/vector
++//
++// Both target spellings must detect the nested GCC16 installation, C++ headers,
++// glibc startup objects, and library search path without installation overrides.
++// RUN: %clangxx -### %s --target=x86_64-linux-peios --sysroot=%t/peios --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=PEIOS --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include' --implicit-check-not='"/usr/lib'
++// RUN: %clangxx -### %s --target=x86_64-unknown-linux-peios --sysroot=%t/peios --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=PEIOS --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include' --implicit-check-not='"/usr/lib'
++//
++// Explicit --gcc-install-dir must derive the same C++ prefix rather than host
++// /usr/include, and the actual preprocessor must read all three sysroot markers.
++// RUN: %clangxx -### %s --target=x86_64-linux-peios --sysroot=%t/peios --gcc-install-dir=%t/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16 -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=PEIOS --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include'
++// RUN: %clangxx -E -P %s --target=x86_64-linux-peios --sysroot=%t/peios --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ | FileCheck %s --check-prefix=PREPROCESS
++// PEIOS: "-cc1"
++// PEIOS-SAME: "-isysroot" "[[ROOT:[^"]+]]/peios"
++// PEIOS-SAME: "-internal-isystem" "[[ROOT]]/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/../../../../../include/c++/16"
++// PEIOS-SAME: "-internal-isystem" "[[ROOT]]/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/../../../../../include/c++/16/x86_64-linux-peios"
++// PEIOS-SAME: "-internal-externc-isystem" "[[ROOT]]/peios/usr/include/x86_64-linux-peios"
++// PEIOS: "[[ROOT]]/peios/usr/lib/x86_64-linux-peios/Scrt1.o" "[[ROOT]]/peios/usr/lib/x86_64-linux-peios/crti.o" "[[ROOT]]/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16/crtbeginS.o"
++// PEIOS-SAME: "-L[[ROOT]]/peios/usr/lib/x86_64-linux-peios/gcc/x86_64-linux-peios/16"
++// PEIOS-SAME: "-L[[ROOT]]/peios/usr/lib/x86_64-linux-peios"
++// PEIOS-SAME: "-lstdc++"
++// PEIOS-SAME: "-lgcc"
++// PREPROCESS: int selected_sdk = 16 + 16 + 16;
++//
++// The ordinary GNU layout still works for a GNU target and for a Peios compiler
++// hosted in a foreign SDK. A Peios library directory with LLVM DSOs alone must
++// not change the glibc multiarch search to Peios.
++// RUN: mkdir -p %t/gnu/usr/lib/gcc/x86_64-linux-gnu/16 %t/gnu/usr/lib/x86_64-linux-gnu %t/gnu/usr/include/c++/16/x86_64-linux-gnu %t/gnu/usr/include/c++/16/backward %t/gnu/usr/include/x86_64-linux-gnu
++// RUN: touch %t/gnu/usr/lib/gcc/x86_64-linux-gnu/16/crtbegin.o %t/gnu/usr/lib/gcc/x86_64-linux-gnu/16/crtbeginS.o %t/gnu/usr/lib/gcc/x86_64-linux-gnu/16/crtendS.o
++// RUN: touch %t/gnu/usr/lib/x86_64-linux-gnu/crt1.o %t/gnu/usr/lib/x86_64-linux-gnu/Scrt1.o %t/gnu/usr/lib/x86_64-linux-gnu/crti.o %t/gnu/usr/lib/x86_64-linux-gnu/crtn.o
++// RUN: %clangxx -### %s --target=x86_64-linux-gnu --sysroot=%t/gnu --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=GNU --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include'
++// RUN: %clangxx -### %s --target=x86_64-linux-peios --sysroot=%t/gnu --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=GNU --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include'
++// RUN: mkdir -p %t/gnu/usr/lib/x86_64-linux-peios
++// RUN: touch %t/gnu/usr/lib/x86_64-linux-peios/libLLVM.so.23.1
++// RUN: %clangxx -### %s --target=x86_64-linux-peios --sysroot=%t/gnu --gcc-toolchain= -ccc-install-dir %t/host/usr/bin -resource-dir=%t/resource -stdlib=libstdc++ --rtlib=libgcc --unwindlib=libgcc -fPIE -pie 2>&1 | FileCheck %s --check-prefix=GNU --implicit-check-not='"-internal-isystem" "{{[^"]*}}/host/' --implicit-check-not='"-L{{[^"]*}}/host/' --implicit-check-not='"/usr/include' --implicit-check-not='"-L{{[^"]+}}/x86_64-linux-peios"'
++// GNU: "-cc1"
++// GNU-SAME: "-isysroot" "[[ROOT:[^"]+]]/gnu"
++// GNU-SAME: "-internal-isystem" "[[ROOT]]/gnu/usr/lib/gcc/x86_64-linux-gnu/16/../../../../include/c++/16"
++// GNU-SAME: "-internal-isystem" "[[ROOT]]/gnu/usr/lib/gcc/x86_64-linux-gnu/16/../../../../include/c++/16/x86_64-linux-gnu"
++// GNU-SAME: "-internal-externc-isystem" "[[ROOT]]/gnu/usr/include/x86_64-linux-gnu"
++// GNU: "[[ROOT]]/gnu/usr/lib/x86_64-linux-gnu/Scrt1.o" "[[ROOT]]/gnu/usr/lib/x86_64-linux-gnu/crti.o" "[[ROOT]]/gnu/usr/lib/gcc/x86_64-linux-gnu/16/crtbeginS.o"
++// GNU-SAME: "-L[[ROOT]]/gnu/usr/lib/gcc/x86_64-linux-gnu/16"
++// GNU-SAME: "-L[[ROOT]]/gnu/usr/lib/x86_64-linux-gnu"
++// GNU-SAME: "-lstdc++"
++// GNU-SAME: "-lgcc"
++
++#include <vector>
++#include <target_config.h>
++#include <root_only.h>
++int selected_sdk = PEIOS_VECTOR + PEIOS_CONFIG + PEIOS_LIBC;

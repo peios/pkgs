@@ -1,0 +1,2211 @@
+Description: Backport dependent current-instantiation member lookup and corrections.
+Origin: backport, https://github.com/llvm/llvm-project/commit/8009bbec59d1c5d47ae06c431647ebee6d886ff2
+Origin: backport, https://github.com/llvm/llvm-project/commit/75ebcbf24abb2e5b045ec920bc86f667516e4cc6
+Origin: backport, https://github.com/llvm/llvm-project/commit/596a9c1f9b3179b3c77cbde1e96619292ce2a10a
+Origin: backport, https://github.com/llvm/llvm-project/commit/9e1f1cfa59c4513798de5c326d77e1e5912b1634
+Origin: backport, https://github.com/llvm/llvm-project/commit/f061a395ffb78215a23e0f503e8ea121ee3b13ad
+ Adapted to LLVM18 Sema APIs, dr namespace names and release-note locations.
+ Retains the regression tests from PR90999 and PR91498 although their
+ assignment lookup implementation is superseded by PR91620.
+ This corrects GCC16 hidden-friend trailing return type lookup without
+ weakening class-completeness checks or modifying standard-library headers.
+
+--- a/clang/docs/ReleaseNotes.rst
++++ b/clang/docs/ReleaseNotes.rst
+@@ -478,6 +478,10 @@
+ 
+ Improvements to Clang's diagnostics
+ -----------------------------------
++
++- Clang now looks up members of the current instantiation in the template definition
++  context if the current instantiation has no dependent base classes.
++
+ - Clang constexpr evaluator now prints template arguments when displaying
+   template-specialization function calls.
+ - Clang contexpr evaluator now displays notes as well as an error when a constructor
+@@ -918,6 +922,9 @@
+ Bug Fixes to C++ Support
+ ^^^^^^^^^^^^^^^^^^^^^^^^
+ 
++- Clang now correctly treats the noexcept-specifier of a friend function to be a
++  complete-class context.
++
+ - Clang limits the size of arrays it will try to evaluate at compile time
+   to avoid memory exhaustion.
+   This limit can be modified by `-fconstexpr-steps`.
+--- a/clang/include/clang/Sema/Lookup.h
++++ b/clang/include/clang/Sema/Lookup.h
+@@ -496,7 +496,9 @@
+   /// Note that while no result was found in the current instantiation,
+   /// there were dependent base classes that could not be searched.
+   void setNotFoundInCurrentInstantiation() {
+-    assert(ResultKind == NotFound && Decls.empty());
++    assert((ResultKind == NotFound ||
++            ResultKind == NotFoundInCurrentInstantiation) &&
++           Decls.empty());
+     ResultKind = NotFoundInCurrentInstantiation;
+   }
+ 
+--- a/clang/include/clang/Sema/Sema.h
++++ b/clang/include/clang/Sema/Sema.h
+@@ -4548,7 +4548,7 @@
+   bool LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
+                            CXXScopeSpec &SS);
+   bool LookupParsedName(LookupResult &R, Scope *S, CXXScopeSpec *SS,
+-                        bool AllowBuiltinCreation = false,
++                        QualType ObjectType, bool AllowBuiltinCreation = false,
+                         bool EnteringContext = false);
+   ObjCProtocolDecl *LookupProtocol(IdentifierInfo *II, SourceLocation IdLoc,
+                                    RedeclarationKind Redecl
+@@ -5973,14 +5973,6 @@
+ 
+   MemberExpr *
+   BuildMemberExpr(Expr *Base, bool IsArrow, SourceLocation OpLoc,
+-                  const CXXScopeSpec *SS, SourceLocation TemplateKWLoc,
+-                  ValueDecl *Member, DeclAccessPair FoundDecl,
+-                  bool HadMultipleCandidates,
+-                  const DeclarationNameInfo &MemberNameInfo, QualType Ty,
+-                  ExprValueKind VK, ExprObjectKind OK,
+-                  const TemplateArgumentListInfo *TemplateArgs = nullptr);
+-  MemberExpr *
+-  BuildMemberExpr(Expr *Base, bool IsArrow, SourceLocation OpLoc,
+                   NestedNameSpecifierLoc NNS, SourceLocation TemplateKWLoc,
+                   ValueDecl *Member, DeclAccessPair FoundDecl,
+                   bool HadMultipleCandidates,
+@@ -6511,10 +6503,10 @@
+   /// parse an exception specification to work around a libstdc++ bug.
+   bool isLibstdcxxEagerExceptionSpecHack(const Declarator &D);
+ 
+-  /// Add an exception-specification to the given member function
+-  /// (or member function template). The exception-specification was parsed
+-  /// after the method itself was declared.
+-  void actOnDelayedExceptionSpecification(Decl *Method,
++  /// Add an exception-specification to the given member or friend function
++  /// (or function template). The exception-specification was parsed
++  /// after the function itself was declared.
++  void actOnDelayedExceptionSpecification(Decl *D,
+          ExceptionSpecificationType EST,
+          SourceRange SpecificationRange,
+          ArrayRef<ParsedType> DynamicExceptions,
+@@ -8209,7 +8201,7 @@
+   };
+   bool LookupTemplateName(
+       LookupResult &R, Scope *S, CXXScopeSpec &SS, QualType ObjectType,
+-      bool EnteringContext, bool &MemberOfUnknownSpecialization,
++      bool EnteringContext,
+       RequiredTemplateKind RequiredTemplate = SourceLocation(),
+       AssumedTemplateKind *ATK = nullptr, bool AllowTypoCorrection = true);
+ 
+--- a/clang/lib/AST/Expr.cpp
++++ b/clang/lib/AST/Expr.cpp
+@@ -103,7 +103,7 @@
+       }
+     } else if (const MemberExpr *ME = dyn_cast<MemberExpr>(E)) {
+       if (!ME->isArrow()) {
+-        assert(ME->getBase()->getType()->isRecordType());
++        assert(ME->getBase()->getType()->getAsRecordDecl());
+         if (FieldDecl *Field = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
+           if (!Field->isBitField() && !Field->getType()->isReferenceType()) {
+             E = ME->getBase();
+--- a/clang/lib/Parse/ParseDecl.cpp
++++ b/clang/lib/Parse/ParseDecl.cpp
+@@ -2905,7 +2905,7 @@
+         << TokenName << TagName << getLangOpts().CPlusPlus
+         << FixItHint::CreateInsertion(Tok.getLocation(), FixitTagName);
+ 
+-      if (Actions.LookupParsedName(R, getCurScope(), SS)) {
++      if (Actions.LookupName(R, getCurScope())) {
+         for (LookupResult::iterator I = R.begin(), IEnd = R.end();
+              I != IEnd; ++I)
+           Diag((*I)->getLocation(), diag::note_decl_hiding_tag_type)
+@@ -7152,12 +7152,20 @@
+       std::optional<Sema::CXXThisScopeRAII> ThisScope;
+       InitCXXThisScopeForDeclaratorIfRelevant(D, DS, ThisScope);
+ 
+-      // Parse exception-specification[opt].
+-      // FIXME: Per [class.mem]p6, all exception-specifications at class scope
+-      // should be delayed, including those for non-members (eg, friend
+-      // declarations). But only applying this to member declarations is
+-      // consistent with what other implementations do.
+-      bool Delayed = D.isFirstDeclarationOfMember() &&
++      // C++ [class.mem.general]p8:
++      //   A complete-class context of a class (template) is a
++      //     - function body,
++      //     - default argument,
++      //     - default template argument,
++      //     - noexcept-specifier, or
++      //     - default member initializer
++      //   within the member-specification of the class or class template.
++      //
++      // Parse exception-specification[opt]. If we are in the
++      // member-specification of a class or class template, this is a
++      // complete-class context and parsing of the noexcept-specifier should be
++      // delayed (even if this is a friend declaration).
++      bool Delayed = D.getContext() == DeclaratorContext::Member &&
+                      D.isFunctionDeclaratorAFunctionDeclaration();
+       if (Delayed && Actions.isLibstdcxxEagerExceptionSpecHack(D) &&
+           GetLookAheadToken(0).is(tok::kw_noexcept) &&
+--- a/clang/lib/Sema/HLSLExternalSemaSource.cpp
++++ b/clang/lib/Sema/HLSLExternalSemaSource.cpp
+@@ -126,12 +126,15 @@
+ 
+   static DeclRefExpr *lookupBuiltinFunction(ASTContext &AST, Sema &S,
+                                             StringRef Name) {
+-    CXXScopeSpec SS;
+     IdentifierInfo &II = AST.Idents.get(Name, tok::TokenKind::identifier);
+     DeclarationNameInfo NameInfo =
+         DeclarationNameInfo(DeclarationName(&II), SourceLocation());
+     LookupResult R(S, NameInfo, Sema::LookupOrdinaryName);
+-    S.LookupParsedName(R, S.getCurScope(), &SS, false);
++    // AllowBuiltinCreation is false but LookupDirect will create
++    // the builtin when searching the global scope anyways...
++    S.LookupName(R, S.getCurScope());
++    // FIXME: If the builtin function was user-declared in global scope,
++    // this assert *will* fail. Should this call LookupBuiltin instead?
+     assert(R.isSingleResult() &&
+            "Since this is a builtin it should always resolve!");
+     auto *VD = cast<ValueDecl>(R.getFoundDecl());
+--- a/clang/lib/Sema/SemaAttr.cpp
++++ b/clang/lib/Sema/SemaAttr.cpp
+@@ -825,7 +825,7 @@
+ 
+   IdentifierInfo *Name = IdTok.getIdentifierInfo();
+   LookupResult Lookup(*this, Name, IdTok.getLocation(), LookupOrdinaryName);
+-  LookupParsedName(Lookup, curScope, nullptr, true);
++  LookupName(Lookup, curScope, /*AllowBuiltinCreation=*/true);
+ 
+   if (Lookup.empty()) {
+     Diag(PragmaLoc, diag::warn_pragma_unused_undeclared_var)
+--- a/clang/lib/Sema/SemaDecl.cpp
++++ b/clang/lib/Sema/SemaDecl.cpp
+@@ -877,7 +877,7 @@
+                                     IdentifierInfo *&Name,
+                                     SourceLocation NameLoc) {
+   LookupResult R(SemaRef, Name, NameLoc, Sema::LookupTagName);
+-  SemaRef.LookupParsedName(R, S, &SS);
++  SemaRef.LookupParsedName(R, S, &SS, /*ObjectType=*/QualType());
+   if (TagDecl *Tag = R.getAsSingle<TagDecl>()) {
+     StringRef FixItTagName;
+     switch (Tag->getTagKind()) {
+@@ -914,7 +914,7 @@
+ 
+     // Replace lookup results with just the tag decl.
+     Result.clear(Sema::LookupTagName);
+-    SemaRef.LookupParsedName(Result, S, &SS);
++    SemaRef.LookupParsedName(Result, S, &SS, /*ObjectType=*/QualType());
+     return true;
+   }
+ 
+@@ -941,7 +941,8 @@
+   }
+ 
+   LookupResult Result(*this, Name, NameLoc, LookupOrdinaryName);
+-  LookupParsedName(Result, S, &SS, !CurMethod);
++  LookupParsedName(Result, S, &SS, /*ObjectType=*/QualType(),
++                   /*AllowBuiltinCreation=*/!CurMethod);
+ 
+   if (SS.isInvalid())
+     return NameClassification::Error();
+--- a/clang/lib/Sema/SemaDeclCXX.cpp
++++ b/clang/lib/Sema/SemaDeclCXX.cpp
+@@ -4496,7 +4496,7 @@
+     return true;
+   } else {
+     LookupResult R(*this, MemberOrBase, IdLoc, LookupOrdinaryName);
+-    LookupParsedName(R, S, &SS);
++    LookupParsedName(R, S, &SS, /*ObjectType=*/QualType());
+ 
+     TypeDecl *TyD = R.getAsSingle<TypeDecl>();
+     if (!TyD) {
+@@ -12200,7 +12200,7 @@
+ 
+   // Lookup namespace name.
+   LookupResult R(*this, NamespcName, IdentLoc, LookupNamespaceName);
+-  LookupParsedName(R, S, &SS);
++  LookupParsedName(R, S, &SS, /*ObjectType=*/QualType());
+   if (R.isAmbiguous())
+     return nullptr;
+ 
+@@ -13658,7 +13658,7 @@
+ 
+   // Lookup the namespace name.
+   LookupResult R(*this, Ident, IdentLoc, LookupNamespaceName);
+-  LookupParsedName(R, S, &SS);
++  LookupParsedName(R, S, &SS, /*ObjectType=*/QualType());
+ 
+   if (R.isAmbiguous())
+     return nullptr;
+@@ -19141,40 +19141,40 @@
+   }
+ }
+ 
+-void Sema::actOnDelayedExceptionSpecification(Decl *MethodD,
+-             ExceptionSpecificationType EST,
+-             SourceRange SpecificationRange,
+-             ArrayRef<ParsedType> DynamicExceptions,
+-             ArrayRef<SourceRange> DynamicExceptionRanges,
+-             Expr *NoexceptExpr) {
+-  if (!MethodD)
++void Sema::actOnDelayedExceptionSpecification(
++    Decl *D, ExceptionSpecificationType EST, SourceRange SpecificationRange,
++    ArrayRef<ParsedType> DynamicExceptions,
++    ArrayRef<SourceRange> DynamicExceptionRanges, Expr *NoexceptExpr) {
++  if (!D)
+     return;
+ 
+-  // Dig out the method we're referring to.
+-  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(MethodD))
+-    MethodD = FunTmpl->getTemplatedDecl();
+-
+-  CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(MethodD);
+-  if (!Method)
++  // Dig out the function we're referring to.
++  if (FunctionTemplateDecl *FTD = dyn_cast<FunctionTemplateDecl>(D))
++    D = FTD->getTemplatedDecl();
++
++  FunctionDecl *FD = dyn_cast<FunctionDecl>(D);
++  if (!FD)
+     return;
+ 
+   // Check the exception specification.
+   llvm::SmallVector<QualType, 4> Exceptions;
+   FunctionProtoType::ExceptionSpecInfo ESI;
+-  checkExceptionSpecification(/*IsTopLevel*/true, EST, DynamicExceptions,
++  checkExceptionSpecification(/*IsTopLevel=*/true, EST, DynamicExceptions,
+                               DynamicExceptionRanges, NoexceptExpr, Exceptions,
+                               ESI);
+ 
+   // Update the exception specification on the function type.
+-  Context.adjustExceptionSpec(Method, ESI, /*AsWritten*/true);
+-
+-  if (Method->isStatic())
+-    checkThisInStaticMemberFunctionExceptionSpec(Method);
+-
+-  if (Method->isVirtual()) {
+-    // Check overrides, which we previously had to delay.
+-    for (const CXXMethodDecl *O : Method->overridden_methods())
+-      CheckOverridingFunctionExceptionSpec(Method, O);
++  Context.adjustExceptionSpec(FD, ESI, /*AsWritten=*/true);
++
++  if (CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
++    if (MD->isStatic())
++      checkThisInStaticMemberFunctionExceptionSpec(MD);
++
++    if (MD->isVirtual()) {
++      // Check overrides, which we previously had to delay.
++      for (const CXXMethodDecl *O : MD->overridden_methods())
++        CheckOverridingFunctionExceptionSpec(MD, O);
++    }
+   }
+ }
+ 
+--- a/clang/lib/Sema/SemaExceptionSpec.cpp
++++ b/clang/lib/Sema/SemaExceptionSpec.cpp
+@@ -258,13 +258,14 @@
+ }
+ 
+ static bool exceptionSpecNotKnownYet(const FunctionDecl *FD) {
+-  auto *MD = dyn_cast<CXXMethodDecl>(FD);
+-  if (!MD)
+-    return false;
+-
+-  auto EST = MD->getType()->castAs<FunctionProtoType>()->getExceptionSpecType();
+-  return EST == EST_Unparsed ||
+-         (EST == EST_Unevaluated && MD->getParent()->isBeingDefined());
++  ExceptionSpecificationType EST =
++      FD->getType()->castAs<FunctionProtoType>()->getExceptionSpecType();
++  if (EST == EST_Unparsed)
++    return true;
++  else if (EST != EST_Unevaluated)
++    return false;
++  const DeclContext *DC = FD->getLexicalDeclContext();
++  return DC->isRecord() && cast<RecordDecl>(DC)->isBeingDefined();
+ }
+ 
+ static bool CheckEquivalentExceptionSpecImpl(
+--- a/clang/lib/Sema/SemaExpr.cpp
++++ b/clang/lib/Sema/SemaExpr.cpp
+@@ -666,8 +666,9 @@
+   // expressions of certain types in C++.
+   if (getLangOpts().CPlusPlus &&
+       (E->getType() == Context.OverloadTy ||
+-       T->isDependentType() ||
+-       T->isRecordType()))
++       // FIXME: This is a hack! We want the lvalue-to-rvalue conversion applied
++       // to pointer types even if the pointee type is dependent.
++       (T->isDependentType() && !T->isPointerType()) || T->isRecordType()))
+     return E;
+ 
+   // The C standard is actually really unclear on this point, and
+@@ -2748,20 +2749,19 @@
+     // lookup to determine that it was a template name in the first place. If
+     // this becomes a performance hit, we can work harder to preserve those
+     // results until we get here but it's likely not worth it.
+-    bool MemberOfUnknownSpecialization;
+     AssumedTemplateKind AssumedTemplate;
+-    if (LookupTemplateName(R, S, SS, QualType(), /*EnteringContext=*/false,
+-                           MemberOfUnknownSpecialization, TemplateKWLoc,
++    if (LookupTemplateName(R, S, SS, /*ObjectType=*/QualType(),
++                           /*EnteringContext=*/false, TemplateKWLoc,
+                            &AssumedTemplate))
+       return ExprError();
+ 
+-    if (MemberOfUnknownSpecialization ||
+-        (R.getResultKind() == LookupResult::NotFoundInCurrentInstantiation))
++    if (R.wasNotFoundInCurrentInstantiation())
+       return ActOnDependentIdExpression(SS, TemplateKWLoc, NameInfo,
+                                         IsAddressOfOperand, TemplateArgs);
+   } else {
+     bool IvarLookupFollowUp = II && !SS.isSet() && getCurMethodDecl();
+-    LookupParsedName(R, S, &SS, !IvarLookupFollowUp);
++    LookupParsedName(R, S, &SS, /*ObjectType=*/QualType(),
++                     /*AllowBuiltinCreation=*/!IvarLookupFollowUp);
+ 
+     // If the result might be in a dependent base class, this is a dependent
+     // id-expression.
+--- a/clang/lib/Sema/SemaExprCXX.cpp
++++ b/clang/lib/Sema/SemaExprCXX.cpp
+@@ -8947,7 +8947,7 @@
+   // Do the redeclaration lookup in the current scope.
+   LookupResult R(*this, TargetNameInfo, Sema::LookupAnyName,
+                  Sema::NotForRedeclaration);
+-  LookupParsedName(R, S, &SS);
++  LookupParsedName(R, S, &SS, /*ObjectType=*/QualType());
+   R.suppressDiagnostics();
+ 
+   switch (R.getResultKind()) {
+--- a/clang/lib/Sema/SemaExprMember.cpp
++++ b/clang/lib/Sema/SemaExprMember.cpp
+@@ -624,8 +624,8 @@
+ // classes, one of its base classes.
+ class RecordMemberExprValidatorCCC final : public CorrectionCandidateCallback {
+ public:
+-  explicit RecordMemberExprValidatorCCC(const RecordType *RTy)
+-      : Record(RTy->getDecl()) {
++  explicit RecordMemberExprValidatorCCC(QualType RTy)
++      : Record(RTy->getAsRecordDecl()) {
+     // Don't add bare keywords to the consumer since they will always fail
+     // validation by virtue of not being associated with any decls.
+     WantTypeSpecifiers = false;
+@@ -670,58 +670,36 @@
+ }
+ 
+ static bool LookupMemberExprInRecord(Sema &SemaRef, LookupResult &R,
+-                                     Expr *BaseExpr,
+-                                     const RecordType *RTy,
++                                     Expr *BaseExpr, QualType RTy,
+                                      SourceLocation OpLoc, bool IsArrow,
+                                      CXXScopeSpec &SS, bool HasTemplateArgs,
+                                      SourceLocation TemplateKWLoc,
+                                      TypoExpr *&TE) {
+   SourceRange BaseRange = BaseExpr ? BaseExpr->getSourceRange() : SourceRange();
+-  RecordDecl *RDecl = RTy->getDecl();
+-  if (!SemaRef.isThisOutsideMemberFunctionBody(QualType(RTy, 0)) &&
+-      SemaRef.RequireCompleteType(OpLoc, QualType(RTy, 0),
+-                                  diag::err_typecheck_incomplete_tag,
+-                                  BaseRange))
++  if (!RTy->isDependentType() &&
++      !SemaRef.isThisOutsideMemberFunctionBody(RTy) &&
++      SemaRef.RequireCompleteType(
++          OpLoc, RTy, diag::err_typecheck_incomplete_tag, BaseRange))
+     return true;
+ 
+-  if (HasTemplateArgs || TemplateKWLoc.isValid()) {
+-    // LookupTemplateName doesn't expect these both to exist simultaneously.
+-    QualType ObjectType = SS.isSet() ? QualType() : QualType(RTy, 0);
+-
+-    bool MOUS;
+-    return SemaRef.LookupTemplateName(R, nullptr, SS, ObjectType, false, MOUS,
+-                                      TemplateKWLoc);
+-  }
+-
+-  DeclContext *DC = RDecl;
+-  if (SS.isSet()) {
+-    // If the member name was a qualified-id, look into the
+-    // nested-name-specifier.
+-    DC = SemaRef.computeDeclContext(SS, false);
+-
+-    if (SemaRef.RequireCompleteDeclContext(SS, DC)) {
+-      SemaRef.Diag(SS.getRange().getEnd(), diag::err_typecheck_incomplete_tag)
+-          << SS.getRange() << DC;
+-      return true;
+-    }
+-
+-    assert(DC && "Cannot handle non-computable dependent contexts in lookup");
+-
+-    if (!isa<TypeDecl>(DC)) {
+-      SemaRef.Diag(R.getNameLoc(), diag::err_qualified_member_nonclass)
+-          << DC << SS.getRange();
+-      return true;
+-    }
+-  }
+-
+-  // The record definition is complete, now look up the member.
+-  SemaRef.LookupQualifiedName(R, DC, SS);
+-
+-  if (!R.empty())
++  // LookupTemplateName/LookupParsedName don't expect these both to exist
++  // simultaneously.
++  QualType ObjectType = SS.isSet() ? QualType() : RTy;
++  if (HasTemplateArgs || TemplateKWLoc.isValid())
++    return SemaRef.LookupTemplateName(R,
++                                      /*S=*/nullptr, SS, ObjectType,
++                                      /*EnteringContext=*/false, TemplateKWLoc);
++
++  SemaRef.LookupParsedName(R, /*S=*/nullptr, &SS, ObjectType);
++
++  if (!R.empty() || R.wasNotFoundInCurrentInstantiation())
+     return false;
+ 
+   DeclarationName Typo = R.getLookupName();
+   SourceLocation TypoLoc = R.getNameLoc();
++  // Recompute the lookup context.
++  DeclContext *DC = SS.isSet() ? SemaRef.computeDeclContext(SS)
++                               : SemaRef.computeDeclContext(RTy);
+ 
+   struct QueryState {
+     Sema &SemaRef;
+@@ -745,7 +723,8 @@
+                                        << Typo << DC << DroppedSpecifier
+                                        << SS.getRange());
+         } else {
+-          SemaRef.Diag(TypoLoc, diag::err_no_member) << Typo << DC << BaseRange;
++          SemaRef.Diag(TypoLoc, diag::err_no_member)
++              << Typo << DC << (SS.isSet() ? SS.getRange() : BaseRange);
+         }
+       },
+       [=](Sema &SemaRef, TypoExpr *TE, TypoCorrection TC) mutable {
+@@ -771,24 +750,12 @@
+                                    Decl *ObjCImpDecl, bool HasTemplateArgs,
+                                    SourceLocation TemplateKWLoc);
+ 
+-ExprResult
+-Sema::BuildMemberReferenceExpr(Expr *Base, QualType BaseType,
+-                               SourceLocation OpLoc, bool IsArrow,
+-                               CXXScopeSpec &SS,
+-                               SourceLocation TemplateKWLoc,
+-                               NamedDecl *FirstQualifierInScope,
+-                               const DeclarationNameInfo &NameInfo,
+-                               const TemplateArgumentListInfo *TemplateArgs,
+-                               const Scope *S,
+-                               ActOnMemberAccessExtraArgs *ExtraArgs) {
+-  if (BaseType->isDependentType() ||
+-      (SS.isSet() && isDependentScopeSpecifier(SS)) ||
+-      NameInfo.getName().isDependentName())
+-    return ActOnDependentMemberExpr(Base, BaseType,
+-                                    IsArrow, OpLoc,
+-                                    SS, TemplateKWLoc, FirstQualifierInScope,
+-                                    NameInfo, TemplateArgs);
+-
++ExprResult Sema::BuildMemberReferenceExpr(
++    Expr *Base, QualType BaseType, SourceLocation OpLoc, bool IsArrow,
++    CXXScopeSpec &SS, SourceLocation TemplateKWLoc,
++    NamedDecl *FirstQualifierInScope, const DeclarationNameInfo &NameInfo,
++    const TemplateArgumentListInfo *TemplateArgs, const Scope *S,
++    ActOnMemberAccessExtraArgs *ExtraArgs) {
+   LookupResult R(*this, NameInfo, LookupMemberName);
+ 
+   // Implicit member accesses.
+@@ -796,9 +763,9 @@
+     TypoExpr *TE = nullptr;
+     QualType RecordTy = BaseType;
+     if (IsArrow) RecordTy = RecordTy->castAs<PointerType>()->getPointeeType();
+-    if (LookupMemberExprInRecord(
+-            *this, R, nullptr, RecordTy->castAs<RecordType>(), OpLoc, IsArrow,
+-            SS, TemplateArgs != nullptr, TemplateKWLoc, TE))
++    if (LookupMemberExprInRecord(*this, R, nullptr, RecordTy, OpLoc, IsArrow,
++                                 SS, TemplateArgs != nullptr, TemplateKWLoc,
++                                 TE))
+       return ExprError();
+     if (TE)
+       return TE;
+@@ -824,6 +791,11 @@
+     // LookupMemberExpr can modify Base, and thus change BaseType
+     BaseType = Base->getType();
+   }
++
++  // BuildMemberReferenceExpr expects the nested-name-specifier, if any, to be
++  // valid.
++  if (SS.isInvalid())
++    return ExprError();
+ 
+   return BuildMemberReferenceExpr(Base, BaseType,
+                                   OpLoc, IsArrow, SS, TemplateKWLoc,
+@@ -923,19 +895,6 @@
+                                            S.Context.PseudoObjectTy, VK_LValue,
+                                            SS.getWithLocInContext(S.Context),
+                                            NameInfo.getLoc());
+-}
+-
+-MemberExpr *Sema::BuildMemberExpr(
+-    Expr *Base, bool IsArrow, SourceLocation OpLoc, const CXXScopeSpec *SS,
+-    SourceLocation TemplateKWLoc, ValueDecl *Member, DeclAccessPair FoundDecl,
+-    bool HadMultipleCandidates, const DeclarationNameInfo &MemberNameInfo,
+-    QualType Ty, ExprValueKind VK, ExprObjectKind OK,
+-    const TemplateArgumentListInfo *TemplateArgs) {
+-  NestedNameSpecifierLoc NNS =
+-      SS ? SS->getWithLocInContext(Context) : NestedNameSpecifierLoc();
+-  return BuildMemberExpr(Base, IsArrow, OpLoc, NNS, TemplateKWLoc, Member,
+-                         FoundDecl, HadMultipleCandidates, MemberNameInfo, Ty,
+-                         VK, OK, TemplateArgs);
+ }
+ 
+ MemberExpr *Sema::BuildMemberExpr(
+@@ -990,12 +949,29 @@
+                                const Scope *S,
+                                bool SuppressQualifierCheck,
+                                ActOnMemberAccessExtraArgs *ExtraArgs) {
++  assert(!SS.isInvalid() && "nested-name-specifier cannot be invalid");
++  // If the member wasn't found in the current instantiation, or if the
++  // arrow operator was used with a dependent non-pointer object expression,
++  // build a CXXDependentScopeMemberExpr.
++  if (R.wasNotFoundInCurrentInstantiation() ||
++      (R.getLookupName().getCXXOverloadedOperator() == OO_Equal &&
++       (SS.isSet() ? SS.getScopeRep()->isDependent()
++                   : BaseExprType->isDependentType())))
++    return ActOnDependentMemberExpr(BaseExpr, BaseExprType, IsArrow, OpLoc, SS,
++                                    TemplateKWLoc, FirstQualifierInScope,
++                                    R.getLookupNameInfo(), TemplateArgs);
++
+   QualType BaseType = BaseExprType;
+   if (IsArrow) {
+     assert(BaseType->isPointerType());
+     BaseType = BaseType->castAs<PointerType>()->getPointeeType();
+   }
+   R.setBaseObjectType(BaseType);
++
++  assert((SS.isEmpty()
++              ? !BaseType->isDependentType() || computeDeclContext(BaseType)
++              : !isDependentScopeSpecifier(SS) || computeDeclContext(SS)) &&
++         "dependent lookup context that isn't the current instantiation?");
+ 
+   // C++1z [expr.ref]p2:
+   //   For the first option (dot) the first expression shall be a glvalue [...]
+@@ -1025,40 +1001,39 @@
+         << isa<CXXDestructorDecl>(FD);
+ 
+   if (R.empty()) {
++    ExprResult RetryExpr = ExprError();
++    if (ExtraArgs && !IsArrow && BaseExpr && !BaseExpr->isTypeDependent()) {
++      SFINAETrap Trap(*this, true);
++      ParsedType ObjectType;
++      bool MayBePseudoDestructor = false;
++      RetryExpr = ActOnStartCXXMemberReference(getCurScope(), BaseExpr, OpLoc,
++                                               tok::arrow, ObjectType,
++                                               MayBePseudoDestructor);
++      if (RetryExpr.isUsable() && !Trap.hasErrorOccurred()) {
++        CXXScopeSpec TempSS(SS);
++        RetryExpr = ActOnMemberAccessExpr(
++            ExtraArgs->S, RetryExpr.get(), OpLoc, tok::arrow, TempSS,
++            TemplateKWLoc, ExtraArgs->Id, ExtraArgs->ObjCImpDecl);
++      }
++      if (Trap.hasErrorOccurred())
++        RetryExpr = ExprError();
++    }
++
+     // Rederive where we looked up.
+-    DeclContext *DC = (SS.isSet()
+-                       ? computeDeclContext(SS, false)
+-                       : BaseType->castAs<RecordType>()->getDecl());
+-
+-    if (ExtraArgs) {
+-      ExprResult RetryExpr;
+-      if (!IsArrow && BaseExpr) {
+-        SFINAETrap Trap(*this, true);
+-        ParsedType ObjectType;
+-        bool MayBePseudoDestructor = false;
+-        RetryExpr = ActOnStartCXXMemberReference(getCurScope(), BaseExpr,
+-                                                 OpLoc, tok::arrow, ObjectType,
+-                                                 MayBePseudoDestructor);
+-        if (RetryExpr.isUsable() && !Trap.hasErrorOccurred()) {
+-          CXXScopeSpec TempSS(SS);
+-          RetryExpr = ActOnMemberAccessExpr(
+-              ExtraArgs->S, RetryExpr.get(), OpLoc, tok::arrow, TempSS,
+-              TemplateKWLoc, ExtraArgs->Id, ExtraArgs->ObjCImpDecl);
+-        }
+-        if (Trap.hasErrorOccurred())
+-          RetryExpr = ExprError();
+-      }
+-      if (RetryExpr.isUsable()) {
+-        Diag(OpLoc, diag::err_no_member_overloaded_arrow)
++    DeclContext *DC =
++        (SS.isSet() ? computeDeclContext(SS) : computeDeclContext(BaseType));
++    assert(DC);
++
++    if (RetryExpr.isUsable())
++      Diag(OpLoc, diag::err_no_member_overloaded_arrow)
+           << MemberName << DC << FixItHint::CreateReplacement(OpLoc, "->");
+-        return RetryExpr;
+-      }
+-    }
+-
+-    Diag(R.getNameLoc(), diag::err_no_member)
+-      << MemberName << DC
+-      << (BaseExpr ? BaseExpr->getSourceRange() : SourceRange());
+-    return ExprError();
++    else
++      Diag(R.getNameLoc(), diag::err_no_member)
++          << MemberName << DC
++          << (SS.isSet()
++                  ? SS.getRange()
++                  : (BaseExpr ? BaseExpr->getSourceRange() : SourceRange()));
++    return RetryExpr;
+   }
+ 
+   // Diagnose lookups that find only declarations from a non-base
+@@ -1143,7 +1118,8 @@
+                                                     OpLoc);
+ 
+   if (VarDecl *Var = dyn_cast<VarDecl>(MemberDecl)) {
+-    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Var,
++    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc,
++                           SS.getWithLocInContext(Context), TemplateKWLoc, Var,
+                            FoundDecl, /*HadMultipleCandidates=*/false,
+                            MemberNameInfo, Var->getType().getNonReferenceType(),
+                            VK_LValue, OK_Ordinary);
+@@ -1160,17 +1136,18 @@
+       type = MemberFn->getType();
+     }
+ 
+-    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc,
++    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc,
++                           SS.getWithLocInContext(Context), TemplateKWLoc,
+                            MemberFn, FoundDecl, /*HadMultipleCandidates=*/false,
+                            MemberNameInfo, type, valueKind, OK_Ordinary);
+   }
+   assert(!isa<FunctionDecl>(MemberDecl) && "member function not C++ method?");
+ 
+   if (EnumConstantDecl *Enum = dyn_cast<EnumConstantDecl>(MemberDecl)) {
+-    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Enum,
+-                           FoundDecl, /*HadMultipleCandidates=*/false,
+-                           MemberNameInfo, Enum->getType(), VK_PRValue,
+-                           OK_Ordinary);
++    return BuildMemberExpr(
++        BaseExpr, IsArrow, OpLoc, SS.getWithLocInContext(Context),
++        TemplateKWLoc, Enum, FoundDecl, /*HadMultipleCandidates=*/false,
++        MemberNameInfo, Enum->getType(), VK_PRValue, OK_Ordinary);
+   }
+ 
+   if (VarTemplateDecl *VarTempl = dyn_cast<VarTemplateDecl>(MemberDecl)) {
+@@ -1194,7 +1171,8 @@
+     if (!Var->getTemplateSpecializationKind())
+       Var->setTemplateSpecializationKind(TSK_ImplicitInstantiation, MemberLoc);
+ 
+-    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Var,
++    return BuildMemberExpr(BaseExpr, IsArrow, OpLoc,
++                           SS.getWithLocInContext(Context), TemplateKWLoc, Var,
+                            FoundDecl, /*HadMultipleCandidates=*/false,
+                            MemberNameInfo, Var->getType().getNonReferenceType(),
+                            VK_LValue, OK_Ordinary, TemplateArgs);
+@@ -1287,7 +1265,6 @@
+     return ExprError();
+ 
+   QualType BaseType = BaseExpr.get()->getType();
+-  assert(!BaseType->isDependentType());
+ 
+   DeclarationName MemberName = R.getLookupName();
+   SourceLocation MemberLoc = R.getNameLoc();
+@@ -1299,9 +1276,13 @@
+   if (IsArrow) {
+     if (const PointerType *Ptr = BaseType->getAs<PointerType>())
+       BaseType = Ptr->getPointeeType();
+-    else if (const ObjCObjectPointerType *Ptr
+-               = BaseType->getAs<ObjCObjectPointerType>())
++    else if (const ObjCObjectPointerType *Ptr =
++                 BaseType->getAs<ObjCObjectPointerType>())
+       BaseType = Ptr->getPointeeType();
++    else if (BaseType->isFunctionType())
++      goto fail;
++    else if (BaseType->isDependentType())
++      BaseType = S.Context.DependentTy;
+     else if (BaseType->isRecordType()) {
+       // Recover from arrow accesses to records, e.g.:
+       //   struct MyRecord foo;
+@@ -1312,15 +1293,13 @@
+       // was encountered while looking for the overloaded operator->.
+       if (!S.getLangOpts().CPlusPlus) {
+         S.Diag(OpLoc, diag::err_typecheck_member_reference_suggestion)
+-          << BaseType << int(IsArrow) << BaseExpr.get()->getSourceRange()
+-          << FixItHint::CreateReplacement(OpLoc, ".");
++            << BaseType << int(IsArrow) << BaseExpr.get()->getSourceRange()
++            << FixItHint::CreateReplacement(OpLoc, ".");
+       }
+       IsArrow = false;
+-    } else if (BaseType->isFunctionType()) {
+-      goto fail;
+     } else {
+       S.Diag(MemberLoc, diag::err_typecheck_member_reference_arrow)
+-        << BaseType << BaseExpr.get()->getSourceRange();
++          << BaseType << BaseExpr.get()->getSourceRange();
+       return ExprError();
+     }
+   }
+@@ -1341,10 +1320,10 @@
+   }
+ 
+   // Handle field access to simple records.
+-  if (const RecordType *RTy = BaseType->getAs<RecordType>()) {
++  if (BaseType->getAsRecordDecl()) {
+     TypoExpr *TE = nullptr;
+-    if (LookupMemberExprInRecord(S, R, BaseExpr.get(), RTy, OpLoc, IsArrow, SS,
+-                                 HasTemplateArgs, TemplateKWLoc, TE))
++    if (LookupMemberExprInRecord(S, R, BaseExpr.get(), BaseType, OpLoc, IsArrow,
++                                 SS, HasTemplateArgs, TemplateKWLoc, TE))
+       return ExprError();
+ 
+     // Returning valid-but-null is how we indicate to the caller that
+@@ -1352,6 +1331,9 @@
+     // failed, the lookup result will have been cleared--that combined with the
+     // valid-but-null ExprResult will trigger the appropriate diagnostics.
+     return ExprResult(TE);
++  } else if (BaseType->isDependentType()) {
++    R.setNotFoundInCurrentInstantiation();
++    return ExprEmpty();
+   }
+ 
+   // Handle ivar access to Objective-C objects.
+@@ -1750,9 +1732,6 @@
+                                        SourceLocation TemplateKWLoc,
+                                        UnqualifiedId &Id,
+                                        Decl *ObjCImpDecl) {
+-  if (SS.isSet() && SS.isInvalid())
+-    return ExprError();
+-
+   // Warn about the explicit constructor calls Microsoft extension.
+   if (getLangOpts().MicrosoftExt &&
+       Id.getKind() == UnqualifiedIdKind::IK_ConstructorName)
+@@ -1767,7 +1746,6 @@
+   DecomposeUnqualifiedId(Id, TemplateArgsBuffer,
+                          NameInfo, TemplateArgs);
+ 
+-  DeclarationName Name = NameInfo.getName();
+   bool IsArrow = (OpKind == tok::arrow);
+ 
+   if (getLangOpts().HLSL && IsArrow)
+@@ -1780,13 +1758,6 @@
+   ExprResult Result = MaybeConvertParenListExprToParenExpr(S, Base);
+   if (Result.isInvalid()) return ExprError();
+   Base = Result.get();
+-
+-  if (Base->getType()->isDependentType() || Name.isDependentName() ||
+-      isDependentScopeSpecifier(SS)) {
+-    return ActOnDependentMemberExpr(Base, Base->getType(), IsArrow, OpLoc, SS,
+-                                    TemplateKWLoc, FirstQualifierInScope,
+-                                    NameInfo, TemplateArgs);
+-  }
+ 
+   ActOnMemberAccessExtraArgs ExtraArgs = {S, Id, ObjCImpDecl};
+   ExprResult Res = BuildMemberReferenceExpr(
+@@ -1906,10 +1877,10 @@
+     }
+   }
+ 
+-  return BuildMemberExpr(Base.get(), IsArrow, OpLoc, &SS,
+-                         /*TemplateKWLoc=*/SourceLocation(), Field, FoundDecl,
+-                         /*HadMultipleCandidates=*/false, MemberNameInfo,
+-                         MemberType, VK, OK);
++  return BuildMemberExpr(
++      Base.get(), IsArrow, OpLoc, SS.getWithLocInContext(Context),
++      /*TemplateKWLoc=*/SourceLocation(), Field, FoundDecl,
++      /*HadMultipleCandidates=*/false, MemberNameInfo, MemberType, VK, OK);
+ }
+ 
+ /// Builds an implicit member access expression.  The current context
+--- a/clang/lib/Sema/SemaLookup.cpp
++++ b/clang/lib/Sema/SemaLookup.cpp
+@@ -1281,6 +1281,17 @@
+       if (DeclContext *DC = PreS->getEntity())
+         DeclareImplicitMemberFunctionsWithName(*this, Name, R.getNameLoc(), DC);
+   }
++  // C++23 [temp.dep.general]p2:
++  //   The component name of an unqualified-id is dependent if
++  //   - it is a conversion-function-id whose conversion-type-id
++  //     is dependent, or
++  //   - it is operator= and the current class is a templated entity, or
++  //   - the unqualified-id is the postfix-expression in a dependent call.
++  if (Name.getNameKind() == DeclarationName::CXXConversionFunctionName &&
++      Name.getCXXNameType()->isDependentType()) {
++    R.setNotFoundInCurrentInstantiation();
++    return false;
++  }
+ 
+   // Implicitly declare member functions with the name we're looking for, if in
+   // fact we are in a scope where it matters.
+@@ -2445,10 +2456,31 @@
+     }
+   } QL(LookupCtx);
+ 
++  CXXRecordDecl *LookupRec = dyn_cast<CXXRecordDecl>(LookupCtx);
++  // FIXME: Per [temp.dep.general]p2, an unqualified name is also dependent
++  // if it's a dependent conversion-function-id or operator= where the current
++  // class is a templated entity. This should be handled in LookupName.
++  if (!InUnqualifiedLookup && !R.isForRedeclaration()) {
++    // C++23 [temp.dep.type]p5:
++    //   A qualified name is dependent if
++    //   - it is a conversion-function-id whose conversion-type-id
++    //     is dependent, or
++    //   - [...]
++    //   - its lookup context is the current instantiation and it
++    //     is operator=, or
++    //   - [...]
++    if (DeclarationName Name = R.getLookupName();
++        Name.getNameKind() == DeclarationName::CXXConversionFunctionName &&
++        Name.getCXXNameType()->isDependentType()) {
++      R.setNotFoundInCurrentInstantiation();
++      return false;
++    }
++  }
++
+   if (LookupDirect(*this, R, LookupCtx)) {
+     R.resolveKind();
+-    if (isa<CXXRecordDecl>(LookupCtx))
+-      R.setNamingClass(cast<CXXRecordDecl>(LookupCtx));
++    if (LookupRec)
++      R.setNamingClass(LookupRec);
+     return true;
+   }
+ 
+@@ -2470,7 +2502,6 @@
+ 
+   // If this isn't a C++ class, we aren't allowed to look into base
+   // classes, we're done.
+-  CXXRecordDecl *LookupRec = dyn_cast<CXXRecordDecl>(LookupCtx);
+   if (!LookupRec || !LookupRec->getDefinition())
+     return false;
+ 
+@@ -2717,38 +2748,54 @@
+ ///
+ /// @returns True if any decls were found (but possibly ambiguous)
+ bool Sema::LookupParsedName(LookupResult &R, Scope *S, CXXScopeSpec *SS,
+-                            bool AllowBuiltinCreation, bool EnteringContext) {
+-  if (SS && SS->isInvalid()) {
+-    // When the scope specifier is invalid, don't even look for
+-    // anything.
++                            QualType ObjectType, bool AllowBuiltinCreation,
++                            bool EnteringContext) {
++  // When the scope specifier is invalid, don't even look for anything.
++  if (SS && SS->isInvalid())
+     return false;
+-  }
+-
+-  if (SS && SS->isSet()) {
+-    NestedNameSpecifier *NNS = SS->getScopeRep();
+-    if (NNS->getKind() == NestedNameSpecifier::Super)
++
++  // Determine where to perform name lookup
++  DeclContext *DC = nullptr;
++  bool IsDependent = false;
++  if (!ObjectType.isNull()) {
++    // This nested-name-specifier occurs in a member access expression, e.g.,
++    // x->B::f, and we are looking into the type of the object.
++    assert((!SS || SS->isEmpty()) &&
++           "ObjectType and scope specifier cannot coexist");
++    DC = computeDeclContext(ObjectType);
++    IsDependent = !DC && ObjectType->isDependentType();
++    assert(((!DC && ObjectType->isDependentType()) ||
++            !ObjectType->isIncompleteType() || !ObjectType->getAs<TagType>() ||
++            ObjectType->castAs<TagType>()->isBeingDefined()) &&
++           "Caller should have completed object type");
++  } else if (SS && SS->isNotEmpty()) {
++    if (NestedNameSpecifier *NNS = SS->getScopeRep();
++        NNS->getKind() == NestedNameSpecifier::Super)
+       return LookupInSuper(R, NNS->getAsRecordDecl());
+-
+-    if (DeclContext *DC = computeDeclContext(*SS, EnteringContext)) {
+-      // We have resolved the scope specifier to a particular declaration
+-      // contex, and will perform name lookup in that context.
++    // This nested-name-specifier occurs after another nested-name-specifier,
++    // so long into the context associated with the prior nested-name-specifier.
++    if ((DC = computeDeclContext(*SS, EnteringContext))) {
++      // The declaration context must be complete.
+       if (!DC->isDependentContext() && RequireCompleteDeclContext(*SS, DC))
+         return false;
+-
+       R.setContextRange(SS->getRange());
+-      return LookupQualifiedName(R, DC);
+-    }
+-
++    }
++    IsDependent = !DC && isDependentScopeSpecifier(*SS);
++  } else {
++    // Perform unqualified name lookup starting in the given scope.
++    return LookupName(R, S, AllowBuiltinCreation);
++  }
++
++  // If we were able to compute a declaration context, perform qualified name
++  // lookup in that context.
++  if (DC)
++    return LookupQualifiedName(R, DC);
++  else if (IsDependent)
+     // We could not resolve the scope specified to a specific declaration
+     // context, which means that SS refers to an unknown specialization.
+     // Name lookup can't find anything in this case.
+     R.setNotFoundInCurrentInstantiation();
+-    R.setContextRange(SS->getRange());
+-    return false;
+-  }
+-
+-  // Perform unqualified name lookup starting in the given scope.
+-  return LookupName(R, S, AllowBuiltinCreation);
++  return false;
+ }
+ 
+ /// Perform qualified name lookup into all base classes of the given
+@@ -5011,8 +5058,9 @@
+     return;
+   }
+ 
+-  SemaRef.LookupParsedName(Res, S, SS, /*AllowBuiltinCreation=*/false,
+-                           EnteringContext);
++  SemaRef.LookupParsedName(Res, S, SS,
++                           /*ObjectType=*/QualType(),
++                           /*AllowBuiltinCreation=*/false, EnteringContext);
+ 
+   // Fake ivar lookup; this should really be part of
+   // LookupParsedName.
+--- a/clang/lib/Sema/SemaOpenMP.cpp
++++ b/clang/lib/Sema/SemaOpenMP.cpp
+@@ -3052,7 +3052,7 @@
+                                          const DeclarationNameInfo &Id,
+                                          OpenMPDirectiveKind Kind) {
+   LookupResult Lookup(*this, Id, LookupOrdinaryName);
+-  LookupParsedName(Lookup, CurScope, &ScopeSpec, true);
++  LookupParsedName(Lookup, CurScope, &ScopeSpec, QualType(), true);
+ 
+   if (Lookup.isAmbiguous())
+     return ExprError();
+@@ -7302,7 +7302,7 @@
+   IdentifierInfo *BaseII = D.getIdentifier();
+   LookupResult Lookup(*this, DeclarationName(BaseII), D.getIdentifierLoc(),
+                       LookupOrdinaryName);
+-  LookupParsedName(Lookup, S, &D.getCXXScopeSpec());
++  LookupParsedName(Lookup, S, &D.getCXXScopeSpec(), QualType());
+ 
+   TypeSourceInfo *TInfo = GetTypeForDeclarator(D);
+   QualType FType = TInfo->getType();
+@@ -19124,7 +19124,8 @@
+   if (S) {
+     LookupResult Lookup(SemaRef, ReductionId, Sema::LookupOMPReductionName);
+     Lookup.suppressDiagnostics();
+-    while (S && SemaRef.LookupParsedName(Lookup, S, &ReductionIdScopeSpec)) {
++    while (S && SemaRef.LookupParsedName(Lookup, S, &ReductionIdScopeSpec,
++                                         /*ObjectType=*/QualType())) {
+       NamedDecl *D = Lookup.getRepresentativeDecl();
+       do {
+         S = S->getParent();
+@@ -21975,7 +21976,8 @@
+   LookupResult Lookup(SemaRef, MapperId, Sema::LookupOMPMapperName);
+   Lookup.suppressDiagnostics();
+   if (S) {
+-    while (S && SemaRef.LookupParsedName(Lookup, S, &MapperIdScopeSpec)) {
++    while (S && SemaRef.LookupParsedName(Lookup, S, &MapperIdScopeSpec,
++                                         /*ObjectType=*/QualType())) {
+       NamedDecl *D = Lookup.getRepresentativeDecl();
+       while (S && !S->isDeclScope(D))
+         S = S->getParent();
+@@ -23282,7 +23284,7 @@
+                                                CXXScopeSpec &ScopeSpec,
+                                                const DeclarationNameInfo &Id) {
+   LookupResult Lookup(*this, Id, LookupOrdinaryName);
+-  LookupParsedName(Lookup, CurScope, &ScopeSpec, true);
++  LookupParsedName(Lookup, CurScope, &ScopeSpec, QualType(), true);
+ 
+   if (Lookup.isAmbiguous())
+     return nullptr;
+--- a/clang/lib/Sema/SemaTemplate.cpp
++++ b/clang/lib/Sema/SemaTemplate.cpp
+@@ -209,10 +209,11 @@
+   AssumedTemplateKind AssumedTemplate;
+   LookupResult R(*this, TName, Name.getBeginLoc(), LookupOrdinaryName);
+   if (LookupTemplateName(R, S, SS, ObjectType, EnteringContext,
+-                         MemberOfUnknownSpecialization, SourceLocation(),
++                         /*RequiredTemplate=*/SourceLocation(),
+                          &AssumedTemplate,
+                          /*AllowTypoCorrection=*/!Disambiguation))
+     return TNK_Non_template;
++  MemberOfUnknownSpecialization = R.wasNotFoundInCurrentInstantiation();
+ 
+   if (AssumedTemplate != AssumedTemplateKind::None) {
+     TemplateResult = TemplateTy::make(Context.getAssumedTemplateName(TName));
+@@ -319,15 +320,12 @@
+ bool Sema::isDeductionGuideName(Scope *S, const IdentifierInfo &Name,
+                                 SourceLocation NameLoc, CXXScopeSpec &SS,
+                                 ParsedTemplateTy *Template /*=nullptr*/) {
+-  bool MemberOfUnknownSpecialization = false;
+-
+   // We could use redeclaration lookup here, but we don't need to: the
+   // syntactic form of a deduction guide is enough to identify it even
+   // if we can't look up the template name at all.
+   LookupResult R(*this, DeclarationName(&Name), NameLoc, LookupOrdinaryName);
+   if (LookupTemplateName(R, S, SS, /*ObjectType*/ QualType(),
+-                         /*EnteringContext*/ false,
+-                         MemberOfUnknownSpecialization))
++                         /*EnteringContext*/ false))
+     return false;
+ 
+   if (R.empty()) return false;
+@@ -373,11 +371,8 @@
+   return true;
+ }
+ 
+-bool Sema::LookupTemplateName(LookupResult &Found,
+-                              Scope *S, CXXScopeSpec &SS,
+-                              QualType ObjectType,
+-                              bool EnteringContext,
+-                              bool &MemberOfUnknownSpecialization,
++bool Sema::LookupTemplateName(LookupResult &Found, Scope *S, CXXScopeSpec &SS,
++                              QualType ObjectType, bool EnteringContext,
+                               RequiredTemplateKind RequiredTemplate,
+                               AssumedTemplateKind *ATK,
+                               bool AllowTypoCorrection) {
+@@ -390,7 +385,6 @@
+   Found.setTemplateNameLookup(true);
+ 
+   // Determine where to perform name lookup
+-  MemberOfUnknownSpecialization = false;
+   DeclContext *LookupCtx = nullptr;
+   bool IsDependent = false;
+   if (!ObjectType.isNull()) {
+@@ -547,7 +541,7 @@
+   FilterAcceptableTemplateNames(Found, AllowFunctionTemplatesInLookup);
+   if (Found.empty()) {
+     if (IsDependent) {
+-      MemberOfUnknownSpecialization = true;
++      Found.setNotFoundInCurrentInstantiation();
+       return false;
+     }
+ 
+@@ -5141,11 +5135,9 @@
+       RequireCompleteDeclContext(SS, DC))
+     return BuildDependentDeclRefExpr(SS, TemplateKWLoc, NameInfo, TemplateArgs);
+ 
+-  bool MemberOfUnknownSpecialization;
+   LookupResult R(*this, NameInfo, LookupOrdinaryName);
+   if (LookupTemplateName(R, (Scope *)nullptr, SS, QualType(),
+-                         /*Entering*/false, MemberOfUnknownSpecialization,
+-                         TemplateKWLoc))
++                         /*Entering*/ false, TemplateKWLoc))
+     return ExprError();
+ 
+   if (R.isAmbiguous())
+@@ -5266,14 +5258,13 @@
+     DeclarationNameInfo DNI = GetNameFromUnqualifiedId(Name);
+     LookupResult R(*this, DNI.getName(), Name.getBeginLoc(),
+                    LookupOrdinaryName);
+-    bool MOUS;
+     // Tell LookupTemplateName that we require a template so that it diagnoses
+     // cases where it finds a non-template.
+     RequiredTemplateKind RTK = TemplateKWLoc.isValid()
+                                    ? RequiredTemplateKind(TemplateKWLoc)
+                                    : TemplateNameIsRequired;
+-    if (!LookupTemplateName(R, S, SS, ObjectType.get(), EnteringContext, MOUS,
+-                            RTK, nullptr, /*AllowTypoCorrection=*/false) &&
++    if (!LookupTemplateName(R, S, SS, ObjectType.get(), EnteringContext, RTK,
++                            /*ATK=*/nullptr, /*AllowTypoCorrection=*/false) &&
+         !R.isAmbiguous()) {
+       if (LookupCtx)
+         Diag(Name.getBeginLoc(), diag::err_no_member)
+@@ -5362,7 +5353,7 @@
+ 
+     if (auto *II = NameInfo.getName().getAsIdentifierInfo()) {
+       LookupResult Result(*this, NameInfo, LookupOrdinaryName);
+-      LookupParsedName(Result, CurScope, &SS);
++      LookupParsedName(Result, CurScope, &SS, /*ObjectType=*/QualType());
+ 
+       if (Result.getAsSingle<TypeDecl>() ||
+           Result.getResultKind() ==
+@@ -10666,7 +10657,8 @@
+                            : TSK_ExplicitInstantiationDeclaration;
+ 
+   LookupResult Previous(*this, NameInfo, LookupOrdinaryName);
+-  LookupParsedName(Previous, S, &D.getCXXScopeSpec());
++  LookupParsedName(Previous, S, &D.getCXXScopeSpec(),
++                   /*ObjectType=*/QualType());
+ 
+   if (!R->isFunctionType()) {
+     // C++ [temp.explicit]p1:
+--- a/clang/lib/Sema/TreeTransform.h
++++ b/clang/lib/Sema/TreeTransform.h
+@@ -12759,6 +12759,26 @@
+   // Resolve a kind, but don't do any further analysis.  If it's
+   // ambiguous, the callee needs to deal with it.
+   R.resolveKind();
++
++  if (Old->hasTemplateKeyword() && !R.empty()) {
++    NamedDecl *FoundDecl = R.getRepresentativeDecl()->getUnderlyingDecl();
++    getSema().FilterAcceptableTemplateNames(R,
++                                            /*AllowFunctionTemplates=*/true,
++                                            /*AllowDependent=*/true);
++    if (R.empty()) {
++      // If a 'template' keyword was used, a lookup that finds only non-template
++      // names is an error.
++      getSema().Diag(R.getNameLoc(),
++                     diag::err_template_kw_refers_to_non_template)
++          << R.getLookupName() << Old->getQualifierLoc().getSourceRange()
++          << Old->hasTemplateKeyword() << Old->getTemplateKeywordLoc();
++      getSema().Diag(FoundDecl->getLocation(),
++                     diag::note_template_kw_refers_to_non_template)
++          << R.getLookupName();
++      return true;
++    }
++  }
++
+   return false;
+ }
+ 
+--- a/clang/test/AST/HLSL/this-reference-template.hlsl
++++ b/clang/test/AST/HLSL/this-reference-template.hlsl
+@@ -24,7 +24,7 @@
+ // CHECK:     -CXXMethodDecl 0x{{[0-9A-Fa-f]+}} <line:8:3, line:10:3> line:8:5 getFirst 'K ()' implicit-inline
+ // CHECK-NEXT:-CompoundStmt 0x{{[0-9A-Fa-f]+}} <col:16, line:10:3>
+ // CHECK-NEXT:-ReturnStmt 0x{{[0-9A-Fa-f]+}} <line:9:4, col:16>
+-// CHECK-NEXT:-CXXDependentScopeMemberExpr 0x{{[0-9A-Fa-f]+}} <col:11, col:16> '<dependent type>' lvalue .First
++// CHECK-NEXT:-MemberExpr 0x{{[0-9A-Fa-f]+}} <col:11, col:16> 'K' lvalue .First 0x{{[0-9A-Fa-f]+}}
+ // CHECK-NEXT:-CXXThisExpr 0x{{[0-9A-Fa-f]+}} <col:11> 'Pair<K, V>' lvalue this
+ // CHECK-NEXT:-CXXMethodDecl 0x{{[0-9A-Fa-f]+}} <line:12:3, line:14:3> line:12:5 getSecond 'V ()' implicit-inline
+ // CHECK-NEXT:-CompoundStmt 0x{{[0-9A-Fa-f]+}} <col:17, line:14:3>
+--- /dev/null
++++ b/clang/test/CXX/basic/basic.lookup/basic.lookup.qual/basic.lookup.qual.general/p2.cpp
+@@ -0,0 +1,16 @@
++// RUN: %clang_cc1 -verify -Wno-unused %s
++
++struct A {
++  int y;
++};
++
++struct B; // expected-note 4{{forward declaration of 'B'}}
++
++void f(A *a, B *b) {
++  a->B::x; // expected-error {{incomplete type 'B' named in nested name specifier}}
++  a->A::x; // expected-error {{no member named 'x' in 'A'}}
++  a->A::y;
++  b->B::x; // expected-error {{member access into incomplete type 'B'}}
++  b->A::x; // expected-error {{member access into incomplete type 'B'}}
++  b->A::y; // expected-error {{member access into incomplete type 'B'}}
++}
+--- /dev/null
++++ b/clang/test/CXX/class/class.mem/class.mem.general/p8.cpp
+@@ -0,0 +1,78 @@
++// RUN: %clang_cc1 -fsyntax-only -verify %s
++
++namespace N0 {
++  struct A {
++    void f0() noexcept(x);
++    void g0() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    void f1() noexcept(A::x);
++    void g1() noexcept(A::y); // expected-error {{no member named 'y' in 'N0::A'}}
++
++    template<typename T>
++    void f2() noexcept(x);
++    template<typename T>
++    void g2() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    template<typename T>
++    void f3() noexcept(A::x);
++    template<typename T>
++    void g3() noexcept(A::y); // expected-error {{no member named 'y' in 'N0::A'}}
++
++    friend void f4() noexcept(x);
++    friend void g4() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    friend void f5() noexcept(A::x);
++    friend void g5() noexcept(A::y); // expected-error {{no member named 'y' in 'N0::A'}}
++
++    template<typename T>
++    friend void f6() noexcept(x);
++    template<typename T>
++    friend void g6() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    template<typename T>
++    friend void f7() noexcept(A::x);
++    template<typename T>
++    friend void g7() noexcept(A::y); // expected-error {{no member named 'y' in 'N0::A'}}
++
++    static constexpr bool x = true;
++  };
++} // namespace N0
++
++namespace N1 {
++  template<typename T>
++  struct A {
++    void f0() noexcept(x);
++    void g0() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    void f1() noexcept(A::x);
++    void g1() noexcept(A::y); // expected-error {{no member named 'y' in 'A<T>'}}
++
++    template<typename U>
++    void f2() noexcept(x);
++    template<typename U>
++    void g2() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    template<typename U>
++    void f3() noexcept(A::x);
++    template<typename U>
++    void g3() noexcept(A::y); // expected-error {{no member named 'y' in 'A<T>'}}
++
++    friend void f4() noexcept(x);
++    friend void g4() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    friend void f5() noexcept(A::x);
++    friend void g5() noexcept(A::y); // expected-error {{no member named 'y' in 'A<T>'}}
++
++    template<typename U>
++    friend void f6() noexcept(x);
++    template<typename U>
++    friend void g6() noexcept(y); // expected-error {{use of undeclared identifier 'y'}}
++
++    template<typename U>
++    friend void f7() noexcept(A::x);
++    template<typename U>
++    friend void g7() noexcept(A::y); // expected-error {{no member named 'y' in 'A<T>'}}
++
++    static constexpr bool x = true;
++  };
++} // namespace N1
+--- a/clang/test/CXX/drs/dr2xx.cpp
++++ b/clang/test/CXX/drs/dr2xx.cpp
+@@ -556,9 +556,9 @@
+     B_ptr->B_alias::~B();
+     B_ptr->B_alias::~B_alias();
+     B_ptr->dr244::~B();
+-    // expected-error@-1 {{qualified member access refers to a member in namespace 'dr244'}}
++    // expected-error@-1 {{no member named '~B' in namespace 'dr244'}}
+     B_ptr->dr244::~B_alias();
+-    // expected-error@-1 {{qualified member access refers to a member in namespace 'dr244'}}
++    // expected-error@-1 {{no member named '~B' in namespace 'dr244'}}
+   }
+ 
+   template<typename T, typename U>
+--- a/clang/test/CXX/drs/dr3xx.cpp
++++ b/clang/test/CXX/drs/dr3xx.cpp
+@@ -23,7 +23,7 @@
+     bool b = (void(*)(S, S))operator- < (void(*)(S, S))operator-;
+     // cxx98-17-warning@-1 {{ordered comparison of function pointers ('void (*)(S, S)' and 'void (*)(S, S)')}}
+     // cxx20-23-error@-2 {{expected '>'}}
+-    //   cxx20-23-note@-3 {{to match this '<'}} 
++    //   cxx20-23-note@-3 {{to match this '<'}}
+     bool c = (void(*)(S, S))operator+ < (void(*)(S, S))operator-;
+     // expected-error@-1 {{expected '>'}}
+     //   expected-note@-2 {{to match this '<'}}
+@@ -1585,7 +1585,7 @@
+     // expected-error@-2 {{conversion function cannot have any parameters}}
+     // expected-error@-3 {{cannot specify any part of a return type in the declaration of a conversion function}}
+     // expected-error@-4 {{conversion function cannot convert to a function type}}
+-  
++
+   };
+ 
+   struct null1_t {
+@@ -1698,9 +1698,9 @@
+     B_ptr->B_alias::~B();
+     B_ptr->B_alias::~B_alias();
+     B_ptr->dr399::~B();
+-    // expected-error@-1 {{qualified member access refers to a member in namespace 'dr399'}}
++    // expected-error@-1 {{no member named '~B' in namespace 'dr399'}}
+     B_ptr->dr399::~B_alias();
+-    // expected-error@-1 {{qualified member access refers to a member in namespace 'dr399'}}
++    // expected-error@-1 {{no member named '~B' in namespace 'dr399'}}
+   }
+ 
+   template<typename T, typename U>
+--- /dev/null
++++ b/clang/test/CXX/except/except.spec/p13-friend.cpp
+@@ -0,0 +1,29 @@
++// RUN: %clang_cc1 -fexceptions -fcxx-exceptions -fsyntax-only -verify %s
++
++namespace N0 {
++  void f() noexcept;
++  void g() noexcept;
++
++  struct A {
++    friend void f() noexcept;
++    friend void g() noexcept(x);
++
++    static constexpr bool x = true;
++  };
++} // namespace N0
++
++namespace N1 {
++  void f() noexcept;
++  void g();
++
++  template<typename T>
++  struct A {
++    friend void f() noexcept;
++    // FIXME: This error is emitted if no other errors occured (i.e. Sema::hasUncompilableErrorOccurred() is false).
++    friend void g() noexcept(x); // expected-error {{no member 'x' in 'N1::A<int>'; it has not yet been instantiated}}
++                                 // expected-note@-1 {{in instantiation of exception specification}}
++    static constexpr bool x = false; // expected-note {{not-yet-instantiated member is declared here}}
++  };
++
++  template struct A<int>; // expected-note {{in instantiation of template class}}
++} // namespace N1
+--- /dev/null
++++ b/clang/test/CXX/temp/temp.res/temp.dep/temp.dep.type/p4.cpp
+@@ -0,0 +1,582 @@
++// RUN: %clang_cc1 -Wno-unused-value -verify %s
++
++namespace N0 {
++  struct A {
++    int x0;
++    static int y0;
++    int x1;
++    static int y1;
++
++    void f0();
++    static void g0();
++    void f1();
++    static void g1();
++
++    using M0 = int;
++    using M1 = int;
++
++    struct C0 { };
++    struct C1 { };
++  };
++
++  template<typename T>
++  struct B : A {
++    int x2;
++    static int y2;
++
++    void f2();
++    static void g2();
++
++    using M2 = int;
++
++    struct C2 { };
++
++    using A::x1;
++    using A::y1;
++    using A::f1;
++    using A::g1;
++    using A::M1;
++    using A::C1;
++
++    using T::x3;
++    using T::y3;
++    using T::f3;
++    using T::g3;
++    using typename T::M3;
++    using typename T::C3;
++
++    void not_instantiated(B *a, B &b) {
++      // All of the following should be found in the current instantiation.
++
++      new M0;
++      new B::M0;
++      new A::M0;
++      new B::A::M0;
++      new C0;
++      new B::C0;
++      new A::C0;
++      new B::A::C0;
++      new M1;
++      new B::M1;
++      new A::M1;
++      new B::A::M1;
++      new C1;
++      new B::C1;
++      new A::C1;
++      new B::A::C1;
++      new M2;
++      new B::M2;
++      new C2;
++      new B::C2;
++      new M3;
++      new B::M3;
++      new C3;
++      new B::C3;
++
++      x0;
++      B::x0;
++      A::x0;
++      B::A::x0;
++      y0;
++      B::y0;
++      A::y0;
++      B::A::y0;
++      x1;
++      B::x1;
++      A::x1;
++      B::A::x1;
++      y1;
++      B::y1;
++      A::y1;
++      B::A::y1;
++      x2;
++      B::x2;
++      y2;
++      B::y2;
++      x3;
++      B::x3;
++      y3;
++      B::y3;
++
++      f0();
++      B::f0();
++      A::f0();
++      B::A::f0();
++      g0();
++      B::g0();
++      A::g0();
++      B::A::g0();
++      f1();
++      B::f1();
++      A::f1();
++      B::A::f1();
++      g1();
++      B::g1();
++      A::g1();
++      B::A::g1();
++      f2();
++      B::f2();
++      g2();
++      B::g2();
++      f3();
++      B::f3();
++      g3();
++      B::g3();
++
++      this->x0;
++      this->B::x0;
++      this->A::x0;
++      this->B::A::x0;
++      this->y0;
++      this->B::y0;
++      this->A::y0;
++      this->B::A::y0;
++      this->x1;
++      this->B::x1;
++      this->A::x1;
++      this->B::A::x1;
++      this->y1;
++      this->B::y1;
++      this->A::y1;
++      this->B::A::y1;
++      this->x2;
++      this->B::x2;
++      this->y2;
++      this->B::y2;
++      this->x3;
++      this->B::x3;
++      this->y3;
++      this->B::y3;
++
++      this->f0();
++      this->B::f0();
++      this->A::f0();
++      this->B::A::f0();
++      this->g0();
++      this->B::g0();
++      this->A::g0();
++      this->B::A::g0();
++      this->f1();
++      this->B::f1();
++      this->A::f1();
++      this->B::A::f1();
++      this->g1();
++      this->B::g1();
++      this->A::g1();
++      this->B::A::g1();
++      this->f2();
++      this->B::f2();
++      this->g2();
++      this->B::g2();
++      this->f3();
++      this->B::f3();
++      this->g3();
++      this->B::g3();
++
++      a->x0;
++      a->B::x0;
++      a->A::x0;
++      a->B::A::x0;
++      a->y0;
++      a->B::y0;
++      a->A::y0;
++      a->B::A::y0;
++      a->x1;
++      a->B::x1;
++      a->A::x1;
++      a->B::A::x1;
++      a->y1;
++      a->B::y1;
++      a->A::y1;
++      a->B::A::y1;
++      a->x2;
++      a->B::x2;
++      a->y2;
++      a->B::y2;
++      a->x3;
++      a->B::x3;
++      a->y3;
++      a->B::y3;
++
++      a->f0();
++      a->B::f0();
++      a->A::f0();
++      a->B::A::f0();
++      a->g0();
++      a->B::g0();
++      a->A::g0();
++      a->B::A::g0();
++      a->f1();
++      a->B::f1();
++      a->A::f1();
++      a->B::A::f1();
++      a->g1();
++      a->B::g1();
++      a->A::g1();
++      a->B::A::g1();
++      a->f2();
++      a->B::f2();
++      a->g2();
++      a->B::g2();
++      a->f3();
++      a->B::f3();
++      a->g3();
++      a->B::g3();
++
++      (*this).x0;
++      (*this).B::x0;
++      (*this).A::x0;
++      (*this).B::A::x0;
++      (*this).y0;
++      (*this).B::y0;
++      (*this).A::y0;
++      (*this).B::A::y0;
++      (*this).x1;
++      (*this).B::x1;
++      (*this).A::x1;
++      (*this).B::A::x1;
++      (*this).y1;
++      (*this).B::y1;
++      (*this).A::y1;
++      (*this).B::A::y1;
++      (*this).x2;
++      (*this).B::x2;
++      (*this).y2;
++      (*this).B::y2;
++      (*this).x3;
++      (*this).B::x3;
++      (*this).y3;
++      (*this).B::y3;
++
++      (*this).f0();
++      (*this).B::f0();
++      (*this).A::f0();
++      (*this).B::A::f0();
++      (*this).g0();
++      (*this).B::g0();
++      (*this).A::g0();
++      (*this).B::A::g0();
++      (*this).f1();
++      (*this).B::f1();
++      (*this).A::f1();
++      (*this).B::A::f1();
++      (*this).g1();
++      (*this).B::g1();
++      (*this).A::g1();
++      (*this).B::A::g1();
++      (*this).f2();
++      (*this).B::f2();
++      (*this).g2();
++      (*this).B::g2();
++      (*this).f3();
++      (*this).B::f3();
++      (*this).g3();
++      (*this).B::g3();
++
++      b.x0;
++      b.B::x0;
++      b.A::x0;
++      b.B::A::x0;
++      b.y0;
++      b.B::y0;
++      b.A::y0;
++      b.B::A::y0;
++      b.x1;
++      b.B::x1;
++      b.A::x1;
++      b.B::A::x1;
++      b.y1;
++      b.B::y1;
++      b.A::y1;
++      b.B::A::y1;
++      b.x2;
++      b.B::x2;
++      b.y2;
++      b.B::y2;
++      b.x3;
++      b.B::x3;
++      b.y3;
++      b.B::y3;
++
++      b.f0();
++      b.B::f0();
++      b.A::f0();
++      b.B::A::f0();
++      b.g0();
++      b.B::g0();
++      b.A::g0();
++      b.B::A::g0();
++      b.f1();
++      b.B::f1();
++      b.A::f1();
++      b.B::A::f1();
++      b.g1();
++      b.B::g1();
++      b.A::g1();
++      b.B::A::g1();
++      b.f2();
++      b.B::f2();
++      b.g2();
++      b.B::g2();
++      b.f3();
++      b.B::f3();
++      b.g3();
++      b.B::g3();
++
++      // None of the following should be found in the current instantiation.
++
++      new M4; // expected-error{{unknown type name 'M4'}}
++      new B::M4; // expected-error{{no type named 'M4' in 'B<T>'}}
++      new A::M4; // expected-error{{no type named 'M4' in 'N0::A'}}
++      new B::A::M4; // expected-error{{no type named 'M4' in 'N0::A'}}
++
++      x4; // expected-error{{use of undeclared identifier 'x4'}}
++      B::x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      B::A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      f4(); // expected-error{{use of undeclared identifier 'f4'}}
++      B::f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++      B::A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++
++      this->x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      this->B::x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      this->A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      this->B::A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      this->f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      this->B::f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      this->A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++      this->B::A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++
++      a->x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      a->B::x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      a->A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      a->B::A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      a->f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      a->B::f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      a->A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++      a->B::A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++
++      // FIXME: An overloaded unary 'operator*' is built for these
++      // even though the operand is a pointer (to a dependent type).
++      // Type::isOverloadableType should return false for such cases.
++      (*this).x4;
++      (*this).B::x4;
++      (*this).A::x4;
++      (*this).B::A::x4;
++      (*this).f4();
++      (*this).B::f4();
++      (*this).A::f4();
++      (*this).B::A::f4();
++
++      b.x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      b.B::x4; // expected-error{{no member named 'x4' in 'B<T>'}}
++      b.A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      b.B::A::x4; // expected-error{{no member named 'x4' in 'N0::A'}}
++      b.f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      b.B::f4(); // expected-error{{no member named 'f4' in 'B<T>'}}
++      b.A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++      b.B::A::f4(); // expected-error{{no member named 'f4' in 'N0::A'}}
++    }
++  };
++} // namespace N0
++
++namespace N1 {
++  struct A {
++    template<int I>
++    void f();
++  };
++
++  template<typename T>
++  struct B {
++    template<int I>
++    void f();
++
++    A x;
++    A g();
++
++    void not_instantiated(B *a, B &b) {
++      f<0>();
++      this->f<0>();
++      a->f<0>();
++      // FIXME: This should not require 'template'!
++      (*this).f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      b.f<0>();
++
++      x.f<0>();
++      this->x.f<0>();
++      a->x.f<0>();
++      // FIXME: This should not require 'template'!
++      (*this).x.f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      b.x.f<0>();
++
++      // FIXME: None of these should require 'template'!
++      g().f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      this->g().f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      a->g().f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      (*this).g().f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++      b.g().f<0>(); // expected-error{{missing 'template' keyword prior to dependent template name 'f'}}
++    }
++  };
++} // namespace N1
++
++namespace N2 {
++  template<typename T>
++  struct A {
++    struct B {
++      using C = A;
++
++      void not_instantiated(A *a, B *b) {
++        b->x; // expected-error{{no member named 'x' in 'N2::A::B'}}
++        b->B::x; // expected-error{{no member named 'x' in 'N2::A::B'}}
++        a->B::C::x; // expected-error{{no member named 'x' in 'A<T>'}}
++      }
++    };
++
++    void not_instantiated(A *a, B *b) {
++      b->x;
++      b->B::x;
++      a->B::C::x;
++    }
++  };
++} // namespace N2
++
++namespace N3 {
++  struct A { };
++
++  template<typename T>
++  struct B : A {
++    void not_instantiated() {
++      // Dependent, lookup context is the current instantiation.
++      this->operator=(*this);
++      // Not dependent, the lookup context is A (not the current instantiation).
++      this->A::operator=(*this);
++    }
++  };
++
++  template<typename T>
++  struct C {
++    template<typename U>
++    void operator=(int);
++
++    void not_instantiated() {
++      operator=<int>(0);
++      C::operator=<int>(0);
++      this->operator=<int>(0);
++      this->C::operator=<int>(0);
++
++      operator=(*this);
++      C::operator=(*this);
++      this->operator=(*this);
++      this->C::operator=(*this);
++    }
++  };
++
++  template<typename T>
++  struct D {
++    auto not_instantiated() -> decltype(operator=(0)); // expected-error {{use of undeclared 'operator='}}
++  };
++
++  template<typename T>
++  struct E {
++    auto instantiated(E& e) -> decltype(operator=(e)); // expected-error {{use of undeclared 'operator='}}
++  };
++
++  template struct E<int>; // expected-note {{in instantiation of template class 'N3::E<int>' requested here}}
++
++} // namespace N3
++
++namespace N4 {
++  template<typename T>
++  struct A {
++    void not_instantiated(A a, A<T> b, T c) {
++      a->x;
++      b->x;
++      c->x;
++    }
++
++    void instantiated(A a, A<T> b, T c) {
++      a->x; // expected-error {{member reference type 'A<int>' is not a pointer; did you mean to use '.'?}}
++            // expected-error@-1 {{no member named 'x' in 'N4::A<int>'}}
++      b->x; // expected-error {{member reference type 'A<int>' is not a pointer; did you mean to use '.'?}}
++            // expected-error@-1 {{no member named 'x' in 'N4::A<int>'}}
++      c->x; // expected-error {{member reference type 'int' is not a pointer}}
++    }
++  };
++
++  template void A<int>::instantiated(A<int>, A<int>, int); // expected-note {{in instantiation of}}
++
++  struct B {
++    int x;
++
++    void f();
++  };
++
++  template<typename T>
++  struct C {
++    B *operator->();
++
++    void not_instantiated(C a, C<T> b, T c) {
++      a->x;
++      b->x;
++      c->x;
++    }
++
++    void instantiated(C a, C<T> b, T c) {
++      a->x;
++      b->x;
++      c->x; // expected-error {{member reference type 'int' is not a pointer}}
++    }
++  };
++
++  template void C<int>::instantiated(C, C, int); // expected-note {{in instantiation of}}
++
++  template<typename T>
++  struct D {
++    T *operator->();
++
++    void not_instantiated(D a) {
++      a->x;
++      a->y;
++      a->f();
++      a->g();
++
++      a->T::x;
++      a->T::y;
++      a->T::f();
++      a->T::g();
++
++      // FIXME: 'U' should be a dependent name, and its lookup context should be 'a.operator->()'!
++      a->U::x; // expected-error {{use of undeclared identifier 'U'}}
++      a->U::y; // expected-error {{use of undeclared identifier 'U'}}
++      a->U::f(); // expected-error {{use of undeclared identifier 'U'}}
++      a->U::g(); // expected-error {{use of undeclared identifier 'U'}}
++    }
++
++    void instantiated(D a) {
++      a->x;
++      a->y; // expected-error {{no member named 'y' in 'N4::B'}}
++      a->f();
++      a->g(); // expected-error {{no member named 'g' in 'N4::B'}}
++
++      a->T::x;
++      a->T::y; // expected-error {{no member named 'y' in 'N4::B'}}
++      a->T::f();
++      a->T::g(); // expected-error {{no member named 'g' in 'N4::B'}}
++    }
++  };
++
++  template void D<B>::instantiated(D); // expected-note {{in instantiation of}}
++
++  template<typename T>
++  struct Typo {
++    T *operator->();
++
++    void not_instantiated(Typo a) {
++      a->Not_instantiated;
++      a->typo;
++      a->T::Not_instantiated;
++      a->T::typo;
++    }
++  };
++} // namespace N4
+--- a/clang/test/CXX/temp/temp.res/temp.local/p3.cpp
++++ b/clang/test/CXX/temp/temp.res/temp.local/p3.cpp
+@@ -16,8 +16,7 @@
+   void g(X0 *t) {
+     t->Derived::Base<T>::f();
+     t->Base<T>::f();
+-    t->Base::f(); // expected-error{{member 'Base' found in multiple base classes of different types}} \
+-    // expected-error{{no member named 'f' in 'X0'}}
++    t->Base::f(); // expected-error{{member 'Base' found in multiple base classes of different types}}
+   }
+ };
+ 
+--- a/clang/test/CodeGenCXX/mangle.cpp
++++ b/clang/test/CodeGenCXX/mangle.cpp
+@@ -1031,10 +1031,6 @@
+   decltype(S1<T>().~U()) fun3() {}
+   template <typename T>
+   decltype(S1<T>().~S1<T>(), S1<T>().~S1<T>()) fun4() {};
+-  template <typename T>
+-  decltype(S1<int>().~S1<T>()) fun5(){};
+-  template <template <typename T> class U>
+-  decltype(S1<int>().~U<int>()) fun6(){};
+   template <typename T>
+   decltype(E().E::~T()) fun7() {}
+   template <template <typename> class U>
+@@ -1047,10 +1043,6 @@
+   // CHECK-LABEL: @_ZN6test514fun3I2S1IiEiEEDTcldtcvS1_IT0_E_EdnT_EEv
+   template void fun4<int>();
+   // CHECK-LABEL: @_ZN6test514fun4IiEEDTcmcldtcv2S1IT_E_Edn2S1IS2_EEcldtcvS3__Edn2S1IS2_EEEv
+-  template void fun5<int>();
+-  // CHECK-LABEL: @_ZN6test514fun5IiEEDTcldtcv2S1IiE_Edn2S1IT_EEEv
+-  template void fun6<S1>();
+-  // CHECK-LABEL: @_ZN6test514fun6I2S1EEDTcldtcvS1_IiE_EdnT_IiEEEv
+   template void fun7<E>();
+   // CHECK-LABEL: @_ZN6test514fun7INS_1EEEEDTcldtcvS1__Esr1EEdnT_EEv
+   template void fun8<X>();
+--- a/clang/test/Index/annotate-nested-name-specifier.cpp
++++ b/clang/test/Index/annotate-nested-name-specifier.cpp
+@@ -132,7 +132,7 @@
+ 
+ struct X9 : X8 {
+   typedef X8 inherited;
+-  void f() { 
++  void f() {
+     inherited::f();
+   }
+ };
+@@ -299,7 +299,7 @@
+ // CHECK: Identifier: "type" [77:16 - 77:20] TypeRef=X4::type:70:13
+ // CHECK: Punctuation: ">" [77:20 - 77:21] MemberRefExpr=
+ // CHECK: Punctuation: "::" [77:21 - 77:23] MemberRefExpr=
+-// CHECK: Identifier: "g" [77:23 - 77:24] MemberRefExpr=
++// CHECK: Identifier: "g" [77:23 - 77:24] OverloadedDeclRef=
+ // CHECK: Punctuation: "(" [77:24 - 77:25] CallExpr=
+ // CHECK: Identifier: "t" [77:25 - 77:26] DeclRefExpr=t:74:12
+ // CHECK: Punctuation: ")" [77:26 - 77:27] CallExpr=
+--- a/clang/test/SemaCXX/member-expr.cpp
++++ b/clang/test/SemaCXX/member-expr.cpp
+@@ -40,8 +40,8 @@
+ }
+ 
+ void test2(X *xp) {
+-  xp->::i = 7; // expected-error{{qualified member access refers to a member in the global namespace}}
+-  xp->C::i = 7; // expected-error{{qualified member access refers to a member in namespace 'C'}}
++  xp->::i = 7; // expected-error{{'i' is not a member of class 'X'}}
++  xp->C::i = 7; // expected-error{{'C::i' is not a member of class 'X'}}
+ }
+ 
+ 
+--- a/clang/test/SemaTemplate/instantiate-function-1.cpp
++++ b/clang/test/SemaTemplate/instantiate-function-1.cpp
+@@ -1,7 +1,7 @@
+ // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -fsyntax-only -verify %s
+ template<typename T, typename U>
+ struct X0 {
+-  void f(T x, U y) { 
++  void f(T x, U y) {
+     (void)(x + y); // expected-error{{invalid operands}}
+   }
+ };
+@@ -41,7 +41,7 @@
+   T f() const {
+     return; // expected-error{{non-void function 'f' should return a value}}
+   }
+-  
++
+   T g() const {
+     return 1; // expected-error{{void function 'g' should not return a value}}
+   }
+@@ -64,7 +64,7 @@
+     // IfStmt
+     if (t > 0)
+       return u;
+-    else { 
++    else {
+       if (t < 0)
+         return v; // expected-error{{cannot initialize return object of type}}
+     }
+@@ -131,12 +131,12 @@
+     t;
+     t.f;
+     t->f;
+-    
++
+     T* tp;
+     tp.f; // expected-error{{member reference base type 'T *' is not a structure or union}}
+     tp->f;
+ 
+-    this->f;
++    this->f; // expected-error{{reference to non-static member function must be called}}
+     this.f; // expected-error{{member reference base type 'Member0<T> *' is not a structure or union}}
+   }
+ };
+@@ -239,11 +239,11 @@
+     static yes_tag check(char[sizeof(&U::luaIndex)]);
+     enum { value = sizeof(check<T>(0)) == sizeof(yes_tag) };
+   };
+-  
++
+   class SomeClass {
+   public:
+     int luaIndex(lua_State* L);
+   };
+-  
++
+   int i = HasIndexMetamethod<SomeClass>::value;
+ }
+--- /dev/null
++++ b/clang/test/SemaTemplate/peios-gcc16-hidden-friend.cpp
+@@ -0,0 +1,35 @@
++// RUN: %clang_cc1 -std=c++11 -verify %s
++// RUN: %clang_cc1 -std=c++14 -verify %s
++// RUN: %clang_cc1 -std=c++17 -verify %s
++// RUN: %clang_cc1 -std=c++20 -verify %s
++// Reduced GCC16 normal_iterator hidden-friend trailing-return-type pattern.
++// The class is still being instantiated when the friend return type is formed.
++template <class Pointer> class Iterator {
++  Pointer current;
++public:
++  explicit Iterator(Pointer p) : current(p) {}
++  const Pointer &base() const { return current; }
++  template <class Other>
++  friend auto operator-(const Iterator &lhs, const Iterator<Other> &rhs)
++      -> decltype(lhs.base() - rhs.base()) { return lhs.base() - rhs.base(); }
++  friend auto operator-(const Iterator &lhs, const Iterator &rhs)
++      -> decltype(lhs.base() - rhs.base()) { return lhs.base() - rhs.base(); }
++};
++int distance(int *p) {
++  Iterator<int *> begin(p), end(p + 4);
++  Iterator<const int *> constant_end(p + 4);
++  return (end - begin) + (constant_end - begin);
++}
++// Member lookup must still reject absent members in the definition context.
++template <class T> struct NoSuchMember {
++  void f() { this->missing(); } // expected-error {{no member named 'missing'}}
++};
++// A dependent base legitimately defers lookup until instantiation.
++struct Base { int member() { return 7; } };
++template <class T> struct Derived : T { int f() { return this->member(); } };
++template struct Derived<Base>;
++// Do not weaken the completeness requirement for unrelated incomplete classes.
++struct Incomplete; // expected-note {{forward declaration of 'Incomplete'}}
++void incomplete(Incomplete *p) {
++  p->member(); // expected-error {{member access into incomplete type 'Incomplete'}}
++}
+--- a/clang/unittests/ASTMatchers/ASTMatchersNarrowingTest.cpp
++++ b/clang/unittests/ASTMatchers/ASTMatchersNarrowingTest.cpp
+@@ -1569,8 +1569,9 @@
+       matches("class Y { void x() { y; } int y; };", memberExpr(isArrow())));
+   EXPECT_TRUE(notMatches("class Y { void x() { (*this).y; } int y; };",
+                          memberExpr(isArrow())));
+-  EXPECT_TRUE(matches("template <class T> class Y { void x() { this->m; } };",
+-                      cxxDependentScopeMemberExpr(isArrow())));
++  EXPECT_TRUE(
++      matches("template <class T> class Y { void x() { this->m; } int m; };",
++              memberExpr(isArrow())));
+   EXPECT_TRUE(
+       notMatches("template <class T> class Y { void x() { (*this).m; } };",
+                  cxxDependentScopeMemberExpr(isArrow())));
+--- a/clang-tools-extra/clangd/unittests/FindTargetTests.cpp
++++ b/clang-tools-extra/clangd/unittests/FindTargetTests.cpp
+@@ -854,7 +854,7 @@
+           }
+         };
+       )cpp";
+-  EXPECT_DECLS("CXXDependentScopeMemberExpr", "void foo()");
++  EXPECT_DECLS("MemberExpr", "void foo()");
+ 
+   // Similar to above but base expression involves a function call.
+   Code = R"cpp(
+@@ -872,7 +872,7 @@
+           }
+         };
+       )cpp";
+-  EXPECT_DECLS("CXXDependentScopeMemberExpr", "void foo()");
++  EXPECT_DECLS("MemberExpr", "void foo()");
+ 
+   // Similar to above but uses a function pointer.
+   Code = R"cpp(
+@@ -891,7 +891,7 @@
+           }
+         };
+       )cpp";
+-  EXPECT_DECLS("CXXDependentScopeMemberExpr", "void foo()");
++  EXPECT_DECLS("MemberExpr", "void foo()");
+ 
+   // Base expression involves a member access into this.
+   Code = R"cpp(
+@@ -962,7 +962,7 @@
+           void Foo() { this->[[find]](); }
+         };
+   )cpp";
+-  EXPECT_DECLS("CXXDependentScopeMemberExpr", "void find()");
++  EXPECT_DECLS("MemberExpr", "void find()");
+ }
+ 
+ TEST_F(TargetDeclTest, DependentTypes) {
+--- a/clang-tools-extra/clangd/unittests/SemanticHighlightingTests.cpp
++++ b/clang-tools-extra/clangd/unittests/SemanticHighlightingTests.cpp
+@@ -621,7 +621,7 @@
+       struct $Class_def[[Foo]] {
+         int $Field_decl[[Waldo]];
+         void $Method_def[[bar]]() {
+-          $Class[[Foo]]().$Field_dependentName[[Waldo]];
++          $Class[[Foo]]().$Field[[Waldo]];
+         }
+         template $Bracket[[<]]typename $TemplateParameter_def[[U]]$Bracket[[>]]
+         void $Method_def[[bar1]]() {
+--- a/clang-tools-extra/test/clang-tidy/checkers/cppcoreguidelines/owning-memory.cpp
++++ b/clang-tools-extra/test/clang-tidy/checkers/cppcoreguidelines/owning-memory.cpp
+@@ -309,6 +309,8 @@
+ 
+   HeapArray(HeapArray &&other) : _data(other._data), size(other.size) { // Ok
+     other._data = nullptr;                                              // Ok
++    // CHECK-NOTES: [[@LINE-1]]:5: warning: expected assignment source to be of type 'gsl::owner<>'; got 'std::nullptr_t'
++    // FIXME: This warning is emitted because an ImplicitCastExpr for the NullToPointer conversion isn't created for dependent types.
+     other.size = 0;
+   }
+ 
+--- a/clang-tools-extra/test/clang-tidy/checkers/modernize/use-equals-default-copy.cpp
++++ b/clang-tools-extra/test/clang-tidy/checkers/modernize/use-equals-default-copy.cpp
+@@ -260,6 +260,8 @@
+ struct Template {
+   Template() = default;
+   Template(const Template &Other) : Field(Other.Field) {}
++  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: use '= default'
++  // CHECK-FIXES: Template(const Template &Other)  = default;
+   Template &operator=(const Template &Other);
+   void foo(const T &t);
+   int Field;
+@@ -269,7 +271,11 @@
+   Field = Other.Field;
+   return *this;
+ }
++// CHECK-MESSAGES: :[[@LINE-4]]:27: warning: use '= default'
++// CHECK-FIXES: Template<T> &Template<T>::operator=(const Template<T> &Other) = default;
++
+ Template<int> T1;
++
+ 
+ // Dependent types.
+ template <class T>
+@@ -284,6 +290,9 @@
+   Field = Other.Field;
+   return *this;
+ }
++// CHECK-MESSAGES: :[[@LINE-4]]:17: warning: use '= default'
++// CHECK-FIXES: DT1<T> &DT1<T>::operator=(const DT1<T> &Other) = default;
++
+ DT1<int> Dt1;
+ 
+ template <class T>
+@@ -303,6 +312,9 @@
+ struct T {
+   typedef int TT;
+ };
++// CHECK-MESSAGES: :[[@LINE-8]]:17: warning: use '= default'
++// CHECK-FIXES: DT2<T> &DT2<T>::operator=(const DT2<T> &Other) = default;
++
+ DT2<T> Dt2;
+ 
+ // Default arguments.

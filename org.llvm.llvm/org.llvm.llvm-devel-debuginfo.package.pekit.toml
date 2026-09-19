@@ -1,0 +1,12 @@
+[package]
+name = "org.llvm.llvm-devel-debuginfo"
+description = "LLVM configuration-tool debugging symbols"
+license = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
+
+[dependencies]
+"org.llvm.llvm-devel" = "{{version}}-1"
+
+[files]
+"@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-devel-debuginfo/LICENSE.TXT"
+"@source:llvm/lib/Support/BLAKE3/LICENSE" = "usr/share/licenses/org.llvm.llvm-devel-debuginfo/BLAKE3-LICENSE"
+":.debuginfo/llvm-devel/usr/lib/debug/**" = "usr/lib/debug"

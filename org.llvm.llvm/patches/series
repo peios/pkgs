@@ -2,3 +2,10 @@
 # materialisation ([source].patches in pekit.toml).
 gcc16/missing-cstdint.patch  # GCC 16's libstdc++ dropped transitive <cstdint>; SmallVector.h uses uint64_t bare (upstream-fixed after 18)
 peios/triplet-resource-dir-test.patch  # Peios keeps Clang resources in the target-triplet libdir; accept that deliberate layout in the upstream test
+peios/hmaptool-no-ctypes.patch  # Preserve all header-map tests with the declared minimal Python runtime
+peios/python-tools-no-ctypes.patch  # Use standard struct scalar formats for MLGO test interfaces
+0010-installed-llvm-config.patch  # Keep installed llvm-config relocatable without private build roots
+0011-interpreter-pointer-step-width.patch
+0012-peios-gcc-layout.patch
+0013-current-instantiation-lookup.patch
+0014-generic-bit-counting.patch

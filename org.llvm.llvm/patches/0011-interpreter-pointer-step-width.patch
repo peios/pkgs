@@ -1,0 +1,48 @@
+Description: Widen internal prefix and postfix pointer steps for array bounds
+Origin: vendor, adapted from https://github.com/llvm/llvm-project/commit/7f0bbbb19b4f13c2efb400db300817aa7ed589cc
+
+Keep user-supplied 128-bit offset comparisons intact. Widen only internal
+prefix constants and matching offset opcodes plus the postfix helper constant.
+The mandatory test-interpreter-boundaries.py gate covers both paths.
+
+--- a/clang/lib/AST/Interp/Interp.h
++++ b/clang/lib/AST/Interp/Interp.h
+@@ -1503,7 +1503,9 @@
+ template <ArithOp Op>
+ static inline bool IncDecPtrHelper(InterpState &S, CodePtr OpPC,
+                                    const Pointer &Ptr) {
+-  using OneT = Integral<8, false>;
++  // OffsetHelper also represents the array index and bound in this type.
++  // Use a constant wide enough for array indices and bounds.
++  using OneT = Integral<64, false>;
+ 
+   const Pointer &P = Ptr.deref<Pointer>();
+   if (!CheckNull(S, OpPC, P, CSK_ArrayIndex))
+--- a/clang/lib/AST/Interp/ByteCodeExprGen.cpp
++++ b/clang/lib/AST/Interp/ByteCodeExprGen.cpp
+@@ -2691,9 +2691,9 @@
+     if (T == PT_Ptr) {
+       if (!this->emitLoadPtr(E))
+         return false;
+-      if (!this->emitConstUint8(1, E))
+-        return false;
+-      if (!this->emitAddOffsetUint8(E))
++      if (!this->emitConstUint64(1, E))
++        return false;
++      if (!this->emitAddOffsetUint64(E))
+         return false;
+       return DiscardResult ? this->emitStorePopPtr(E) : this->emitStorePtr(E);
+     }
+@@ -2730,9 +2730,9 @@
+     if (T == PT_Ptr) {
+       if (!this->emitLoadPtr(E))
+         return false;
+-      if (!this->emitConstUint8(1, E))
+-        return false;
+-      if (!this->emitSubOffsetUint8(E))
++      if (!this->emitConstUint64(1, E))
++        return false;
++      if (!this->emitSubOffsetUint64(E))
+         return false;
+       return DiscardResult ? this->emitStorePopPtr(E) : this->emitStorePtr(E);
+     }
