@@ -1,7 +1,7 @@
 format = "peipkg"
 
 [package]
-version       = "{{version}}-1"
+version       = "{{version}}-3"
 architecture  = "x86_64"
 license       = "Apache-2.0"
 license_class = "free"

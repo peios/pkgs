@@ -1,0 +1,25 @@
+From: Peios Packaging <packaging@peios.dev>
+Subject: [PATCH] Use the packaged POSIX shell under /usr/bin
+
+Peios supplies dash and its sh alias in /usr/bin. Its filesystem-base package
+intentionally has no /bin alias, so posix_spawn of /bin/sh fails before a rule
+can run. Use the declared shell path for both argv[0] and posix_spawn. The
+Debian reference environment also provides /usr/bin/sh.
+
+Origin: downstream
+Upstream-Status: Inappropriate [Peios filesystem layout]
+Base-Commit: 3441b633c2fe2c494e958780ba0f4227b1327634 (v1.13.2)
+
+--- a/src/subprocess-posix.cc
++++ b/src/subprocess-posix.cc
+@@ -129,8 +129,8 @@
+   if (err != 0)
+     Fatal("posix_spawnattr_setflags: %s", strerror(err));
+ 
+-  const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
+-  err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
++  const char* spawned_args[] = { "/usr/bin/sh", "-c", command.c_str(), NULL };
++  err = posix_spawn(&pid_, "/usr/bin/sh", &action, &attr,
+         const_cast<char**>(spawned_args), environ);
+   if (err != 0)
+     Fatal("posix_spawn: %s", strerror(err));

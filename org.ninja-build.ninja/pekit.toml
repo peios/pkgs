@@ -3,6 +3,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.git]
 url       = "https://github.com/ninja-build/ninja.git"
 ref       = "v{{version}}"
@@ -111,6 +114,11 @@ EOF
 "$BIN" -C "$SMOKE" -j2
 grep -Fx ninja-smoke "$SMOKE/result"
 "$BIN" -C "$SMOKE" -t targets | grep -Fx 'result: generate'
+
+# The same installed-executor regression also runs in the independent
+# package-closure check with /bin absent and --require-no-bin.
+python3 "$PEKIT_RECIPE_ROOT/tools/test-shell.py" \
+  --ninja "$BIN" --work "$PEKIT_OUT/shell-regression"
 
 # Enforce the workspace hardening and split-debug contracts on what ships.
 readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
