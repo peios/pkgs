@@ -40,3 +40,23 @@ schema = 1
   ref = "v0.20.1-rc17"
   commit = "5d3fe6063feb8cc25e467751a0b94e9ebaa86d80"
   locked_at = "2026-09-11T21:10:48Z"
+
+[[source]]
+  version = "0.20.1-rc18"
+  ref = "v0.20.1-rc18"
+  commit = "fdca36b787d43a3de9a95293292fe5642c9122ee"
+  locked_at = "2026-09-11T22:38:14Z"
+
+[[source]]
+  version = "0.20.1-rc19"
+  ref = "v0.20.1-rc19"
+  commit = "d44a13f662429aca22e60b456b0273cc7d0cace1"
+  locked_at = "2026-09-11T22:39:55Z"
+
+[[input]]
+  name = "linux"
+  version = "7.0.9"
+  url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.0.9.tar.xz"
+  sha256 = "ac07acdf76cf4621cc5187a2670270a1a699533c8a6b225e4878c416ad83f1c4"
+  signature_key = "647f28654894e3bd457199be38dbbdc86092693e"
+  locked_at = "2026-09-20T23:09:44Z"

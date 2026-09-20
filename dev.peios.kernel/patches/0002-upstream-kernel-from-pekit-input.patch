@@ -1,0 +1,60 @@
+Subject: [PATCH] build: take the upstream kernel from a declared pekit input
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [pekit input support, PEI-1137]
+
+build:upstream imported the pristine Linux tree from org.kernel.linux-source, a
+package whose entire payload was one tarball and whose only consumer was this
+target. Because it arrived as a peipkg dependency, the Debian reference rung —
+which resolves through apt — could never supply it, and the target failed there
+with "Cannot open: /usr/src/dist/linux-7.0.9.tar.xz".
+
+The member recipe now declares the tarball as [input.linux]. Pekit fetches it,
+verifies kernel.org's detached signature against Greg Kroah-Hartman's release
+key coordinator-side, and pins the bytes in pekit.lock, so the archive stays
+independently verifiable and identical in both environments. The build itself
+stays offline and needs no PGP implementation in the root — there is no gpg in
+the Peios catalogue, so a build-root-side check was never an option natively.
+
+Dropping the tarball handling also drops tar and xz from this target.
+
+diff --git a/pekit.toml b/pekit.toml
+index b0e4d3b..a5f4cf6 100644
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -19,29 +19,24 @@ KERNEL_VERSION = "v7.0.9"
+ [build.upstream]
+ command = """
+ set -eu
+-# Import the independently authenticated, lock-pinned upstream source package.
+-# Keeping remote acquisition in its own recipe means this build stays offline
+-# and Peipkg can account for the exact upstream input in the dependency graph.
+-version=${KERNEL_VERSION#v}
+-tar -xJf "/usr/src/dist/linux-$version.tar.xz" \
+-	--strip-components=1 --directory "$PEKIT_OUT"
++# The pristine upstream tree, declared as [input.linux] on the member recipe.
++# Pekit fetched it, verified kernel.org's signature coordinator-side and pinned
++# its bytes in pekit.lock before this target ran, so the build stays offline and
++# no build root needs a PGP implementation. Previously this came in as a package
++# whose only payload was the tarball, which the Debian reference rung could not
++# deliver at all.
++cp -a "$PEKIT_INPUT_LINUX/." "$PEKIT_OUT/"
+ 
+ # Source-level prep hook: nothing needed today (patches apply to a pristine
+ # tree). Config/toolchain prep belongs to the later build stages, not here.
+ """
+ 
+-# Exact by design: Peios' patch series is derived against this Linux release.
+ [build.upstream.dependencies.peipkg]
+ "org.git.kernel.dash"       = "*"
+ "dev.peios.peiosutils"      = "*"
+-"org.kernel.linux-source"   = "= 7.0.9-1"
+-"org.gnu.tar"               = "*"
+-"org.tukaani.xz"            = "*"
+ 
+ [build.upstream.dependencies.apt]
+ coreutils = "*"
+-tar = "*"
+-xz-utils = "*"
+ 
+ [build.source]
+ needs = ["upstream"]
