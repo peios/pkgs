@@ -1,0 +1,102 @@
+.TH RUSTFMT 1 "September 2026" "Rust" "User Commands"
+.SH NAME
+rustfmt \- format Rust source code
+.SH SYNOPSIS
+.B rustfmt
+.RI [ options ]
+.RI [ file ...]
+.SH DESCRIPTION
+.B rustfmt
+formats Rust source files according to the Rust style guide.
+Named files are rewritten by default, including files belonging to their modules.
+With no file arguments, it reads Rust source from standard input and writes
+formatted source to standard output.
+.PP
+Use
+.BR cargo-fmt (1)
+to format a Cargo package with its declared Rust edition.
+.SH OPTIONS
+.TP
+.B \-\-check
+Check files without rewriting them. Report formatting differences and return
+a nonzero status when changes are needed.
+.TP
+.BI \-\-emit " files|stdout"
+Choose whether to rewrite files or print the formatted source.
+Do not combine this option with
+.BR \-\-check .
+.TP
+.B \-\-backup
+Keep a backup when modifying a file.
+.TP
+.BI \-\-edition " edition"
+Select the Rust language edition used to parse the source.
+Supported editions are 2015, 2018, 2021 and 2024. Direct invocation defaults to 2015
+unless configuration selects another edition.
+.TP
+.BI \-\-style\-edition " edition"
+Select the Rust style-guide edition independently of the language edition.
+Supported style editions are 2015, 2018, 2021 and 2024.
+.TP
+.BI \-\-config\-path " path"
+Select the configuration search path.
+.TP
+.BI \-\-config " key=value,..."
+Override configuration values on the command line.
+.TP
+.BI \-\-print\-config " default|minimal|current path"
+Write the default, used, or current configuration. The
+.B minimal
+form requires an output path and input files;
+.B current
+prints the configuration that would apply to the given path.
+.TP
+.BR \-l ", " \-\-files\-with\-diff
+List files whose formatting changed, or would change in check mode.
+.TP
+.BI \-\-color " always|never|auto"
+Control colored output.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress ordinary output.
+.TP
+.BR \-v ", " \-\-verbose
+Print additional information.
+.TP
+.BR \-h ", " \-\-help
+Show command-line help. Use
+.B \-\-help=config
+to list configuration options supported by this version.
+.TP
+.BR \-V ", " \-\-version
+Print the formatter version.
+.SH CONFIGURATION
+Options are read from
+.B rustfmt.toml
+or
+.B .rustfmt.toml
+in the project or a parent directory.
+Command-line configuration overrides the file.
+Some configuration options require a nightly formatter; consult
+.B \-\-help=config
+for the installed version.
+.SH EXIT STATUS
+Zero indicates success. Nonzero indicates an error or, when checking files,
+formatting differences.
+.SH EXAMPLES
+Format a file using the 2021 language edition:
+.PP
+.nf
+rustfmt \-\-edition 2021 src/main.rs
+.fi
+.PP
+Check formatting without changing files:
+.PP
+.nf
+rustfmt \-\-check src/main.rs
+.fi
+.SH SEE ALSO
+.BR cargo-fmt (1),
+.BR rustc (1)
+.PP
+https://rust-lang.github.io/rustfmt/

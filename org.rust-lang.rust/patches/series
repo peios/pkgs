@@ -1,0 +1,3 @@
+0001-psm-x86_64-ibt.patch
+0002-llvm23-removed-amx-tf32.patch
+0003-llvm23-thinlto-guid.patch

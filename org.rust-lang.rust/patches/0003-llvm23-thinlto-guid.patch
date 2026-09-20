@@ -1,0 +1,43 @@
+From: durin42 (upstream author)
+Subject: [PATCH] rustc_llvm: assign LLVM 23 GUIDs before ThinLTO serialization
+Upstream-Status: Backport [https://github.com/rust-lang/rust/commit/b8d3a4ac9cfeb81d1e929fe6eab0af4b77ba3bb4]
+Origin: https://github.com/rust-lang/rust/commit/b8d3a4ac9cfeb81d1e929fe6eab0af4b77ba3bb4
+
+Backport the three production hunks from the upstream reapplication. LLVM 23
+requires stable GUID metadata before constructing ThinLTO summaries, including
+Rust-generated allocator modules. Preserve LLVM versions below 23 unchanged.
+Upstream FileCheck output-format updates are not needed by this package gate;
+existing GNU and musl ThinLTO compile/run regressions remain mandatory.
+
+--- a/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp
++++ b/compiler/rustc_llvm/llvm-wrapper/PassWrapper.cpp
+@@ -49,6 +49,9 @@
+ #include "llvm/Transforms/Instrumentation/RealtimeSanitizer.h"
+ #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
+ #include "llvm/Transforms/Scalar/AnnotationRemarks.h"
++#if LLVM_VERSION_GE(23, 0)
++#include "llvm/Transforms/Utils/AssignGUID.h"
++#endif
+ #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
+ #include "llvm/Transforms/Utils/FunctionImportUtils.h"
+ #include "llvm/Transforms/Utils/NameAnonGlobals.h"
+@@ -925,6 +928,9 @@
+   if (NeedThinLTOBufferPasses) {
+     MPM.addPass(CanonicalizeAliasesPass());
+     MPM.addPass(NameAnonGlobalPass());
++#if LLVM_VERSION_GE(23, 0)
++    MPM.addPass(AssignGUIDPass());
++#endif
+   }
+   // For `-Copt-level=0`, and the pre-link fat/thin LTO stages.
+   if (ThinLTOBufferRef && *ThinLTOBufferRef == nullptr) {
+@@ -1464,6 +1470,9 @@
+         PB.registerLoopAnalyses(LAM);
+         PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+         ModulePassManager MPM;
++#if LLVM_VERSION_GE(23, 0)
++        MPM.addPass(AssignGUIDPass());
++#endif
+         MPM.addPass(ThinLTOBitcodeWriterPass(OS, nullptr));
+         MPM.run(*unwrap(M), MAM);
+       } else {

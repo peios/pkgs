@@ -1,0 +1,25 @@
+From: Sunil Dora <sunilkumar.dora@windriver.com>
+Subject: [PATCH] rustc_codegen_llvm: skip removed AMX-TF32 mapping with LLVM 23
+Origin: https://git.openembedded.org/openembedded-core/commit/?id=99548382539f2e9b7fb9ba182f9e0f6707d4f360
+Upstream-Status: Inappropriate [Rust 1.98 compatibility with external LLVM 23; upstream removed the feature after 1.98 in https://github.com/rust-lang/rust/pull/159310]
+
+LLVM removed AMX-TF32 in https://github.com/llvm/llvm-project/pull/207673.
+Keep the existing Rust mapping with earlier LLVM versions, but omit this
+one removed backend feature on LLVM 23 and later. The standard target
+feature query otherwise aborts before compiling any program.
+
+This is the two-line OpenEmbedded compatibility fix, with local provenance
+headers. It does not change generic unknown-feature handling or claim
+hardware support for an explicitly requested unstable feature.
+
+--- a/compiler/rustc_codegen_llvm/src/llvm_util.rs
++++ b/compiler/rustc_codegen_llvm/src/llvm_util.rs
+@@ -286,6 +286,8 @@
+                     s,
+                     smallvec![TargetFeatureFoldStrength::EnableOnly("evex512")],
+                 )),
++                // AMX-TF32 was removed from LLVM 23
++                "amx-tf32" if major >= 23 => None,
+                 "avx10.1" if major < 22 => Some(LLVMFeature::new("avx10.1-512")),
+                 "avx10.2" if major < 22 => Some(LLVMFeature::new("avx10.2-512")),
+                 "apxf" => Some(LLVMFeature::with_dependencies(

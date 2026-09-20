@@ -1,3 +1,4 @@
+excludes = [":usr/share/man/man1/cargo-fmt.1.gz"]
 side_effects = ["man-db"]
 
 [package]
@@ -16,8 +17,13 @@ description = "Package manager and build tool for the Rust ecosystem"
 "org.openssl.libcrypto" = ">= 3.5"
 
 [files]
-"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.cargo/LICENSE-APACHE"
-"@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.cargo/LICENSE-MIT"
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.cargo/COPYRIGHT"
+"@source:src/tools/cargo/LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.cargo/LICENSE-APACHE"
+"@source:src/tools/cargo/LICENSE-MIT" = "usr/share/licenses/org.rust-lang.cargo/LICENSE-MIT"
+"@source:src/tools/cargo/LICENSE-THIRD-PARTY" = "usr/share/licenses/org.rust-lang.cargo/LICENSE-THIRD-PARTY"
+
 ":usr/bin/cargo" = "usr/bin/cargo"
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-cargo" = "usr/lib/x86_64-linux-peios/rustlib/manifest-cargo"
 ":usr/share/doc/cargo/**" = "usr/share/doc/org.rust-lang.cargo"

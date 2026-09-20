@@ -17,6 +17,10 @@ description  = "Programming-language compiler, package manager, formatter and so
 "org.rust-lang.rust-common" = "= {{version}}-1"
 
 [files]
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.rust/COPYRIGHT"
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust/LICENSE-APACHE"
 "@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rust/LICENSE-MIT"
+
 "@source:README.md" = "usr/share/doc/org.rust-lang.rust/README.md"

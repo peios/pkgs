@@ -1,0 +1,92 @@
+.TH CARGO-FMT 1 "September 2026" "Rust" "User Commands"
+.SH NAME
+cargo-fmt \- format a Cargo package with rustfmt
+.SH SYNOPSIS
+.B cargo fmt
+.RI [ options ]
+.RB [ \-\-
+.IR rustfmt-options ...]
+.SH DESCRIPTION
+.B cargo fmt
+formats the binary and library targets of a Cargo package using
+.BR rustfmt (1).
+It obtains target paths and language editions from Cargo metadata.
+By default, files are rewritten. Configuration is read by rustfmt from
+.B rustfmt.toml
+or
+.BR .rustfmt.toml .
+.PP
+The installed
+.B cargo-fmt
+executable implements the Cargo
+.B fmt
+subcommand. Arguments after
+.B \-\-
+are passed to rustfmt.
+.SH OPTIONS
+.TP
+.B \-\-check
+Check formatting without rewriting files. Return a nonzero status if changes
+are required.
+.TP
+.BR \-p ", " \-\-package " " \fIpackage\fR...
+Select the package or packages to format.
+.TP
+.B \-\-all
+Format all packages and their local path dependencies.
+.TP
+.BI \-\-manifest\-path " path"
+Use the Cargo manifest at
+.IR path ,
+which must name a
+.B Cargo.toml
+file.
+.TP
+.BI \-\-message\-format " short|json|human"
+Select the report format. JSON output cannot be combined with check mode
+or an explicit rustfmt
+.B \-\-emit
+option.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress standard output.
+.TP
+.BR \-v ", " \-\-verbose
+Show additional information. Do not combine with
+.BR \-\-quiet .
+.TP
+.B \-\-version
+Print the rustfmt version.
+.TP
+.BR \-h ", " \-\-help
+Show command-line help.
+.SH ENVIRONMENT
+.TP
+.B RUSTFMT
+Override the rustfmt executable used by Cargo's formatter integration.
+.SH EXIT STATUS
+Zero indicates success. Nonzero indicates an error or formatting differences
+in check mode.
+.SH EXAMPLES
+Format the current package:
+.PP
+.nf
+cargo fmt
+.fi
+.PP
+Check all packages and local path dependencies:
+.PP
+.nf
+cargo fmt \-\-all \-\-check
+.fi
+.PP
+Pass a formatting option to rustfmt:
+.PP
+.nf
+cargo fmt \-\- \-\-config max_width=100
+.fi
+.SH SEE ALSO
+.BR cargo (1),
+.BR rustfmt (1)
+.PP
+https://rust-lang.github.io/rustfmt/

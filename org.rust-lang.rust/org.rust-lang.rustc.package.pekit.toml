@@ -12,13 +12,18 @@ description = "Rust compiler and rustdoc documentation generator"
 "org.gnu.glibc"                     = ">= 2.43"
 "org.gnu.gcc-libgcc"                    = ">= 16"
 "org.gnu.gcc-libstdc++"               = ">= 16"
-"org.llvm.llvm"                      = ">= 22.1.6, < 23"
+# The actual LLVM shared-library dependency is derived from DT_NEEDED.
+# rustc does not execute LLVM command-line tools at runtime.
 # Functional rather than DT_NEEDED: rustc drives the system linker through cc.
 "org.gnu.gcc"                       = ">= 16"
 
 [files]
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.rustc/COPYRIGHT"
 "@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rustc/LICENSE-APACHE"
 "@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rustc/LICENSE-MIT"
+
 ":usr/bin/rustc" = "usr/bin/rustc"
 ":usr/bin/rustdoc" = "usr/bin/rustdoc"
 ":usr/lib/x86_64-linux-peios/librustc_driver-*.so" = "usr/lib/x86_64-linux-peios"
