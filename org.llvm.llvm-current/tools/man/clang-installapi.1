@@ -1,0 +1,83 @@
+.TH CLANG-INSTALLAPI 1 "" "LLVM @LLVM_VERSION@" "User Commands"
+.SH NAME
+clang-installapi \- generate and verify Apple text-based library interfaces
+.SH SYNOPSIS
+.B clang-installapi
+.BI \-target " apple-target"
+.BI \-install_name " library-name"
+.BI \-o " output.tbd"
+.RI [ options ] " " "header-list.json | framework-directory"
+.SH DESCRIPTION
+Parse library headers with Clang and write a text-based stub library describing
+its exported interface. Inputs are JSON header lists or a framework directory.
+The selected target must be an Apple platform supported by TextAPI; this command
+does not produce Peios ELF shared libraries.
+.PP
+A target SDK, headers and framework search paths must be supplied when required
+by the input. The output path is mandatory. Multiple input header lists can be
+combined. If several input directories are given, the last directory is used.
+.SH OPTIONS
+.TP
+.BI \-target " triple"
+Select an Apple target triple, including the deployment version. May be repeated
+for multiple slices. Do not combine with \-arch or \-mtargetos.
+.TP
+.BI \-o " path"
+Write the interface to this file; a dash selects standard output.
+.TP
+.BI \-install_name " name"
+Set the dynamic library install name recorded in the interface.
+.TP
+.BI \-isysroot " directory"
+Use this SDK root while parsing headers.
+.TP
+.BI \-I " directory"
+Add a header search directory. Clang framework, language and preprocessing
+options can also be supplied, including \-F, \-x, \-D and \-U.
+.TP
+.BI \-\-filetype= " format"
+Select tbd-v4 or tbd-v5 output.
+.TP
+.BI \-verify-against " library"
+Compare the generated interface with an existing dynamic library or framework.
+.TP
+.BI \-\-verify-mode= " mode"
+Select ErrorsOnly, ErrorsAndWarnings or Pedantic verification.
+.TP
+.B \-\-demangle
+Demangle symbols in diagnostics.
+.TP
+.BI \-extra-public-header " path"
+Add a public header. The corresponding \-extra-private-header and
+\-extra-project-header options select private or project headers.
+.TP
+.BI \-exclude-public-header " glob"
+Exclude public headers matching a pattern. Corresponding private and project
+options are also available. Quote patterns to prevent shell expansion.
+.TP
+.BI \-public-umbrella-header " path"
+Select the public umbrella header. Private and project variants are available.
+.TP
+.BI \-reexport_library " path"
+Re-export another library. The \-reexport-l and \-reexport_framework options
+accept a library name or framework name respectively.
+.TP
+.BI \-allowable_client " name"
+Restrict clients allowed to link against the library.
+.SH INPUT FORMAT
+A version 3 header list has a version field and a headers array. Each header
+entry specifies a type, such as public or private, and its path. For example:
+.nf
+{ "version": "3", "headers": [
+  { "type": "public", "path": "include/example.h" }
+] }
+.fi
+.SH EXIT STATUS
+Zero indicates successful interface generation. A nonzero status indicates an
+invalid invocation, an input or output error, or a failed verification.
+.SH NOTES
+This command's upstream driver does not implement a standalone help response.
+This reference describes the packaged driver's option table and input parser.
+.SH SEE ALSO
+.BR clang (1),
+.BR llvm-readtapi (1)

@@ -1,0 +1,324 @@
+Description: Keep GPU loader options separate from the libLLVM global registry
+Origin: Peios packaging; LLVM23 tool-local OptTable follows upstream llvm-strings
+Forwarded: no
+Bug: Linking against the complete libLLVM registers ThinLTO's threads option and
+ collides with llvm-gpu-loader's threads alias before main. Preserve loader aliases
+ and ConsumeAfter arguments with a private option table; keep dynamic LLVM linkage.
+Validation: Exact Debian reference one-tool compile/link; 55 parser cases; CLI lit
+ regression; all 115 manual probes and complete 116-page manual generation pass.
+
+--- a/llvm/test/CMakeLists.txt
++++ b/llvm/test/CMakeLists.txt
+@@ -105,6 +105,7 @@
+   llvm-exegesis
+   llvm-extract
+   llvm-extract-bundle-entry
++  llvm-gpu-loader
+   llvm-gsymutil
+   llvm-ir2vec
+   llvm-isel-fuzzer
+--- a/llvm/test/lit.cfg.py
++++ b/llvm/test/lit.cfg.py
+@@ -277,6 +277,7 @@
+         "llvm-exegesis",
+         "llvm-extract",
+         "llvm-extract-bundle-entry",
++        "llvm-gpu-loader",
+         "llvm-ir2vec",
+         "llvm-isel-fuzzer",
+         "llvm-ifs",
+--- a/llvm/tools/llvm-gpu-loader/CMakeLists.txt
++++ b/llvm/tools/llvm-gpu-loader/CMakeLists.txt
+@@ -6,9 +6,14 @@
+   Support
+ )
+ 
++set(LLVM_TARGET_DEFINITIONS Opts.td)
++tablegen(LLVM Opts.inc -gen-opt-parser-defs)
++add_public_tablegen_target(GpuLoaderOptsTableGen)
++
+ add_llvm_tool(llvm-gpu-loader
+   llvm-gpu-loader.cpp
+ 
+   DEPENDS
+   intrinsics_gen
++  GpuLoaderOptsTableGen
+ )
+--- a/llvm/tools/llvm-gpu-loader/llvm-gpu-loader.cpp
++++ b/llvm/tools/llvm-gpu-loader/llvm-gpu-loader.cpp
+@@ -13,6 +13,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "llvm-gpu-loader.h"
++#include "llvm-gpu-loader-options.h"
+ 
+ #include "llvm/BinaryFormat/Magic.h"
+ #include "llvm/Object/ELF.h"
+@@ -34,44 +35,6 @@
+ 
+ using namespace llvm;
+ 
+-static cl::OptionCategory LoaderCategory("loader options");
+-
+-static cl::opt<bool> Help("h", cl::desc("Alias for -help"), cl::Hidden,
+-                          cl::cat(LoaderCategory));
+-
+-static cl::opt<unsigned>
+-    ThreadsX("threads-x", cl::desc("Number of threads in the 'x' dimension"),
+-             cl::init(1), cl::cat(LoaderCategory));
+-static cl::opt<unsigned>
+-    ThreadsY("threads-y", cl::desc("Number of threads in the 'y' dimension"),
+-             cl::init(1), cl::cat(LoaderCategory));
+-static cl::opt<unsigned>
+-    ThreadsZ("threads-z", cl::desc("Number of threads in the 'z' dimension"),
+-             cl::init(1), cl::cat(LoaderCategory));
+-static cl::alias threads("threads", cl::aliasopt(ThreadsX),
+-                         cl::desc("Alias for --threads-x"),
+-                         cl::cat(LoaderCategory));
+-
+-static cl::opt<unsigned>
+-    BlocksX("blocks-x", cl::desc("Number of blocks in the 'x' dimension"),
+-            cl::init(1), cl::cat(LoaderCategory));
+-static cl::opt<unsigned>
+-    BlocksY("blocks-y", cl::desc("Number of blocks in the 'y' dimension"),
+-            cl::init(1), cl::cat(LoaderCategory));
+-static cl::opt<unsigned>
+-    BlocksZ("blocks-z", cl::desc("Number of blocks in the 'z' dimension"),
+-            cl::init(1), cl::cat(LoaderCategory));
+-static cl::alias Blocks("blocks", cl::aliasopt(BlocksX),
+-                        cl::desc("Alias for --blocks-x"),
+-                        cl::cat(LoaderCategory));
+-
+-static cl::opt<std::string> File(cl::Positional, cl::Required,
+-                                 cl::desc("<gpu executable>"),
+-                                 cl::cat(LoaderCategory));
+-static cl::list<std::string> Args(cl::ConsumeAfter,
+-                                  cl::desc("<program arguments>..."),
+-                                  cl::cat(LoaderCategory));
+-
+ [[noreturn]] static void handleError(Error E) {
+   outs().flush();
+   logAllUnhandledErrors(std::move(E), WithColor::error(errs(), "loader"));
+@@ -186,17 +149,22 @@
+ 
+ int main(int argc, const char **argv, const char **envp) {
+   sys::PrintStackTraceOnErrorSignal(argv[0]);
+-  cl::HideUnrelatedOptions(LoaderCategory);
+-  cl::ParseCommandLineOptions(
+-      argc, argv,
+-      "A utility used to launch unit tests built for a GPU target. This is\n"
+-      "intended to provide an interface similar to cross-compiling "
+-      "emulators\n");
+-
+-  if (Help) {
+-    cl::PrintHelpMessage();
++  auto Parsed = gpu_loader::parseOptions(argc, argv);
++  if (!Parsed)
++    handleError(Parsed.takeError());
++  if (Parsed->Help) {
++    gpu_loader::LoaderOptTable().printHelp(
++        outs(),
++        "llvm-gpu-loader [options] <gpu executable> <program arguments>...",
++        "A utility used to launch unit tests built for a GPU target.");
+     return EXIT_SUCCESS;
+   }
++  if (Parsed->Version) {
++    cl::PrintVersionMessage();
++    return EXIT_SUCCESS;
++  }
++  const auto &[ThreadsX, ThreadsY, ThreadsZ, BlocksX, BlocksY, BlocksZ, File,
++               Args, Help, Version] = *Parsed;
+ 
+   if (Error Err = loadLLVMOffload())
+     handleError(std::move(Err));
+--- /dev/null
++++ b/llvm/tools/llvm-gpu-loader/llvm-gpu-loader-options.h
+@@ -0,0 +1,139 @@
++//===-- Tool-local GPU loader options ----------------------------*- C++
++//-*-===//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++#ifndef LLVM_TOOLS_LLVM_GPU_LOADER_OPTIONS_H
++#define LLVM_TOOLS_LLVM_GPU_LOADER_OPTIONS_H
++
++#include "llvm/ADT/StringExtras.h"
++#include "llvm/Option/Arg.h"
++#include "llvm/Option/ArgList.h"
++#include "llvm/Option/OptTable.h"
++#include "llvm/Option/Option.h"
++#include "llvm/Support/CommandLine.h"
++#include "llvm/Support/Error.h"
++#include "llvm/Support/StringSaver.h"
++#include <string>
++#include <vector>
++
++namespace llvm::gpu_loader {
++enum ID {
++  OPT_INVALID = 0,
++#define OPTION(...) LLVM_MAKE_OPT_ID(__VA_ARGS__),
++#include "Opts.inc"
++#undef OPTION
++  OPT_LAST
++};
++#define OPTTABLE_STR_TABLE_CODE
++#include "Opts.inc"
++#undef OPTTABLE_STR_TABLE_CODE
++#define OPTTABLE_PREFIXES_TABLE_CODE
++#include "Opts.inc"
++#undef OPTTABLE_PREFIXES_TABLE_CODE
++using opt::DefaultVis;
++static constexpr opt::OptTable::Info InfoTable[] = {
++#define OPTION(...) LLVM_CONSTRUCT_OPT_INFO(__VA_ARGS__),
++#include "Opts.inc"
++#undef OPTION
++};
++class LoaderOptTable : public opt::GenericOptTable {
++public:
++  LoaderOptTable()
++      : GenericOptTable(OptionStrTable, OptionPrefixesTable, InfoTable) {}
++};
++
++struct Options {
++  unsigned ThreadsX = 1, ThreadsY = 1, ThreadsZ = 1;
++  unsigned BlocksX = 1, BlocksY = 1, BlocksZ = 1;
++  std::string File;
++  std::vector<std::string> Args;
++  bool Help = false, Version = false;
++};
++
++// Do not register tool options in llvm::cl's process-wide registry: libLLVM's
++// ThinLTO code also owns a "threads" option. ParseOneArg lets us preserve the
++// ConsumeAfter interface: every argument following the image belongs to it.
++inline Expected<Options> parseOptions(int Argc, const char *const *Argv) {
++  BumpPtrAllocator Alloc;
++#ifdef _WIN32
++  auto Tokenize = cl::TokenizeWindowsCommandLine;
++#else
++  auto Tokenize = cl::TokenizeGNUCommandLine;
++#endif
++  cl::ExpansionContext Expansion(Alloc, Tokenize);
++  SmallVector<const char *, 20> Expanded(Argv, Argv + Argc);
++  if (Error E = Expansion.expandResponseFiles(Expanded))
++    return std::move(E);
++  opt::InputArgList Input(Expanded.data() + 1,
++                          Expanded.data() + Expanded.size());
++  LoaderOptTable Table;
++  Options Result;
++  bool Seen[OPT_LAST] = {};
++  unsigned I = 0;
++  while (I < Input.getNumInputArgStrings()) {
++    StringRef Raw(Input.getArgString(I));
++    if (Raw == "--") {
++      ++I;
++      if (I == Input.getNumInputArgStrings())
++        break;
++      Result.File = Input.getArgString(I++);
++      break;
++    }
++    auto A = Table.ParseOneArg(Input, I);
++    if (!A)
++      return createStringError("missing value for option '%s'",
++                               Raw.str().c_str());
++    unsigned Kind = A->getOption().getID();
++    if (Kind == OPT_INPUT) {
++      Result.File = A->getValue();
++      break;
++    }
++    if (Kind == OPT_UNKNOWN)
++      return createStringError("unknown option '%s'", Raw.str().c_str());
++    if (Kind == OPT_help) {
++      Result.Help = true;
++      continue;
++    }
++    if (Kind == OPT_version) {
++      Result.Version = true;
++      continue;
++    }
++    if (Seen[Kind])
++      return createStringError("option '%s' may only occur once",
++                               A->getSpelling().str().c_str());
++    Seen[Kind] = true;
++    unsigned Value;
++    if (!to_integer(StringRef(A->getValue()), Value, 0))
++      return createStringError("invalid unsigned integer '%s' for option '%s'",
++                               A->getValue(), A->getSpelling().str().c_str());
++    switch (Kind) {
++    case OPT_threads_x:
++      Result.ThreadsX = Value;
++      break;
++    case OPT_threads_y:
++      Result.ThreadsY = Value;
++      break;
++    case OPT_threads_z:
++      Result.ThreadsZ = Value;
++      break;
++    case OPT_blocks_x:
++      Result.BlocksX = Value;
++      break;
++    case OPT_blocks_y:
++      Result.BlocksY = Value;
++      break;
++    case OPT_blocks_z:
++      Result.BlocksZ = Value;
++      break;
++    default:
++      llvm_unreachable("unexpected loader option");
++    }
++  }
++  while (I < Input.getNumInputArgStrings())
++    Result.Args.emplace_back(Input.getArgString(I++));
++  if (Result.File.empty() && !Result.Help && !Result.Version)
++    return createStringError("missing GPU executable");
++  return Result;
++}
++} // namespace llvm::gpu_loader
++#endif
+--- /dev/null
++++ b/llvm/tools/llvm-gpu-loader/Opts.td
+@@ -0,0 +1,21 @@
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++include "llvm/Option/OptParser.td"
++
++multiclass Dimension<string name, string help> {
++  def NAME : Separate<["--", "-"], name>, HelpText<help>;
++  def : Joined<["--", "-"], name # "=">, Alias<!cast<Separate>(NAME)>;
++}
++defm threads_x : Dimension<"threads-x", "Number of threads in the 'x' dimension">;
++defm threads_y : Dimension<"threads-y", "Number of threads in the 'y' dimension">;
++defm threads_z : Dimension<"threads-z", "Number of threads in the 'z' dimension">;
++defm blocks_x : Dimension<"blocks-x", "Number of blocks in the 'x' dimension">;
++defm blocks_y : Dimension<"blocks-y", "Number of blocks in the 'y' dimension">;
++defm blocks_z : Dimension<"blocks-z", "Number of blocks in the 'z' dimension">;
++def : Separate<["--", "-"], "threads">, Alias<threads_x>, HelpText<"Alias for --threads-x">;
++def : Joined<["--", "-"], "threads=">, Alias<threads_x>;
++def : Separate<["--", "-"], "blocks">, Alias<blocks_x>, HelpText<"Alias for --blocks-x">;
++def : Joined<["--", "-"], "blocks=">, Alias<blocks_x>;
++def help : Flag<["--", "-"], "help">, HelpText<"Display this help">;
++def : Flag<["--", "-"], "h">, Alias<help>;
++def version : Flag<["--", "-"], "version">, HelpText<"Display the version">;
+--- /dev/null
++++ b/llvm/test/tools/llvm-gpu-loader/command-line.test
+@@ -0,0 +1,22 @@
++# Tool options must not collide with options in LLVM_LINK_LLVM_DYLIB builds.
++# None of these checks requires a GPU or libLLVMOffload.
++# RUN: llvm-gpu-loader --help | FileCheck %s --check-prefix=HELP
++# RUN: llvm-gpu-loader -h | FileCheck %s --check-prefix=HELP
++# RUN: llvm-gpu-loader --threads=7 --blocks=3 --help | FileCheck %s --check-prefix=HELP
++# HELP: OVERVIEW: A utility used to launch unit tests built for a GPU target.
++# HELP: --blocks
++# HELP: --threads
++
++# Aliases must still refer to their x-dimension options.
++# RUN: not llvm-gpu-loader --threads=4 --threads-x=8 image 2>&1 | FileCheck %s --check-prefix=DUPLICATE
++# RUN: not llvm-gpu-loader --blocks=4 --blocks-x=8 image 2>&1 | FileCheck %s --check-prefix=DUPLICATE
++# DUPLICATE: may only occur once
++
++# RUN: not llvm-gpu-loader --threads=bad image 2>&1 | FileCheck %s --check-prefix=INVALID
++# RUN: not llvm-gpu-loader --threads=-1 image 2>&1 | FileCheck %s --check-prefix=INVALID
++# RUN: not llvm-gpu-loader --blocks-z=4294967296 image 2>&1 | FileCheck %s --check-prefix=INVALID
++# INVALID: invalid unsigned integer
++# RUN: not llvm-gpu-loader --threads 2>&1 | FileCheck %s --check-prefix=MISSING-VALUE
++# MISSING-VALUE: missing value for option
++# RUN: not llvm-gpu-loader 2>&1 | FileCheck %s --check-prefix=MISSING-IMAGE
++# MISSING-IMAGE: missing GPU executable

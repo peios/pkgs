@@ -17,3 +17,5 @@ description = "LLVM linker and compatible driver names"
 ":usr/bin/ld.lld"  = "usr/bin/ld.lld"
 ":usr/bin/ld64.lld" = "usr/bin/ld64.lld"
 ":usr/bin/wasm-ld" = "usr/bin/wasm-ld"
+
+":.manuals/lld/usr/share/man/**" = "usr/share/man"

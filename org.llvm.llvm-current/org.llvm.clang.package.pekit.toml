@@ -12,6 +12,9 @@ description = "C, C++, and Objective-C compiler"
 [replaces]
 
 [dependencies]
+# Hosted C/C++ defaults need startup objects, libc SDK, and libstdc++ headers.
+"org.gnu.gcc" = ">= 16"
+"org.gnu.gcc-libstdc++-devel" = ">= 16"
 "org.llvm.llvm"       = "{{version}}-1"
 "org.llvm.clang-libs" = "{{version}}-1"
 
@@ -21,3 +24,5 @@ description = "C, C++, and Objective-C compiler"
 ":usr/bin/c-index-test" = "usr/bin/c-index-test"
 ":usr/bin/diagtool"     = "usr/bin/diagtool"
 ":usr/lib/x86_64-linux-peios/clang/**"      = "usr/lib/x86_64-linux-peios/clang"
+
+":.manuals/clang/usr/share/man/**" = "usr/share/man"

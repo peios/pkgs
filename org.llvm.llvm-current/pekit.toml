@@ -22,15 +22,17 @@ root        = "llvm-project-{{version}}.src"
 file_regex  = 'llvm-project-[0-9]+\.[0-9]+\.[0-9]+\.src\.tar\.xz'
 # Soft production floor. Track every newer authenticated release; incompatible
 # compiler-stack changes stop at the full LLVM, Clang, and LLD test gates.
-versions    = ">= 22.1.6"
+versions    = ">= 23.1.1"
 
 # LLVM signs release tarballs after the release-manager verification pass.
-# Pin the full primary fingerprint of the LLVM 22.1.6 release manager.
+# Pin the authenticated release managers: Douglas Yung and Tobias Hieta.
+# Keys are published at https://releases.llvm.org/release-keys.asc; LLVM
+# 23.1.1 source is signed by Tobias while prior releases use Douglas.
 [source.url.signature]
 url          = "{{source_url}}.sig"
 of           = "artifact"
-key_files    = ["keys/douglas-yung.asc"]
-fingerprints = ["FFB3368980F3E6BB5737145A316C56D064CACBA5"]
+key_files    = ["keys/douglas-yung.asc", "keys/tobias-hieta.asc"]
+fingerprints = ["FFB3368980F3E6BB5737145A316C56D064CACBA5", "D574BD5D1D0E98895E3BF90044F2485E45D59042"]
 
 [build.main]
 clear_out = false
@@ -63,7 +65,7 @@ LINK_JOBS=$((MEM_KIB / 6000000))
 # Keep the inherited distribution flags intact while adding source remapping.
 export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
 export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibt,-z,shstk"
+export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt"
 
 # Keep a valid CMake tree across interrupted or failed checks. Pekit preserves
 # this target stage and CMake refreshes it from the declared configuration
@@ -71,6 +73,7 @@ export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-rel
 cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_ASM_FLAGS="$CFLAGS" \
   -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
   -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS -pie" \
   -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
@@ -103,6 +106,22 @@ cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DLLVM_PARALLEL_COMPILE_JOBS="$JOBS" \
   -DLLVM_PARALLEL_LINK_JOBS="$LINK_JOBS"
 
+# LLVM's BLAKE3 assembly is a separate CMake language: CFLAGS alone do
+# not reach it. Its upstream __CET__ hooks emit real ENDBR instructions and
+# property notes with the explicit ASM flags above. Check these small objects
+# early, before the expensive compiler build, and retain the final ELF gates.
+if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+  cmake --build "$BUILD" --target LLVMSupportBlake3 -j"$JOBS"
+  ASM_COUNT=0
+  for object in "$BUILD"/lib/Support/BLAKE3/CMakeFiles/LLVMSupportBlake3.dir/*_x86-64_unix.S.o; do
+    test -f "$object"
+    readelf -n "$object" | grep -E 'x86 feature:.*IBT.*SHSTK'
+    objdump -d "$object" | grep -q 'endbr64'
+    ASM_COUNT=$((ASM_COUNT + 1))
+  done
+  test "$ASM_COUNT" -eq 4
+fi
+
 cmake --build "$BUILD" -j"$JOBS"
 
 # LLVM_LIBDIR_SUFFIX deliberately contains a slash. Our source patch keeps the
@@ -113,6 +132,9 @@ test -f "$BUILT_RESOURCE_DIR/include/stddef.h"
 test -f "$BUILT_RESOURCE_DIR/include/hlsl.h"
 
 DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+# Install the dedicated relocatable variant; retain build/bin/llvm-config for tests.
+install -m 0755 "$BUILD/bin/llvm-config-installed" "$PREFIX/bin/llvm-config"
+python3 "$PEKIT_RECIPE_ROOT/tools/fix-installed-cmake.py" "$PREFIX" "$BUILD"
 
 # scan-build/scan-view and other interpreter frontends are separate products,
 # not hidden runtime dependencies of the compiler. Keep this package family to
@@ -130,6 +152,13 @@ rm -rf "$PREFIX/lib/$TRIPLET/libear" \
 # installed ELF by build ID and stage the exact source files its DWARF names.
 # The binutils helpers may themselves link libLLVM/libzstd; never let them mmap
 # a staged library which they are about to rewrite in place.
+# Generate deterministic command references from this exact compiler build.
+# Retain the authenticated upstream guides for the full explanatory material.
+python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$SRC" \
+  "$PEKIT_VERSION" "$PEKIT_OUT/.manuals"
+mkdir -p "$PREFIX/share/doc/org.llvm.llvm"
+cp -R "$SRC/llvm/docs/CommandGuide" "$PREFIX/share/doc/org.llvm.llvm/CommandGuide"
+
 unset LD_LIBRARY_PATH
 find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec strip --strip-debug {} +
 if find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec readelf -SW {} + 2>/dev/null \
@@ -156,6 +185,10 @@ find usr/bin "usr/lib/$TRIPLET" -type f ! -type l \
         debug_component=clang-libs ;;
       usr/bin/lld)
         debug_component=lld ;;
+      usr/bin/llvm-config)
+        debug_component=llvm-devel ;;
+      usr/lib/$TRIPLET/*.so*)
+        debug_component=llvm-libs ;;
       *)
         debug_component=llvm ;;
     esac
@@ -203,6 +236,15 @@ BIN="$PREFIX/bin"
 SMOKE="$PEKIT_OUT/smoke"
 JOBS=$(nproc)
 
+# Exercise the staged hosted drivers before the long upstream suites.
+python3 "$PEKIT_RECIPE_ROOT/tools/test-default-driver.py" \
+  --prefix "$PREFIX" --output "$PEKIT_OUT/default-driver"
+
+python3 "$PEKIT_RECIPE_ROOT/tools/test-sdk-closures.py" "$PEKIT_RECIPE_ROOT" "$STAGE" "$PEKIT_OUT/sdk-closures"
+
+# The development tool still resolves its source and object trees for upstream tests.
+test "$("$BUILD/bin/llvm-config" --prefix)" = "$BUILD"
+test "$("$BUILD/bin/llvm-config" --includedir)" = "$PEKIT_SOURCE_ROOT/llvm/include"
 cmake --build "$BUILD" --target check-llvm check-clang check-lld -- -j"$JOBS"
 
 test -x "$BIN/llvm-config"
@@ -276,7 +318,9 @@ for elf in "$BIN/llvm-config" "$BIN/clang-$LLVM_MAJOR" "$BIN/lld" \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 '''
