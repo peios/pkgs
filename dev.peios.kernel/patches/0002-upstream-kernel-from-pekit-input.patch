@@ -15,13 +15,20 @@ independently verifiable and identical in both environments. The build itself
 stays offline and needs no PGP implementation in the root — there is no gpg in
 the Peios catalogue, so a build-root-side check was never an option natively.
 
-Dropping the tarball handling also drops tar and xz from this target.
+The tree is copied through tar because the two rungs disagree about cp: `cp -a`
+asks for the security descriptor and the native coreutils fails with ENOSYS
+reading one on a host without KACS, and naming attributes does not help because
+the vocabularies differ (GNU has `mode` and no `exec`, the native one has `exec`
+and no `mode`, and its plain -R preserves nothing). A tar stream carries modes,
+symlinks, hardlinks and mtimes identically on both.
+
+Dropping the archive handling drops xz from this target.
 
 diff --git a/pekit.toml b/pekit.toml
-index b0e4d3b..a5f4cf6 100644
+index b0e4d3b..57fad71 100644
 --- a/pekit.toml
 +++ b/pekit.toml
-@@ -19,29 +19,24 @@ KERNEL_VERSION = "v7.0.9"
+@@ -19,29 +19,34 @@ KERNEL_VERSION = "v7.0.9"
  [build.upstream]
  command = """
  set -eu
@@ -34,10 +41,18 @@ index b0e4d3b..a5f4cf6 100644
 +# The pristine upstream tree, declared as [input.linux] on the member recipe.
 +# Pekit fetched it, verified kernel.org's signature coordinator-side and pinned
 +# its bytes in pekit.lock before this target ran, so the build stays offline and
-+# no build root needs a PGP implementation. Previously this came in as a package
++# no build root needs a PGP implementation. It previously arrived as a package
 +# whose only payload was the tarball, which the Debian reference rung could not
 +# deliver at all.
-+cp -a "$PEKIT_INPUT_LINUX/." "$PEKIT_OUT/"
++#
++# Copied through tar rather than cp, because the two rungs disagree about cp.
++# `cp -a` asks for the whole security descriptor and the native coreutils fails
++# with ENOSYS reading one on a host without KACS; naming attributes instead does
++# not help, because the vocabularies differ — GNU has `mode` and no `exec`, the
++# native one has `exec` and no `mode`, and plain -R preserves nothing there. A
++# tar stream carries modes, symlinks, hardlinks and mtimes identically on both,
++# and carries no security descriptors to fail on.
++tar -cf - -C "$PEKIT_INPUT_LINUX" . | tar -xf - -C "$PEKIT_OUT"
  
  # Source-level prep hook: nothing needed today (patches apply to a pristine
  # tree). Config/toolchain prep belongs to the later build stages, not here.
@@ -48,12 +63,12 @@ index b0e4d3b..a5f4cf6 100644
  "org.git.kernel.dash"       = "*"
  "dev.peios.peiosutils"      = "*"
 -"org.kernel.linux-source"   = "= 7.0.9-1"
--"org.gnu.tar"               = "*"
+ "org.gnu.tar"               = "*"
 -"org.tukaani.xz"            = "*"
  
  [build.upstream.dependencies.apt]
  coreutils = "*"
--tar = "*"
+ tar = "*"
 -xz-utils = "*"
  
  [build.source]
