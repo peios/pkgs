@@ -1,3 +1,5 @@
+side_effects = ["man-db"]
+
 [package]
 name        = "org.rust-lang.rustfmt"
 description = "Rust source-code formatter and Cargo integration"
@@ -11,7 +13,15 @@ description = "Rust source-code formatter and Cargo integration"
 "org.gnu.gcc-libgcc"                  = ">= 16"
 
 [files]
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.rustfmt/COPYRIGHT"
+"@source:src/tools/rustfmt/LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rustfmt/LICENSE-APACHE"
+"@source:src/tools/rustfmt/LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rustfmt/LICENSE-MIT"
+
 ":usr/bin/rustfmt" = "usr/bin/rustfmt"
 ":usr/bin/cargo-fmt" = "usr/bin/cargo-fmt"
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rustfmt-preview"
 ":usr/share/doc/rustfmt/**" = "usr/share/doc/org.rust-lang.rustfmt"
+":usr/share/man/man1/rustfmt.1.gz" = "usr/share/man/man1/rustfmt.1.gz"
+":usr/share/man/man1/cargo-fmt.1.gz" = "usr/share/man/man1/cargo-fmt.1.gz"

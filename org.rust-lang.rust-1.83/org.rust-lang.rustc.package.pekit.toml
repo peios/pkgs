@@ -17,6 +17,12 @@ description = "Rust compiler and rustdoc documentation generator"
 "org.gnu.gcc"                       = ">= 16"
 
 [files]
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.rustc/COPYRIGHT"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rustc/LICENSE-APACHE"
+"@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rustc/LICENSE-MIT"
+
 ":usr/bin/rustc" = "usr/bin/rustc"
 ":usr/bin/rustdoc" = "usr/bin/rustdoc"
 ":usr/lib/x86_64-linux-peios/librustc_driver-*.so" = "usr/lib/x86_64-linux-peios"
@@ -24,5 +30,5 @@ description = "Rust compiler and rustdoc documentation generator"
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rustc" = "usr/lib/x86_64-linux-peios/rustlib/manifest-rustc"
 ":usr/lib/x86_64-linux-peios/rustlib/rust-installer-version" = "usr/lib/x86_64-linux-peios/rustlib/rust-installer-version"
 ":usr/share/doc/rustc/**" = "usr/share/doc/org.rust-lang.rustc"
-":usr/share/man/man1/rustc.1" = "usr/share/man/man1/rustc.1"
-":usr/share/man/man1/rustdoc.1" = "usr/share/man/man1/rustdoc.1"
+":usr/share/man/man1/rustc.1.gz" = "usr/share/man/man1/rustc.1.gz"
+":usr/share/man/man1/rustdoc.1.gz" = "usr/share/man/man1/rustdoc.1.gz"

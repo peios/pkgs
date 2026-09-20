@@ -10,5 +10,11 @@ description = "Rust standard libraries for x86_64-unknown-linux-gnu"
 "org.gnu.gcc-libgcc"                       = ">= 16"
 
 [files]
+# Keep the component's upstream notices beside its installed payload.
+# rust-common still owns the complete generated dependency-notice inventory.
+"@source:COPYRIGHT" = "usr/share/licenses/org.rust-lang.rust-std/COPYRIGHT"
+"@source:LICENSE-APACHE" = "usr/share/licenses/org.rust-lang.rust-std/LICENSE-APACHE"
+"@source:LICENSE-MIT" = "usr/share/licenses/org.rust-lang.rust-std/LICENSE-MIT"
+
 ":usr/lib/x86_64-linux-peios/rustlib/manifest-rust-std-*" = "usr/lib/x86_64-linux-peios/rustlib"
 ":usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu/**" = "usr/lib/x86_64-linux-peios/rustlib/x86_64-unknown-linux-gnu"
