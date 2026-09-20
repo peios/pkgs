@@ -15,18 +15,25 @@ out_dir = "out"
 [build.main]
 command = '''
 set -eu
-mkdir -p "$PEKIT_OUT/usr/bin"
+mkdir -p "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/man/man1"
+gzip -n -9 -c man/peios-install.1 > "$PEKIT_OUT/usr/share/man/man1/peios-install.1.gz"
 cp src/peios-install.sh "$PEKIT_OUT/usr/bin/peios-install"
-chmod 0755 "$PEKIT_OUT/usr/bin/peios-install"
+if command -v mkexec >/dev/null 2>&1; then
+  mkexec "$PEKIT_OUT/usr/bin/peios-install"
+else
+  chmod 0755 "$PEKIT_OUT/usr/bin/peios-install"
+fi
 '''
 
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils"   = "*"
+"org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 dash      = "*"
 coreutils = "*"
+gzip = "*"
 
 [test]
 gate = true
@@ -41,12 +48,20 @@ src_sum=${src_sum%% *}
 installed_sum=$(sha256sum "$PEKIT_MAIN_OUT/usr/bin/peios-install")
 installed_sum=${installed_sum%% *}
 test "$src_sum" = "$installed_sum"
+gzip -t "$PEKIT_MAIN_OUT/usr/share/man/man1/peios-install.1.gz"
+man_sum=$(sha256sum man/peios-install.1)
+man_sum=${man_sum%% *}
+installed_man_sum=$(gzip -cd "$PEKIT_MAIN_OUT/usr/share/man/man1/peios-install.1.gz" | sha256sum)
+installed_man_sum=${installed_man_sum%% *}
+test "$man_sum" = "$installed_man_sum"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils"   = "*"
+"org.gnu.gzip" = "*"
 
 [test.dependencies.apt]
 dash      = "*"
 coreutils = "*"
+gzip = "*"

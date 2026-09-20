@@ -13,6 +13,7 @@
 # can create a file it cannot read back.
 
 format = "peipkg"
+side_effects = ["man-db"]
 
 [package]
 name         = "dev.peios.peios-install"
@@ -78,7 +79,7 @@ name         = "dev.peios.peios-install"
 # of `part create`'s refusal
 # status, and add syntax plus destructive-guard tests to the staged payload.
 version      = "0.3.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"
 license_class = "free"
@@ -107,3 +108,4 @@ sh = ">= 1"
 [files]
 "LICENSE" = "usr/share/licenses/dev.peios.peios-install/LICENSE"
 ":usr/bin/peios-install" = "usr/bin/peios-install"
+":usr/share/man/man1/peios-install.1.gz" = "usr/share/man/man1/peios-install.1.gz"

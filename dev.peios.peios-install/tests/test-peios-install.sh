@@ -26,7 +26,12 @@ cat > "$ROOT/bin/part" <<'EOF'
 printf '%s\n' "$*" > "$PART_ARGS"
 exit "$PART_STATUS"
 EOF
-chmod 0755 "$ROOT/bin/part"
+# Debian supplies chmod; Peios supplies mkexec, as in the payload build.
+if command -v mkexec >/dev/null 2>&1; then
+    mkexec "$ROOT/bin/part"
+else
+    chmod 0755 "$ROOT/bin/part"
+fi
 
 PEIOS_INSTALL_LIBRARY_ONLY=1
 PEIOS_INSTALL_PROC_PARTITIONS="$ROOT/partitions"

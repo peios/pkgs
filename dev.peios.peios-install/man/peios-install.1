@@ -1,0 +1,79 @@
+.TH PEIOS-INSTALL 1 "September 2026" "Peios" "User Commands"
+.SH NAME
+peios-install \- install the running Peios system onto a disk
+.SH SYNOPSIS
+.B peios-install --yes
+.I ESP_PARTITION ROOT_PARTITION
+.br
+.B peios-install --yes --whole-disk
+.RB [ --force ]
+.I DISK
+.SH DESCRIPTION
+.B peios-install
+formats the selected EFI system partition as FAT32 and the root partition as
+ext4, copies the running system, and replaces the target's live-boot packages
+with disk-boot packages from the installation medium.
+It rebuilds the target initramfs and writes a unified kernel image to
+.B EFI/BOOT/BOOTX64.EFI
+on the EFI system partition. No firmware boot entry is created.
+.PP
+With
+.BR --whole-disk ,
+it first creates a partition table, a 512 MiB EFI system partition, and a
+root partition occupying the remaining space.
+.SH OPTIONS
+.TP
+.B --yes
+Confirm destructive installation. This option is required; there is no
+interactive confirmation. Existing contents of both target partitions are lost.
+.TP
+.B --whole-disk
+Partition the named disk before installation. Existing disk contents are lost.
+.TP
+.B --force
+Allow replacement of a partition table that the partitioning tool would
+otherwise refuse to replace. Valid only with
+.BR --whole-disk .
+.TP
+.BR -h ", " --help
+Print usage and exit with status 2.
+.PP
+Place options before device operands. Devices must be direct names under
+.BR /dev ,
+not paths through
+.BR /dev/disk/by-id .
+The EFI system and root partitions must differ and must not be mounted.
+.SH REQUIREMENTS
+Run from a Peios system with the permissions required to partition, format,
+mount, copy protected files, and update the registry. The installer does not
+perform a Unix user-ID check.
+The installation medium must configure the
+.B peios-medium
+package repository and supply the disk-boot packages.
+The source system must have exactly one kernel under
+.B /usr/lib/modules/*/vmlinuz-*
+and a readable
+.BR /system/boot/initramfs.cpio.zst .
+.SH WARNINGS
+This command destroys data. Check all device names and keep backups before
+using it. It is not a dry-run tool and does not roll back a failed installation.
+.PP
+The running system's data, accounts, and credentials are copied. The installer
+retires the live first-account provisioning service in the running registry,
+but does not change an existing development account's known password.
+Change inherited credentials before treating the installed system as secure.
+.SH FILES
+.TP
+.B /run/peios-install
+Working directory containing the target root and EFI partition mountpoints.
+.TP
+.B /lcl/etc/boot/cmdline
+Kernel command line generated in the target from its disk-boot template and
+root filesystem UUID.
+.SH EXIT STATUS
+Zero indicates completion. Invalid invocation prints usage with status 2.
+Other failures return a nonzero status; inspect the diagnostic before retrying.
+.SH SEE ALSO
+.BR peipkg (1),
+.BR mkfs.vfat (8),
+.BR mke2fs (8)
