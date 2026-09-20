@@ -1,0 +1,19 @@
+Subject: [PATCH] build: declare trust roots for authenticated Cargo acquisition
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [declare the TLS trust-store dependency of cargo vendor]
+
+The minimal Debian root installs no recommended packages. Cargo uses libgit2
+to fetch locked HTTPS Git sources, which requires a CA trust store. Declare
+ca-certificates explicitly; retain certificate validation and locked source
+identities. No git CLI dependency is needed for this libgit2 acquisition path.
+
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -52,6 +52,7 @@
+ "org.python.python3"              = "*"
+ 
+ [build.vendor.dependencies.apt]
++ca-certificates = "*"
+ cargo     = "*"
+ rustc     = "*"
+ python3   = "*"

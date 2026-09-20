@@ -9,6 +9,9 @@
 out_dir = "out"
 delegate = true
 
+[source]
+patches = "patches"
+
 [source.git]
 url       = "https://github.com/peios/authd.git"
 ref       = "v{{version}}"

@@ -1,0 +1,21 @@
+Subject: [PATCH] package: preserve compatible SDK and source architecture contracts
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [first-party production qualification]
+
+--- a/packaging/prepare-libpeios.sh
++++ b/packaging/prepare-libpeios.sh
+@@ -11,10 +11,12 @@
+ 
+ case "${PEKIT_DEPENDENCY_PROVIDER:-}" in
+   peipkg|"")
+-    test "$(pkg-config --modversion peios 2>/dev/null)" = 0.5.0 || {
+-      echo "peinit: dev.peios.libpeios-devel 0.5.0 is required" >&2
++    pkg-config --atleast-version=0.5.0 peios || {
++      echo "peinit: dev.peios.libpeios-devel >= 0.5.0 (ABI 0) is required" >&2
+       exit 1
+     }
++    # A newer API-compatible SDK is valid; a different SONAME ABI is not.
++    readelf -dW "$(pkg-config --variable=libdir peios)/libpeios.so" | grep -Eq '\(SONAME\).*\[libpeios\.so\.0\]'
+     ;;
+ 
+   apt)

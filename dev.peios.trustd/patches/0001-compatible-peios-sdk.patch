@@ -1,0 +1,64 @@
+Subject: [PATCH] build: accept compatible rolling Peios SDK releases
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [keep API floor and SONAME contract instead of patch-version locks]
+
+The consumer requires the released peios API from 0.5.0 and SONAME 0.
+Validate both at build and test time while allowing compatible newer releases.
+Bindgen uses the libclang C API; retain its supported LLVM 22.1.8 minimum
+without an unsubstantiated LLVM 23 exclusion. Fresh native qualification
+against the selected SDK remains required.
+
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -88,10 +88,12 @@
+ # checkout or an ad-hoc library path. peios-sys finds its headers and library
+ # exclusively through this package's pkg-config interface.
+ unset PEIOS_LIB_DIR PEIOS_INCLUDE PKM_UAPI
+-test "$(pkg-config --modversion peios)" = 0.5.0 || {
+-  echo "trustd: dev.peios.libpeios-devel 0.5.0 is required" >&2
++pkg-config --atleast-version=0.5.0 peios || {
++  echo "trustd: dev.peios.libpeios-devel >= 0.5.0 (ABI 0) is required" >&2
+   exit 1
+ }
++# A newer compatible release is valid; a different C ABI is not.
++readelf -dW "$(pkg-config --variable=libdir peios)/libpeios.so" | grep -Eq '\(SONAME\).*\[libpeios\.so\.0\]'
+ export BINDGEN_EXTRA_CLANG_ARGS="-isystem $(gcc -print-file-name=include) ${BINDGEN_EXTRA_CLANG_ARGS:-}"
+ 
+ cargo metadata --locked --offline --no-deps --format-version 1 |
+@@ -192,10 +194,10 @@
+ [build.main.dependencies.peipkg]
+ "dev.peios.build-essentials-rust" = ">= 1.0.0-1"
+ "org.pkgconf.pkgconf"             = "*"
+-"org.llvm.clang-devel"            = ">= 22, < 23"
++"org.llvm.clang-devel"            = ">= 22.1.8"
+ "org.python.python3"              = "*"
+ "org.gnu.gzip"                    = "*"
+-"dev.peios.libpeios-devel"        = "= 0.5.0-1"
++"dev.peios.libpeios-devel"        = ">= 0.5.0"
+ 
+ [build.main.dependencies.apt]
+ dash         = "*"
+@@ -222,7 +224,9 @@
+ mkdir -p "$CARGO_HOME"
+ cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
+ unset PEIOS_LIB_DIR PEIOS_INCLUDE PKM_UAPI
+-test "$(pkg-config --modversion peios)" = 0.5.0
++pkg-config --atleast-version=0.5.0 peios
++# A newer compatible release is valid; a different C ABI is not.
++readelf -dW "$(pkg-config --variable=libdir peios)/libpeios.so" | grep -Eq '\(SONAME\).*\[libpeios\.so\.0\]'
+ export BINDGEN_EXTRA_CLANG_ARGS="-isystem $(gcc -print-file-name=include) ${BINDGEN_EXTRA_CLANG_ARGS:-}"
+ cargo test --release --workspace --locked --offline --target-dir "$PEKIT_OUT/target-test"
+ dash -n libexec/prepare-store
+@@ -309,10 +313,10 @@
+ [test.dependencies.peipkg]
+ "dev.peios.build-essentials-rust" = ">= 1.0.0-1"
+ "org.pkgconf.pkgconf"             = "*"
+-"org.llvm.clang-devel"            = ">= 22, < 23"
++"org.llvm.clang-devel"            = ">= 22.1.8"
+ "org.python.python3"              = "*"
+ "org.gnu.gzip"                    = "*"
+-"dev.peios.libpeios-devel"        = "= 0.5.0-1"
++"dev.peios.libpeios-devel"        = ">= 0.5.0"
+ 
+ [test.dependencies.apt]
+ dash         = "*"

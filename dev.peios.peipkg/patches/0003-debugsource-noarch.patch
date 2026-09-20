@@ -1,0 +1,15 @@
+Subject: [PATCH] package: classify debug source text as architecture independent
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [source-only package architecture]
+
+The package contains source and licence text, not executable code. Override
+the parent runtime architecture without changing paths or debug mappings.
+
+--- a/packages.pekit/dev.peios.peipkg-debugsource.package.pekit.toml
++++ b/packages.pekit/dev.peios.peipkg-debugsource.package.pekit.toml
+@@ -1,4 +1,5 @@
+ [package]
++architecture = "noarch"
+ name         = "dev.peios.peipkg-debugsource"
+ description  = "Debug sources for the Peios package-management tools"
+ 

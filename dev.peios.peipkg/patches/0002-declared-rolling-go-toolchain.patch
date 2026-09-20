@@ -1,0 +1,34 @@
+Subject: [PATCH] build: use the declared rolling Go toolchain without auto-downloads
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [upstream tracking and compiler input provenance]
+
+Keep the tested minimum compiler version while allowing newer qualified Go
+releases. Every phase uses GOTOOLCHAIN=local, including online acquisition,
+so a module version bump cannot silently fetch an undeclared compiler.
+
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -17,6 +17,7 @@
+ [build.vendor]
+ command = '''
+ set -eu
++export GOTOOLCHAIN=local
+ SRC=$(pwd -P)
+ export GOCACHE="$PEKIT_OUT/gocache"
+ export GOMODCACHE="$PEKIT_OUT/modcache"
+@@ -47,6 +48,7 @@
+ needs = ["vendor"]
+ command = '''
+ set -eu
++export GOTOOLCHAIN=local
+ set -o pipefail 2>/dev/null || true
+ 
+ SRC=$(pwd -P)
+@@ -185,6 +187,7 @@
+ needs = ["main", "vendor"]
+ command = '''
+ set -eu
++export GOTOOLCHAIN=local
+ SRC=$(pwd -P)
+ BUILD="$PEKIT_OUT/test-build"
+ rm -rf "$BUILD" "$PEKIT_OUT/gocache"

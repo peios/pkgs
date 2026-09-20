@@ -1,0 +1,38 @@
+Subject: [PATCH] build: instrument native Rust code for CET
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [native distribution IBT and shadow-stack contract]
+
+Enable compiler-generated landing pads in native build/test code while
+preserving the Debian reference flags. Do not force ELF properties on
+uninstrumented code. The complete package gates remain authoritative.
+
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -62,6 +62,13 @@
+ needs = ["vendor"]
+ command = '''
+ set -eu
++
++# The native distribution requires compiler-generated CET landing pads.
++# The Debian reference keeps its own compiler flags and baseline contract.
++if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
++  export RUSTC_BOOTSTRAP=1
++  export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-Zcf-protection=full"
++fi
+ set -o pipefail 2>/dev/null || true
+ 
+ SRC=$(pwd -P)
+@@ -221,6 +228,13 @@
+ needs = ["main", "vendor"]
+ command = '''
+ set -eu
++
++# The native distribution requires compiler-generated CET landing pads.
++# The Debian reference keeps its own compiler flags and baseline contract.
++if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
++  export RUSTC_BOOTSTRAP=1
++  export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-Zcf-protection=full"
++fi
+ export CARGO_HOME=$PEKIT_OUT/cargo-home
+ mkdir -p "$CARGO_HOME"
+ cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
