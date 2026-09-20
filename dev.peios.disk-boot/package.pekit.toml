@@ -56,7 +56,7 @@ format = "peipkg"
 # filesystem-check, and mount outcomes. The hook also adopts the shared
 # prelude ABI-3 console format. The optional-fsck policy is unchanged.
 version      = "1.0.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

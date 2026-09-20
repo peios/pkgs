@@ -12,7 +12,7 @@ description = "Peios C build environment"
 "org.gnu.glibc-devel"         = ">= 2.44"
 # The headers package follows the Linux UAPI version scale, independently of
 # the Peios kernel package's own PKM source-release version.
-"dev.peios.kernel-headers"    = ">= 6.16"
+"dev.peios.linux-kernel-headers" = ">= 6.16"
 "org.sourceware.debugedit"    = ">= 5.3"
 "org.nixos.patchelf"          = ">= 0.19.1"
 

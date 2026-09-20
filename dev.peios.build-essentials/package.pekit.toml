@@ -7,7 +7,7 @@ version      = "1.0.0-1"
 # The packages contain architecture-neutral documentation, but their dependency
 # contract selects the primary-architecture toolchain. Keeping the metas on the
 # primary architecture makes that choice explicit.
-architecture = "x86_64"
+architecture = "noarch"
 license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

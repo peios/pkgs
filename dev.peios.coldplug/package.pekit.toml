@@ -7,7 +7,7 @@ format = "peipkg"
 # 1.0.0-1 republishes the qualified peiosutils dependency after retiring the
 # undeployed compatibility alias.
 version      = "1.0.0-1"
-architecture = "x86_64"
+architecture = "noarch"
 license      = "MIT"
 license_class = "free"
 homepage     = "https://github.com/peios/pkgs"

@@ -3,7 +3,7 @@ format = "peipkg"
 [package]
 name          = "dev.peios.testing.peios-kernel-only"
 version       = "1.0.0-1"
-architecture  = "x86_64"
+architecture  = "noarch"
 description   = "Peios kernel-conformance edition: the latest kernel and nothing else"
 license       = "MIT"
 license_class = "free"

@@ -6,7 +6,7 @@ name         = "dev.peios.peios-experimental"
 # the trust block below).
 # -10: production qualification. The edition moves to its reverse-DNS name,
 # follows every package by its canonical identity, owns its licence text, and
-# is correctly architecture-bound by its x86_64 dependency closure.
+# remains portable metadata; native dependencies resolve for the target.
 # -11: Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer and OOBE move to
 # their production reverse-DNS identities and floors.
 # -12: require the qualified concrete edition name through the upgrader.
@@ -17,8 +17,8 @@ name         = "dev.peios.peios-experimental"
 # commit.
 # -16: consume the qualified-only upgrade path in peiosutils 0.8.8 and the
 # production-tested installer/OOBE 0.1.5 package set.
-version      = "{{version}}-1"
-architecture = "x86_64"
+version      = "2026.8-1"
+architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
 license_class = "free"
@@ -32,10 +32,6 @@ homepage     = "https://github.com/peios/pkgs"
 # peipkg with --bypass-alternate-upgrade. The declaration grants nothing.
 [package.alternate_upgrade]
 message = "To upgrade Peios use the `upgrade-peios` command."
-
-# Any edition satisfies `peios-release`. Depend on the virtual name to mean
-# "some Peios"; depend on an edition to mean that edition.
-[provides]
 
 # The base system. Every entry is a `>=` floor rather than a pin: at this
 # pre-alpha stage the floors let packages move without a repackage of the

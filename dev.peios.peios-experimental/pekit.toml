@@ -36,6 +36,13 @@
 
 out_dir = "out"
 
+# An edition release is intentionally versioned by Peios rather than an
+# upstream source.  Keep this explicit: routine workspace builds must not need
+# a caller-supplied version, while changing the OS release remains a deliberate
+# catalogue change.
+[env]
+PEIOS_RELEASE_VERSION = "2026.8"
+
 [build]
 command = """
 set -eu
@@ -43,11 +50,11 @@ mkdir -p "$PEKIT_OUT/usr/lib" "$PEKIT_OUT/usr/etc" "$PEKIT_OUT/usr/share/peios"
 cat > "$PEKIT_OUT/usr/lib/os-release" <<EOF
 NAME="Peios"
 ID=peios
-VERSION_ID="$PEKIT_VERSION"
-VERSION="$PEKIT_VERSION (Experimental)"
+VERSION_ID="$PEIOS_RELEASE_VERSION"
+VERSION="$PEIOS_RELEASE_VERSION (Experimental)"
 VARIANT="Experimental"
 VARIANT_ID=experimental
-PRETTY_NAME="Peios $PEKIT_VERSION Experimental"
+PRETTY_NAME="Peios $PEIOS_RELEASE_VERSION Experimental"
 DOCUMENTATION_URL="https://learn.peios.org/"
 EOF
 # Compat symlink so tools checking /etc/os-release first still resolve to the
@@ -57,7 +64,7 @@ EOF
 ln -s ../lib/os-release "$PEKIT_OUT/usr/etc/os-release"
 
 cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
-# Peios $PEKIT_VERSION Experimental. Read by peiso and upgrade-peios.
+# Peios $PEIOS_RELEASE_VERSION Experimental. Read by peiso and upgrade-peios.
 [registry]
 autoapply = [
   "port-reservations",
@@ -134,7 +141,7 @@ coreutils = "*"
 [test]
 gate = true
 needs = ["main"]
-command = 'PEKIT_OUT="$PEKIT_MAIN_OUT" python3 tests/test-release.py'
+command = 'PEKIT_VERSION="$PEIOS_RELEASE_VERSION" PEKIT_OUT="$PEKIT_MAIN_OUT" python3 tests/test-release.py'
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5-1"

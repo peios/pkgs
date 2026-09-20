@@ -75,16 +75,17 @@ with recipe_toml.open("rb") as stream:
     recipe = tomllib.load(stream)
 
 assert recipe["package"]["name"] == "dev.peios.peios-experimental"
-assert recipe["package"]["architecture"] == "x86_64"
-assert recipe["package"]["version"] == "{{version}}-16"
-assert recipe["provides"]["peios-release"] == "{{version}}"
-assert set(recipe["provides"]) == {"peios-release"}
+# The edition ships portable release/policy data; dependencies resolve for
+# the target architecture independently of this metadata package.
+assert recipe["package"]["architecture"] == "noarch"
+assert recipe["package"]["version"] == "2026.8-1"
+assert "provides" not in recipe
 assert "replaces" not in recipe
 assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
-    "dev.peios.atrium": ">= 0.0.25-2",
+    "dev.peios.atrium": ">= 0.0.25-1",
     "dev.peios.authd": ">= 0.0.14-1",
     "dev.peios.authd-live-account": ">= 0.0.14-1",
     "dev.peios.authd-login": ">= 0.0.14-1",
@@ -92,20 +93,20 @@ expected_first_party = {
     "dev.peios.authd-lpsd": ">= 0.0.14-1",
     "dev.peios.authd-nss": ">= 0.0.14-1",
     "dev.peios.clock": ">= 0.1.1-1",
-    "dev.peios.eventd": ">= 0.1.0-10",
+    "dev.peios.eventd": ">= 0.1.0-1",
     "dev.peios.libpeios": ">= 0.5.0-1",
-    "dev.peios.net": ">= 0.1.1-15",
-    "dev.peios.netd": ">= 0.1.1-15",
-    "dev.peios.oobe": ">= 0.1.5-18",
+    "dev.peios.net": ">= 0.1.1-1",
+    "dev.peios.netd": ">= 0.1.1-1",
+    "dev.peios.oobe": ">= 0.1.5-1",
     "dev.peios.peinit": ">= 0.0.2-1",
-    "dev.peios.peios-install": ">= 0.3.0-8",
-    "dev.peios.peios-installer": ">= 0.1.5-18",
+    "dev.peios.peios-install": ">= 0.3.0-1",
+    "dev.peios.peios-installer": ">= 0.1.5-1",
     "dev.peios.peiosutils": ">= 0.8.8-1",
     "dev.peios.peipkg": ">= 0.1.3-1",
-    "dev.peios.pnpd": ">= 0.5.1-2",
-    "dev.peios.resolv": ">= 0.1.0-7",
-    "dev.peios.resolvd": ">= 0.1.0-7",
-    "dev.peios.resolvd-nss": ">= 0.1.0-7",
+    "dev.peios.pnpd": ">= 0.5.1-1",
+    "dev.peios.resolv": ">= 0.1.0-1",
+    "dev.peios.resolvd": ">= 0.1.0-1",
+    "dev.peios.resolvd-nss": ">= 0.1.0-1",
     "dev.peios.timed": ">= 0.1.1-1",
     "dev.peios.trust": ">= 0.1.1-1",
     "dev.peios.trustd": ">= 0.1.1-1",
@@ -114,10 +115,10 @@ for name, floor in expected_first_party.items():
     assert dependencies[name] == floor
 
 expected_initramfs = {
-    "dev.peios.coldplug-irf": ">= 1.0.0-3",
-    "dev.peios.fsbase-irf": ">= 1.0.0-10",
-    "dev.peios.fsbase-stratafs-mount-hooks": ">= 1.0.0-10",
-    "dev.peios.kernel-modules-irf": ">= 0.20.1-rc13-2",
+    "dev.peios.coldplug-irf": ">= 1.0.0-1",
+    "dev.peios.fsbase-irf": ">= 1.0.0-1",
+    "dev.peios.fsbase-stratafs-mount-hooks": ">= 1.0.0-1",
+    "dev.peios.kernel-modules-irf": ">= 0.20.1-rc13-1",
     "dev.peios.prelude": ">= 0.0.3-1",
 }
 actual_initramfs = {
