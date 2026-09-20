@@ -116,10 +116,9 @@ assert_mount_log "-o loop,ro,policy=synth-ephemeral -t squashfs $root/mnt/medium
 assert_mount_log "-t tmpfs tmpfs $root/mnt/rootfs.rw"
 assert_mount_log "-t overlay overlay -o lowerdir=$root/mnt/rootfs.lower,upperdir=$root/mnt/rootfs.rw/upper,workdir=$root/mnt/rootfs.rw/work $root/mnt/rootfs"
 assert_mount_log "--move $root/mnt/medium $root/mnt/rootfs/media/peios"
-case "$(cat "$log/seed-sd.args")" in
-    *"$root/mnt/rootfs.rw") ;;
-    *) fail 'seed-sd did not target the tmpfs upper' ;;
-esac
+expected_sddl='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO;GA;;;S-1-3-0)'
+[ "$(cat "$log/seed-sd.args")" = "--sddl $expected_sddl $root/mnt/rootfs.rw" ] ||
+    fail 'seed-sd descriptor or tmpfs-upper target drifted'
 
 # Moving the medium is a convenience; failure warns but does not discard an
 # otherwise usable live root.
@@ -141,6 +140,40 @@ mock_squashfs_status=32
 run_hook
 assert_status 1
 assert_output 'FAIL live-boot: could not mount rootfs.squashfs'
+
+# Each load-bearing stage must fail closed before later mounts run.
+new_case
+enable_runtime
+add_device vda
+mock_medium_dev="$root/dev/vda"
+mock_tmpfs_status=32
+run_hook
+assert_status 1
+assert_output 'FAIL live-boot: could not mount the live-root tmpfs'
+[ ! -e "$log/seed-sd.args" ] || fail 'seed-sd ran after tmpfs failure'
+[ "$(wc -l < "$log/mount.args")" -eq 3 ] || fail 'mounts continued after tmpfs failure'
+
+new_case
+enable_runtime
+add_device vda
+mock_medium_dev="$root/dev/vda"
+mock_seed_status=5
+run_hook
+assert_status 1
+assert_output 'FAIL live-boot: could not seed the live-root security descriptor'
+[ "$(wc -l < "$log/mount.args")" -eq 3 ] || fail 'mounts continued after seed failure'
+[ ! -e "$root/mnt/rootfs.rw/upper" ] || fail 'overlay directory created after seed failure'
+
+new_case
+enable_runtime
+add_device vda
+mock_medium_dev="$root/dev/vda"
+mock_overlay_status=32
+run_hook
+assert_status 1
+assert_output 'FAIL live-boot: could not mount the live-root overlay'
+[ "$(wc -l < "$log/mount.args")" -eq 4 ] || fail 'mounts continued after overlay failure'
+[ ! -e "$root/mnt/rootfs/media/peios" ] || fail 'medium move prepared after overlay failure'
 
 [ "$(cat "$recipe_root/src/cmdline")" = 'loglevel=4 init=/bin/peinit2' ] ||
     fail 'the live-system cmdline template drifted'

@@ -53,6 +53,62 @@ PEIOS_DYNAMIC_BOOT_REG_LOG=$reg_log PATH="$tools:$PATH" \
 assert_contains "$reg_log" 'del -r --yes Machine/System/Services/mkirf-watch'
 assert_contains "$reg_log" 'del -r --yes Machine/System/Services/mkuki-watch'
 
+# Only an absent service key is idempotent. Permission, storage and other
+# failures must retain their status and must not print a success message.
+cat > "$tools/reg" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$PEIOS_DYNAMIC_BOOT_REG_LOG"
+case "$1" in
+    del)
+        case "$*" in
+            *"/$PEIOS_DYNAMIC_BOOT_FAIL_SERVICE") exit "$PEIOS_DYNAMIC_BOOT_DELETE_STATUS" ;;
+        esac
+        ;;
+    info) exit "$PEIOS_DYNAMIC_BOOT_INFO_STATUS" ;;
+esac
+exit 0
+EOF
+for service in mkirf-watch mkuki-watch; do
+    for delete_status in 0 1 2 3 4 5 6 127; do
+        info_statuses=0
+        [ "$delete_status" -ne 2 ] || info_statuses='0 2 3 5'
+        for info_status in $info_statuses; do
+            : > "$reg_log"
+            set +e
+            PEIOS_DYNAMIC_BOOT_REG_LOG=$reg_log PATH="$tools:$PATH" \
+                PEIOS_DYNAMIC_BOOT_FAIL_SERVICE=$service \
+                PEIOS_DYNAMIC_BOOT_DELETE_STATUS=$delete_status \
+                PEIOS_DYNAMIC_BOOT_INFO_STATUS=$info_status \
+                "$recipe_root/src/uninstall.sh" >"$scratch/uninstall.out" 2>&1
+            status=$?
+            set -e
+            expected=$delete_status
+            if [ "$delete_status" -eq 2 ]; then
+                case "$info_status" in
+                    0) expected=2 ;;
+                    2) expected=0 ;;
+                    *) expected=$info_status ;;
+                esac
+                assert_contains "$reg_log" "info --no-follow Machine/System/Services/$service"
+            elif grep -F 'info ' "$reg_log" >/dev/null; then
+                fail 'uninstall queried absence for a non-ENOENT result'
+            fi
+            [ "$status" -eq "$expected" ] || fail "uninstall returned $status, expected $expected"
+            if [ "$expected" -eq 0 ]; then
+                assert_contains "$scratch/uninstall.out" 'dynamic-boot: removed'
+                assert_contains "$reg_log" 'del -r --yes Machine/System/Services/mkuki-watch'
+            else
+                if grep -F 'dynamic-boot: removed' "$scratch/uninstall.out" >/dev/null; then
+                    fail 'uninstall announced success after a registry failure'
+                fi
+                if [ "$service" = mkirf-watch ] && grep -F '/mkuki-watch' "$reg_log" >/dev/null; then
+                    fail 'uninstall continued after the first registry failure'
+                fi
+            fi
+        done
+    done
+done
+
 # Exercise command-line selection and the complete mkuki argv in a synthetic
 # root. The installed /lcl command line must win over the live-image fallback.
 root=$scratch/root

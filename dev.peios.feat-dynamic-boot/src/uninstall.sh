@@ -7,7 +7,25 @@
 # key so re-running is harmless.
 set -eu
 
-reg del -r --yes Machine/System/Services/mkirf-watch || true
-reg del -r --yes Machine/System/Services/mkuki-watch || true
+remove_service() {
+    key=$1
+    if reg del -r --yes "$key"; then
+        return 0
+    else
+        status=$?
+    fi
+    # reg's documented exit 2 is ENOENT. A recursive delete can also lose a
+    # descendant concurrently: accept it only if this service key is absent.
+    [ "$status" -eq 2 ] || return "$status"
+    if reg info --no-follow "$key" >/dev/null; then
+        return "$status"
+    else
+        status=$?
+    fi
+    [ "$status" -eq 2 ] || return "$status"
+}
+
+remove_service Machine/System/Services/mkirf-watch
+remove_service Machine/System/Services/mkuki-watch
 
 echo "dynamic-boot: removed mkirf-watch and mkuki-watch"
