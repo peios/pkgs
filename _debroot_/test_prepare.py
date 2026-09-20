@@ -17,6 +17,15 @@ spec.loader.exec_module(p)
 
 
 class PreparationTests(unittest.TestCase):
+    def setUp(self):
+        # Model the coordinator's required target context; keep the fixture
+        # independent of a caller's active Pekit job or private reference policy.
+        environment = {key: value for key, value in os.environ.items() if not key.startswith("PEKIT_")}
+        environment.update(PEKIT_RECIPE_ROOT="/recipe/unlisted", PEKIT_COMMAND="build", PEKIT_TARGET="main")
+        context = patch.dict(os.environ, environment, clear=True)
+        context.start()
+        self.addCleanup(context.stop)
+
     def test_reference_image_is_coordinator_policy_and_changes_replay_identity(self):
         with patch.dict(os.environ, {"PEKIT_RECIPE_ROOT": "/tmp/org.gnu.gcc"}):
             self.assertEqual(p.selected_image(), "debian:trixie")

@@ -11,6 +11,9 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import sys
+sys.dont_write_bytecode = True
+import reference
 
 IMAGE = "debian:trixie"
 # Coordinator-owned reference exceptions. Native publication policy is unchanged.
@@ -23,7 +26,7 @@ REFERENCE_IMAGES = {
 
 def selected_image():
     recipe = Path(os.environ.get("PEKIT_RECIPE_ROOT", "")).name
-    return REFERENCE_IMAGES.get(recipe, IMAGE)
+    return "debian:sid" if recipe in reference.SID_FAMILIES else REFERENCE_IMAGES.get(recipe, IMAGE)
 
 SCHEMA = 1
 OPS = {"=": "eq", ">=": "ge", ">": "gt", "<=": "le", "<": "lt"}
@@ -150,7 +153,21 @@ printf 'peibuild:x:1000:\\n' >> /etc/group
 
 def policy_id():
     root = Path(__file__).resolve().parent
-    return hashlib.sha256((digest(root / "enter.sh") + digest(root / "prepare.py") + selected_image()).encode()).hexdigest()
+    configuration_hash = ''
+    if Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name in reference.RUST_FAMILIES:
+        replay = os.environ.get('PEKIT_DEBIAN_REPLAY')
+        if replay:
+            target = os.environ['PEKIT_COMMAND'] + '-' + os.environ['PEKIT_TARGET']
+            if not re.fullmatch(r'[A-Za-z0-9_.-]+', target):
+                raise ValueError('invalid replay target')
+            manifest = json.loads((Path(replay) / target / 'debian-root.json').read_text())
+            configuration_hash = manifest.get('reference_selection', {}).get('operator_configuration_sha256', '')
+            if not re.fullmatch('[a-f0-9]{64}', configuration_hash):
+                raise ValueError('missing captured reference operator identity')
+        else:
+            configuration_hash = reference.configuration_digest()
+    return hashlib.sha256((digest(root / 'enter.sh') + digest(root / 'prepare.py') +
+                           digest(root / 'reference.py') + configuration_hash + selected_image()).encode()).hexdigest()
 
 
 def load_record(directory, deps, policy):
@@ -164,6 +181,13 @@ def load_record(directory, deps, policy):
             raise ValueError(f"invalid {key} in {directory}")
     if digest(directory / "installed.tsv") != manifest["installed_sha256"]:
         raise ValueError(f"corrupt installed-package record: {directory}")
+    if 'reference_sha256' in manifest:
+        if digest(directory / 'reference-prerequisites.json') != manifest['reference_sha256']:
+            raise ValueError('corrupt reference prerequisite record')
+    selection = manifest.get('reference_selection')
+    if selection and selection.get('operator_configuration') is not None:
+        if hashlib.sha256(reference.encoded(selection['operator_configuration'])).hexdigest() != selection['operator_configuration_sha256']:
+            raise ValueError('corrupt captured reference operator configuration')
     return manifest
 
 
@@ -181,12 +205,18 @@ def restore(store, manifest, destination):
                            stdin=stream, check=True)
             if digest(destination / "tmp/dependencies.tsv") != manifest["installed_sha256"]:
                 raise ValueError("root archive does not match installed-package record")
+            if 'reference_sha256' in manifest:
+                if digest(destination / 'usr/share/pekit-reference/reference-prerequisites.json') != manifest['reference_sha256']:
+                    raise ValueError('root archive does not match reference record')
         except BaseException:
             shutil.rmtree(destination)
             raise
 
 
 def acquire(job, store, deps, policy, output):
+    target = os.environ["PEKIT_COMMAND"] + "-" + os.environ["PEKIT_TARGET"]
+    selected = reference.selection(Path(os.environ["PEKIT_RECIPE_ROOT"]).name, target)
+    effective = reference.effective_requests(deps, selected)
     base_path = job / "debian-base.json"
     if base_path.exists():
         base = json.loads(base_path.read_text())
@@ -199,15 +229,26 @@ def acquire(job, store, deps, policy, output):
         base = {"image": image, "image_id": info["Id"], "repo_digests": info["RepoDigests"],
                 "architecture": info["Architecture"], "os": info["Os"], "policy_sha256": policy}
         atomic(base_path, encoded(base))
-    # Never execute the mutable tag after resolving it for this job.
-    container = run("docker", "create", "--network", "bridge", base["image_id"],
-                    "sh", "-euc", install_script(deps), capture=True).strip()
+    # Never execute the mutable tag after resolving it for this job. Overlay
+    # preparation needs a running container after APT finishes; ordinary roots
+    # retain the existing start-and-wait lifecycle.
+    overlay = bool(selected and selected['groups'])
+    command = ['sleep', 'infinity'] if overlay else ['sh', '-euc', install_script(effective)]
+    container = run('docker', 'create', '--network', 'bridge', base['image_id'],
+                    *command, capture=True).strip()
     try:
-        run("docker", "start", "-a", container)
-        if run("docker", "inspect", "-f", "{{.State.ExitCode}}", container, capture=True).strip() != "0":
-            raise ValueError("Debian dependency installation failed")
+        if overlay:
+            run('docker', 'start', container)
+            run('docker', 'exec', container, 'sh', '-euc', install_script(effective))
+        else:
+            run('docker', 'start', '-a', container)
+            if run('docker', 'inspect', '-f', '{{.State.ExitCode}}', container, capture=True).strip() != '0':
+                raise ValueError('Debian dependency installation failed')
         with tempfile.TemporaryDirectory(prefix=".acquire-", dir=store) as temp:
             temp = Path(temp)
+            ref_record = None
+            if selected and selected['groups']:
+                ref_record = reference.install_container(container, selected, temp / 'reference-sdk')
             installed = temp / "installed.tsv"
             run("docker", "cp", f"{container}:/tmp/dependencies.tsv", str(installed))
             raw = temp / "root.tar"
@@ -222,6 +263,13 @@ def acquire(job, store, deps, policy, output):
                         "host_architecture": platform.machine(), "base": base,
                         "root_sha256": root_hash, "root_bytes": archive.stat().st_size,
                         "installed_sha256": digest(installed)}
+            if selected is not None:
+                manifest['effective_apt_requests'] = effective
+                manifest['reference_selection'] = selected
+            if ref_record is not None:
+                ref_bytes = reference.encoded(ref_record)
+                manifest['reference_sha256'] = hashlib.sha256(ref_bytes).hexdigest()
+                atomic(output / 'reference-prerequisites.json', ref_bytes)
             # Published archives are immutable. An existing corrupt object is an
             # error, never an excuse to silently change a historic environment.
             destination = store / (root_hash + ".tar.gz")
@@ -240,7 +288,6 @@ def acquire(job, store, deps, policy, output):
 
 def prepare():
     deps = requests(os.environ.get("PEKIT_DEPENDENCIES", ""))
-    policy = policy_id()
     job = Path(os.environ["PEKIT_JOB_STATE"]).resolve()
     destination = Path(os.environ["PEKIT_SANDBOX_ROOT"]).absolute()
     target = os.environ["PEKIT_COMMAND"] + "-" + os.environ["PEKIT_TARGET"]
@@ -253,6 +300,9 @@ def prepare():
     # Serialize preparation within one job; unrelated jobs can acquire in parallel.
     with (job / "debian.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if not replay:
+            reference.bind_job_configuration(job, Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name)
+        policy = policy_id()
         key = hashlib.sha256(encoded({"requests": deps, "policy": policy})).hexdigest()
         cached = Path(replay).resolve() / target if replay else job / "debian-roots" / key
         if replay or (cached / "debian-root.json").exists():
@@ -263,6 +313,8 @@ def prepare():
         restore(store, manifest, destination)
         record = job / "dependencies" / target
         atomic(record / "installed.tsv", (cached / "installed.tsv").read_bytes())
+        if 'reference_sha256' in manifest:
+            atomic(record / 'reference-prerequisites.json', (cached / 'reference-prerequisites.json').read_bytes())
         atomic(record / "debian-root.json", encoded(manifest))
 
 
