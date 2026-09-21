@@ -78,8 +78,21 @@ trap 'rm -f "$script"' EXIT
 # Patch only the two reviewed cpupower make invocations and fail closed if the
 # locked script ever changes shape.
 test "$(grep -c 'CPUFREQ_BENCH=false' ./build/build-tools.sh)" -eq 2
-sed 's|CPUFREQ_BENCH=false|CPUFREQ_BENCH=false INSTALL=/usr/libexec/coreutils-build/install|' \
-  ./build/build-tools.sh > "$script"
+# That private path exists only in the native root, where /usr/bin/install is
+# the Peios coreutils. The Debian reference rung has no such path and needs
+# none: its /usr/bin/install is already GNU. From 0.20.1-rc19 the source script
+# itself names the private path, unconditionally, so on Debian remove it and
+# refuse to run if any reference to it survives.
+if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
+  sed 's|CPUFREQ_BENCH=false|CPUFREQ_BENCH=false INSTALL=/usr/libexec/coreutils-build/install|' \
+    ./build/build-tools.sh > "$script"
+else
+  sed 's| INSTALL=/usr/libexec/coreutils-build/install||g' ./build/build-tools.sh > "$script"
+  if grep -q 'coreutils-build' "$script"; then
+    echo "build.tools: native-only install path survives in the Debian script" >&2
+    exit 1
+  fi
+fi
 /usr/bin/bash "$script" "$PEKIT_SOURCE_OUT" "$PEKIT_OUT"
 """
 
@@ -162,6 +175,21 @@ automake = "*"
 libtool = "*"
 libcapstone-dev = "*"
 llvm-18-dev = "*"
+# perf builds with BUILD_BPF_SKEL=1, and perf and bpftool both reach for the
+# unversioned clang, llvm-strip and llvm-config (tools/scripts/Makefile.include).
+# They need one coherent LLVM: once an llvm-config is on the path they compile
+# against its headers, so installing `llvm` without `llvm-dev` breaks bpftool's
+# jit_disasm.c on a missing llvm-c/Core.h. These are Debian's default-version
+# names, as the native list's org.llvm.clang, org.llvm.llvm and
+# org.llvm.llvm-devel are unpinned there. perf's bootstrap bpftool also compiles
+# sign.c against the OpenSSL headers (org.openssl.openssl-devel natively).
+clang = "*"
+llvm = "*"
+llvm-dev = "*"
+libssl-dev = "*"
+# getdelays is built against this kernel's own UAPI via `make headers_install`,
+# which copies the headers with rsync (org.samba.rsync natively).
+rsync = "*"
 libbpf-dev = "*"
 bpftool = "*"
 libcpupower-dev = "*"
