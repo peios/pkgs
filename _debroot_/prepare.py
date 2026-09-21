@@ -154,7 +154,7 @@ printf 'peibuild:x:1000:\\n' >> /etc/group
 def policy_id():
     root = Path(__file__).resolve().parent
     configuration_hash = ''
-    if Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name in reference.RUST_FAMILIES:
+    if Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name in reference.OVERLAY_FAMILIES:
         replay = os.environ.get('PEKIT_DEBIAN_REPLAY')
         if replay:
             target = os.environ['PEKIT_COMMAND'] + '-' + os.environ['PEKIT_TARGET']

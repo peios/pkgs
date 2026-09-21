@@ -14,6 +14,30 @@ MUSL_FAMILIES = {'dev.peios.peios-installer'}
 RUST_FAMILIES = SDK_FAMILIES | MUSL_FAMILIES
 SID_FAMILIES = RUST_FAMILIES | {'dev.peios.loregd', 'dev.peios.peipkg'}
 TARGETS = {'build-vendor', 'build-main', 'test-main'}
+# The kernel builds Rust-for-Linux against the toolchain pkm pins in
+# build/toolchain.lock — rustc 1.83.0 and bindgen 0.65.1 — which Debian cannot
+# supply. It receives those two qualified families and nothing else, on its
+# ordinary trixie base: both were qualified on trixie, and this rustc links
+# trixie's libLLVM-18, so the kernel is deliberately not a SID family.
+KERNEL_FAMILIES = {'dev.peios.kernel'}
+# Every kernel target is reviewed here. Only the two that run rustc and bindgen
+# receive the toolchain; the rest keep plain Debian roots.
+KERNEL_TOOLCHAIN_TARGETS = {'build-kunit', 'build-kernel'}
+KERNEL_TARGETS = KERNEL_TOOLCHAIN_TARGETS | {
+    'build-upstream', 'build-source', 'build-headers', 'build-debuginfo',
+    'build-tools', 'build-fwsig', 'test-kunit', 'test-modsig', 'test-fwsig',
+    'test-stratafs', 'test-uapi', 'gen-uapi',
+}
+# Families whose Debian roots may receive a coordinator-selected overlay.
+OVERLAY_FAMILIES = RUST_FAMILIES | KERNEL_FAMILIES
+# Debian runtime the 1.98 SDK overlay and its preflight need (libLLVM-23 for
+# rustc; OpenSSL, zstd and zlib for cargo).
+SDK_RUNTIME_APT = ['libllvm23', 'libstdc++6', 'libgcc-s1', 'libssl3t64', 'libzstd1', 'zlib1g',
+                   'python3', 'binutils', 'gcc', 'libc6-dev', 'pkgconf', 'ca-certificates']
+# The kernel toolchain's: libLLVM-18 for rustc, and what the preflight uses to
+# inspect and link. No cargo, so none of its libraries.
+KERNEL_RUNTIME_APT = ['libllvm18', 'libstdc++6', 'libgcc-s1',
+                      'python3', 'binutils', 'gcc', 'libc6-dev']
 
 def digest(path):
     with Path(path).open('rb') as f:
@@ -50,7 +74,7 @@ def bind_job_configuration(job, family):
     global _job_configuration
     _job_configuration = None
     configuration.cache_clear()
-    if family not in RUST_FAMILIES:
+    if family not in OVERLAY_FAMILIES:
         return
     destination = Path(job) / 'dependencies' / 'reference-selection.json'
     if destination.exists() or destination.is_symlink():
@@ -92,6 +116,14 @@ def configuration_digest():
     return hashlib.sha256(encoded(configuration())).hexdigest()
 
 def selection(family, target):
+    if family in KERNEL_FAMILIES:
+        if target not in KERNEL_TARGETS:
+            raise ValueError('reference family has an unreviewed target: ' + target)
+        if target not in KERNEL_TOOLCHAIN_TARGETS:
+            return None
+        # Operator policy, not recipe-controlled substitution.
+        return _selected(family, target, ['rust-1.83', 'bindgen'], 'debian:trixie',
+                         ['bindgen', 'cargo', 'rustc', 'rustfmt'])
     if family not in SID_FAMILIES:
         return None
     if target not in TARGETS:
@@ -105,6 +137,9 @@ def selection(family, target):
                 groups.append('libpeios-current')
             if family in MUSL_FAMILIES:
                 groups.append('rust-musl')
+    return _selected(family, target, groups, 'debian:sid', ['cargo', 'rustc'] if groups else [])
+
+def _selected(family, target, groups, image, replace_apt):
     config = configuration() if groups else None
     selected = []
     for key in groups:
@@ -112,8 +147,8 @@ def selection(family, target):
         if group is None:
             raise ValueError('reference prerequisite not qualified/selected: ' + key)
         selected.append(group)
-    return dict(schema=1, family=family, target=target, image='debian:sid', groups=selected,
-                replace_apt=['cargo', 'rustc'] if groups else [],
+    return dict(schema=1, family=family, target=target, image=image, groups=selected,
+                replace_apt=replace_apt,
                 inspector=config['inspector'] if config else None,
                 operator_configuration=config,
                 operator_configuration_sha256=configuration_digest() if config else None)
@@ -132,8 +167,8 @@ def effective_requests(original, selected):
     # loader/consumer preflight. APT resolves the complete Debian closure.
     if selected['groups']:
         existing = {d['name'] for d in result}
-        for name in ['libllvm23', 'libstdc++6', 'libgcc-s1', 'libssl3t64', 'libzstd1', 'zlib1g',
-                     'python3', 'binutils', 'gcc', 'libc6-dev', 'pkgconf', 'ca-certificates']:
+        runtime = KERNEL_RUNTIME_APT if selected['family'] in KERNEL_FAMILIES else SDK_RUNTIME_APT
+        for name in runtime:
             if name not in existing:
                 result.append(dict(name=name, checks=[]))
     return sorted(result, key=lambda d:d['name'])
@@ -364,6 +399,31 @@ if 'org.rust-lang.rust' in versions:
        or not re.search(r'Type:\s+DYN\b',header) or 'INTERP' in segments
        or 'GNU_RELRO' not in segments):
     raise SystemExit('musl static consumer lacks required linkage/hardening')
+# The kernel's pinned Rust-for-Linux toolchain. Kbuild compiles core from the
+# rust-src at RUST_LIB_SRC, so it must be this compiler's own, at the multiarch
+# path the kernel's Debian env file names.
+if 'org.rust-lang.rust-1.83' in versions:
+ expected=versions['org.rust-lang.rust-1.83']
+ for name in ['rustc','rustdoc']:
+  output=run(['/usr/bin/'+name,'--version'])
+  if output.split()[:2]!=[name,expected]:raise SystemExit('wrong reference tool: '+name)
+ run(['/usr/bin/rustfmt','--version'])
+ if not Path('/usr/lib/x86_64-linux-peios/rustlib/src/rust/library/core/src/lib.rs').is_file():
+  raise SystemExit('reference rust-src missing')
+ with tempfile.TemporaryDirectory(prefix='reference-consumer-') as td:
+  td=Path(td);src=td/'main.rs';exe=td/'main'
+  src.write_text('fn main() { let x=std::thread::spawn(|| vec![1u32,2,3].iter().sum::<u32>()); assert_eq!(x.join().unwrap(),6); }\n')
+  run(['/usr/bin/rustc',str(src),'-o',str(exe)]);run([str(exe)])
+if 'io.github.rust-lang.bindgen' in versions:
+ expected=versions['io.github.rust-lang.bindgen']
+ if run(['/usr/bin/bindgen','--version']).split()[:2]!=['bindgen',expected]:
+  raise SystemExit('wrong reference tool: bindgen')
+ # bindgen loads libclang at run time instead of linking it, so the readelf/ldd
+ # pass above cannot see that dependency. Generating a binding proves it.
+ with tempfile.TemporaryDirectory(prefix='reference-bindgen-') as td:
+  header=Path(td)/'probe.h';header.write_text('struct pekit_reference_probe { int value; };\n')
+  if 'pekit_reference_probe' not in run(['/usr/bin/bindgen',str(header)]):
+   raise SystemExit('bindgen produced no binding')
 for library,pc,header in [('dev.peios.libpeios','peios','peios.h'),('dev.peios.librsi','rsi','rsi.h')]:
  if library not in versions:continue
  if run(['/usr/bin/pkg-config','--modversion',pc]).strip()!=versions[library]:raise SystemExit('wrong SDK version')

@@ -31,7 +31,7 @@ class Safety(unittest.TestCase):
         self.inspector.chmod(448)
         self.key = self.root / 'test-only-key'
         self.key.write_bytes(b'not a production key')
-        config = {'schema': 1, 'inspector': {'path': str(self.inspector), 'sha256': r.digest(self.inspector), 'key': str(self.key), 'key_sha256': r.digest(self.key)}, 'groups': {'rust': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rustc'}]}, 'libpeios-current': {'family': 'dev.peios.libpeios', 'artifacts': [{'Name': 'dev.peios.libpeios-devel'}]}, 'rust-musl': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rust-std-x86-64-unknown-linux-musl'}]}}}
+        config = {'schema': 1, 'inspector': {'path': str(self.inspector), 'sha256': r.digest(self.inspector), 'key': str(self.key), 'key_sha256': r.digest(self.key)}, 'groups': {'rust': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rustc'}]}, 'libpeios-current': {'family': 'dev.peios.libpeios', 'artifacts': [{'Name': 'dev.peios.libpeios-devel'}]}, 'rust-musl': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rust-std-x86-64-unknown-linux-musl'}]}, 'rust-1.83': {'family': 'org.rust-lang.rust-1.83', 'artifacts': [{'Name': 'org.rust-lang.rustc'}]}, 'bindgen': {'family': 'io.github.rust-lang.bindgen', 'artifacts': [{'Name': 'io.github.rust-lang.bindgen'}]}}}
         r.CONFIG.write_text(json.dumps(config))
         r.CONFIG.chmod(384)
 
@@ -65,6 +65,48 @@ class Safety(unittest.TestCase):
                 self.assertEqual([g['family'] for g in r.selection(family, target)['groups']], ['org.rust-lang.rust', 'dev.peios.libpeios'])
         self.assertEqual([a['Name'] for a in r.selection('dev.peios.peios-installer', 'build-main')['groups'][1]['artifacts']], ['org.rust-lang.rust-std-x86-64-unknown-linux-musl'])
         self.assertEqual(len(r.selection('dev.peios.peios-installer', 'build-vendor')['groups']), 1)
+
+    def test_kernel_scope(self):
+        # Only the two targets that run rustc and bindgen receive the pinned
+        # toolchain, and nothing else; every other kernel target is reviewed
+        # and keeps a plain Debian root.
+        for target in ['build-kunit', 'build-kernel']:
+            s = r.selection('dev.peios.kernel', target)
+            self.assertEqual([g['family'] for g in s['groups']], ['org.rust-lang.rust-1.83', 'io.github.rust-lang.bindgen'])
+            self.assertEqual(s['image'], 'debian:trixie')
+        for target in r.KERNEL_TARGETS - r.KERNEL_TOOLCHAIN_TARGETS:
+            self.assertIsNone(r.selection('dev.peios.kernel', target))
+        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-arbitrary')
+        # A SDK-family target name is not thereby reviewed for the kernel.
+        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-main')
+
+    def test_kernel_stays_on_trixie(self):
+        # The 1.83 toolchain links trixie's libLLVM-18; moving the kernel to sid
+        # would quietly strand it.
+        from unittest.mock import patch
+        self.assertNotIn('dev.peios.kernel', r.SID_FAMILIES)
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.kernel'}):
+            self.assertEqual(p.selected_image(), 'debian:trixie')
+
+    def test_kernel_requires_both_groups(self):
+        config = json.loads(r.CONFIG.read_text())
+        del config['groups']['bindgen']
+        r.CONFIG.write_text(json.dumps(config))
+        r.configuration.cache_clear()
+        with self.assertRaisesRegex(ValueError, 'not qualified/selected: bindgen'):
+            r.selection('dev.peios.kernel', 'build-kernel')
+
+    def test_kernel_substitution(self):
+        s = r.selection('dev.peios.kernel', 'build-kernel')
+        original = [{'name': 'clang-18', 'checks': []}, {'name': 'rustc', 'checks': []}, {'name': 'bindgen', 'checks': []}]
+        effective = {x['name'] for x in r.effective_requests(original, s)}
+        self.assertFalse({'rustc', 'bindgen', 'cargo', 'rustfmt'} & effective)
+        self.assertIn('clang-18', effective)
+        # The kernel's rustc needs LLVM 18 at run time, not the SDK's LLVM 23.
+        self.assertIn('libllvm18', effective)
+        self.assertNotIn('libllvm23', effective)
+        sdk = {x['name'] for x in r.effective_requests([], r.selection('dev.peios.authd', 'build-main'))}
+        self.assertEqual(sdk, set(r.SDK_RUNTIME_APT))
 
     def test_substitution(self):
         s = r.selection('dev.peios.authd', 'build-main')
