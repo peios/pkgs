@@ -94,6 +94,28 @@ else
   fi
 fi
 /usr/bin/bash "$script" "$PEKIT_SOURCE_OUT" "$PEKIT_OUT"
+# perf's C extension installs through its own setup.py into the interpreter's
+# default scheme. Natively that is the distribution path python3-perf ships
+# from; Debian's is /usr/local, which workspace Python policy
+# (_pybuild_/README.md) rules out as a payload destination. On the Debian rung
+# stage it where _pybuild_/python_paths.py says every Python recipe stages, and
+# leave nothing behind in /usr/local.
+if [ "${PEKIT_NATIVE_ROOT:-0}" != 1 ]; then
+  site=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import python_paths; print(python_paths.staged_site(sys.argv[2], "apt"))' \
+    "$PEKIT_WORKSPACE_ROOT/_pybuild_" "$PEKIT_OUT")
+  module=$(ls "$PEKIT_OUT"/usr/local/lib/python3*/dist-packages/perf*.so 2>/dev/null | head -n 1)
+  if [ -z "$module" ]; then
+    echo "build.tools: perf's Python extension is not under /usr/local" >&2
+    exit 1
+  fi
+  mkdir -p "$site"
+  mv "$PEKIT_OUT"/usr/local/lib/python3*/dist-packages/* "$site"/
+  find "$PEKIT_OUT/usr/local" -depth -type d -empty -delete
+  if [ -e "$PEKIT_OUT/usr/local" ]; then
+    echo "build.tools: payload remains under /usr/local" >&2
+    exit 1
+  fi
+fi
 """
 
 [build.tools.dependencies.peipkg]
