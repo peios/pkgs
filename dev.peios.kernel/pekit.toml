@@ -15,14 +15,11 @@
 # The workspace prepares dependency roots and Pekit isolates every target.
 # Member env files only supply compiler configuration. Keyring public inputs
 # are explicitly granted; production private keys stay with the coordinator.
-# The source overlay brings the current published tag onto that contract.
-# Remove it when the first upstream release containing the changes is selected.
+# Build fixes belong in pkm itself and reach this recipe with its next tag;
+# nothing here patches or overrides the borrowed pipeline.
 
 out_dir = "out"
 delegate = true
-
-[source]
-patches = "patches"
 
 [source.git]
 url = "https://github.com/peios/pkm.git"
@@ -42,7 +39,9 @@ versions = ">=0.20.1-rc1"
 #
 # Exact by design, and pinned separately from the recipe version: the Peios
 # patch series is derived against one upstream release, so moving it is a
-# deliberate rebase and never something a version sweep may do.
+# deliberate rebase and never something a version sweep may do. It must name
+# pkm's KERNEL_VERSION; build.kernel and build.headers assert the staged tree
+# against that value.
 [input.linux]
 url         = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-{{version}}.tar.xz"
 listing_url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/"
@@ -63,162 +62,3 @@ fingerprints = ["647F28654894E3BD457199BE38DBBDC86092693E"]
 # Relative to this recipe dir; never used by the farm.
 [source.local]
 path = "../../pkm"
-
-# The locked 0.20.1-rc13 tools recipe names only the Python runtime, but perf
-# builds its native extension through python3-config. A delegated target is the
-# unit of override, so retain the release's complete command and dependency
-# closure here while correcting that one native dependency. The next PKM source
-# tag carries the correction directly and can drop this override.
-[build.tools]
-needs = ["source"]
-command = """
-script=$(mktemp)
-trap 'rm -f "$script"' EXIT
-# cpupower hard-codes /usr/bin/install, bypassing the private GNU build path.
-# Patch only the two reviewed cpupower make invocations and fail closed if the
-# locked script ever changes shape.
-test "$(grep -c 'CPUFREQ_BENCH=false' ./build/build-tools.sh)" -eq 2
-# That private path exists only in the native root, where /usr/bin/install is
-# the Peios coreutils. The Debian reference rung has no such path and needs
-# none: its /usr/bin/install is already GNU. From 0.20.1-rc19 the source script
-# itself names the private path, unconditionally, so on Debian remove it and
-# refuse to run if any reference to it survives.
-if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
-  sed 's|CPUFREQ_BENCH=false|CPUFREQ_BENCH=false INSTALL=/usr/libexec/coreutils-build/install|' \
-    ./build/build-tools.sh > "$script"
-else
-  sed 's| INSTALL=/usr/libexec/coreutils-build/install||g' ./build/build-tools.sh > "$script"
-  if grep -q 'coreutils-build' "$script"; then
-    echo "build.tools: native-only install path survives in the Debian script" >&2
-    exit 1
-  fi
-fi
-/usr/bin/bash "$script" "$PEKIT_SOURCE_OUT" "$PEKIT_OUT"
-# perf's C extension installs through its own setup.py into the interpreter's
-# default scheme. Natively that is the distribution path python3-perf ships
-# from; Debian's is /usr/local, which workspace Python policy
-# (_pybuild_/README.md) rules out as a payload destination. On the Debian rung
-# stage it where _pybuild_/python_paths.py says every Python recipe stages, and
-# leave nothing behind in /usr/local.
-if [ "${PEKIT_NATIVE_ROOT:-0}" != 1 ]; then
-  site=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import python_paths; print(python_paths.staged_site(sys.argv[2], "apt"))' \
-    "$PEKIT_WORKSPACE_ROOT/_pybuild_" "$PEKIT_OUT")
-  module=$(ls "$PEKIT_OUT"/usr/local/lib/python3*/dist-packages/perf*.so 2>/dev/null | head -n 1)
-  if [ -z "$module" ]; then
-    echo "build.tools: perf's Python extension is not under /usr/local" >&2
-    exit 1
-  fi
-  mkdir -p "$site"
-  mv "$PEKIT_OUT"/usr/local/lib/python3*/dist-packages/* "$site"/
-  find "$PEKIT_OUT/usr/local" -depth -type d -empty -delete
-  if [ -e "$PEKIT_OUT/usr/local" ]; then
-    echo "build.tools: payload remains under /usr/local" >&2
-    exit 1
-  fi
-fi
-"""
-
-[build.tools.dependencies.peipkg]
-"dev.peios.build-essentials" = "*"
-"org.gnu.bash" = "*"
-"org.gnu.which" = "*"
-"org.samba.rsync" = "*"
-"org.openssl.openssl-devel" = "*"
-"org.gnu.gcc" = "*"
-"org.gnu.gcc-c++" = "*"
-"org.gnu.make" = "*"
-"org.gnu.bison" = "*"
-"io.github.westes.flex" = "*"
-"org.pkgconf.pkgconf" = "*"
-"org.sourceware.elfutils-devel" = "*"
-"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
-"com.facebook.zstd-devel" = "*"
-"org.kernel.libcap-devel" = "*"
-"io.github.numactl.libnuma-devel" = "*"
-"org.jedsoft.slang-devel" = "*"
-"org.linux.traceevent-devel" = "*"
-"org.linux.tracefs-devel" = "*"
-"cz.ucw.libpci-devel" = "*"
-"org.gnu.gettext" = "*"
-"org.perl.perl" = "*"
-"org.gnu.binutils" = "*"
-"org.python.python3-devel" = "*"
-"net.sourceforge.perfmon2.libpfm-devel" = "*"
-"io.github.eudev-project.eudev-devel" = "*"
-"org.gnu.ncurses-devel" = "*"
-"io.github.thom311.libnl-devel" = "*"
-"io.github.hyperrealm.libconfig-devel" = "*"
-"org.gnu.autoconf" = "*"
-"org.gnu.automake" = "*"
-"org.gnu.libtool" = "*"
-"org.capstone-engine.capstone-devel" = "*"
-"org.llvm.llvm-devel" = "*"
-"org.llvm.llvm" = "*"
-"org.llvm.clang" = "*"
-"io.sourceforge.docutils.docutils" = "*"
-"io.github.asciidoc-py.asciidoc" = "*"
-"io.pagure.xmlto" = "*"
-"org.docbook.docbook-xsl" = "*"
-"org.oasis-open.docbook-xml" = "*"
-"io.pypa.setuptools" = "*"
-
-[build.tools.dependencies.apt]
-build-essential = "*"
-bison = "*"
-flex = "*"
-pkg-config = "*"
-libdw-dev = "*"
-zlib1g-dev = "*"
-libzstd-dev = "*"
-libcap-dev = "*"
-libnuma-dev = "*"
-libslang2-dev = "*"
-libtraceevent-dev = "*"
-libtracefs-dev = "*"
-libpci-dev = "*"
-gettext = "*"
-libperl-dev = "*"
-binutils-dev = "*"
-python3-dev = "*"
-python3-docutils = "*"
-python3-setuptools = "*"
-libpfm4-dev = "*"
-asciidoc = "*"
-xmlto = "*"
-docbook-xml = "*"
-docbook-xsl = "*"
-libudev-dev = "*"
-libncurses-dev = "*"
-libnl-3-dev = "*"
-libnl-genl-3-dev = "*"
-libconfig-dev = "*"
-autoconf = "*"
-automake = "*"
-libtool = "*"
-libcapstone-dev = "*"
-llvm-18-dev = "*"
-# perf builds with BUILD_BPF_SKEL=1, and perf and bpftool both reach for the
-# unversioned clang, llvm-strip and llvm-config (tools/scripts/Makefile.include).
-# They need one coherent LLVM: once an llvm-config is on the path they compile
-# against its headers, so installing `llvm` without `llvm-dev` breaks bpftool's
-# jit_disasm.c on a missing llvm-c/Core.h. These are Debian's default-version
-# names, as the native list's org.llvm.clang, org.llvm.llvm and
-# org.llvm.llvm-devel are unpinned there. perf's bootstrap bpftool also compiles
-# sign.c against the OpenSSL headers (org.openssl.openssl-devel natively).
-clang = "*"
-llvm = "*"
-llvm-dev = "*"
-libssl-dev = "*"
-# getdelays is built against this kernel's own UAPI via `make headers_install`,
-# which copies the headers with rsync (org.samba.rsync natively).
-rsync = "*"
-libbpf-dev = "*"
-bpftool = "*"
-libcpupower-dev = "*"
-libdebuginfod-dev = "*"
-systemtap-sdt-dev = "*"
-libbabeltrace-dev = "*"
-default-jdk = "*"
-source-highlight = "*"
-python3 = "*"
-perl = "*"

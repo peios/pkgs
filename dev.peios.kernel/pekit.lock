@@ -53,6 +53,12 @@ schema = 1
   commit = "d44a13f662429aca22e60b456b0273cc7d0cace1"
   locked_at = "2026-09-11T22:39:55Z"
 
+[[source]]
+  version = "0.20.1-rc20"
+  ref = "v0.20.1-rc20"
+  commit = "516dd4e94ec6c4f7b74d81d6947387aca55d38a3"
+  locked_at = "2026-09-21T19:43:26Z"
+
 [[input]]
   name = "linux"
   version = "7.0.9"
