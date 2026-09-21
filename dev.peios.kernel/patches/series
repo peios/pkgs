@@ -1,2 +1,3 @@
 0001-isolate-build-and-signing.patch
 0002-upstream-kernel-from-pekit-input.patch
+0003-debian-zstd-for-kernel-and-kunit.patch

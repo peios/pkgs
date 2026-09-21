@@ -1,0 +1,40 @@
+Subject: [PATCH] build: declare zstd for the kernel and kunit on the Debian rung
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [Debian reference dependency list]
+
+build.kernel and build.kunit ask for com.facebook.zstd on the native rung but
+not for zstd on the Debian one. The config enables CONFIG_KERNEL_ZSTD and
+CONFIG_MODULE_COMPRESS_ZSTD, so the Debian build compiled the whole kernel and
+then stopped making the compressed image:
+
+    /bin/sh: 1: zstd: not found
+    make[3]: *** [arch/x86/boot/compressed/Makefile:151:
+      arch/x86/boot/compressed/vmlinux.bin.zst] Error 127
+
+The omission was invisible until now because the Debian rung never reached
+this point: it had previously failed at build:upstream, and then at the rustc
+gate. build.fwsig and test.fwsig already declare zstd on both rungs.
+
+It is the only gap between the two lists for these targets; bash and gzip are
+Essential in Debian.
+
+diff --git a/pekit.toml b/pekit.toml
+index 57fad71..7273cc7 100644
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -162,6 +162,7 @@ python3 = "*"
+ perl = "*"
+ tar = "*"
+ xz-utils = "*"
++zstd = "*"
+ 
+ [build.kernel]
+ keyring_inputs = ["modsig.pub", "tcb.pub"]
+@@ -253,6 +254,7 @@ python3 = "*"
+ perl = "*"
+ tar = "*"
+ xz-utils = "*"
++zstd = "*"
+ 
+ # Export the sanitized userspace UAPI headers (full Linux UAPI + our pkm/*.h,
+ # which ride along since they're staged under include/uapi/pkm). Depends on
