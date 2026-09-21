@@ -1,0 +1,59 @@
+Subject: [PATCH] build: declare the Debian dependencies of debuginfo, kunit and uapi
+Origin: other, Peios catalogue qualification review
+Upstream-Status: Pending [Debian reference dependency lists]
+
+Three more Debian-rung omissions, found by reading every remaining target's
+script against both of its dependency lists after build:debuginfo stopped the
+first full release on the Debian rung:
+
+    ./build/make-debuginfo.sh: line 25: make: command not found
+
+- build.debuginfo runs `make kernelrelease`. Natively it gets make from
+  dev.peios.build-essentials; its apt list named only binutils, debugedit and
+  cpio.
+- test.kunit boots the kernel under qemu-system-x86_64 and exits if it is
+  absent, but declared no dependencies on either rung. test.modsig, test.fwsig
+  and test.stratafs already declare qemu-system-x86 on apt.
+- test.uapi compiles the PKM UAPI headers with an ordinary `cc` against the
+  libc's /usr/include/linux, and likewise declared nothing.
+
+Debian only. The native test stages cannot run until Peios packages QEMU
+(PEI-534), which also covers giving test.kunit its native dependency block.
+
+diff --git a/pekit.toml b/pekit.toml
+index 7273cc7..16ad338 100644
+--- a/pekit.toml
++++ b/pekit.toml
+@@ -323,6 +323,7 @@ command = """
+ binutils = "*"
+ debugedit = "*"
+ cpio = "*"
++build-essential = "*"
+ 
+ # In-tree userspace tooling (perf, bpftool, cpupower, turbostat, rtla, rv). These
+ # are userspace ELF programs that live under tools/ in the kernel source, so they
+@@ -448,6 +449,13 @@ command = """
+ ./build/test-kunit.sh "$PEKIT_KUNIT_OUT"
+ """
+ 
++[test.kunit.dependencies.apt]
++bash            = "*"
++coreutils       = "*"
++grep            = "*"
++sed             = "*"
++qemu-system-x86 = "*"
++
+ # Boot the same KACS-enabled kernel with a purpose-built initramfs and exercise
+ # StrataFS through real mount/open/read/write/mmap/xattr/link/rename syscalls.
+ # Prove the module-signing chain on the modular kernel: boot it with a minimal
+@@ -635,3 +643,10 @@ gate = true
+ command = """
+ bash uapi/check-userspace-clean.sh
+ """
++
++# An ordinary userspace compiler and the libc's Linux UAPI headers, which is
++# precisely the environment the check asserts the PKM headers compile in.
++[test.uapi.dependencies.apt]
++bash            = "*"
++grep            = "*"
++build-essential = "*"
