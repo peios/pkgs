@@ -92,8 +92,12 @@ test -f "$SITE/distlib/version.py"
 test -f "$SITE/distlib-$PEKIT_VERSION.dist-info/METADATA"
 
 # Upstream's unittest suite, in a disposable source copy whose in-tree distlib
-# package is removed, so every test imports the staged payload instead.
-TEST_WORK="$PEKIT_OUT/upstream"
+# package is removed, so every test imports the staged payload instead. The
+# copy lives under a short temporary path: distlib's resource cache flattens a
+# zip's absolute path into one file name, which a deep release-build path
+# pushes past NAME_MAX (test_resources.CacheTestCase.test_filepath).
+TEST_TMP=$(mktemp -d "${TMPDIR:-/tmp}/distlib.XXXXXX")
+TEST_WORK="$TEST_TMP/upstream"
 python3 - "$SRC" "$TEST_WORK" <<'PY'
 import shutil
 import sys
@@ -103,11 +107,11 @@ src, work = Path(sys.argv[1]), Path(sys.argv[2])
 shutil.copytree(src, work, symlinks=True)
 shutil.rmtree(work / 'distlib')
 PY
-mkdir -p "$PEKIT_OUT/home"
+mkdir -p "$TEST_TMP/home"
 cd "$TEST_WORK"
 # Upstream's tox.ini environment. HOME is private: one test writes and removes
 # ~/.pypirc when none exists.
-HOME="$PEKIT_OUT/home" PYTHONPATH="$SITE" PYTHONNOUSERSITE=1 \
+HOME="$TEST_TMP/home" PYTHONPATH="$SITE" PYTHONNOUSERSITE=1 \
 PYTHONDONTWRITEBYTECODE=1 PYTHONHASHSEED=0 SKIP_ONLINE=1 SKIP_EXT_PACKAGE_DATA=1 \
 python3 - "$SITE" <<'PY'
 from pathlib import Path
@@ -254,7 +258,7 @@ src = Path(sys.argv[1])
 assert not any(path.is_dir() for path in src.rglob('__pycache__'))
 assert not (src / 'build').exists()
 PY
-rm -rf "$SMOKE" "$TEST_WORK" "$PEKIT_OUT/home"
+rm -rf "$SMOKE" "$TEST_TMP"
 '''
 
 [test.dependencies.peipkg]

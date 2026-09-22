@@ -232,10 +232,12 @@ int main(void)
   return 0;
 }
 EOF
-# The staged metadata first, then the root's: pkgconf resolves the
-# Requires.private modules (libpcre2-8, libffi, zlib) even for --cflags, which
-# is also why org.gnome.glib-devel depends on their -devel packages.
-export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig:/usr/lib/x86_64-linux-peios/pkgconfig"
+# The staged metadata first, then the root's own search path (which differs
+# between a Peios and a Debian root): pkgconf resolves the Requires.private
+# modules (libpcre2-8, libffi, zlib) even for --cflags, which is also why
+# org.gnome.glib-devel depends on their -devel packages.
+unset PKG_CONFIG_LIBDIR
+export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
 export PKG_CONFIG_SYSROOT_DIR="$STAGE"
 cc $(pkgconf --cflags gio-2.0) "$SMOKE/consumer.c" $(pkgconf --libs gio-2.0) -o "$SMOKE/shared-consumer"
 "$SMOKE/shared-consumer"
