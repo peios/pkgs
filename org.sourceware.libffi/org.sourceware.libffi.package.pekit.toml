@@ -1,0 +1,14 @@
+# The runtime ABI (libffi.so.8) that GLib and other dynamic-call consumers
+# load. A soname change fails this glob and stops publication for review.
+
+[package]
+name        = "org.sourceware.libffi"
+description = "Portable foreign function interface runtime library"
+license     = "MIT AND CC0-1.0"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi/"
+":usr/lib/x86_64-linux-peios/libffi.so.8*" = "usr/lib/x86_64-linux-peios"

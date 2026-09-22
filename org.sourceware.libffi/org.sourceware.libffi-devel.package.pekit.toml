@@ -1,0 +1,21 @@
+# Public headers (directly under /usr/include), the linker name, pkg-config
+# metadata and the API manual pages. Static linkage stays opt-in through the
+# static sibling.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.sourceware.libffi-devel"
+description = "Portable foreign function interface development files"
+license     = "MIT"
+
+[dependencies]
+"org.sourceware.libffi" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi-devel/"
+":usr/include/ffi.h"       = "usr/include/ffi.h"
+":usr/include/ffitarget.h" = "usr/include/ffitarget.h"
+":usr/lib/x86_64-linux-peios/libffi.so" = "usr/lib/x86_64-linux-peios/libffi.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libffi.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/libffi.pc"
+":usr/share/man/man3/**" = "usr/share/man/man3"

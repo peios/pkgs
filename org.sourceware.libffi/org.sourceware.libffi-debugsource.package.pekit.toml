@@ -1,0 +1,11 @@
+[package]
+name        = "org.sourceware.libffi-debugsource"
+description = "Portable foreign function interface debug sources"
+license     = "MIT AND CC0-1.0"
+
+[dependencies]
+"org.sourceware.libffi-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

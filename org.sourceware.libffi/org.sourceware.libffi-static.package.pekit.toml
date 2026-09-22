@@ -1,0 +1,15 @@
+# Static libffi for consumers that deliberately need a self-contained link.
+# Archive-member DWARF is discarded because static objects have no stable
+# build-ID index.
+
+[package]
+name        = "org.sourceware.libffi-static"
+description = "Portable foreign function interface static library"
+license     = "MIT AND CC0-1.0"
+
+[dependencies]
+"org.sourceware.libffi-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi-static/"
+":usr/lib/x86_64-linux-peios/libffi.a" = "usr/lib/x86_64-linux-peios/libffi.a"

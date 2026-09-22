@@ -1,0 +1,300 @@
+# libffi — the portable foreign function interface: call a C function whose
+# signature is only known at run time, and create closures that turn such a
+# signature back into a callable C function pointer. GLib's generic closure
+# marshaller needs it, and QEMU needs GLib (PEI-534).
+#
+# One autotools build of the bootstrapped release archive, split into the
+# runtime ABI, development files, a static archive and debug packages. The
+# Texinfo manual is not built (--disable-docs): Peios does not yet ship Info
+# files, and the API manual pages ship with the development files.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/libffi/libffi/releases/download/v{{version}}/libffi-{{version}}.tar.gz"
+listing_url = "https://api.github.com/repos/libffi/libffi/releases?per_page=100"
+# Final releases only: the rolling "snapshots" pre-release publishes archives
+# named libffi-X.Y.Z.N+gHASH.tar.gz, which this pattern cannot match.
+file_regex  = 'libffi-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.gz'
+extract     = true
+root        = "libffi-{{version}}"
+# Soft production floor: the first release this recipe's configuration,
+# test harness and payload layout were verified against. Every newer stable
+# release remains eligible; the build, test and payload gates stop an
+# incompatible one.
+versions    = ">= 3.8.0"
+
+# Upstream publishes neither detached signatures nor signed release tags
+# (v3.8.0 is an unsigned annotated tag), and the historical sourceware.org
+# mirror stopped at 3.4.3 with only unsigned md5/sha512 lists. This is
+# therefore an explicit HTTPS + immutable lockfile hash exception; see
+# lint.pekit.toml.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Inherit the workspace optimisation and hardening policy. A non-empty CFLAGS
+# also keeps configure's AX_CC_MAXOPT from adding host-tuned flags. The
+# assembly trampolines take the same flags (CCASFLAGS defaults to CFLAGS), so
+# -fcf-protection gives them ENDBR landing pads and CET property notes.
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.sourceware.libffi"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+# --disable-builddir keeps the objects (and fficonfig.h, which the test gate
+# needs) in $BUILD rather than a nested target-triplet directory.
+# --disable-multi-os-directory stops gcc's multilib directory from being
+# appended to the library directory. Headers install to /usr/include.
+mkdir -p "$BUILD"
+cd "$BUILD"
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --disable-builddir \
+  --disable-multi-os-directory \
+  --disable-docs \
+  --enable-shared \
+  --enable-static \
+  --disable-silent-rules
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# Libtool archives encode paths and encourage overlinking; pkg-config and the
+# linker name are the supported development interfaces.
+find "$PREFIX" -name '*.la' -delete
+
+find "$PREFIX/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PREFIX/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
+# Produce build-ID-indexed symbols and the exact source tree referenced after
+# DWARF path rewriting. Static-archive members have no stable build ID, so the
+# archive keeps its link symbols but its debug sections are left to the shared
+# object's debuginfo.
+SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libffi.so.*')
+test "$(printf '%s\n' "$SO" | grep -c .)" -eq 1
+strip --strip-debug "$LIBDIR/libffi.a"
+debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.libffi \
+  -l "$PEKIT_OUT/.dl" -n "$SO"
+tr '\0' '\n' < "$PEKIT_OUT/.dl" > "$PEKIT_OUT/.srclist"
+bid=$(readelf -n "$SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+rest=$(printf %s "$bid" | cut -c3-)
+mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+objcopy --only-keep-debug "$SO" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+strip "$SO"
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.sourceware.libffi/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.sourceware.libffi/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.sourceware.debugedit"     = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gzip            = "*"
+debugedit       = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+SRC="$(pwd)"
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+SUITE="$PEKIT_OUT/testsuite"
+SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libffi.so.*')
+test "$(printf '%s\n' "$SO" | grep -c .)" -eq 1
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Upstream's `make check` drives its C test corpus through DejaGnu, which the
+# catalogue does not package (Automake's check-DEJAGNU then only warns and
+# succeeds). Build and run the same programs directly instead, as
+# testsuite/lib/libffi.exp does: every C test in the call, closure, complex,
+# Go-closure, thread and vector suites, at -O0 and -O2, plus the Microsoft x64
+# ABI variant of the tests that are parameterised by ABI_NUM. Each test aborts
+# through CHECK() on a wrong result; the dg-output transcripts are not
+# compared. The GPL-licensed bhaible suite and the C++ unwinding tests are not
+# run.
+mkdir -p "$SUITE"
+pass=0
+fail=0
+for suite in call closures complex go threads vector; do
+  for t in "$SRC"/testsuite/libffi.$suite/*.c; do
+    abis=native
+    if grep -q ABI_NUM "$t"; then abis="native msabi"; fi
+    for opt in -O0 -O2; do
+      for abi in $abis; do
+        case $abi in
+          native) abiflags= ;;
+          msabi)  abiflags="-DABI_NUM=FFI_GNUW64 -DABI_ATTR=__MSABI__" ;;
+        esac
+        exe="$SUITE/$suite-$(basename "$t" .c)$opt-$abi"
+        if cc -W -Wall -Wno-psabi -fno-diagnostics-color $opt $abiflags \
+             -I"$PREFIX/include" -I"$BUILD" -I"$SRC/include" "$t" \
+             -L"$LIBDIR" -lffi -lm -o "$exe" > "$exe.build.log" 2>&1 &&
+           "$exe" > "$exe.run.log" 2>&1; then
+          pass=$((pass + 1))
+        else
+          fail=$((fail + 1))
+          echo "FAIL: libffi.$suite/$(basename "$t") $opt $abi" >&2
+          cat "$exe.build.log" >&2
+          test ! -f "$exe.run.log" || cat "$exe.run.log" >&2
+        fi
+      done
+    done
+  done
+done
+echo "libffi upstream tests: $pass passed, $fail failed"
+test "$fail" -eq 0
+test "$pass" -ge 500
+rm -rf "$SUITE"
+
+# Installed development surface: headers directly under /usr/include and
+# pkg-config metadata that agrees with them.
+test -f "$PREFIX/include/ffi.h"
+test -f "$PREFIX/include/ffitarget.h"
+test -z "$(find "$PREFIX/lib" -path '*/include/*' -print -quit)"
+test -L "$LIBDIR/libffi.so"
+test -L "$LIBDIR/libffi.so.8"
+test -s "$LIBDIR/libffi.a"
+test -z "$(find "$PREFIX" -name '*.la' -print -quit)"
+test ! -e "$PREFIX/share/info"
+PC="$LIBDIR/pkgconfig/libffi.pc"
+grep -Fx 'prefix=/usr' "$PC"
+grep -Fx 'includedir=${prefix}/include' "$PC"
+grep -Fx 'libdir=/usr/lib/x86_64-linux-peios' "$PC"
+grep -Fx 'toolexeclibdir=${libdir}' "$PC"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkg-config --validate libffi
+test "$(pkg-config --modversion libffi)" = "$PEKIT_VERSION"
+pkg-config --libs libffi | grep -F -- '-lffi'
+for page in ffi ffi_call ffi_prep_cif ffi_prep_cif_var; do
+  gzip -t "$PREFIX/share/man/man3/$page.3.gz"
+done
+
+# A real call and a closure through the shared and the static library. The
+# closure exercises the static trampoline table and its executable mapping.
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <ffi.h>
+#include <string.h>
+
+static int digits(int a, int b, int c)
+{
+  return a * 100 + b * 10 + c;
+}
+
+static void add_delta(ffi_cif *cif, void *ret, void **args, void *data)
+{
+  (void)cif;
+  *(ffi_arg *)ret = *(int *)args[0] + *(int *)data;
+}
+
+int main(void)
+{
+  ffi_cif cif, ccif;
+  ffi_type *types[3] = { &ffi_type_sint, &ffi_type_sint, &ffi_type_sint };
+  int a = 1, b = 2, c = 3, delta = 41;
+  void *values[3] = { &a, &b, &c };
+  ffi_arg rc;
+  ffi_closure *closure;
+  void *code;
+
+  if (strcmp(ffi_get_version(), EXPECTED_VERSION) != 0)
+    return 1;
+  if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, 3, &ffi_type_sint, types) != FFI_OK)
+    return 2;
+  ffi_call(&cif, FFI_FN(digits), &rc, values);
+  if ((int)rc != 123)
+    return 3;
+
+  closure = ffi_closure_alloc(sizeof(ffi_closure), &code);
+  if (closure == NULL)
+    return 4;
+  if (ffi_prep_cif(&ccif, FFI_DEFAULT_ABI, 1, &ffi_type_sint, types) != FFI_OK)
+    return 5;
+  if (ffi_prep_closure_loc(closure, &ccif, add_delta, &delta, code) != FFI_OK)
+    return 6;
+  if (((int (*)(int))code)(1) != 42)
+    return 7;
+  ffi_closure_free(closure);
+  return 0;
+}
+EOF
+cc -DEXPECTED_VERSION="\"$PEKIT_VERSION\"" -I"$PREFIX/include" \
+  "$SMOKE/consumer.c" -L"$LIBDIR" $(pkg-config --libs libffi) \
+  -o "$SMOKE/shared-consumer"
+"$SMOKE/shared-consumer"
+readelf -d "$SMOKE/shared-consumer" | grep -F 'Shared library: [libffi.so.8]'
+cc -DEXPECTED_VERSION="\"$PEKIT_VERSION\"" -I"$PREFIX/include" \
+  "$SMOKE/consumer.c" "$LIBDIR/libffi.a" -o "$SMOKE/static-consumer"
+(unset LD_LIBRARY_PATH; "$SMOKE/static-consumer")
+if readelf -d "$SMOKE/static-consumer" | grep -F 'libffi'; then exit 1; fi
+rm -rf "$SMOKE"
+
+# ABI identity, split debug and hardening of the one shipped ELF object.
+readelf -d "$SO" | grep -F 'Library soname: [libffi.so.8]'
+readelf -d "$SO" | grep -F 'Shared library: [libc.so.6]'
+readelf --dyn-syms -W "$SO" | grep -E ' ffi_call@@LIBFFI_BASE_8[.]0$'
+readelf --dyn-syms -W "$SO" | grep -E ' ffi_prep_closure_loc@@LIBFFI_CLOSURE_8[.]0$'
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$PREFIX/src/debug/org.sourceware.libffi" -type f -name 'ffi64.c' -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" | grep -F '.debug_info'
+done
+if readelf -S "$SO" | grep -F '.debug_'; then exit 1; fi
+readelf -h "$SO" | grep -Eq 'Type:[[:space:]]+DYN'
+readelf -W -l "$SO" | grep -E 'GNU_STACK.*RW '
+readelf -W -l "$SO" | grep -F 'GNU_RELRO'
+readelf -d "$SO" | grep -F 'BIND_NOW'
+readelf -d "$SO" | grep -F 'RELR'
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  readelf -n "$SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
+fi
+if readelf -d "$SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.gzip"                 = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"
+gzip            = "*"

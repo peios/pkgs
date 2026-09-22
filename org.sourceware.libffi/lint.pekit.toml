@@ -1,0 +1,6 @@
+[allow]
+"source.signature.required" = "Upstream publishes no detached signatures and its release tags are unsigned; HTTPS and the immutable lock pin accepted bytes"
+
+# The runtime and static splits share the family symbol archive.
+[elf]
+debuginfo = "org.sourceware.libffi-debuginfo"
