@@ -1,0 +1,15 @@
+# Public headers, the linker name and pkg-config metadata. Static linkage stays
+# opt-in through the static sibling.
+
+[package]
+name        = "org.pixman.pixman-devel"
+description = "pixman - development files"
+
+[dependencies]
+"org.pixman.pixman" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pixman.pixman-devel/"
+":usr/include/pixman-1/**" = "usr/include/pixman-1"
+":usr/lib/x86_64-linux-peios/libpixman-1.so" = "usr/lib/x86_64-linux-peios/libpixman-1.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/pixman-1.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/pixman-1.pc"

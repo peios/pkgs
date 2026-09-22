@@ -1,0 +1,356 @@
+# pixman — the low-level pixel manipulation library behind cairo, X servers and
+# QEMU's display code (image compositing, trapezoid rasterisation, regions).
+# Built once as shared and static libraries, tested upstream, then split so
+# runtime consumers do not acquire development files.
+#
+# The x86 SIMD implementations (MMX, SSE2, SSSE3) are required rather than
+# auto-detected; pixman picks between them at run time. The GTK demos and the
+# libpng test helper stay off because neither library is packaged. OpenMP is
+# used only by the test programs (the library never links libgomp); it is
+# enabled explicitly so both build rungs run the suite the same way.
+# Upstream's README, NEWS and AUTHORS are contributor notes or empty, so no
+# documentation is shipped.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://www.cairographics.org/releases/pixman-{{version}}.tar.xz"
+listing_url = "https://www.cairographics.org/releases/"
+# Stable pixman releases have an even minor number; the same directory also
+# carries odd-minor development releases (0.43.x), which must not be followed.
+file_regex  = 'pixman-(?P<version>[0-9]+\.[0-9]*[02468]\.[0-9]+)\.tar\.xz'
+extract     = true
+root        = "pixman-{{version}}"
+# Soft production floor. Follow every newer stable release; ABI or behaviour
+# drift stops at the SONAME, symbol and compositing gates below.
+versions    = ">= 0.46.4"
+
+# Upstream signs only the checksum sidecar: pixman-X.tar.xz.sha512.asc is an
+# inline OpenPGP message wrapping the .sha512 file, not a detached signature
+# over the archive, so [source.url.signature] (artifact or decompressed) cannot
+# verify it. The archive is therefore accepted over HTTPS and pinned by the
+# immutable lock; every accepted lock entry must match the SHA-512 in a
+# sidecar whose signature verifies against Matt Turner's release key,
+# 3BB639E56F861FA2E86505690FDD682D974CA72A (signing subkey
+# 16238A7D92448B02B7B10344B6B1CEAE5103DB07). 0.46.4 was checked this way when
+# first locked.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.pixman.pixman"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+
+meson setup "$BUILD" "$SRC" \
+  --prefix=/usr \
+  --libdir=lib/x86_64-linux-peios \
+  --buildtype=plain \
+  --default-library=both \
+  -Dmmx=enabled \
+  -Dsse2=enabled \
+  -Dssse3=enabled \
+  -Dloongson-mmi=disabled \
+  -Dvmx=disabled \
+  -Darm-simd=disabled \
+  -Dneon=disabled \
+  -Da64-neon=disabled \
+  -Dmips-dspr2=disabled \
+  -Drvv=disabled \
+  -Dgnu-inline-asm=enabled \
+  -Dtls=enabled \
+  -Dopenmp=enabled \
+  -Dtimers=false \
+  -Dgnuplot=false \
+  -Dgtk=disabled \
+  -Dlibpng=disabled \
+  -Ddemos=disabled \
+  -Dtests=enabled \
+  -Dc_link_args="$LDFLAGS -Wl,-z,ibtplt"
+
+meson compile -C "$BUILD"
+DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
+
+# Produce build-ID-indexed symbols and the exact source tree referenced after
+# DWARF path rewriting. Static-library code is retained but debug sections are
+# deliberately left to the shared object's debuginfo.
+strip --strip-debug "$LIBDIR/libpixman-1.a"
+: > "$PEKIT_OUT/.srclist"
+for elf in "$LIBDIR/libpixman-1.so.$PEKIT_VERSION"; do
+  debugedit -b "$ROOT" -d /usr/src/debug/org.pixman.pixman \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" \
+    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.pixman.pixman/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.pixman.pixman/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.sourceware.debugedit"     = "*"
+"com.mesonbuild.meson"         = ">= 1.3"
+"org.ninja-build.ninja"        = "*"
+"org.gnu.gcc-libgomp-devel"    = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+meson           = ">= 1.3"
+ninja-build     = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+
+# Upstream's suite, against exactly the objects the build stage produced. Its
+# programs carry a build-tree $ORIGIN rpath; prove they load that library and
+# not one installed in the root. The fuzzers are slow on a loaded host.
+LD_TRACE_LOADED_OBJECTS=1 "$BUILD/test/composite" |
+  grep -F "libpixman-1.so.0 => $BUILD/"
+meson test -C "$BUILD" --no-rebuild --print-errorlogs --timeout-multiplier 10
+
+test -f "$LIBDIR/libpixman-1.so.$PEKIT_VERSION"
+test -L "$LIBDIR/libpixman-1.so.0"
+test "$(readlink "$LIBDIR/libpixman-1.so.0")" = "libpixman-1.so.$PEKIT_VERSION"
+test -L "$LIBDIR/libpixman-1.so"
+test "$(readlink "$LIBDIR/libpixman-1.so")" = libpixman-1.so.0
+test -s "$LIBDIR/libpixman-1.a"
+test -f "$PREFIX/include/pixman-1/pixman.h"
+test -f "$PREFIX/include/pixman-1/pixman-version.h"
+grep -F "#define PIXMAN_VERSION_STRING \"$PEKIT_VERSION\"" \
+  "$PREFIX/include/pixman-1/pixman-version.h"
+
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkgconf --validate pixman-1
+test "$(pkgconf --modversion pixman-1)" = "$PEKIT_VERSION"
+test "$(pkgconf --variable=libdir pixman-1)" = "$STAGE/usr/lib/x86_64-linux-peios"
+pkgconf --static --libs pixman-1 | grep -Fw -- -lm
+
+# A consumer that composites real images: a masked and an unmasked OVER of a
+# translucent source onto an opaque destination, a format conversion to
+# r5g6b5, and region arithmetic. Every expected pixel is exact in 8-bit
+# arithmetic, so the SIMD and generic implementations must both reproduce it.
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <pixman.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#define W 68
+#define H 32
+/* An odd-sized interior rectangle exercises the SIMD head and tail loops. */
+#define RX 3
+#define RY 1
+#define RW 61
+#define RH 29
+
+static uint32_t dst_bits[W * H];
+static uint32_t dst2_bits[W * H];
+static uint32_t src_bits[W * H];
+static uint8_t mask_bits[W * H] __attribute__((aligned(16)));
+static uint16_t rgb565_bits[W * H] __attribute__((aligned(16)));
+
+static int failures;
+
+static void expect(const char *what, int x, int y, uint32_t got, uint32_t want)
+{
+    if (got != want && failures++ < 10)
+        fprintf(stderr, "%s (%d,%d): got 0x%08x, want 0x%08x\n",
+                what, x, y, got, want);
+}
+
+static int inside(int x, int y)
+{
+    return x >= RX && x < RX + RW && y >= RY && y < RY + RH;
+}
+
+int main(int argc, char **argv)
+{
+    pixman_color_t blue = { 0x0000, 0x0000, 0xffff, 0xffff };
+    pixman_box32_t all = { 0, 0, W, H };
+    pixman_image_t *dst, *dst2, *src, *mask, *rgb565;
+    pixman_region32_t a, b, r;
+    const pixman_box32_t *ext;
+    int x, y;
+
+    if (argc != 2 || strcmp(pixman_version_string(), argv[1]) != 0 ||
+        strcmp(PIXMAN_VERSION_STRING, argv[1]) != 0 ||
+        pixman_version() != PIXMAN_VERSION) {
+        fprintf(stderr, "version mismatch: library %s, header %s\n",
+                pixman_version_string(), PIXMAN_VERSION_STRING);
+        return 1;
+    }
+
+    dst = pixman_image_create_bits(PIXMAN_a8r8g8b8, W, H, dst_bits, W * 4);
+    dst2 = pixman_image_create_bits(PIXMAN_a8r8g8b8, W, H, dst2_bits, W * 4);
+    src = pixman_image_create_bits(PIXMAN_a8r8g8b8, W, H, src_bits, W * 4);
+    mask = pixman_image_create_bits(PIXMAN_a8, W, H, (uint32_t *)mask_bits, W);
+    rgb565 = pixman_image_create_bits(PIXMAN_r5g6b5, W, H,
+                                      (uint32_t *)rgb565_bits, W * 2);
+    if (!dst || !dst2 || !src || !mask || !rgb565)
+        return 1;
+
+    /* Premultiplied 50% red source and a 50% coverage mask. */
+    for (x = 0; x < W * H; x++)
+        src_bits[x] = 0x80800000;
+    memset(mask_bits, 0x80, sizeof mask_bits);
+
+    if (!pixman_image_fill_boxes(PIXMAN_OP_SRC, dst, &blue, 1, &all) ||
+        !pixman_image_fill_boxes(PIXMAN_OP_SRC, dst2, &blue, 1, &all))
+        return 1;
+
+    pixman_image_composite32(PIXMAN_OP_OVER, src, mask, dst,
+                             RX, RY, RX, RY, RX, RY, RW, RH);
+    pixman_image_composite32(PIXMAN_OP_OVER, src, NULL, dst2,
+                             RX, RY, 0, 0, RX, RY, RW, RH);
+    pixman_image_composite32(PIXMAN_OP_SRC, dst2, NULL, rgb565,
+                             0, 0, 0, 0, 0, 0, W, H);
+
+    for (y = 0; y < H; y++) {
+        for (x = 0; x < W; x++) {
+            int in = inside(x, y);
+            expect("masked over", x, y, dst_bits[y * W + x],
+                   in ? 0xff4000bf : 0xff0000ff);
+            expect("over", x, y, dst2_bits[y * W + x],
+                   in ? 0xff80007f : 0xff0000ff);
+            expect("r5g6b5", x, y, rgb565_bits[y * W + x],
+                   in ? 0x800f : 0x001f);
+        }
+    }
+
+    pixman_region32_init_rect(&a, 0, 0, 10, 10);
+    pixman_region32_init_rect(&b, 5, 5, 10, 10);
+    pixman_region32_init(&r);
+    if (!pixman_region32_union(&r, &a, &b))
+        return 1;
+    ext = pixman_region32_extents(&r);
+    if (pixman_region32_n_rects(&r) != 3 || ext->x1 != 0 || ext->y1 != 0 ||
+        ext->x2 != 15 || ext->y2 != 15) {
+        fprintf(stderr, "region union is wrong\n");
+        failures++;
+    }
+    if (!pixman_region32_intersect(&r, &a, &b))
+        return 1;
+    ext = pixman_region32_extents(&r);
+    if (pixman_region32_n_rects(&r) != 1 || ext->x1 != 5 || ext->y1 != 5 ||
+        ext->x2 != 10 || ext->y2 != 10) {
+        fprintf(stderr, "region intersection is wrong\n");
+        failures++;
+    }
+    pixman_region32_fini(&a);
+    pixman_region32_fini(&b);
+    pixman_region32_fini(&r);
+
+    pixman_image_unref(rgb565);
+    pixman_image_unref(mask);
+    pixman_image_unref(src);
+    pixman_image_unref(dst2);
+    pixman_image_unref(dst);
+    if (failures)
+        return 1;
+    puts("composited");
+    return 0;
+}
+EOF
+PC_CFLAGS=$(pkgconf --cflags pixman-1)
+PC_LIBS=$(pkgconf --libs pixman-1)
+cc $PC_CFLAGS "$SMOKE/consumer.c" $PC_LIBS -o "$SMOKE/shared-consumer"
+cc $PC_CFLAGS "$SMOKE/consumer.c" "$LIBDIR/libpixman-1.a" -lm -pthread \
+  -o "$SMOKE/static-consumer"
+readelf -d "$SMOKE/shared-consumer" | grep -F 'Shared library: [libpixman-1.so.0]'
+if readelf -d "$SMOKE/static-consumer" | grep -F 'libpixman'; then exit 1; fi
+LD_LIBRARY_PATH="$LIBDIR" LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/shared-consumer" |
+  grep -F "libpixman-1.so.0 => $LIBDIR/libpixman-1.so.0"
+
+# Run each consumer on the implementation pixman selects for this CPU and on
+# the portable C paths. PIXMAN_DISABLE reports each implementation it switches
+# off, and it can only do so for code compiled in: this proves the shipped
+# shared and static libraries carry the MMX, SSE2 and SSSE3 paths. ("fast"
+# stays on: it is the only implementation of solid fills.)
+for consumer in "$SMOKE/shared-consumer" "$SMOKE/static-consumer"; do
+  test "$(LD_LIBRARY_PATH="$LIBDIR" "$consumer" "$PEKIT_VERSION")" = composited
+  LD_LIBRARY_PATH="$LIBDIR" PIXMAN_DISABLE="mmx sse2 ssse3" \
+    "$consumer" "$PEKIT_VERSION" > "$SMOKE/generic.out"
+  for imp in mmx sse2 ssse3; do
+    grep -Fx "pixman: Disabled $imp implementation" "$SMOKE/generic.out"
+  done
+  grep -Fx composited "$SMOKE/generic.out"
+done
+
+readelf -d "$LIBDIR/libpixman-1.so.$PEKIT_VERSION" |
+  grep -F 'Library soname: [libpixman-1.so.0]'
+readelf --dyn-syms -W "$LIBDIR/libpixman-1.so.$PEKIT_VERSION" |
+  grep -E ' pixman_image_composite32$'
+# Internal implementation entry points stay hidden.
+if readelf --dyn-syms -W "$LIBDIR/libpixman-1.so.$PEKIT_VERSION" |
+  grep -F '_pixman_implementation_create'; then exit 1; fi
+readelf -d "$LIBDIR/libpixman-1.so.$PEKIT_VERSION" |
+  grep -F 'Shared library: [libc.so.6]'
+if readelf -d "$LIBDIR/libpixman-1.so.$PEKIT_VERSION" | grep -F 'libgomp'; then
+  exit 1
+fi
+
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" 2>/dev/null | grep -F '.debug_info'
+done
+test -n "$(find "$PREFIX/src/debug/org.pixman.pixman" -type f -name pixman-sse2.c -print -quit)"
+test -n "$(find "$PREFIX/src/debug/org.pixman.pixman" -type f -name pixman-ssse3.c -print -quit)"
+
+for elf in "$LIBDIR/libpixman-1.so.$PEKIT_VERSION"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"com.mesonbuild.meson"         = ">= 1.3"
+"org.gnu.gcc-libgomp"          = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+meson           = ">= 1.3"
+pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"

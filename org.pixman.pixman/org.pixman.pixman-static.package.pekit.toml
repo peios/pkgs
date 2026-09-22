@@ -1,0 +1,13 @@
+# Static libpixman-1, including the SIMD implementations, for the small number
+# of consumers that deliberately need a self-contained link.
+
+[package]
+name        = "org.pixman.pixman-static"
+description = "pixman - static library"
+
+[dependencies]
+"org.pixman.pixman-devel" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pixman.pixman-static/"
+":usr/lib/x86_64-linux-peios/libpixman-1.a" = "usr/lib/x86_64-linux-peios/libpixman-1.a"

@@ -1,0 +1,15 @@
+# Shared metadata for the pixman package family. The default
+# corresponding-source output carries the complete locked release tree.
+#
+# COPYING is the MIT licence most contributors agreed on; most source files
+# keep the older X11-style HPND "sell" variant notice of their copyright
+# holder.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "MIT AND HPND-sell-variant"
+license_class = "free"
+homepage      = "https://pixman.org/"

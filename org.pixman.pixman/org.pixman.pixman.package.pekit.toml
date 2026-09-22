@@ -1,0 +1,13 @@
+# The independently installable libpixman-1 ABI used by QEMU's display code,
+# cairo and X servers.
+
+[package]
+name        = "org.pixman.pixman"
+description = "Low-level pixel manipulation and compositing library"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pixman.pixman/"
+":usr/lib/x86_64-linux-peios/libpixman-1.so.0*" = "usr/lib/x86_64-linux-peios"

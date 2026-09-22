@@ -1,0 +1,10 @@
+[package]
+name        = "org.pixman.pixman-debuginfo"
+description = "pixman - debugging symbols"
+
+[dependencies]
+"org.pixman.pixman" = "{{version}}-1"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.pixman.pixman-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"
