@@ -1,0 +1,25 @@
+# Distlib's binary package. Every module is copyright the PSF or contributed
+# to it under a contributor agreement, and upstream declares PSF-2.0;
+# LICENSE.txt reproduces CPython's full licence history around that PSF
+# License Agreement, and each module's header points at CONTRIBUTORS.txt.
+
+format = "peipkg"
+
+[package]
+name         = "io.pypa.distlib"
+version      = "{{version}}-1"
+# x86_64, not noarch: the one site-packages is inside the triplet directory.
+architecture = "x86_64"
+description  = "Python packaging library: version matching, wheels and script launchers"
+license      = "PSF-2.0"
+license_class = "free"
+homepage     = "https://github.com/pypa/distlib"
+
+[dependencies]
+# Bytecode and the site-packages path are bound to Python's feature version.
+"org.python.python3" = ">= 3.14, < 3.15"
+
+[files]
+"@source:LICENSE.txt"      = "usr/share/licenses/io.pypa.distlib/LICENSE.txt"
+"@source:CONTRIBUTORS.txt" = "usr/share/licenses/io.pypa.distlib/CONTRIBUTORS.txt"
+":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"

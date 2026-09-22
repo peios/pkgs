@@ -1,0 +1,266 @@
+# Distlib — PyPA's low-level packaging library: PEP 440 and legacy version
+# matching, wheel and metadata handling, and console-script generation.
+# QEMU's configure step is the customer: python/scripts/mkvenv.py uses
+# distlib.version.LegacyMatcher/LegacyVersion to check its Python build
+# dependencies (meson, ...) and distlib.scripts.ScriptMaker to write their
+# console-script shims into its venv, and stops with "found no usable
+# distlib, please install it" without it. Our python3 ships no pip, so the
+# copy pip vendors is not there to fall back on (PEI-534).
+#
+# Classification: a LIBRARY (other programs import it), so it lives in the
+# one site-packages. Distlib builds with setuptools.build_meta; the build,
+# install and bytecode policy is the workspace helper's, see
+# _pybuild_/README.md. Distlib declares no console scripts.
+#
+# The sdist carries upstream's prebuilt Windows launcher stubs
+# (distlib/{t,w}{32,64,64-arm}.exe). They are PE binaries built outside this
+# recipe from PC/launcher.c, and distlib only reads them when os.name is
+# "nt": on POSIX, ScriptMaker writes a plain #! script and never looks at
+# them. They are removed from a private copy of the tree BEFORE the wheel is
+# built, as Fedora does, so the installed RECORD describes exactly what ships
+# rather than naming files deleted afterwards. The corresponding-source
+# package still carries the pristine sdist, stubs and all.
+#
+# The gate runs distlib's own unittest suite against the staged payload (not
+# the source checkout) with upstream's SKIP_ONLINE/SKIP_EXT_PACKAGE_DATA
+# switches, as its tox.ini does, and checks every skip against a reviewed
+# list of reasons. The suite is stdlib-only, so no test tools are acquired
+# and there is no vendor target; every stage runs offline.
+
+out_dir = "out"
+
+# PyPI's stable per-project source URL (no content hash in the path) and Simple
+# API discover every stable point release. PyPI publishes no detached source
+# signatures, so the immutable pekit.lock is an explicit TOFU trust boundary.
+[source.url]
+url         = "https://files.pythonhosted.org/packages/source/d/distlib/distlib-{{version}}.tar.gz"
+listing_url = "https://pypi.org/simple/distlib/"
+extract     = true
+root        = "distlib-{{version}}"
+file_regex  = 'distlib-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor. Stable releases are selected and locked
+# automatically; API compatibility is enforced by the gates below.
+versions    = ">= 0.4.3"
+
+[build.main]
+command = """
+set -eu
+SRC="$(pwd -P)"
+
+# Build from a private copy of the tree with the Windows launcher stubs
+# removed (see the header). setuptools writes build/ and *.egg-info beside the
+# sources, so building from this copy also keeps the fetched tree pristine for
+# the -source package, which is what --copy-tree would otherwise be for.
+TREE="$(python3 -c 'import tempfile; print(tempfile.mkdtemp(prefix="distlib-src-"))')"
+python3 - "$SRC" "$TREE/src" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+src, tree = Path(sys.argv[1]), Path(sys.argv[2])
+shutil.copytree(src, tree, symlinks=True)
+stubs = sorted((tree / 'distlib').glob('*.exe'))
+for stub in stubs:
+    stub.unlink()
+print('distlib: dropped Windows launcher stubs:', ' '.join(p.name for p in stubs) or 'none')
+PY
+python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
+  --backend setuptools.build_meta --out "$PEKIT_OUT" "$TREE/src"
+python3 -c 'import shutil, sys; shutil.rmtree(sys.argv[1])' "$TREE"
+"""
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"  = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3"   = ">= 3.14, < 3.15"
+"io.pypa.setuptools"   = "*"
+
+[build.main.dependencies.apt]
+python3            = "*"
+python3-setuptools = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+SRC="$(pwd -P)"
+SITE=$(python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/python_paths.py" "$PEKIT_MAIN_OUT")
+test -d "$SITE"
+test -f "$SITE/distlib/scripts.py"
+test -f "$SITE/distlib/version.py"
+test -f "$SITE/distlib-$PEKIT_VERSION.dist-info/METADATA"
+
+# Upstream's unittest suite, in a disposable source copy whose in-tree distlib
+# package is removed, so every test imports the staged payload instead.
+TEST_WORK="$PEKIT_OUT/upstream"
+python3 - "$SRC" "$TEST_WORK" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+src, work = Path(sys.argv[1]), Path(sys.argv[2])
+shutil.copytree(src, work, symlinks=True)
+shutil.rmtree(work / 'distlib')
+PY
+mkdir -p "$PEKIT_OUT/home"
+cd "$TEST_WORK"
+# Upstream's tox.ini environment. HOME is private: one test writes and removes
+# ~/.pypirc when none exists.
+HOME="$PEKIT_OUT/home" PYTHONPATH="$SITE" PYTHONNOUSERSITE=1 \
+PYTHONDONTWRITEBYTECODE=1 PYTHONHASHSEED=0 SKIP_ONLINE=1 SKIP_EXT_PACKAGE_DATA=1 \
+python3 - "$SITE" <<'PY'
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+site = Path(sys.argv[1]).resolve()
+
+# tests/test_all.py puts the tree root first on sys.path; with the in-tree
+# package gone, that resolves to the staged payload.
+probe = subprocess.run([sys.executable, '-c', 'import distlib; print(distlib.__file__)'],
+                       capture_output=True, text=True, check=True)
+assert Path(probe.stdout.strip()).resolve().is_relative_to(site), probe.stdout
+
+run = subprocess.run([sys.executable, 'tests/test_all.py', '-v'],
+                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+print(run.stdout)
+if run.returncode != 0:
+    sys.exit('distlib: upstream suite failed')
+
+# Every skip must have a reviewed reason; a new one (a missing stdlib module,
+# say) fails the gate instead of silently shrinking the suite.
+allowed = {
+    # No network in the gate: upstream's SKIP_ONLINE / SKIP_EXT_PACKAGE_DATA
+    # (PyPI locators, index search, pip-built wheels, external package data).
+    'Skipping online test',
+    'Skipping test requiring external package data',
+    # Windows-only behaviour: .exe launchers and Windows cache paths.
+    'Test is Windows-specific',
+    'Test is only valid for Windows',
+    # No GnuPG in the test root (PackageIndex signature verification).
+    'gpg not available',
+    # Skipped by upstream everywhere, or on every Python 3.
+    'not implemented yet',
+    'Temporary skip',
+    'The PyPI API changed, so this test is temporarily skipped',
+    'Skipped, as pythonhosted.org is being de-emphasised and this '
+    'functionality may no longer be available',
+    'This test on Python 2 only',
+    'The test wheel is only 2.7 mountable',
+    'Suitable wheel not found.',
+}
+skips = re.findall(r"""\.\.\. skipped (['"])(.*)\1$""", run.stdout, re.M)
+reasons = [reason for _, reason in skips]
+unexpected = sorted(set(reasons) - allowed)
+assert not unexpected, unexpected
+ran = re.search(r'^Ran (\d+) tests? in ', run.stdout, re.M)
+summary = re.search(r'^OK(?: \(skipped=(\d+)\))?$', run.stdout, re.M)
+assert ran and summary, 'unrecognised unittest summary'
+total, skipped = int(ran.group(1)), int(summary.group(1) or 0)
+assert skipped == len(reasons), (skipped, len(reasons))
+# 0.4.3: 241 tests, 33-34 skipped. Guards against the suite quietly collapsing.
+assert total - skipped >= 200, (total, skipped)
+print(f'distlib: upstream suite {total - skipped} passed, {skipped} skipped:')
+for reason in sorted(set(reasons)):
+    print(f'  {reasons.count(reason):3d}  {reason}')
+PY
+cd "$SRC"
+
+# What QEMU's mkvenv needs, and the payload's shape, from the staged tree only.
+SMOKE="$PEKIT_OUT/qemu-smoke"
+cd "$PEKIT_OUT"
+PYTHONPATH="$SITE" PYTHONDONTWRITEBYTECODE=1 \
+python3 -S - "$SITE" "$PEKIT_VERSION" "$SMOKE" <<'PY'
+import csv
+import importlib.metadata
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+site = Path(sys.argv[1]).resolve()
+version = sys.argv[2]
+smoke = Path(sys.argv[3])
+
+import distlib
+import distlib.scripts
+import distlib.util
+import distlib.version
+from distlib.version import LegacyMatcher, LegacyVersion
+
+for module in (distlib, distlib.scripts, distlib.util, distlib.version):
+    assert Path(module.__file__).resolve().is_relative_to(site), module.__file__
+assert distlib.__version__ == version
+assert importlib.metadata.version('distlib') == version
+
+# mkvenv's Matcher: LegacyMatcher over "name>=floor", matched against the
+# installed distribution's version string wrapped in LegacyVersion.
+matcher = LegacyMatcher('meson>=1.5.0')
+assert matcher.name == 'meson'
+assert str(matcher) == 'meson>=1.5.0'
+assert matcher.match(LegacyVersion('1.12.0'))
+assert not matcher.match(LegacyVersion('1.4.2'))
+
+# mkvenv's generate_console_scripts: ScriptMaker(None, bin), one variant, no
+# clobbering, "name = module:callable". On POSIX that is a #! launcher that
+# must run, and no Windows launcher is consulted or written.
+(smoke / 'lib').mkdir(parents=True)
+(smoke / 'lib' / 'peios_distlib_smoke.py').write_text(
+    'import sys\n'
+    'def main():\n'
+    '    print("distlib-smoke", *sys.argv[1:])\n'
+    '    return 0\n')
+maker = distlib.scripts.ScriptMaker(None, str(smoke / 'bin'))
+maker.variants = {''}
+maker.clobber = False
+made = maker.make('peios-distlib-smoke = peios_distlib_smoke:main')
+assert made == [str(smoke / 'bin' / 'peios-distlib-smoke')], made
+launcher = Path(made[0])
+assert launcher.stat().st_mode & 0o111 == 0o111
+assert launcher.read_text().splitlines()[0] == '#!' + sys.executable
+assert sorted(p.name for p in (smoke / 'bin').iterdir()) == ['peios-distlib-smoke']
+env = dict(os.environ, PYTHONPATH=str(smoke / 'lib'))
+out = subprocess.run([str(launcher), 'ok'], env=env, capture_output=True, text=True, check=True)
+assert out.stdout == 'distlib-smoke ok\n', out
+assert maker.make('peios-distlib-smoke = peios_distlib_smoke:main') == []
+
+# No Windows launcher stubs, and a RECORD that describes exactly what shipped.
+assert not list(site.rglob('*.exe'))
+info = site / f'distlib-{version}.dist-info'
+recorded = {row[0] for row in csv.reader((info / 'RECORD').read_text().splitlines())}
+installed = {p.relative_to(site).as_posix() for p in site.rglob('*')
+             if p.is_file() and '__pycache__' not in p.parts}
+assert recorded == installed, (recorded ^ installed)
+
+# Checked-hash bytecode for every module.
+py_sources = sorted((site / 'distlib').rglob('*.py'))
+pycs = sorted((site / 'distlib').rglob('*.pyc'))
+assert len(py_sources) >= 13
+assert len(pycs) == len(py_sources)
+for pyc in pycs:
+    data = pyc.read_bytes()
+    assert len(data) >= 16
+    assert int.from_bytes(data[4:8], 'little') == 3  # checked-hash PEP 552
+PY
+
+# Neither building nor testing may dirty the immutable fetched source.
+python3 -S - "$SRC" <<'PY'
+from pathlib import Path
+import sys
+
+src = Path(sys.argv[1])
+assert not any(path.is_dir() for path in src.rglob('__pycache__'))
+assert not (src / 'build').exists()
+PY
+rm -rf "$SMOKE" "$TEST_WORK" "$PEKIT_OUT/home"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"  = "*"
+"dev.peios.peiosutils" = "*"
+"org.python.python3"   = ">= 3.14, < 3.15"
+
+[test.dependencies.apt]
+python3 = "*"
