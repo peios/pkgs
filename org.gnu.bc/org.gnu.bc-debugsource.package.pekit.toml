@@ -3,7 +3,7 @@ name        = "org.gnu.bc-debugsource"
 description = "GNU bc and dc debug sources"
 
 [dependencies]
-"org.gnu.bc-debuginfo" = "{{version}}-1"
+"org.gnu.bc-debuginfo" = "{{version}}-2"
 
 [files]
 "@source:COPYING*"   = "usr/share/licenses/org.gnu.bc-debugsource/"

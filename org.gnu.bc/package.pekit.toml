@@ -1,24 +1,12 @@
+# Metadata shared by the GNU bc package family. Each package is defined in its
+# own *.package.pekit.toml; once those exist this file is only a base layer, so
+# the main package needs org.gnu.bc.package.pekit.toml of its own.
+
 format = "peipkg"
 
-# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
-# `man -k` and `apropos` find them instead of falling back to a filesystem
-# scan. Top-level, not inside a table -- TOML would otherwise scope it to
-# whichever table precedes it.
-side_effects = ["man-db"]
-
 [package]
-name         = "org.gnu.bc"
-version      = "{{version}}-1"
-architecture = "x86_64"
-description  = "GNU bc - arbitrary-precision calculator language (bc and dc)"
-license      = "GPL-3.0-or-later"
+version       = "{{version}}-2"
+architecture  = "x86_64"
+license       = "GPL-3.0-or-later"
 license_class = "free"
-homepage     = "https://www.gnu.org/software/bc/"
-
-[dependencies]
-"org.gnu.glibc" = ">= 2.43"
-
-[files]
-"@source:COPYING*"   = "usr/share/licenses/org.gnu.bc/"
-":usr/bin/**"       = "usr/bin"
-":usr/share/man/**" = "usr/share/man"
+homepage      = "https://www.gnu.org/software/bc/"

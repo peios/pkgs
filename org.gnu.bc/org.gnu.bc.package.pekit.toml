@@ -1,0 +1,17 @@
+# PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
+# `man -k` and `apropos` find them instead of falling back to a filesystem
+# scan. Top-level, not inside a table -- TOML would otherwise scope it to
+# whichever table precedes it.
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.bc"
+description = "GNU bc - arbitrary-precision calculator language (bc and dc)"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING*"   = "usr/share/licenses/org.gnu.bc/"
+":usr/bin/**"       = "usr/bin"
+":usr/share/man/**" = "usr/share/man"
