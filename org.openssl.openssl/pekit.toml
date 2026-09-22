@@ -52,14 +52,17 @@ make -j"$(nproc)"
 
 make install_sw DESTDIR="$PEKIT_OUT"
 make install_ssldirs DESTDIR="$PEKIT_OUT"
-make install_man_docs MANSUFFIX= DESTDIR="$PEKIT_OUT"
+# Keep upstream's "ossl" section suffix (cmp.1ossl, SSL_new.3ossl): the command
+# aliases and several man5/man7 pages have generic names (cmp, passwd, rand,
+# config, ssl) that would otherwise collide with other packages' manuals.
+make install_man_docs DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -n -9 {} +
 find "$PEKIT_OUT/usr/share/man" -type l | while IFS= read -r page; do
   target=$(readlink "$page")
   rm "$page"
   ln -s "$target.gz" "$page.gz"
 done
-ln -s tsget.1.gz "$PEKIT_OUT/usr/share/man/man1/tsget.pl.1.gz"
+ln -s tsget.1ossl.gz "$PEKIT_OUT/usr/share/man/man1/tsget.pl.1ossl.gz"
 
 # /etc is Peios's merged runtime view. Package-owned seed configuration lives
 # in its read-only vendor layer, /usr/etc, while OpenSSL keeps /etc/ssl as its

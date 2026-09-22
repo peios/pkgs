@@ -7,8 +7,8 @@ description = "OpenSSL development headers and linker metadata"
 [provides]
 
 [dependencies]
-"org.openssl.libcrypto" = "{{version}}-1"
-"org.openssl.libssl"    = "{{version}}-1"
+"org.openssl.libcrypto" = "{{version}}-2"
+"org.openssl.libssl"    = "{{version}}-2"
 
 [files]
 "@source:CHANGES.md"                                  = "usr/share/doc/org.openssl.openssl-devel/"

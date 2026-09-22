@@ -6,7 +6,7 @@ description = "OpenSSL TLS runtime library"
 
 [dependencies]
 "org.gnu.glibc"                   = ">= 2.43"
-"org.openssl.libcrypto" = "{{version}}-1"
+"org.openssl.libcrypto" = "{{version}}-2"
 
 [files]
 "@source:LICENSE.txt"                        = "usr/share/licenses/org.openssl.libssl/"
