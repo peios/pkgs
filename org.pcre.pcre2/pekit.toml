@@ -1,0 +1,366 @@
+# PCRE2 — the Perl-compatible regular expression library. glib (and through it
+# QEMU, PEI-534) needs libpcre2-8 and its pkg-config module; the 16- and 32-bit
+# code-unit libraries, the POSIX wrapper and the pcre2grep/pcre2test commands
+# come from the same build and are split so a consumer installs only what it
+# links.
+#
+# Autotools, not CMake: with shared and static libraries enabled together,
+# upstream's CMake build links pcre2grep, pcre2test and the whole test suite
+# against the static archives, so neither the shipped commands nor the suite
+# would exercise the shared ABI. The autotools build links both against the
+# shared libraries and is what Debian and Fedora use.
+#
+# Deliberately disabled: pcre2test line editing (neither readline nor libedit
+# is packaged for Peios), and pcre2grep's in-process .gz/.bz2 readers (Fedora
+# omits them too; compressed input can be piped through zcat/bzcat, and the
+# command keeps a closure of PCRE2 and libc only).
+
+out_dir = "out"
+
+[source.url]
+url         = "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-{{version}}/pcre2-{{version}}.tar.bz2"
+listing_url = "https://api.github.com/repos/PCRE2Project/pcre2/releases?per_page=100"
+extract     = true
+root        = "pcre2-{{version}}"
+# Named capture: the file name's own "pcre2" digit would otherwise be read as
+# the start of the version. Release candidates (pcre2-X.Y-RCn) do not match.
+file_regex  = 'pcre2-(?P<version>[0-9]+\.[0-9]+)\.tar\.bz2'
+# Soft production floor. Follow every newer stable release; ABI or behaviour
+# changes stop at the upstream suite and the smoke gates below.
+versions    = ">= 10.48"
+
+# Upstream's SECURITY.md names Nicholas Wilson's key for releases from 10.45
+# onwards (10.44 and earlier were Philip Hazel's). Releases are signed by one
+# of its signing subkeys; pin the complete primary-key fingerprint.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/nicholas-wilson.asc"]
+fingerprints = ["A95536204A3BB489715231282A98E77EB6F24CA8"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.pcre.pcre2"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+cd "$PEKIT_OUT"
+
+# The release archive carries a generated configure; nothing is regenerated.
+# Every feature switch is stated so the payload never depends on what the
+# build root happens to contain. Generate IBT PLT entries.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --enable-shared \
+  --enable-static \
+  --enable-symvers \
+  --enable-pcre2-8 \
+  --enable-pcre2-16 \
+  --enable-pcre2-32 \
+  --enable-unicode \
+  --enable-jit \
+  --disable-jit-sealloc \
+  --enable-newline-is-lf \
+  --enable-pcre2grep-jit \
+  --enable-pcre2grep-callout \
+  --enable-pcre2grep-callout-fork \
+  --disable-pcre2grep-libz \
+  --disable-pcre2grep-libbz2 \
+  --disable-pcre2test-libedit \
+  --disable-pcre2test-libreadline \
+  --disable-rebuild-chartables \
+  --disable-valgrind \
+  --disable-coverage \
+  --disable-fuzz-support \
+  --disable-silent-rules
+
+# libtool would hardcode the install libdir as a run path into pcre2grep,
+# pcre2test and libpcre2-posix, because the build root's loader configuration
+# does not list it. Peios' loader searches it by default: blank the rpath
+# machinery at source (the org.gnu.gmp idiom) rather than unpick it afterwards.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|' \
+    -i libtool
+
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# libtool archives only hardcode build paths and overlink; pkg-config and
+# DT_NEEDED supersede them. Upstream's text/HTML documentation duplicates the
+# manuals; the packages map chosen notices back explicitly.
+find "$PREFIX" -name '*.la' -delete
+rm -rf "$PREFIX/share/doc"
+
+# pcre2-config targets Peios' canonical shell path.
+sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PREFIX/bin/pcre2-config"
+
+find "$PREFIX/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
+  gzip -9n "$page"
+done
+find "$PREFIX/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  ln -s "$target.gz" "$page.gz"
+  rm "$page"
+done
+
+# Produce build-ID-indexed symbols and the exact source tree referenced after
+# DWARF path rewriting. Static-library code is retained but debug sections are
+# deliberately left to the shared objects' debuginfo.
+for archive in "$LIBDIR"/libpcre2-*.a; do
+  strip --strip-debug "$archive"
+done
+cd "$PEKIT_OUT"
+ELFS="usr/bin/pcre2grep usr/bin/pcre2test
+$(find usr/lib/x86_64-linux-peios -maxdepth 1 -type f -name 'libpcre2-*.so.*' | LC_ALL=C sort)"
+set -- $ELFS
+test "$#" -eq 6
+: > "$PEKIT_OUT/.srclist"
+for elf in $ELFS; do
+  test -f "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/org.pcre.pcre2 \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "usr/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "usr/src/debug/org.pcre.pcre2/$(dirname "$rel")"
+  cp "$ROOT/$rel" "usr/src/debug/org.pcre.pcre2/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.sourceware.debugedit"     = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gzip            = "*"
+debugedit       = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+BIN="$PREFIX/bin"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
+
+# Upstream suite: RunTest (8-, 16- and 32-bit, interpreter, DFA and JIT),
+# RunGrepTest, pcre2_jit_test and pcre2posix_test. The rpath is blanked, so
+# point the loader at the freshly built libraries and prove once that it
+# resolves them there rather than a PCRE2 the root may already carry.
+LD_LIBRARY_PATH="$STAGE/.libs" LD_TRACE_LOADED_OBJECTS=1 \
+  "$STAGE/.libs/pcre2test" > "$SMOKE/suite-trace"
+for soname in libpcre2-8.so.0 libpcre2-16.so.0 libpcre2-32.so.0 libpcre2-posix.so.3; do
+  grep -F "$soname => $STAGE/.libs/$soname" "$SMOKE/suite-trace"
+done
+LD_LIBRARY_PATH="$STAGE/.libs" make -C "$STAGE" -j"$(nproc)" check
+grep -Eq '^# TOTAL: +4$' "$STAGE/test-suite.log"
+grep -Eq '^# PASS: +4$' "$STAGE/test-suite.log"
+for widths in 8 16 32; do
+  grep -F -- "---- Testing $widths-bit library ----" "$STAGE/RunTest.log"
+done
+test "$(grep -c '^  OK with JIT$' "$STAGE/RunTest.log")" -gt 0
+
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Installed commands.
+test "$("$BIN/pcre2-config" --version)" = "$PEKIT_VERSION"
+test "$(sed -n 1p "$BIN/pcre2-config")" = '#!/usr/bin/sh'
+"$BIN/pcre2grep" --version | grep -F "$PEKIT_VERSION"
+"$BIN/pcre2test" -C | grep -F "$PEKIT_VERSION"
+# "-C <feature>" prints 1 and exits 1 when the feature was built in.
+for option in jit unicode pcre2-8 pcre2-16 pcre2-32; do
+  status=0
+  value=$("$BIN/pcre2test" -C "$option") || status=$?
+  test "$value" = 1
+  test "$status" -eq 1
+done
+
+printf '%s\n' 'alpha' 'beta 42' 'gamma 7' 'delta' > "$SMOKE/input"
+test "$("$BIN/pcre2grep" -o '\d+(?=$)' "$SMOKE/input" | tr '\n' ' ')" = '42 7 '
+test "$("$BIN/pcre2grep" -c '(?<=bet)a' "$SMOKE/input")" = 1
+test "$("$BIN/pcre2grep" --no-jit -c '(?i)ALPHA|DELTA' "$SMOKE/input")" = 2
+status=0
+"$BIN/pcre2grep" -q 'absent' "$SMOKE/input" || status=$?
+test "$status" -eq 1
+for mode in -8 -16 -32; do
+  printf '%s\n' '/(\d+)-(?<end>\d+)/jit' '    span 10-20' \
+    | "$BIN/pcre2test" -q "$mode" > "$SMOKE/pcre2test$mode"
+  grep -F ' 0: 10-20' "$SMOKE/pcre2test$mode"
+  grep -F ' 2: 20' "$SMOKE/pcre2test$mode"
+done
+
+# Library metadata, as glib's build will read it.
+for lib in libpcre2-8.so.0 libpcre2-16.so.0 libpcre2-32.so.0 libpcre2-posix.so.3; do
+  test -L "$LIBDIR/$lib"
+  test -L "$LIBDIR/${lib%.so.*}.so"
+  test -s "$LIBDIR/${lib%.so.*}.a"
+  readelf -d "$LIBDIR/$lib" | grep -F "Library soname: [$lib]"
+done
+test -f "$PREFIX/include/pcre2.h"
+test -f "$PREFIX/include/pcre2posix.h"
+readelf --dyn-syms -W "$LIBDIR/libpcre2-8.so.0" | grep -E ' pcre2_compile_8@@PCRE2_10\.[0-9]+'
+readelf --dyn-syms -W "$LIBDIR/libpcre2-16.so.0" | grep -E ' pcre2_compile_16@@PCRE2_10\.[0-9]+'
+readelf --dyn-syms -W "$LIBDIR/libpcre2-32.so.0" | grep -E ' pcre2_compile_32@@PCRE2_10\.[0-9]+'
+readelf --dyn-syms -W "$LIBDIR/libpcre2-posix.so.3" | grep -E ' pcre2_regcomp@@'
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+for module in libpcre2-8 libpcre2-16 libpcre2-32 libpcre2-posix; do
+  pkgconf --validate "$module"
+  test "$(pkgconf --modversion "$module")" = "$PEKIT_VERSION"
+done
+if grep -F "$STAGE" "$LIBDIR"/pkgconfig/*.pc "$BIN/pcre2-config"; then exit 1; fi
+
+# Shared and static consumers of every code-unit width plus the POSIX API.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <string.h>
+#define PCRE2_CODE_UNIT_WIDTH 0
+#include <pcre2.h>
+
+#define MATCH(W, P, S, EXPECT) do {                                          \
+  int err; PCRE2_SIZE off;                                                   \
+  pcre2_code_##W *re = pcre2_compile_##W((PCRE2_SPTR##W)(P),                 \
+      PCRE2_ZERO_TERMINATED, PCRE2_UTF, &err, &off, NULL);                   \
+  if (re == NULL) return 10 + W;                                             \
+  pcre2_match_data_##W *md = pcre2_match_data_create_from_pattern_##W(re, NULL); \
+  if (pcre2_match_##W(re, (PCRE2_SPTR##W)(S), len_##W(S), 0, 0, md, NULL) != 2) \
+    return 20 + W;                                                           \
+  if (pcre2_get_ovector_pointer_##W(md)[2] != (EXPECT)) return 30 + W;       \
+  if (pcre2_jit_compile_##W(re, PCRE2_JIT_COMPLETE) == 0 &&                  \
+      pcre2_jit_match_##W(re, (PCRE2_SPTR##W)(S), len_##W(S), 0, 0, md, NULL) != 2) \
+    return 40 + W;                                                           \
+  pcre2_match_data_free_##W(md);                                             \
+  pcre2_code_free_##W(re);                                                   \
+} while (0)
+
+static PCRE2_SIZE len_8(const void *s) { return strlen(s); }
+static PCRE2_SIZE len_16(const void *s)
+{ const PCRE2_UCHAR16 *p = s; PCRE2_SIZE n = 0; while (p[n]) n++; return n; }
+static PCRE2_SIZE len_32(const void *s)
+{ const PCRE2_UCHAR32 *p = s; PCRE2_SIZE n = 0; while (p[n]) n++; return n; }
+
+int main(void)
+{
+  MATCH(8, "(?<=x)(\\d+)", "ax42", 2);
+  MATCH(16, u"(\\p{Lu}+)", u"abcÉT", 3);
+  MATCH(32, U"(\\x{1F600})", U"ok \U0001F600", 3);
+  return 0;
+}
+EOF
+cat > "$SMOKE/posix.c" <<'EOF'
+#include <stddef.h>
+#include <pcre2posix.h>
+int main(void)
+{
+  regex_t re;
+  regmatch_t m[2];
+  if (regcomp(&re, "b(\\d+)", REG_EXTENDED) != 0) return 1;
+  if (regexec(&re, "ab123", 2, m, 0) != 0) return 2;
+  if (m[1].rm_so != 2 || m[1].rm_eo != 5) return 3;
+  regfree(&re);
+  return 0;
+}
+EOF
+cc $(pkgconf --cflags libpcre2-8 libpcre2-16 libpcre2-32) "$SMOKE/consumer.c" \
+  $(pkgconf --libs libpcre2-8 libpcre2-16 libpcre2-32) -o "$SMOKE/shared-consumer"
+"$SMOKE/shared-consumer"
+LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/shared-consumer" |
+  grep -F "libpcre2-8.so.0 => $LIBDIR/libpcre2-8.so.0"
+cc $(pkgconf --cflags libpcre2-posix) "$SMOKE/posix.c" \
+  $(pkgconf --libs libpcre2-posix) -o "$SMOKE/shared-posix"
+"$SMOKE/shared-posix"
+readelf -d "$SMOKE/shared-posix" | grep -F 'Shared library: [libpcre2-posix.so.3]'
+
+cc -DPCRE2_STATIC -I"$PREFIX/include" "$SMOKE/consumer.c" \
+  "$LIBDIR/libpcre2-8.a" "$LIBDIR/libpcre2-16.a" "$LIBDIR/libpcre2-32.a" \
+  -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer"
+cc -DPCRE2_STATIC -I"$PREFIX/include" "$SMOKE/posix.c" \
+  "$LIBDIR/libpcre2-posix.a" "$LIBDIR/libpcre2-8.a" -o "$SMOKE/static-posix"
+"$SMOKE/static-posix"
+for exe in "$SMOKE/static-consumer" "$SMOKE/static-posix"; do
+  if readelf -d "$exe" | grep -F 'libpcre2'; then exit 1; fi
+done
+
+# Debug split and hardening of every shipped object.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 6
+test -n "$(find "$PREFIX/src/debug/org.pcre.pcre2" -type f -name 'pcre2_compile.c' -print -quit)"
+for dbg in $(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug'); do
+  readelf -S "$dbg" 2>/dev/null | grep -F '.debug_info'
+done
+
+ELFS="$BIN/pcre2grep $BIN/pcre2test
+$(find "$LIBDIR" -maxdepth 1 -type f -name 'libpcre2-*.so.*' | LC_ALL=C sort)"
+set -- $ELFS
+test "$#" -eq 6
+for elf in $ELFS; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+
+# Exact dynamic dependencies: the code-unit libraries need only libc, the
+# POSIX wrapper and pcre2grep add libpcre2-8, and pcre2test links all four.
+needed() {
+  readelf -d "$1" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | LC_ALL=C sort | tr '\n' ' '
+}
+for lib in libpcre2-8.so.0 libpcre2-16.so.0 libpcre2-32.so.0; do
+  test "$(needed "$LIBDIR/$lib")" = 'libc.so.6 '
+done
+test "$(needed "$LIBDIR/libpcre2-posix.so.3")" = 'libc.so.6 libpcre2-8.so.0 '
+test "$(needed "$BIN/pcre2grep")" = 'libc.so.6 libpcre2-8.so.0 '
+test "$(needed "$BIN/pcre2test")" = \
+  'libc.so.6 libpcre2-16.so.0 libpcre2-32.so.0 libpcre2-8.so.0 libpcre2-posix.so.3 '
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.diffutils"            = "*"
+"org.gnu.sed"                  = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"
+diffutils       = "*"
+sed             = "*"

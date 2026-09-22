@@ -1,0 +1,14 @@
+# The 16-bit code-unit library (UTF-16 and UCS-2 subjects), independently
+# installable so 8-bit consumers do not carry it.
+
+[package]
+name        = "org.pcre.pcre2-16"
+description = "Perl-compatible regular expression library (16-bit code units)"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-16/"
+"@source:deps/sljit/LICENSE" = "usr/share/licenses/org.pcre.pcre2-16/LICENSE.sljit"
+":usr/lib/x86_64-linux-peios/libpcre2-16.so.0*" = "usr/lib/x86_64-linux-peios"

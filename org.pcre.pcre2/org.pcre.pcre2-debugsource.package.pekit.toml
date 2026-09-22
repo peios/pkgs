@@ -1,0 +1,11 @@
+[package]
+name        = "org.pcre.pcre2-debugsource"
+description = "PCRE2 debug sources"
+
+[dependencies]
+"org.pcre.pcre2-debuginfo" = "{{version}}-1"
+
+[files]
+"@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-debugsource/"
+"@source:deps/sljit/LICENSE" = "usr/share/licenses/org.pcre.pcre2-debugsource/LICENSE.sljit"
+":usr/src/debug/**"          = "usr/src/debug"

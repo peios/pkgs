@@ -1,0 +1,13 @@
+# Shared metadata for the PCRE2 package family. Each package is defined in its
+# own *.package.pekit.toml; once those exist this file is only a base layer, so
+# the main package has org.pcre.pcre2.package.pekit.toml of its own. The
+# default corresponding-source output carries the complete locked release tree.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-3-Clause WITH PCRE2-exception AND BSD-2-Clause"
+license_class = "free"
+homepage      = "https://www.pcre.org/"

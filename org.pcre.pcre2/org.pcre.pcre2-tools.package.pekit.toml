@@ -1,0 +1,22 @@
+# pcre2grep (grep with PCRE2 patterns) and pcre2test (the interactive and
+# scripted pattern tester, linked against every code-unit width).
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.pcre.pcre2-tools"
+description = "PCRE2 command-line tools: pcre2grep and pcre2test"
+license     = "BSD-3-Clause WITH PCRE2-exception"
+
+[dependencies]
+"org.gnu.glibc"     = ">= 2.43"
+"org.pcre.pcre2"    = "{{version}}-1"
+"org.pcre.pcre2-16" = "{{version}}-1"
+"org.pcre.pcre2-32" = "{{version}}-1"
+
+[files]
+"@source:LICENCE.md"                 = "usr/share/licenses/org.pcre.pcre2-tools/"
+":usr/bin/pcre2grep"                 = "usr/bin/pcre2grep"
+":usr/bin/pcre2test"                 = "usr/bin/pcre2test"
+":usr/share/man/man1/pcre2grep.1.gz" = "usr/share/man/man1/pcre2grep.1.gz"
+":usr/share/man/man1/pcre2test.1.gz" = "usr/share/man/man1/pcre2test.1.gz"

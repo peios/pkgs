@@ -1,0 +1,14 @@
+# The 32-bit code-unit library (UTF-32 subjects), independently installable
+# so 8-bit consumers do not carry it.
+
+[package]
+name        = "org.pcre.pcre2-32"
+description = "Perl-compatible regular expression library (32-bit code units)"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-32/"
+"@source:deps/sljit/LICENSE" = "usr/share/licenses/org.pcre.pcre2-32/LICENSE.sljit"
+":usr/lib/x86_64-linux-peios/libpcre2-32.so.0*" = "usr/lib/x86_64-linux-peios"

@@ -1,0 +1,14 @@
+[package]
+name        = "org.pcre.pcre2-debuginfo"
+description = "PCRE2 debugging symbols"
+
+[dependencies]
+"org.pcre.pcre2"       = "{{version}}-1"
+"org.pcre.pcre2-16"    = "{{version}}-1"
+"org.pcre.pcre2-32"    = "{{version}}-1"
+"org.pcre.pcre2-tools" = "{{version}}-1"
+
+[files]
+"@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-debuginfo/"
+"@source:deps/sljit/LICENSE" = "usr/share/licenses/org.pcre.pcre2-debuginfo/LICENSE.sljit"
+":usr/lib/debug/**"          = "usr/lib/debug"

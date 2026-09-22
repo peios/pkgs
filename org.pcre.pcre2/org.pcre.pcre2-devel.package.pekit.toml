@@ -1,0 +1,29 @@
+# Headers, linker names, pkg-config modules and pcre2-config for all four
+# libraries, plus the API manuals. Static linkage stays opt-in through the
+# static sibling.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.pcre.pcre2-devel"
+description = "PCRE2 development files"
+license     = "BSD-3-Clause WITH PCRE2-exception"
+
+[dependencies]
+"org.git.kernel.dash" = "*"
+"org.pcre.pcre2"      = "{{version}}-1"
+"org.pcre.pcre2-16"   = "{{version}}-1"
+"org.pcre.pcre2-32"   = "{{version}}-1"
+
+[files]
+"@source:LICENCE.md"                     = "usr/share/licenses/org.pcre.pcre2-devel/"
+":usr/include/pcre2.h"                   = "usr/include/pcre2.h"
+":usr/include/pcre2posix.h"              = "usr/include/pcre2posix.h"
+":usr/lib/x86_64-linux-peios/libpcre2-8.so"     = "usr/lib/x86_64-linux-peios/libpcre2-8.so"
+":usr/lib/x86_64-linux-peios/libpcre2-16.so"    = "usr/lib/x86_64-linux-peios/libpcre2-16.so"
+":usr/lib/x86_64-linux-peios/libpcre2-32.so"    = "usr/lib/x86_64-linux-peios/libpcre2-32.so"
+":usr/lib/x86_64-linux-peios/libpcre2-posix.so" = "usr/lib/x86_64-linux-peios/libpcre2-posix.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/*.pc"    = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/bin/pcre2-config"                  = "usr/bin/pcre2-config"
+":usr/share/man/man1/pcre2-config.1.gz"  = "usr/share/man/man1/pcre2-config.1.gz"
+":usr/share/man/man3/**"                 = "usr/share/man/man3"

@@ -1,0 +1,17 @@
+# Static PCRE2 libraries for the small number of consumers that deliberately
+# need a self-contained link.
+
+[package]
+name        = "org.pcre.pcre2-static"
+description = "PCRE2 static libraries"
+
+[dependencies]
+"org.pcre.pcre2-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-static/"
+"@source:deps/sljit/LICENSE" = "usr/share/licenses/org.pcre.pcre2-static/LICENSE.sljit"
+":usr/lib/x86_64-linux-peios/libpcre2-8.a"     = "usr/lib/x86_64-linux-peios/libpcre2-8.a"
+":usr/lib/x86_64-linux-peios/libpcre2-16.a"    = "usr/lib/x86_64-linux-peios/libpcre2-16.a"
+":usr/lib/x86_64-linux-peios/libpcre2-32.a"    = "usr/lib/x86_64-linux-peios/libpcre2-32.a"
+":usr/lib/x86_64-linux-peios/libpcre2-posix.a" = "usr/lib/x86_64-linux-peios/libpcre2-posix.a"
