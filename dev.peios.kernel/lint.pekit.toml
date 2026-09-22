@@ -1,8 +1,11 @@
-[allow]
-# The catalogue file is only a revision overlay for a delegated source recipe.
-# Static lint sees each qualified selector overlay before a version is fetched
-# and therefore cannot see the shared source metadata. Versioned lint validates
-# the fetched package family.
-"package.license" = "Package licence metadata is owned by the immutable delegated PKM source and is checked by versioned lint"
-"package.homepage" = "Package homepage metadata is owned by the immutable delegated PKM source and is checked by versioned lint"
-"package.description" = "Package descriptions are owned by the immutable delegated PKM source and are checked by versioned lint"
+# Catalogue lint policy for the kernel family. pkm's own lint.pekit.toml holds
+# the family's reviewed exceptions, which accumulate with the catalogue's; a
+# delegated source's file is layered beneath the catalogue's, though, so a rule
+# parameter set there yields to the workspace default and has to be restated
+# here.
+
+[elf]
+# One debug package for every userspace program and shared object in the
+# family, as zstd, elfutils and xz do, rather than the workspace default of one
+# per package (PEI-1143). pkm ships it as dev.peios.kernel-tools-debuginfo.
+debuginfo = "dev.peios.kernel-tools-debuginfo"
