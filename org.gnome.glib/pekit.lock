@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "2.90.0"
+  url = "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz"
+  sha256 = "17d15cac2af80a33271127408e0abc2748eb297c595c2a26409e81e14e7d1b8f"
+  locked_at = "2026-09-22T13:26:49Z"

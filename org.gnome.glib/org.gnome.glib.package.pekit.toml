@@ -1,0 +1,40 @@
+# The GLib, GObject, GIO, GModule, GThread and GIRepository runtime libraries,
+# with the GIO command-line tools and the translations they share.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.glib"
+description = "Core GNOME utility, object and I/O libraries (GLib, GObject, GIO)"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.gnome.glib/"
+"@source:README.md"                      = "usr/share/doc/org.gnome.glib/"
+"@source:NEWS"                           = "usr/share/doc/org.gnome.glib/"
+":usr/lib/x86_64-linux-peios/libglib-2.0.so.0*"        = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgobject-2.0.so.0*"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgio-2.0.so.0*"         = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgmodule-2.0.so.0*"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgthread-2.0.so.0*"     = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgirepository-2.0.so.0*" = "usr/lib/x86_64-linux-peios"
+":usr/bin/gapplication"          = "usr/bin/gapplication"
+":usr/bin/gdbus"                 = "usr/bin/gdbus"
+":usr/bin/gio"                   = "usr/bin/gio"
+":usr/bin/gio-querymodules"      = "usr/bin/gio-querymodules"
+":usr/bin/glib-compile-schemas"  = "usr/bin/glib-compile-schemas"
+":usr/bin/gsettings"             = "usr/bin/gsettings"
+":usr/libexec/gio-launch-desktop" = "usr/libexec/gio-launch-desktop"
+":usr/share/man/man1/gapplication.1.gz"         = "usr/share/man/man1/gapplication.1.gz"
+":usr/share/man/man1/gdbus.1.gz"                = "usr/share/man/man1/gdbus.1.gz"
+":usr/share/man/man1/gio.1.gz"                  = "usr/share/man/man1/gio.1.gz"
+":usr/share/man/man1/gio-querymodules.1.gz"     = "usr/share/man/man1/gio-querymodules.1.gz"
+":usr/share/man/man1/glib-compile-schemas.1.gz" = "usr/share/man/man1/glib-compile-schemas.1.gz"
+":usr/share/man/man1/gsettings.1.gz"            = "usr/share/man/man1/gsettings.1.gz"
+":usr/share/bash-completion/completions/gapplication" = "usr/share/bash-completion/completions/gapplication"
+":usr/share/bash-completion/completions/gdbus"        = "usr/share/bash-completion/completions/gdbus"
+":usr/share/bash-completion/completions/gio"          = "usr/share/bash-completion/completions/gio"
+":usr/share/bash-completion/completions/gsettings"    = "usr/share/bash-completion/completions/gsettings"
+":usr/share/locale/**" = "usr/share/locale"

@@ -1,0 +1,12 @@
+# Static GLib libraries, for the consumers that deliberately link statically.
+
+[package]
+name        = "org.gnome.glib-static"
+description = "Static GLib, GObject, GIO, GModule, GThread and GIRepository libraries"
+
+[dependencies]
+"org.gnome.glib-devel" = "{{version}}-1"
+
+[files]
+"@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.gnome.glib-static/"
+":usr/lib/x86_64-linux-peios/*.a" = "usr/lib/x86_64-linux-peios"

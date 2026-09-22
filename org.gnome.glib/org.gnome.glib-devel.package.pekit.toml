@@ -1,0 +1,59 @@
+# Headers, linker names and pkg-config metadata, and the build-time tools:
+# the GDBus, enum and marshaller code generators, the resource compiler, the
+# GIRepository tools and GTester. The .pc files name PCRE2, libffi and zlib in
+# Requires.private, so their development packages come along.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnome.glib-devel"
+description = "GLib development headers, pkg-config metadata and code generators"
+
+[dependencies]
+"org.gnome.glib"                         = "{{version}}-1"
+"org.python.python3"                     = ">= 3.14, < 3.15"
+"org.git.kernel.dash"                    = "*"
+"org.pcre.pcre2-devel"                   = "*"
+"org.sourceware.libffi-devel"            = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[files]
+"@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.gnome.glib-devel/"
+":usr/include/**"                                = "usr/include"
+":usr/lib/x86_64-linux-peios/glib-2.0/**"        = "usr/lib/x86_64-linux-peios/glib-2.0"
+":usr/lib/x86_64-linux-peios/pkgconfig/**"       = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/lib/x86_64-linux-peios/libglib-2.0.so"         = "usr/lib/x86_64-linux-peios/libglib-2.0.so"
+":usr/lib/x86_64-linux-peios/libgobject-2.0.so"      = "usr/lib/x86_64-linux-peios/libgobject-2.0.so"
+":usr/lib/x86_64-linux-peios/libgio-2.0.so"          = "usr/lib/x86_64-linux-peios/libgio-2.0.so"
+":usr/lib/x86_64-linux-peios/libgmodule-2.0.so"      = "usr/lib/x86_64-linux-peios/libgmodule-2.0.so"
+":usr/lib/x86_64-linux-peios/libgthread-2.0.so"      = "usr/lib/x86_64-linux-peios/libgthread-2.0.so"
+":usr/lib/x86_64-linux-peios/libgirepository-2.0.so" = "usr/lib/x86_64-linux-peios/libgirepository-2.0.so"
+":usr/bin/gdbus-codegen"          = "usr/bin/gdbus-codegen"
+":usr/bin/gi-compile-repository"  = "usr/bin/gi-compile-repository"
+":usr/bin/gi-decompile-typelib"   = "usr/bin/gi-decompile-typelib"
+":usr/bin/gi-inspect-typelib"     = "usr/bin/gi-inspect-typelib"
+":usr/bin/glib-compile-resources" = "usr/bin/glib-compile-resources"
+":usr/bin/glib-genmarshal"        = "usr/bin/glib-genmarshal"
+":usr/bin/glib-gettextize"        = "usr/bin/glib-gettextize"
+":usr/bin/glib-mkenums"           = "usr/bin/glib-mkenums"
+":usr/bin/gobject-query"          = "usr/bin/gobject-query"
+":usr/bin/gresource"              = "usr/bin/gresource"
+":usr/bin/gtester"                = "usr/bin/gtester"
+":usr/bin/gtester-report"         = "usr/bin/gtester-report"
+":usr/share/man/man1/gdbus-codegen.1.gz"          = "usr/share/man/man1/gdbus-codegen.1.gz"
+":usr/share/man/man1/gi-compile-repository.1.gz"  = "usr/share/man/man1/gi-compile-repository.1.gz"
+":usr/share/man/man1/gi-decompile-typelib.1.gz"   = "usr/share/man/man1/gi-decompile-typelib.1.gz"
+":usr/share/man/man1/gi-inspect-typelib.1.gz"     = "usr/share/man/man1/gi-inspect-typelib.1.gz"
+":usr/share/man/man1/glib-compile-resources.1.gz" = "usr/share/man/man1/glib-compile-resources.1.gz"
+":usr/share/man/man1/glib-genmarshal.1.gz"        = "usr/share/man/man1/glib-genmarshal.1.gz"
+":usr/share/man/man1/glib-gettextize.1.gz"        = "usr/share/man/man1/glib-gettextize.1.gz"
+":usr/share/man/man1/glib-mkenums.1.gz"           = "usr/share/man/man1/glib-mkenums.1.gz"
+":usr/share/man/man1/gobject-query.1.gz"          = "usr/share/man/man1/gobject-query.1.gz"
+":usr/share/man/man1/gresource.1.gz"              = "usr/share/man/man1/gresource.1.gz"
+":usr/share/man/man1/gtester.1.gz"                = "usr/share/man/man1/gtester.1.gz"
+":usr/share/man/man1/gtester-report.1.gz"         = "usr/share/man/man1/gtester-report.1.gz"
+":usr/share/bash-completion/completions/gresource" = "usr/share/bash-completion/completions/gresource"
+":usr/share/aclocal/**"      = "usr/share/aclocal"
+":usr/share/gettext/its/**"  = "usr/share/gettext/its"
+":usr/share/glib-2.0/**"     = "usr/share/glib-2.0"
+":usr/share/gdb/auto-load/**" = "usr/share/gdb/auto-load"

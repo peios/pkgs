@@ -1,0 +1,314 @@
+# GLib — the GNOME core library: GLib, GObject, GIO, GModule and GThread.
+#
+# Packaged as a dependency of QEMU (PEI-534), and so first as a runtime and
+# development library, not a desktop stack. The build uses the catalogue's
+# PCRE2, libffi and zlib, and only the bundled gvdb subproject; nothing is
+# downloaded. GObject Introspection, SELinux, libmount, sysprof, systemtap
+# and the gi-docgen reference manual are off. Manuals for the command-line
+# tools are generated with docutils' rst2man.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://download.gnome.org/sources/glib/{{major}}.{{minor}}/glib-{{version}}.tar.xz"
+listing_url = "https://download.gnome.org/sources/glib/cache.json"
+# GLib's stable series have even minor numbers; odd ones are development
+# snapshots. Match stable archives only.
+file_regex  = 'glib-(?P<version>2\.[0-9]*[02468]\.[0-9]+)\.tar\.xz'
+extract     = true
+root        = "glib-{{version}}"
+# Soft maintenance floor. New stable releases advance automatically; the
+# upstream suite, SONAME and payload gates below fail closed on drift.
+versions    = ">= 2.90.0"
+
+# GNOME publishes release archives and checksum sidecars but no detached
+# maintainer signatures; see lint.pekit.toml.
+
+[build.main]
+command = '''
+set -eu
+SRC="$PEKIT_SOURCE_ROOT"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnome.glib"
+
+meson setup "$BUILD" "$SRC" \
+  --prefix=/usr \
+  --libdir=lib/x86_64-linux-peios \
+  --libexecdir=libexec \
+  --buildtype=plain \
+  --default-library=both \
+  --wrap-mode=nodownload \
+  -Dintrospection=disabled \
+  -Dselinux=disabled \
+  -Dlibmount=disabled \
+  -Dlibelf=disabled \
+  -Dsysprof=disabled \
+  -Ddtrace=disabled \
+  -Dsystemtap=disabled \
+  -Ddocumentation=false \
+  -Dman=true \
+  -Dnls=enabled \
+  -Dxattr=true \
+  -Dtests=true \
+  -Dinstalled_tests=false \
+  -Dc_link_args="$LDFLAGS -Wl,-z,ibtplt"
+
+meson compile -C "$BUILD"
+# Also build what the test suite needs but the default build does not (the
+# translated test catalogues need msgfmt), so the gate runs it --no-rebuild.
+ninja -C "$BUILD" meson-test-prereq
+DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
+
+# Manuals, compressed reproducibly.
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
+
+# The Python tools name the usr-merge interpreter directly, as the rest of
+# the catalogue's Python programs do, rather than going through env.
+for tool in gdbus-codegen glib-genmarshal glib-mkenums gtester-report; do
+  sed -i '1s|^#!/usr/bin/env python3$|#!/usr/bin/python3|' "$PREFIX/bin/$tool"
+  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/usr/bin/python3'
+done
+
+# Static archives keep their code but leave debug sections to the shared
+# objects' debuginfo.
+for a in "$LIBDIR"/*.a; do strip --strip-debug "$a"; done
+
+# Build-ID debug data for every ELF program and shared object, and the exact
+# source tree it references, then strip.
+: > "$PEKIT_OUT/.srclist"
+find "$PREFIX/bin" "$PREFIX/libexec" "$LIBDIR" -type f 2>/dev/null |
+  while IFS= read -r f; do
+    case "$f" in *.a) continue;; esac
+    head -c 4 "$f" | grep -q 'ELF' || continue
+    printf '%s\n' "$f"
+  done > "$PEKIT_OUT/.elves"
+test -s "$PEKIT_OUT/.elves"
+while IFS= read -r elf; do
+  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.glib \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done < "$PEKIT_OUT/.elves"
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/org.gnome.glib/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.glib/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"org.git.kernel.dash"                    = "*"
+"org.gnu.bash"                           = "*"
+"dev.peios.peiosutils"                   = "*"
+"org.gnu.sed"                            = "*"
+"org.gnu.grep"                           = "*"
+"org.gnu.findutils"                      = "*"
+"org.gnu.gzip"                           = "*"
+"dev.peios.build-essentials-c"           = "*"
+"org.gnu.binutils"                       = "*"
+"org.sourceware.debugedit"               = "*"
+"com.mesonbuild.meson"                   = ">= 1.4"
+"org.ninja-build.ninja"                  = "*"
+"org.pkgconf.pkgconf"                    = "*"
+"org.python.python3"                     = ">= 3.14, < 3.15"
+"io.sourceforge.docutils.docutils"       = "*"
+"org.gnu.gettext"                        = "*"
+"org.pcre.pcre2-devel"                   = "*"
+"org.sourceware.libffi-devel"            = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[build.main.dependencies.apt]
+build-essential  = "*"
+debugedit        = "*"
+meson            = ">= 1.4"
+ninja-build      = "*"
+pkgconf          = "*"
+python3          = "*"
+python3-docutils = "*"
+gettext          = "*"
+libpcre2-dev     = "*"
+libffi-dev       = "*"
+zlib1g-dev       = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+
+# Upstream's suite, minus the suites it marks flaky or failing, as its default
+# setup runs it. The build sandbox has no user database entry for the build
+# user or for root (Peios keeps no /etc/passwd) and no D-Bus machine-id, so the
+# subtests that need those are skipped by name, with GLib's own -s, and every
+# other subtest in those programs still runs. volumemonitor looks the user up
+# before its first subtest, so it is the one program left out whole.
+ENV_TESTS="utils utils-c-89 utils-c-99 utils-c-11 utils-c-17 utils-c-23
+  gutils-user-database unix gdbus-peer gdbus-address-get-session"
+ENV_SKIPS="-s /utils/username -s /utils/realname -s /gutils/get_user_database_entry
+  -s /glib-unix/get-passwd-entry/root -s /gdbus/codegen-peer-to-peer
+  -s /gdbus/x11-autolaunch"
+REST=$(python3 - "$BUILD/meson-info/intro-tests.json" $ENV_TESTS volumemonitor <<'PY'
+import json, sys
+tests = json.load(open(sys.argv[1]))
+held = set(sys.argv[2:])
+names = [t['name'] for t in tests
+         if t['name'] not in held
+         and not {'glib:flaky', 'glib:failing'} & set(t.get('suite', []))]
+assert len(names) >= 300, len(names)
+# A few names recur across directories; meson test runs every match.
+print(' '.join(dict.fromkeys(names)))
+PY
+)
+meson test -C "$BUILD" --no-rebuild --print-errorlogs --timeout-multiplier 4 $REST
+meson test -C "$BUILD" --no-rebuild --print-errorlogs --timeout-multiplier 4 \
+  --test-args="$(echo $ENV_SKIPS)" $ENV_TESTS
+
+export LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+for lib in glib gobject gio gmodule gthread; do
+  f="$LIBDIR/lib$lib-2.0.so.0"
+  test -L "$f"
+  readelf -d "$f" | grep -F "Library soname: [lib$lib-2.0.so.0]"
+  test -L "$LIBDIR/lib$lib-2.0.so"
+  test -s "$LIBDIR/lib$lib-2.0.a"
+done
+test -f "$LIBDIR/glib-2.0/include/glibconfig.h"
+"$PREFIX/bin/gio" version | grep -F "$PEKIT_VERSION"
+mkdir -p "$SMOKE/schemas"
+cat > "$SMOKE/schemas/org.peios.Smoke.gschema.xml" <<'EOF'
+<schemalist>
+  <schema id="org.peios.Smoke" path="/org/peios/smoke/">
+    <key name="answer" type="i"><default>42</default></key>
+  </schema>
+</schemalist>
+EOF
+"$PREFIX/bin/glib-compile-schemas" --strict "$SMOKE/schemas"
+test -s "$SMOKE/schemas/gschemas.compiled"
+answer=$(GSETTINGS_BACKEND=memory "$PREFIX/bin/gsettings" \
+  --schemadir "$SMOKE/schemas" get org.peios.Smoke answer) ||
+  { ls -la "$SMOKE/schemas" >&2; exit 1; }
+test "$answer" = 42
+for tool in glib-mkenums glib-genmarshal gdbus-codegen gtester-report; do
+  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/usr/bin/python3'
+done
+"$PREFIX/bin/glib-mkenums" --version | grep -F "$PEKIT_VERSION"
+
+# A consumer, built from the staged pkg-config metadata, that uses GLib,
+# GObject and GIO, shared and static.
+mkdir -p "$SMOKE"
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <gio/gio.h>
+#include <string.h>
+int main(void)
+{
+  g_autoptr(GRegex) re = g_regex_new("(\\w+)-(\\d+)", 0, 0, NULL);
+  g_autoptr(GMatchInfo) m = NULL;
+  if (!re || !g_regex_match(re, "peios-42", 0, &m)) return 1;
+  g_autofree char *num = g_match_info_fetch(m, 2);
+  if (strcmp(num, "42") != 0) return 2;
+  g_autoptr(GObject) obj = g_object_new(G_TYPE_OBJECT, NULL);
+  if (!G_IS_OBJECT(obj)) return 3;
+  g_autoptr(GBytes) b = g_bytes_new_static("peios", 5);
+  g_autoptr(GInputStream) in = g_memory_input_stream_new_from_bytes(b);
+  char buf[8] = {0};
+  if (g_input_stream_read(in, buf, 5, NULL, NULL) != 5 || strcmp(buf, "peios")) return 4;
+  return 0;
+}
+EOF
+# The staged metadata first, then the root's: pkgconf resolves the
+# Requires.private modules (libpcre2-8, libffi, zlib) even for --cflags, which
+# is also why org.gnome.glib-devel depends on their -devel packages.
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig:/usr/lib/x86_64-linux-peios/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+cc $(pkgconf --cflags gio-2.0) "$SMOKE/consumer.c" $(pkgconf --libs gio-2.0) -o "$SMOKE/shared-consumer"
+"$SMOKE/shared-consumer"
+# The static archives, linked into an ordinary program against the shared
+# libraries GLib itself depends on.
+cc $(pkgconf --cflags gio-2.0) "$SMOKE/consumer.c" \
+  "$LIBDIR/libgio-2.0.a" "$LIBDIR/libgobject-2.0.a" \
+  "$LIBDIR/libgmodule-2.0.a" "$LIBDIR/libglib-2.0.a" \
+  -lpcre2-8 -lffi -lz -lm -o "$SMOKE/static-consumer"
+if readelf -d "$SMOKE/static-consumer" | grep -F 'libglib-2.0.so'; then exit 1; fi
+"$SMOKE/static-consumer"
+
+# The installed code generator, with its staged codegen modules, producing
+# GDBus bindings that compile against the staged headers.
+cat > "$SMOKE/smoke.xml" <<'EOF'
+<node>
+  <interface name="org.peios.Smoke">
+    <method name="Answer"><arg type="i" name="value" direction="out"/></method>
+    <property name="Name" type="s" access="read"/>
+  </interface>
+</node>
+EOF
+PYTHONPATH="$PREFIX/share/glib-2.0" "$PREFIX/bin/gdbus-codegen" \
+  --interface-prefix org.peios. --c-namespace Peios \
+  --generate-c-code "$SMOKE/smoke-dbus" "$SMOKE/smoke.xml"
+grep -F 'peios_smoke_call_answer' "$SMOKE/smoke-dbus.h"
+cc -c $(pkgconf --cflags gio-2.0 gio-unix-2.0) "$SMOKE/smoke-dbus.c" -o "$SMOKE/smoke-dbus.o"
+
+# Hardening of every ELF program and shared object shipped.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -ge 6
+test -n "$(find "$PREFIX/src/debug/org.gnome.glib" -type f -print -quit)"
+find "$PREFIX/bin" "$PREFIX/libexec" "$LIBDIR" -type f 2>/dev/null |
+while IFS= read -r elf; do
+  case "$elf" in *.a) continue;; esac
+  head -c 4 "$elf" | grep -q 'ELF' || continue
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then echo "bad dynamic: $elf" >&2; exit 1; fi
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+done
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"                    = "*"
+"org.gnu.bash"                           = "*"
+"dev.peios.peiosutils"                   = "*"
+"org.gnu.sed"                            = "*"
+"org.gnu.grep"                           = "*"
+"org.gnu.findutils"                      = "*"
+"dev.peios.build-essentials-c"           = "*"
+"org.gnu.binutils"                       = "*"
+"com.mesonbuild.meson"                   = ">= 1.4"
+"org.ninja-build.ninja"                  = "*"
+"org.pkgconf.pkgconf"                    = "*"
+"org.python.python3"                     = ">= 3.14, < 3.15"
+"org.pcre.pcre2-devel"                   = "*"
+"org.sourceware.libffi-devel"            = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+# GDateTime's time-zone tests and GIConv's EUC-JP round trip.
+"org.iana.tzdata"                        = "*"
+"org.gnu.glibc-gconv-extra"              = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+meson           = ">= 1.4"
+ninja-build     = "*"
+pkgconf         = "*"
+python3         = "*"
+binutils        = "*"
+libpcre2-dev    = "*"
+libffi-dev      = "*"
+zlib1g-dev      = "*"

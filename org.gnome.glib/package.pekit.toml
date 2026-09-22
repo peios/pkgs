@@ -1,0 +1,11 @@
+# Shared metadata for the GLib package family. Each package is defined in its
+# own *.package.pekit.toml; this file is only their common base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "LGPL-2.1-or-later"
+license_class = "free"
+homepage      = "https://docs.gtk.org/glib/"
