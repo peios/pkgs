@@ -1,0 +1,66 @@
+From: Peios packaging
+Subject: Configure without pip: use the system meson and skip the tooling group
+
+QEMU's configure builds its Python tooling venv with mkvenv.py, which refuses
+to create a venv unless ensurepip, or a system pip and setuptools, is
+available, then installs pycotap and the tooling group (qemu.qmp and the
+in-tree qemu package) with pip. Peios' python3 deliberately ships neither pip
+nor ensurepip.
+
+A venv over the system site-packages still finds meson and distlib there,
+which is all configure and the build use. So: let mkvenv create that venv
+without pip when ensurepip is absent; drop pycotap, which only `make check`'s
+TAP output uses, from the meson group; and do not install the tooling group,
+which serves the test and developer scripts, not the build.
+
+Forwarded: not-needed
+Last-Update: 2026-09-22
+
+diff -ru a/configure b/configure
+--- a/configure	2026-09-22 15:16:08.095534798 +0100
++++ b/configure	2026-09-22 15:16:26.446740785 +0100
+@@ -983,11 +983,9 @@
+     mkvenv_online_flag=" --online"
+ fi
+ 
+-# Unconditionally install our tooling group. PyPI is allowed if enabled here.
+-
+-$mkvenv ensuregroup $mkvenv_online_flag \
+-        --dir "${source_path}/python/wheels" \
+-        ${source_path}/pythondeps.toml tooling || exit 1
++# The tooling group (qemu.qmp and the in-tree qemu package) serves the test
++# and developer scripts, not the build, and installing it needs pip, which
++# Peios does not ship. It is not installed.
+ 
+ # Conditionally ensure Sphinx is installed.
+ 
+diff -ru a/python/scripts/mkvenv.py b/python/scripts/mkvenv.py
+--- a/python/scripts/mkvenv.py	2026-09-22 15:16:08.098632467 +0100
++++ b/python/scripts/mkvenv.py	2026-09-22 15:16:21.272717380 +0100
+@@ -247,6 +247,15 @@
+                 and not need_ensurepip()
+             ):
+                 kwargs["with_pip"] = False
++            elif (
++                kwargs.get("system_site_packages", False)
++                and not find_spec("ensurepip")
++            ):
++                # Peios ships neither pip nor ensurepip. A venv over the
++                # system site-packages still finds meson and distlib there;
++                # only an install into the venv would need pip.
++                kwargs["with_pip"] = False
++                self.want_pip = False
+             else:
+                 check_ensurepip()
+ 
+diff -ru a/pythondeps.toml b/pythondeps.toml
+--- a/pythondeps.toml	2026-09-22 15:16:08.096657779 +0100
++++ b/pythondeps.toml	2026-09-22 15:16:23.544727658 +0100
+@@ -20,7 +20,6 @@
+ [meson]
+ # The install key should match the version in python/wheels/
+ meson = { accepted = ">=1.5.0", installed = "1.11.1", canary = "meson" }
+-pycotap = { accepted = ">=1.1.0", installed = "1.3.1" }
+ 
+ [meson-rust]
+ # The install key should match the version in python/wheels/

@@ -1,0 +1,11 @@
+# Shared metadata for the QEMU package family. Each package is defined in its
+# own *.package.pekit.toml; this file is only their common base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-only AND GPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND BSD-3-Clause"
+license_class = "free"
+homepage      = "https://www.qemu.org/"

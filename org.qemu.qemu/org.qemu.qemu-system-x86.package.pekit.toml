@@ -1,0 +1,19 @@
+# The headless x86_64 system emulator and the x86 firmware it loads. The
+# firmware is SeaBIOS and SeaVGABIOS (LGPL-3.0-or-later), iPXE
+# (GPL-2.0-or-later with the UBDL) and qboot (GPL-2.0-only), whose sources are
+# in the corresponding-source package under roms/.
+
+[package]
+name        = "org.qemu.qemu-system-x86"
+description = "Headless x86_64 machine emulator with KVM and TCG, and its x86 firmware"
+license     = "GPL-2.0-only AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-or-later AND MIT AND BSD-3-Clause"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+# The build unpacks the tarball itself (see pekit.toml), so the licence texts
+# are staged by the build rather than taken from @source.
+":usr/share/licenses/org.qemu.qemu-system-x86/**" = "usr/share/licenses/org.qemu.qemu-system-x86"
+":usr/bin/qemu-system-x86_64"      = "usr/bin/qemu-system-x86_64"
+":usr/share/qemu/**"               = "usr/share/qemu"

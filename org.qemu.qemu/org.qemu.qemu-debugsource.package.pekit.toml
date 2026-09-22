@@ -1,0 +1,10 @@
+[package]
+name        = "org.qemu.qemu-debugsource"
+description = "QEMU debug sources"
+
+[dependencies]
+"org.qemu.qemu-debuginfo" = "{{version}}-1"
+
+[files]
+":usr/share/licenses/org.qemu.qemu-debugsource/COPYING" = "usr/share/licenses/org.qemu.qemu-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"
