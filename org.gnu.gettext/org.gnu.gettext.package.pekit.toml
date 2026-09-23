@@ -16,20 +16,24 @@ license     = "GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT"
 "org.git.kernel.dash"                     = "*"
 "org.gnu.glibc"                    = ">= 2.43"
 "org.gnu.grep"                     = "*"
-"org.gnu.gettext-libtextstyle" = "{{version}}-1"
+"org.gnu.gettext-libtextstyle" = "= {{release}}"
 "dev.peios.peiosutils"                = "*"
-"org.gnu.gettext-common" = "{{version}}-1"
+"org.gnu.gettext-common" = "= {{release}}"
 "org.gnu.sed"                      = "*"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gettext/COPYING"
 "@source:gettext-runtime/intl/COPYING.LIB" = "usr/share/licenses/org.gnu.gettext/COPYING.LIB"
-"@source:gettext-tools/tree-sitter-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter.LICENSE"
-"@source:gettext-tools/tree-sitter-d-0.8.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-d.LICENSE"
-"@source:gettext-tools/tree-sitter-go-0.23.4/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-go.LICENSE"
-"@source:gettext-tools/tree-sitter-ocaml-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-ocaml.LICENSE"
-"@source:gettext-tools/tree-sitter-rust-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-rust.LICENSE"
-"@source:gettext-tools/tree-sitter-typescript-0.23.2/LICENSE" = "usr/share/licenses/org.gnu.gettext/tree-sitter-typescript.LICENSE"
+# The bundled tree-sitter runtime and grammars are versioned directories. Each
+# glob must match (a glob with no match is a packaging error), so a renamed or
+# dropped bundle stops the build instead of silently losing its notice. The
+# notices land in the versioned directory names below the licence directory.
+"@source:gettext-tools/tree-sitter-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
+"@source:gettext-tools/tree-sitter-d-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
+"@source:gettext-tools/tree-sitter-go-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
+"@source:gettext-tools/tree-sitter-ocaml-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
+"@source:gettext-tools/tree-sitter-rust-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
+"@source:gettext-tools/tree-sitter-typescript-[0-9]*/LICENSE" = "usr/share/licenses/org.gnu.gettext/"
 ":usr/bin/**" = "usr/bin"
 ":usr/libexec/gettext/**" = "usr/libexec/gettext"
 ":usr/lib/x86_64-linux-peios/libgettextlib-{{version}}.so" = "usr/lib/x86_64-linux-peios/libgettextlib-{{version}}.so"

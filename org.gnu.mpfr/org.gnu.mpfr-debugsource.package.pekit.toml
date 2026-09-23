@@ -3,7 +3,7 @@ name        = "org.gnu.mpfr-debugsource"
 description = "GNU MPFR debug sources"
 
 [dependencies]
-"org.gnu.mpfr-debuginfo" = "{{version}}-1"
+"org.gnu.mpfr-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.mpfr-debugsource/"

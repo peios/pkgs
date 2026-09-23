@@ -44,12 +44,20 @@ ROOT="$PEKIT_MAIN_OUT/usr/etc"
 test -s "$ROOT/protocols"
 test -s "$ROOT/services"
 test -s "$ROOT/ethertypes"
-# No service name or alias may claim the same port/protocol tuple twice.
-if sed 's/#.*$//; s/[[:space:]][[:space:]]*/ /g' "$ROOT/services" | \
-  while read -r name service aliases; do
-    for alias in $name $aliases; do printf '%s %s\n' "$alias" "$service"; done
-  done | sort | uniq -d | grep .; then
-  echo "duplicate service name and port/protocol tuple" >&2
+# No service name or alias may claim the same port/protocol tuple twice. Each
+# step writes a file under set -e, so a failing sed cannot pass the check.
+WORK="$PEKIT_OUT/services-check"
+mkdir -p "$WORK"
+sed 's/#.*$//; s/[[:space:]][[:space:]]*/ /g' "$ROOT/services" > "$WORK/services"
+while read -r name service aliases; do
+  for alias in $name $aliases; do printf '%s %s\n' "$alias" "$service"; done
+done < "$WORK/services" > "$WORK/pairs"
+test -s "$WORK/pairs"
+LC_ALL=C sort "$WORK/pairs" > "$WORK/pairs.sorted"
+uniq -d "$WORK/pairs.sorted" > "$WORK/duplicates"
+if [ -s "$WORK/duplicates" ]; then
+  cat "$WORK/duplicates" >&2
+  echo "org.debian.netbase: duplicate service name and port/protocol tuple" >&2
   exit 1
 fi
 awk '$1 == "tcp" && $2 == 6 { found = 1 } END { exit !found }' "$ROOT/protocols"

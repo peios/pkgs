@@ -3,7 +3,7 @@ name        = "org.gnu.which-debuginfo"
 description = "GNU which debugging symbols"
 
 [dependencies]
-"org.gnu.which" = "{{version}}-1"
+"org.gnu.which" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.which-debuginfo/COPYING"

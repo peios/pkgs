@@ -3,7 +3,7 @@ name        = "org.gnu.grep-debuginfo"
 description = "GNU Grep debugging symbols"
 
 [dependencies]
-"org.gnu.grep" = "{{version}}-1"
+"org.gnu.grep" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.grep-debuginfo/"

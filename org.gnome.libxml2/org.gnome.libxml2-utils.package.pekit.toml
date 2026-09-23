@@ -11,7 +11,7 @@ description = "libxml2 XML validation and catalog command-line tools"
 [dependencies]
 "org.gnu.glibc"               = ">= 2.43"
 "io.github.zlib-ng.zlib-ng-compat"                = ">= 2.3.3"
-"org.gnome.libxml2" = "{{version}}-1"
+"org.gnome.libxml2" = "= {{release}}"
 
 [files]
 "@source:Copyright"                  = "usr/share/licenses/org.gnome.libxml2-utils/"

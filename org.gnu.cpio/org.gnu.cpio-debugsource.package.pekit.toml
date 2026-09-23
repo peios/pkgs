@@ -3,7 +3,7 @@ name        = "org.gnu.cpio-debugsource"
 description = "GNU cpio archive copier - debug sources"
 
 [dependencies]
-"org.gnu.cpio-debuginfo" = "{{version}}-1"
+"org.gnu.cpio-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.cpio-debugsource/"

@@ -3,7 +3,7 @@ name        = "org.capstone-engine.capstone-debuginfo"
 description = "Capstone - debugging symbols"
 
 [dependencies]
-"org.capstone-engine.capstone" = "{{version}}-1"
+"org.capstone-engine.capstone" = "= {{release}}"
 
 [files]
 "@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone-debuginfo/"

@@ -3,7 +3,7 @@ name        = "org.gnu.sed-debuginfo"
 description = "GNU sed debugging symbols"
 
 [dependencies]
-"org.gnu.sed" = "{{version}}-1"
+"org.gnu.sed" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.sed-debuginfo/"

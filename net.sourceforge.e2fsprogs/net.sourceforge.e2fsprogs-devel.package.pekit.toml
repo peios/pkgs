@@ -1,17 +1,27 @@
 # e2fsprogs-devel — headers, the dev .so symlinks, and pkg-config files for
-# building against libcom_err/libss/libext2fs/libe2p/libuuid. Excludes the
-# blkid header/.pc/.so — those are org.kernel.libblkid-devel's.
+# building against libcom_err/libss/libext2fs/libe2p/libuuid, the com_err and
+# ss code generators (compile_et, mk_cmds) with their awk/sed programs, and
+# the libext2fs programming manual. Excludes the blkid header/.pc/.so — those
+# are org.kernel.libblkid-devel's.
+
+# The generators' manuals ship here (PSPU §5.24, as in the main package).
+side_effects = ["man-db"]
 
 [package]
 name        = "net.sourceforge.e2fsprogs-devel"
 description = "Ext2/3/4 filesystem utilities - development files"
 
 [dependencies]
-"net.sourceforge.e2fsprogs-libcom-err" = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libss"      = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libe2p"     = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libuuid"    = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libcom-err" = "= {{release}}"
+"net.sourceforge.e2fsprogs-libss"      = "= {{release}}"
+"net.sourceforge.e2fsprogs-libext2fs"  = "= {{release}}"
+"net.sourceforge.e2fsprogs-libe2p"     = "= {{release}}"
+"net.sourceforge.e2fsprogs-libuuid"    = "= {{release}}"
+# compile_et and mk_cmds are /bin/sh scripts that run the configured awk
+# (gawk in the native build) and sed over the programs in usr/share/{et,ss}.
+"org.git.kernel.dash" = "*"
+"org.gnu.gawk"        = "*"
+"org.gnu.sed"         = "*"
 
 [files]
 "@source:NOTICE"           = "usr/share/licenses/net.sourceforge.e2fsprogs-devel/"
@@ -34,3 +44,12 @@ description = "Ext2/3/4 filesystem utilities - development files"
 ":usr/lib/x86_64-linux-peios/pkgconfig/ext2fs.pc"   = "usr/lib/x86_64-linux-peios/pkgconfig/ext2fs.pc"
 ":usr/lib/x86_64-linux-peios/pkgconfig/e2p.pc"      = "usr/lib/x86_64-linux-peios/pkgconfig/e2p.pc"
 ":usr/lib/x86_64-linux-peios/pkgconfig/uuid.pc"     = "usr/lib/x86_64-linux-peios/pkgconfig/uuid.pc"
+# Code generators for com_err error tables and ss command tables.
+":usr/bin/compile_et"                  = "usr/bin/compile_et"
+":usr/bin/mk_cmds"                     = "usr/bin/mk_cmds"
+":usr/share/man/man1/compile_et.1.gz"  = "usr/share/man/man1/compile_et.1.gz"
+":usr/share/man/man1/mk_cmds.1.gz"     = "usr/share/man/man1/mk_cmds.1.gz"
+":usr/share/et/**"                     = "usr/share/et"
+":usr/share/ss/**"                     = "usr/share/ss"
+# The libext2fs programming manual.
+":usr/share/info/libext2fs.info*"      = "usr/share/info"

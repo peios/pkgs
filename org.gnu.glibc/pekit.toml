@@ -8,10 +8,10 @@
 # then globs the staged tree selectively (the build scratch left in $PEKIT_OUT
 # never matches the usr/** install globs, the same way figlet's package does).
 #
-# Build deps are declared per-provider below; the environment selected with
-# --env decides which set provisions. The clean-room path is
-# `pekit package --all --env debian` (PEI-156): a pristine Debian container
-# installs exactly the apt list. Kernel headers come from the environment
+# Build deps are declared per-provider below. glibc is a minimal-bootstrap
+# seed: the native build composes its root from the peipkg sets, and the
+# Debian seed build (`--env debian`, which seeds an empty repository) installs
+# exactly the apt sets. Kernel headers come from the environment
 # (linux-libc-dev there, kernel-headers under the peipkg provider); from
 # libc's point of view they're vanilla Linux, so we don't pass
 # --with-headers and let the compiler supply them.
@@ -70,7 +70,7 @@ of           = "artifact"
 key_files    = ["keys/andreas-huettel.asc"]
 fingerprints = ["35B17DF5752577CA0C541CEB94BFDF4484AD142F"]
 
-# Layout follows the peipkg payload spec (PSD-009 §3.4): Peios is usrmerged and
+# Layout follows the peipkg specification's payload layout: Peios is usrmerged and
 # namespaces arch-specific files under /usr/lib/<triplet>. glibc bakes these
 # paths into the loader and its artifacts, so the layout MUST be set at configure
 # time — a packaging-glob remap would relocate the files but leave the baked-in
@@ -104,7 +104,7 @@ MEM_JOBS=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1800000 ))
 
 # A native glibc bootstrap cannot require the previous glibc-static package:
 # that would make the libc build depend on the libc family it is replacing.
-# Skip only configure's host-libc static C++ preflight in that rung.  The real
+# Skip only configure's host-libc static C++ preflight in that build.  The real
 # static C++ test remains enabled: it links the supplied GCC libstdc++.a against
 # the libc.a produced by this build.  Debian retains upstream's full preflight.
 NATIVE_CXX_OPTION=
@@ -136,8 +136,9 @@ cd "$BUILD"
 #
 # What this actually constrains: a glibc built with this floor REFUSES TO START
 # on an older kernel ("FATAL: kernel too old"). Peios binaries run on the Peios
-# kernel (Linux 7.x base) and, during builds, on the build-farm host — rung 1
-# and rung 2 both execute under docker/bwrap on the host kernel. So this is in
+# kernel (Linux 7.x base) and, during builds, on the build-farm host — both the
+# Debian seed build and the native build execute under docker/bwrap on the
+# host kernel. So this is in
 # effect "the oldest build-farm host we support", not just a Peios-runtime
 # floor. Raise it only alongside that expectation.
 #
@@ -213,6 +214,11 @@ python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERS
 # Then the referenced sources are copied under
 # /usr/src/debug/org.gnu.glibc. (org.gnu.glibc-debuginfo packages
 # /usr/lib/debug; org.gnu.glibc-debugsource packages /usr/src/debug.)
+# This stays hand-written rather than using _pkgtools_/split-debug (toolchain
+# exception): it also validates each ELF's hardening and runtime path, treats
+# libm.a's linker script and the relocatable startup objects specially, accepts
+# the few ELFs glibc builds without DWARF, maps gperf's alias source paths and
+# fails on any missing debug source, none of which the shared helper does.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
 : > "$PEKIT_OUT/.buildids"
@@ -710,12 +716,12 @@ int main(void)
 }
 EOF
 # The staged tree intentionally contains only glibc's files; kernel UAPI
-# headers are a separate package.  On the native rung, use that declared
+# headers are a separate package.  In the native build, use that declared
 # build-root dependency as an include fallback while keeping the staged glibc
-# headers first.  Debian's kernel headers do not define Peios syscalls, so its
-# reference rung uses a compile-only asm/unistd.h synthesized from the single
-# assertion table above.  The native rung therefore validates the real package
-# pairing, while both rungs validate glibc's generated SYS_* surface and links.
+# headers first.  Debian's kernel headers do not define Peios syscalls, so the
+# Debian seed build uses a compile-only asm/unistd.h synthesized from the single
+# assertion table above.  The native build therefore validates the real package
+# pairing, while both builds validate glibc's generated SYS_* surface and links.
 ABI_KERNEL_CPPFLAGS=
 if [ "${PEKIT_NATIVE_ROOT:-0}" = 1 ]; then
   test -f /usr/include/asm/unistd.h
@@ -748,7 +754,7 @@ cc --sysroot="$PEKIT_OUT" -B"$STAGED_LIBDIR/" -L"$STAGED_LIBDIR" \
 
 # Validate the Peios authority contracts with real NSS dispatches.  Temporary
 # peios and peios_net modules return only authority-owned sentinel records.
-# Patched glibc must select them even when the reference rung's nsswitch.conf
+# Patched glibc must select them even when the Debian build root's nsswitch.conf
 # asks for `files`, and both the exported __nss_configure_lookup hook and
 # getent -s/--service must be unable to replace any fixed database.  Put the
 # temporary modules beside staged libc so this works under both build wrappers'
@@ -1272,7 +1278,7 @@ for mode in config override; do
 done
 
 # Query records that exist in an ordinary Linux files database and require no
-# files-derived answer, first through the reference rung's nsswitch.conf and
+# files-derived answer, first through the build root's nsswitch.conf and
 # then through getent -s (the public path to the programmatic override hook).
 # Shadow databases may be unreadable to the unprivileged wrapper, but the
 # direct hook test above independently proves their override is rejected rather
@@ -1370,8 +1376,7 @@ rm -rf "$SMOKE"
 # The spawn/chdir suite invokes pwd through an arbitrary symlink name.
 "org.gnu.coreutils-build-compat" = "*"
 "dev.peios.build-essentials-c" = "*"
-# Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
-# it to legacy GCC, while qualified GCC can satisfy the same provide later.
+# The C++ compiler for glibc's C++ tests and the native static C++ test.
 "org.gnu.gcc-c++"                  = "*"
 # The native static C++ test links this prior-GCC archive against the new libc.a;
 # it deliberately does not pull the previous glibc-static into the build root.
@@ -1409,8 +1414,7 @@ gzip = "*"
 # split uses debugedit (no patchelf — glibc scrubs no libtool rpath).
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-# Keep the C++ compiler as a virtual edge: the bootstrap pool currently resolves
-# it to legacy GCC, while qualified GCC can satisfy the same provide later.
+# The C++ compiler for glibc's C++ tests and the native static C++ test.
 "org.gnu.gcc-c++"                  = "*"
 # The native static C++ test links this prior-GCC archive against the new libc.a;
 # it deliberately does not pull the previous glibc-static into the build root.

@@ -1,3 +1,4 @@
 0001-tests-linux-trap-order.patch
 0002-tests-glibc-printf-overflow.patch
 0003-tests-private-chmod.patch
+0004-tests-trap8-staggered-children.patch

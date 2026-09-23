@@ -1,4 +1,4 @@
-# gcc — the GCC compiler for Peios (milestone 3: the native self-build).
+# gcc — the GCC compiler for Peios, built natively by itself.
 #
 # Built natively in the Peios root: build=host=target=x86_64-linux-peios,
 # compiled by the shipped Peios gcc (the minimal-bootstrap seed builds it first
@@ -97,19 +97,19 @@ fingerprints = [
   "13975A70E63C361C73AE69EF6EEB81F8981C74C7",
 ]
 
-# Out-of-source build (GCC refuses to build in its own tree). Layout per PSD-009
-# §3.4: usrmerge + ALL arch files under /usr/lib/<triplet>.
+# Out-of-source build (GCC refuses to build in its own tree). Layout per the
+# peipkg specification: usrmerge + ALL arch files under /usr/lib/<triplet>.
 #   --libdir=$LIBDIR          : puts gcc's internal tree at $LIBDIR/gcc/<t>/<v>/
 #       (crt*.o, libgcc.a, the runtime .so/.a/.spec, fixed headers).
-#   --libexecdir=$LIBDIR      : §3.4 has no /usr/libexec; this lands cc1/cc1plus/
+#   --libexecdir=$LIBDIR      : the layout has no /usr/libexec; this lands cc1/cc1plus/
 #       collect2/lto1 in $LIBDIR/gcc/<t>/<v>/ too (the driver still finds them).
 #   --with-slibdir=$LIBDIR    : libgcc_s.so.1/libstdc++.so.6 into the triplet dir
 #       (they otherwise go to the multilib os-dir ../lib64).
 #   --disable-multilib        : 64-bit only.
 #   --enable-languages=c,c++  : no fortran/objc/go/d runtimes sneak in. Ada and
 #       D are the time-sensitive omissions — both compilers are written in their
-#       own language, so they can only be bootstrapped while the Debian rung
-#       still exists to supply gnat/gdc. Deferred deliberately, not by accident.
+#       own language, so they can only be bootstrapped while the Debian seed
+#       build still exists to supply gnat/gdc. Deferred deliberately, not by accident.
 #   --disable-libsanitizer    : asan/ubsan/tsan deferred (large, dev-tooling).
 #   --disable-libssp          : dead weight on glibc, which provides
 #       __stack_chk_fail itself — our canaries already resolve there, so libssp
@@ -134,7 +134,7 @@ fingerprints = [
 #       cet-report=error mode below: unlike -z ibt/-z shstk, this does not force
 #       a property note onto incompatible output, and rejects any unmarked input
 #       instead. -z ibtplt makes PLT entries valid IBT landing pads without
-#       changing those report semantics. The Debian reference rung cannot make
+#       changing those report semantics. The Debian seed build cannot make
 #       this end-to-end claim because trixie's glibc startup objects are unmarked;
 #       it retains the compiler instrumentation and broad regression role, while
 #       the native build is the publishable hardening authority.
@@ -221,7 +221,7 @@ CET_LDFLAGS=
 if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
   CET_LDFLAGS="-Wl,-z,cet-report=error,-z,ibtplt"
 else
-  echo "gcc: Debian reference rung omits end-to-end CET reporting; native validation is authoritative" >&2
+  echo "gcc: Debian seed build omits end-to-end CET reporting; native validation is authoritative" >&2
 fi
 
 # Defensive: exported tool vars would override configure's tool detection.
@@ -367,6 +367,9 @@ done
 # runtime libs). Scrub any stray rpath, scrub DWARF build paths
 # (-> /usr/src/debug/org.gnu.gcc), split debug build-id-indexed, strip, stage the
 # referenced sources. Static *.a get --strip-debug (no build-id to index).
+# Kept hand-written rather than _pkgtools_/split-debug (toolchain exception):
+# it also strips relocatable *.o (crt objects), skips DWARF-less ELFs, filters
+# <built-in>/<command-line> pseudo-sources and fails on a missing source.
 cd "$PEKIT_OUT"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 : > "$PEKIT_OUT/.srclist"
@@ -396,6 +399,12 @@ find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debu
       ;;
   esac
   readelf -h "$f" >/dev/null 2>&1 || continue
+  # Defensive, fail-closed scrub: acts only on an ELF that actually carries a
+  # runtime path. The unconditional copy-pasted patchelf lines elsewhere came
+  # from the pre-native store-glibc toolchain; this one is kept because GCC's
+  # in-tree libtool can hardcode build-tree search paths into plugins and
+  # runtime libraries, and GCC is not rebuilt in routine sweeps to prove
+  # otherwise. The gate independently rejects any RPATH/RUNPATH.
   if readelf -d "$f" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'; then
     patchelf --remove-rpath "$f"
     if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then
@@ -510,11 +519,16 @@ cd "$PEKIT_OUT/build"
 # runtimes for the staged compiler and every child process it starts.
 export LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR:/usr/lib/$TRIPLET"
 
-# GCC's own DejaGNU suites are the regression gate on reference builders.
-# Peios does not yet package DejaGNU/Expect, so the native composition records
-# that explicit infrastructure exception and relies on the identical locked
-# source/patch set plus the staged native consumers below. A reference build
-# must never silently skip the suites: its dependency set includes runtest.
+# GCC's own DejaGNU suites are the regression gate on the Debian seed build.
+# Peios does not yet package DejaGNU/Expect (PEI-1164), so the native gate
+# skips these suites and relies on the identical locked source/patch set plus
+# the staged native consumers below. Run them natively once PEI-1164 lands.
+# The Debian build must never silently skip the suites: its dependency set
+# includes runtest, and its absence there is fatal.
+if [ "${PEKIT_NATIVE_ROOT:-}" != 1 ] && ! command -v runtest >/dev/null 2>&1; then
+  echo "gcc: runtest missing from the Debian build root" >&2
+  exit 1
+fi
 if command -v runtest >/dev/null 2>&1; then
   check_dejagnu_sum() {
     label=$1
@@ -622,7 +636,7 @@ if command -v runtest >/dev/null 2>&1; then
   check_dejagnu_sum "libquadmath-relevant gcc torture safety superset" \
     gcc/testsuite/gcc/gcc.sum
 else
-  echo "gcc: DejaGNU unavailable in the native Peios build root; Debian regression results are authoritative" >&2
+  echo "gcc: DejaGNU unavailable in the native Peios build root (PEI-1164); Debian regression results are authoritative" >&2
 fi
 
 test -n "$(find "$PEKIT_OUT/usr/share/info" -maxdepth 1 -type f -name '*.info*' -print -quit)"

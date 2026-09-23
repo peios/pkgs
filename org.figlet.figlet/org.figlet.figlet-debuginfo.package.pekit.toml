@@ -3,7 +3,7 @@ name        = "org.figlet.figlet-debuginfo"
 description = "FIGlet - debugging symbols"
 
 [dependencies]
-"org.figlet.figlet" = "{{version}}-1"
+"org.figlet.figlet" = "= {{release}}"
 
 [files]
 "@source:LICENSE"   = "usr/share/licenses/org.figlet.figlet-debuginfo/LICENSE"

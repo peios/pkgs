@@ -1,7 +1,6 @@
 [allow]
 "source.discovery" = "This private binary seed is pinned to the exact Go 1.24.6 bootstrap required by the source-built compiler, not an independently tracked toolchain"
 "source.versions.ceiling" = "The exact Go 1.24.6 binary seed is a deliberate bootstrap root; moving it is coordinated with the source compiler requirement"
-"source.signature.required" = "go.dev publishes release hashes over HTTPS but no detached source signatures; the immutable Pekit lock pins the accepted bootstrap bytes"
 "elf.debuginfo" = "Original upstream private trust seed, checked byte-for-byte; source-built Go supplies distribution debug packages"
 
 [allow_files."elf.pie"]

@@ -2,7 +2,7 @@
 # object tools (ar, nm, objcopy, objdump, ranlib, readelf, strip, strings, size,
 # addr2line, c++filt, gprof), plus the libraries libbfd / libopcodes / libctf.
 # The shipped gcc drives `as` and `ld`, so this is a hard prerequisite of the
-# milestone-2 compiler.
+# native compiler.
 #
 # Tarball source (the binutils-gdb git repo is huge and bundles gdb; the release
 # tarball is binutils-only and ships configure). Versions are 2- or 3-component.
@@ -45,15 +45,11 @@ fingerprints = [
 ]
 
 # Out-of-source NATIVE build: build=host=target=x86_64-linux-peios, compiled by
-# the shipped Peios gcc inside the rung-2 composed root. This followed gcc from
-# the milestone-2 Canadian cross to the milestone-3 native self-build — while it
-# still declared --build=x86_64-pc-linux-gnu it was asserting something false on
-# a rung where the build machine IS peios, and surviving only because the two
-# triplets are ABI-identical. It also no longer needs the Pass-1 cross toolchain
-# or the composed sysroot beside the gcc recipe; zlib now comes from the root's
-# own zlib-devel, like any other build dependency.
+# the shipped Peios gcc inside the composed native root (the Debian seed build
+# uses the same triplets; they are ABI-identical to x86_64-pc-linux-gnu). zlib
+# comes from the root's own zlib-devel, like any other build dependency.
 #
-# Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
+# Layout per the peipkg specification: arch libs under /usr/lib/<triplet>.
 [build.main]
 command = """
 set -eu
@@ -83,16 +79,16 @@ cd "$PEKIT_OUT"
 #       emulation's "append 64" convention, which yields
 #       /usr/lib/x86_64-linux-peios64 — libdir with 64 glued on, a path that
 #       cannot exist — plus /usr/lib64, /usr/local/lib and other directories the
-#       §3.4 layout does not have. The Peios patch suppresses those generic
-#       tooldir fallbacks, leaving one correct directory: every arch-specific
-#       library lives under the triplet (§3.4.2). Reaching it previously
+#       Peios filesystem layout does not have. The Peios patch suppresses those
+#       generic tooldir fallbacks, leaving one correct directory: every
+#       arch-specific library lives under the triplet. Reaching it previously
 #       depended on /lib64 being the compose-minted symlink to it, i.e. it
 #       worked by accident of the usr-merge rather than by design.
 #   --with-sysroot=/        : the shipped ld searches the real root at run time.
 #   --with-system-zlib      : link the root's libz (zlib-ng compat), not a
 #       bundled copy — matches the declared zlib-devel build dependency.
-#   --without-debuginfod    : org.sourceware.elfutils is in the pool, but its libdebuginfod
-#       needs libcurl, which is not packaged yet (Phase 3).
+#   --without-debuginfod    : org.sourceware.elfutils is built with
+#       --disable-libdebuginfod, so no libdebuginfod exists to link against.
 #   --enable-plugins        : ld plugin API (gcc LTO needs the linker plugin).
 #   --enable-deterministic-archives : `ar` omits timestamps/uids by default —
 #       a prerequisite for reproducible builds (PEI-94).
@@ -145,47 +141,21 @@ find "$PEKIT_OUT/usr" -name '*.la' -delete
 # in this workspace do.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-# Post-install debug pipeline (same as the bignums) over the whole install tree —
-# binutils ships many ELF tools + libs, all want debuginfo. strip libtool's
-# redundant rpath + the stray ld-linux DT_NEEDED, scrub DWARF (-> /usr/src/debug/
-# binutils), split debug build-id-indexed, strip, stage sources. Static .a:
-# strip-debug.
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.elf-inodes"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  # Installed tool aliases are hardlinks (including ld/ld.bfd). Splitting an
-  # already stripped alias would overwrite its shared build-ID symbols.
-  inode=$(stat -c '%d:%i' "$f")
-  if grep -Fxq "$inode" "$PEKIT_OUT/.elf-inodes"; then continue; fi
-  printf '%s\\n' "$inode" >> "$PEKIT_OUT/.elf-inodes"
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.binutils -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
+# Libtool relinks the tools and libraries that use libbfd/libopcodes/libctf
+# with RUNPATH=/usr/lib/x86_64-linux-peios: Peios roots have no ld.so.conf,
+# so libtool's system search list is only /lib and /usr/lib and it treats the
+# triplet directory as non-standard. The loader already searches it, so the
+# entry is redundant and the workspace forbids it. Remove it wherever present.
+find "$PEKIT_OUT/usr" -type f | LC_ALL=C sort | while IFS= read -r f; do
+  readelf -h "$f" >/dev/null 2>&1 || continue   # not an ELF file
+  if readelf -d "$f" | grep -Eq '\\((RPATH|RUNPATH)\\)'; then
+    patchelf --remove-rpath "$f"
   fi
-  strip "$f"
 done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.gnu.binutils/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.gnu.binutils/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
+
+# Split debug data for every installed ELF and archive. Installed tool aliases
+# are hardlinks (including ld/ld.bfd); the helper splits each inode once.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.binutils "$PEKIT_OUT/usr"
 """
 
 # Build deps. Native build: the c++ floor supplies the compiler, make, the
@@ -201,8 +171,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 # by make's non-fatal documentation rule.
 "org.perl.perl" = "*"
 # --with-system-zlib links the root's libz rather than binutils' bundled copy.
-# Previously satisfied by the composed sysroot beside the gcc recipe; now an
-# ordinary build dependency, since this builds natively in the rung-2 root.
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 
 [build.main.dependencies.apt]
@@ -219,6 +187,9 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
+# The upstream suites (gas, ld, binutils) run under DejaGnu, which Peios does
+# not package yet (PEI-1164), so this gate runs no upstream suite. It exercises
+# the staged tools directly instead.
 BIN="$PEKIT_MAIN_OUT/usr/bin"
 export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
 case "$("$BIN/ld" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac

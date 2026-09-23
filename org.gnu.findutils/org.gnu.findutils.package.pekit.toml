@@ -6,7 +6,7 @@ description = "GNU file-search and argument-building utilities"
 
 [dependencies]
 "org.gnu.glibc"                       = ">= 2.43"
-"org.gnu.findutils-common" = "{{version}}-1"
+"org.gnu.findutils-common" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.findutils/"

@@ -12,7 +12,7 @@ name        = "org.gnu.binutils-devel"
 description = "GNU binary utilities - development files"
 
 [dependencies]
-"org.gnu.binutils" = "{{version}}-1"
+"org.gnu.binutils" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.binutils-devel/"

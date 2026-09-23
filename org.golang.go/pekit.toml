@@ -20,6 +20,17 @@ file_regex  = 'go[0-9]+\.[0-9]+\.[0-9]+\.src\.tar\.gz'
 # Soft production floor. Track all later stable releases automatically.
 versions    = ">= 1.26.1"
 
+# go.dev/dl publishes an armored detached signature beside each archive
+# (<archive>.asc, served from dl.google.com), made with a signing subkey of
+# Google's Linux package signing key. The pinned primary fingerprint matches
+# the key published at https://dl.google.com/linux/linux_signing_key.pub and
+# Google's documentation at https://www.google.com/linuxrepositories/.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/google-linux-signing-key.asc"]
+fingerprints = ["EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"]
+
 [build.main]
 command = '''
 set -eu
@@ -35,14 +46,11 @@ for tool in bash gcc readelf objcopy strip sha256sum grep find gzip; do
     exit 1
   }
 done
+# Only the declared, locked stage0 seed may bootstrap this compiler.
 if [ ! -x "$BOOTSTRAP/bin/go" ]; then
-  command -v go >/dev/null || {
-    echo "go: no native or distribution bootstrap compiler is installed" >&2
-    exit 1
-  }
-  BOOTSTRAP=$(go env GOROOT)
+  echo "go: the declared org.golang.go-stage0-1.24 seed is not installed at $BOOTSTRAP" >&2
+  exit 1
 fi
-test -x "$BOOTSTRAP/bin/go"
 bootstrap_version=$($BOOTSTRAP/bin/go version | cut -d' ' -f3)
 case "$bootstrap_version" in
   go1.24.[6-9]|go1.24.[1-9][0-9]|go1.2[5-7].*) ;;
@@ -52,7 +60,6 @@ esac
 # Keep all compiler-recorded roots stable and cap concurrency while the kernel
 # qualification build may be active beside this package job.
 export GOROOT_BOOTSTRAP="$BOOTSTRAP"
-export GOROOT_FINAL=/usr/lib/x86_64-linux-peios/go
 export GOOS=linux GOARCH=amd64 GOAMD64=v1
 export GOENV=off
 export GOCACHE="$PEKIT_OUT/.gocache"
@@ -123,8 +130,14 @@ while IFS= read -r elf; do
   readelf -sW "$debug" | grep 'FUNC' >/dev/null
   strip --strip-unneeded "$elf"
   objcopy --add-gnu-debuglink="$debug" "$elf"
-  ! readelf -dW "$elf" 2>/dev/null | grep -Eq '(RPATH|RUNPATH)'
-  ! grep -aF "$SRC" "$elf" "$debug" >/dev/null
+  if readelf -dW "$elf" | grep -Eq '(RPATH|RUNPATH)'; then
+    echo "go: $rel carries an RPATH/RUNPATH" >&2
+    exit 1
+  fi
+  if grep -aqF "$SRC" "$elf" "$debug"; then
+    echo "go: $rel or its debug file leaks the build path $SRC" >&2
+    exit 1
+  fi
 done
 rm -rf "$PEKIT_OUT/.gocache"
 '''

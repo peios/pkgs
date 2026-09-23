@@ -3,7 +3,7 @@ name        = "org.gnu.diffutils-debuginfo"
 description = "GNU file comparison utilities - debugging symbols"
 
 [dependencies]
-"org.gnu.diffutils" = "{{version}}-1"
+"org.gnu.diffutils" = "= {{release}}"
 
 [files]
 "@source:COPYING*"  = "usr/share/licenses/org.gnu.diffutils-debuginfo/"

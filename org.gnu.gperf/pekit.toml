@@ -42,39 +42,14 @@ gzip -n -9 "$PEKIT_OUT/usr/share/man/man1/gperf.1"
 # corresponding-source package; installed users receive the command man page.
 rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/info"
 
-BIN="$PEKIT_OUT/usr/bin/gperf"
-# Enforce the workspace hardening contract and emit conventional build-ID
-# debuginfo plus the exact source files named by the binary's DWARF records.
-patchelf --remove-rpath "$BIN" 2>/dev/null || true
-patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
-
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gperf \
-  -l "$PEKIT_OUT/.srclist" -n usr/bin/gperf
-bid=$(readelf -n usr/bin/gperf | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug usr/bin/gperf "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip usr/bin/gperf
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.gnu.gperf/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gperf/$rel"
-    done
-rm -f "$PEKIT_OUT/.srclist"
+# Emit build-ID debuginfo plus the exact source files named by the binary's
+# DWARF records.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gperf "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "dev.peios.build-essentials-c++" = "*"
 
 [test]

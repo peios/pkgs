@@ -5,7 +5,7 @@ description = "libxslt and libexslt static libraries"
 [provides]
 
 [dependencies]
-"org.gnome.libxslt-devel" = "{{version}}-1"
+"org.gnome.libxslt-devel" = "= {{release}}"
 
 [files]
 "@source:Copyright"                      = "usr/share/licenses/org.gnome.libxslt-static/"

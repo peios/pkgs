@@ -5,7 +5,7 @@ description = "GNU cpio archive copier"
 [provides]
 
 [dependencies]
-"org.gnu.cpio-common" = "{{version}}-1"
+"org.gnu.cpio-common" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.cpio/"

@@ -1,6 +1,7 @@
 # libgomp — GCC's OpenMP runtime (libgomp.so.1), linked into code compiled with
-# -fopenmp (lots of scientific/media software). The dev .so symlink, static
-# archive, and libgomp.spec driver fragment are deferred to milestone 2.
+# -fopenmp (lots of scientific/media software). The dev .so symlink is
+# libgomp-devel; the static archive is libgomp-static; the libgomp.spec driver
+# fragment ships in gcc (with the other specs).
 #
 # A glob source ("so.1*") maps to a DIRECTORY.
 

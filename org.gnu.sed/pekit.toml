@@ -1,8 +1,8 @@
 # GNU sed — GNU's non-interactive stream editor.
 #
 # Peios does not yet ship libacl or libselinux, so their optional in-place
-# metadata integrations are explicitly disabled for reproducibility on both
-# build rungs. Mode and ownership preservation remain available. Re-enable
+# metadata integrations are explicitly disabled for reproducibility in both
+# the native and the Debian seed build. Mode and ownership preservation remain available. Re-enable
 # each integration when its runtime library enters the package catalogue.
 
 tags = ["bootstrap", "minimal-bootstrap"]
@@ -57,35 +57,7 @@ find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 # command manual, translations and concise release documentation.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-BIN="$PEKIT_OUT/usr/bin/sed"
-# Enforce the inherited distribution hardening contract on the sole ELF.
-patchelf --remove-rpath "$BIN" 2>/dev/null || true
-patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
-
-# Produce conventional build-ID debuginfo and exact DWARF-referenced source.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.sed \
-  -l "$PEKIT_OUT/.dl" -n usr/bin/sed
-bid=$(readelf -n usr/bin/sed \
-  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug usr/bin/sed \
-  "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip usr/bin/sed
-tr '\\0' '\\n' < "$PEKIT_OUT/.dl" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.gnu.sed/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.sed/$rel"
-    done
-rm -f "$PEKIT_OUT/.dl"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.sed "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
@@ -107,7 +79,6 @@ build-essential = "*"
 debugedit       = "*"
 gettext         = "*"
 locales-all     = "*"
-patchelf        = "*"
 perl            = "*"
 
 [test]

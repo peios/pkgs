@@ -5,7 +5,8 @@
 # Sourced from the GPG-signed release TARBALL: gmp's canonical VCS is Mercurial,
 # and the only git mirrors are stale/patched, so this uses pekit's url source —
 # download + extract, enumerating versions by parsing the ftp.gnu.org directory
-# index (file_regex keeps three-component .tar.xz releases; `versions` caps the line).
+# index (file_regex keeps three-component .tar.xz releases; `versions` is the
+# soft maintenance floor).
 #
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -33,7 +34,8 @@ key_files    = ["keys/gmp-release.asc"]
 fingerprints = ["343C2FF0FBEE5EC2EDBEF399F3599FF828C67298"]
 
 # Out-of-source build (configure from $SRC into $PEKIT_OUT, stage via DESTDIR) —
-# same shape as glibc. Layout per PSD-009 §3.4: arch libs under /usr/lib/<triplet>.
+# same shape as glibc. Layout per the peipkg specification: arch libs under
+# /usr/lib/<triplet>.
 # gmp is a plain libtool lib, so --libdir is honoured directly (no gcc-style
 # multilib os-directory to fight).
 #   --enable-cxx : also build the C++ wrapper libgmpxx.so.4 (packaged apart, as
@@ -99,51 +101,17 @@ find "$PEKIT_OUT/usr" -name '*.la' -delete
 # in the staging tree.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-# Validate both installed public interfaces against the staged shared and
-# static libraries. The upstream suite exercises the build tree; these tests
-# catch an install layout, linker-name or libgmpxx dependency regression.
-# Produce build-ID-indexed debug files and the exact DWARF-referenced source.
-# Static archives have no build ID, so retain code while dropping their debug.
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f"; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  # libtool gives libgmpxx an rpath to the install libdir (so it finds libgmp);
-  # that dir is in Peios's default loader search, so the rpath is redundant —
-  # strip it (Fedora/Debian policy: no rpath into standard dirs).
-  patchelf --remove-rpath "$f"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gmp \
-    -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.gnu.gmp/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.gnu.gmp/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Produce build-ID-indexed debug files and the exact DWARF-referenced source;
+# static archives keep their code and drop their debug sections. The libtool
+# edit above already keeps RPATH off libgmpxx, and the gate checks it.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gmp "$PEKIT_OUT/usr"
 """
 
 # Build deps. gmp is autotools: gcc + g++ (--enable-cxx -> libgmpxx) + make, and
 # m4 to expand its hand-written .asm into the FAT runtime-dispatch routines. The
-# post-install debug split adds debugedit + patchelf (binutils strip/objcopy/
-# readelf ride along with the compiler). No external library deps (gmp is a leaf).
+# post-install debug split uses debugedit and binutils. No external library
+# deps (gmp is a leaf).
 # bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
-# Ambient on the old nix host; the pristine environment exposed it.
 [build.main.dependencies.peipkg]
 "org.gnu.autoconf" = "*"
 "org.gnu.automake" = "*"
@@ -162,7 +130,6 @@ file = "*"
 m4 = "*"
 bison = "*"
 debugedit = "*"
-patchelf = "*"
 
 [test]
 needs = ["main"]

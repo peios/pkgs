@@ -47,31 +47,9 @@ sed -i '1s|^#!/bin/sh -$|#!/usr/bin/sh -|' \
   "$BIN/figlist" "$BIN/showfigfonts"
 
 # Conventional build-ID debuginfo plus the exact source files referenced by
-# DWARF, with the private build path rewritten to the canonical namespace.
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-for elf in usr/bin/figlet usr/bin/chkfont; do
-  debugedit -b "$BUILD" -d /usr/src/debug/org.figlet.figlet \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$BUILD/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.figlet.figlet/$(dirname "$rel")"
-      cp "$BUILD/$rel" "usr/src/debug/org.figlet.figlet/$rel"
-    done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# DWARF, with the private build copy rewritten to the canonical namespace.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --build-root "$BUILD" \
+  org.figlet.figlet "$BIN/figlet" "$BIN/chkfont"
 """
 
 [build.main.dependencies.peipkg]

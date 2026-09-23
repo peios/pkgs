@@ -3,7 +3,7 @@ name        = "org.gnome.glib-debuginfo"
 description = "GLib debugging symbols"
 
 [dependencies]
-"org.gnome.glib" = "{{version}}-1"
+"org.gnome.glib" = "= {{release}}"
 
 [files]
 "@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.gnome.glib-debuginfo/"

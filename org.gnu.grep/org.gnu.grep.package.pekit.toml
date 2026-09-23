@@ -8,7 +8,7 @@ license     = "GPL-3.0-or-later"
 [dependencies]
 "org.git.kernel.dash"                  = "*"
 "org.gnu.glibc"                 = ">= 2.43"
-"org.gnu.grep-common" = "{{version}}-1"
+"org.gnu.grep-common" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.grep/COPYING"

@@ -3,7 +3,7 @@ name        = "org.cmake.cmake-debuginfo"
 description = "CMake - debugging symbols"
 
 [dependencies]
-"org.cmake.cmake" = "{{version}}-1"
+"org.cmake.cmake" = "= {{release}}"
 
 [files]
 ":usr/lib/debug/**" = "usr/lib/debug"

@@ -9,7 +9,7 @@ license     = "GPL-3.0-or-later"
 
 [dependencies]
 "org.gnu.glibc"                 = ">= 2.43"
-"org.gnu.tar-common" = "{{version}}-1"
+"org.gnu.tar-common" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.tar/COPYING"

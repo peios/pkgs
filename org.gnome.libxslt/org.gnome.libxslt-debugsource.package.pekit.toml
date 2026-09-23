@@ -3,7 +3,7 @@ name        = "org.gnome.libxslt-debugsource"
 description = "libxslt debug sources"
 
 [dependencies]
-"org.gnome.libxslt-debuginfo" = "{{version}}-1"
+"org.gnome.libxslt-debuginfo" = "= {{release}}"
 
 [files]
 "@source:Copyright" = "usr/share/licenses/org.gnome.libxslt-debugsource/"

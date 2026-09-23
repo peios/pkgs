@@ -10,7 +10,7 @@ name        = "org.gnome.glib-devel"
 description = "GLib development headers, pkg-config metadata and code generators"
 
 [dependencies]
-"org.gnome.glib"                         = "{{version}}-1"
+"org.gnome.glib"                         = "= {{release}}"
 "org.python.python3"                     = ">= 3.14, < 3.15"
 "org.git.kernel.dash"                    = "*"
 "org.pcre.pcre2-devel"                   = "*"

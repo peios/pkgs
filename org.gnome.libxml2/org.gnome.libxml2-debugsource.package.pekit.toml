@@ -3,8 +3,8 @@ name        = "org.gnome.libxml2-debugsource"
 description = "libxml2 debug sources"
 
 [dependencies]
-"org.gnome.libxml2-debuginfo"       = "{{version}}-1"
-"org.gnome.libxml2-utils-debuginfo" = "{{version}}-1"
+"org.gnome.libxml2-debuginfo"       = "= {{release}}"
+"org.gnome.libxml2-utils-debuginfo" = "= {{release}}"
 
 [files]
 "@source:Copyright" = "usr/share/licenses/org.gnome.libxml2-debugsource/"

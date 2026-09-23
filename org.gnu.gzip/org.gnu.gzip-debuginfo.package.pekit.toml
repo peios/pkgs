@@ -3,7 +3,7 @@ name        = "org.gnu.gzip-debuginfo"
 description = "GNU gzip debugging symbols"
 
 [dependencies]
-"org.gnu.gzip" = "{{version}}-1"
+"org.gnu.gzip" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gzip-debuginfo/COPYING"

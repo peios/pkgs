@@ -47,6 +47,6 @@ description = "GNU binary utilities (assembler, linker, object tools)"
 ":usr/lib/x86_64-linux-peios/bfd-plugins/**"           = "usr/lib/x86_64-linux-peios/bfd-plugins"
 # NOTE: binutils also installs ld's linker scripts + hardlinked tool copies under
 # usr/x86_64-linux-peios/ (the tooldir). That tree is NOT shipped: it's not a
-# PSD-009 §3.4.1 permitted top-level, the bin/ copies are hardlink duplicates of
+# top-level the peipkg specification permits, the bin/ copies are hardlink duplicates of
 # /usr/bin, and ld carries its default linker scripts compiled in (verified: `ld
 # --verbose` emits the built-in script), so default linking needs no on-disk ones.

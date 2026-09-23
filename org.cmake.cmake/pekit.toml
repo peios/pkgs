@@ -17,6 +17,12 @@ tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 # staged-client gates below fail closed on an incompatible future transition.
 versions  = ">= 4.4.3"
 
+# Authentication boundary: the source is a Git tag fetched over HTTPS from
+# Kitware's GitLab, without tag-signature verification (Pekit does not yet
+# verify Git signatures). Each newly discovered tag is trusted on first use;
+# pekit.lock then pins the accepted commit, so a later rewrite of the tag
+# fails the lock rather than changing the build.
+
 [build.main]
 command = """
 set -eu
@@ -27,8 +33,9 @@ cd "$BUILD"
 
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Remap source strings without hiding physical DWARF paths from debugedit.
-CFLAGS_COMMON="${CFLAGS:?} -fstack-protector-strong -fPIE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
-CXXFLAGS_COMMON="${CXXFLAGS:?} -fstack-protector-strong -fPIE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
+# (The stack protector and PIE are compiler defaults.)
+CFLAGS_COMMON="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
+CXXFLAGS_COMMON="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.cmake.cmake"
 LDFLAGS_COMMON="${LDFLAGS:?} -Wl,-z,ibtplt"
 export CFLAGS="$CFLAGS_COMMON"
 export CXXFLAGS="$CXXFLAGS_COMMON"
@@ -67,41 +74,14 @@ for name in org.cmake.cmake-data org.cmake.cmake-debuginfo org.cmake.cmake-debug
   cp -a "$LICENSEDIR" "$PEKIT_OUT/usr/share/licenses/$name"
 done
 
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr/bin -type f ! -type l | while IFS= read -r f; do
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.cmake.cmake -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.cmake.cmake/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.cmake.cmake/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Distribution debug split of the installed executables.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.cmake.cmake "$PEKIT_OUT/usr/bin"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.openssl.openssl-devel" = "*"
 "org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 
 [test]
@@ -176,6 +156,4 @@ rm -rf "$PEKIT_MAIN_OUT/.cmake-smoke" "$PEKIT_MAIN_OUT/build"
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.openssl.openssl-devel" = "*"
-"org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"

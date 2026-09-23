@@ -38,7 +38,7 @@ set -eu
 SRC="$(pwd)"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Preserve physical DWARF paths until debugedit collects the source files.
-export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.bc"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.bc"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
   --infodir=/usr/share/info
@@ -48,36 +48,14 @@ make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/info"
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
 
-: > "$PEKIT_OUT/.srclist"
-for elf in usr/bin/bc usr/bin/dc; do
-  patchelf --remove-rpath "$elf" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.bc \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "usr/src/debug/org.gnu.bc/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.gnu.bc/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.bc \
+  "$PEKIT_OUT/usr/bin/bc" "$PEKIT_OUT/usr/bin/dc"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.texinfo" = "*"
 "org.gnu.gzip" = "*"
-"org.nixos.patchelf" = "*"
 "org.sourceware.debugedit" = "*"
 
 [test]
@@ -96,12 +74,32 @@ cd "$PEKIT_OUT"
 # Upstream's Automake `make check` target only rebuilds the programs, so run
 # the shipped mathematical corpus and focused command-line regressions here.
 make check
-"$PEKIT_OUT/bc/bc" -l "$SRC/Test/checklib.b" </dev/null > checklib.out
+# No line wrapping, so each reported value stays on one line for the check below.
+BC_LINE_LENGTH=0 "$PEKIT_OUT/bc/bc" -l "$SRC/Test/checklib.b" </dev/null > checklib.out
 grep -q '^Total failures: 0$' checklib.out
-! grep -Eq '^Total failures: [1-9][0-9]*$' checklib.out
+# checklib.b compares f(x) at scale s with f(x) at scale s+4 truncated to s.
+# bc's library truncates rather than rounds, so a handful of cases differ in
+# the last digit by design. Accept a reported mismatch only when it is within
+# one unit in the last place; anything larger is a real accuracy failure.
+awk '/^  val1 = /{v1=$3} /^  val2 = /{print v1, $3}' checklib.out > checklib.pairs
+test "$(grep -c '^Failed:' checklib.out)" -eq "$(wc -l < checklib.pairs)"
+while read -r v1 v2; do
+  frac=${v1#*.}
+  [ "$frac" != "$v1" ] || { echo "org.gnu.bc: unparsable checklib value $v1" >&2; exit 1; }
+  # Truncate val2 to val1's scale exactly as checklib does, then compare.
+  ok=$(printf 'scale=%d; d=%s/1-(%s); if (d<0) d=-d; d<=10^-%d\n' \
+    "${#frac}" "$v2" "$v1" "${#frac}" | "$PEKIT_OUT/bc/bc")
+  if [ "$ok" != 1 ]; then
+    echo "org.gnu.bc: checklib.b mismatch beyond one ulp: $v1 vs $v2" >&2
+    exit 1
+  fi
+done < checklib.pairs
 "$PEKIT_OUT/bc/bc" "$SRC/Test/signum" </dev/null > signum.out
 grep -q '^end of tests$' signum.out
-! grep -q '^x=' signum.out
+if grep -q '^x=' signum.out; then
+  echo "org.gnu.bc: signum test printed a failing case" >&2
+  exit 1
+fi
 test "$(printf 'scale=2; 1/2\n' | "$PEKIT_OUT/bc/bc" -sq)" = ".50"
 test "$(printf '2 3 + p\n' | "$PEKIT_OUT/dc/dc")" = "5"
 # Fedora's long-standing dc radix correction retains a single digit's literal

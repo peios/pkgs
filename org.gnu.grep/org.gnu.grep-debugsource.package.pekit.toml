@@ -3,7 +3,7 @@ name        = "org.gnu.grep-debugsource"
 description = "GNU Grep debug sources"
 
 [dependencies]
-"org.gnu.grep-debuginfo" = "{{version}}-1"
+"org.gnu.grep-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.grep-debugsource/"

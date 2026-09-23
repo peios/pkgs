@@ -5,7 +5,7 @@ description = "GNU MPFR static library"
 [provides]
 
 [dependencies]
-"org.gnu.mpfr-devel" = "{{version}}-1"
+"org.gnu.mpfr-devel" = "= {{release}}"
 "org.gnu.gmp-static" = ">= 6.3.0"
 
 [files]

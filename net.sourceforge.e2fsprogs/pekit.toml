@@ -67,8 +67,11 @@ of           = "decompressed"
 #       runtime. Verified safe: all 20 blkid_* symbols the shipped binaries
 #       reference are exported by util-linux 2.42.3's libblkid.so.1, and the
 #       bundled library is unversioned so the loader binds the defaults.
-#       Building --disable-libblkid instead would be tidier but needs
-#       libblkid-devel, which is not published.
+#       Building --disable-libblkid instead would be tidier, but it would make
+#       org.kernel.libblkid-devel (util-linux) a build input of this seed and
+#       so change the bootstrap graph; the bundled copy keeps it out.
+#   --disable-uuidd : uuidd is a daemon, and Peios has no service definition
+#       for it; libuuid generates UUIDs in-process without it.
 #   --sysconfdir=/etc : the RUNTIME lookup path (PFSL's merged /etc view), not
 #       a payload destination — the conf files it governs are unclaimed.
 #   --sbindir=/usr/bin : /sbin is for daemons, which appear in service
@@ -78,103 +81,38 @@ of           = "decompressed"
 #       $(sbindir): configure.ac sets `root_sbindir=$sbindir` whenever
 #       --sbindir is non-default. (The same clause governs root_libdir, which
 #       is why --libdir alone already produces the triplet layout.)
-[build.vendor]
-command = '''
-set -eu
-REF="$PEKIT_RECIPE_ROOT/reference-libpeios"
-python3 "$REF/extract.py" "$REF" "$PEKIT_OUT/source"
-cd "$PEKIT_OUT/source/dev.peios.libpeios-0.5.0-1"
-PEKIT_OUT="$PEKIT_OUT/vendor" sh "$REF/vendor.sh"
-'''
-
-[build.vendor.dependencies.peipkg]
-"org.rust-lang.rust" = ">= 1.85"
-"org.python.python3" = "*"
-"com.facebook.zstd" = "*"
-"dev.peios.peiosutils" = "*"
-"org.gnu.grep" = "*"
-"org.gnu.findutils" = "*"
-
-[build.vendor.dependencies.apt]
-python3 = "*"
-cargo = ">= 1.85"
-rustc = ">= 1.85"
-git = "*"
-ca-certificates = "*"
-zstd = "*"
-
-[build.reference-sdk]
-needs = ["vendor"]
-command = '''
-set -eu
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" != apt ]; then exit 0; fi
-REF="$PEKIT_RECIPE_ROOT/reference-libpeios"
-SOURCE="$PEKIT_OUT/source"
-python3 - "$PEKIT_VENDOR_OUT/source/dev.peios.libpeios-0.5.0-1" "$SOURCE" <<'COPY'
-import shutil,sys
-shutil.copytree(sys.argv[1],sys.argv[2])
-COPY
-cd "$SOURCE"
-export PEKIT_VENDOR_OUT="$PEKIT_VENDOR_OUT/vendor"
-export PEKIT_VERSION=0.5.0
-sh "$REF/build.sh"
-cp -R "$PEKIT_VENDOR_OUT/pkm-uapi/pkm" "$PEKIT_OUT/usr/include/pkm"
-# The frozen build command already runs cargo test, ABI/export checks and
-# dynamic/static consumer probes before completing its SDK.
-'''
-
-[build.reference-sdk.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "*"
-
-[build.reference-sdk.dependencies.apt]
-build-essential = "*"
-python3 = "*"
-cargo = ">= 1.85"
-rustc = ">= 1.85"
-bash = "*"
-gawk = "*"
-diffutils = "*"
-debugedit = "*"
-cbindgen = "*"
-pkgconf = "*"
-
 [build.main]
-needs = ["reference-sdk"]
 command = """
 set -eu
 SRC="$PEKIT_SOURCE_ROOT"
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = apt ]; then
-  REF_SDK="$PEKIT_REFERENCE_SDK_OUT/usr"
-  export CPPFLAGS="${CPPFLAGS:-} -I$REF_SDK/include"
-  export LDFLAGS="${LDFLAGS:-} -L$REF_SDK/lib/x86_64-linux-peios"
-  export LD_LIBRARY_PATH="$REF_SDK/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-fi
 
 DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Scrub macro-expanded strings without hiding physical DWARF source paths.
-export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/net.sourceforge.e2fsprogs"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/net.sourceforge.e2fsprogs"
+# The patched mke2fs/debugfs link a bare -lpeios. libpeios-devel comes from
+# the catalogue in both roots; pkg-config supplies its include and library
+# directories where they are not already on the default search path (the
+# Debian root) and nothing in the native root. The result carries a normal
+# DT_NEEDED libpeios.so.0 and no rpath.
+export CPPFLAGS="${CPPFLAGS:+$CPPFLAGS }$(pkg-config --cflags peios)"
+export LDFLAGS="${LDFLAGS:?} $(pkg-config --libs-only-L peios)"
 cd "$PEKIT_OUT"
 
-# CC is left to the environment: the workspace CFLAGS already carry -g (the
-# debug split below needs it), and libpeios comes from libpeios-devel in the
-# composed root — its header tree is on the default include path and gcc's
-# triplet libdir is on the default link path, so the patched mke2fs/debugfs
-# link lines' bare -lpeios resolves with no injection. The result carries a
-# normal DT_NEEDED libpeios.so.0 and no rpath.
+# CC is left to the environment: the workspace CFLAGS already carry -g, which
+# the debug split below needs.
 #
 # The three --without-* are pinned, not left to detection. e2fsprogs sniffs
 # the BUILD HOST for a cron.d directory, a systemd pkg-config, and a udev
 # pkg-config, and installs e2scrub's cron job / service units / udev rules if
 # it finds them. Peios has none of the three, so the answer is always "no" —
-# but leaving it to detection makes the payload a property of whatever the
-# build ran inside. The pre-rung-2 build did find a cron.d on the host and
-# staged usr/libexec/e2fsprogs/e2scrub_all_cron + etc/cron.d/e2scrub_all,
-# which the rung-2 build does not. Pinned so the answer is the recipe's.
+# but leaving it to detection would make the payload a property of whatever
+# root the build ran inside (a Debian root, for one, has a cron.d). Pinned so
+# the answer is the recipe's.
 "$SRC/configure" \
   --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios \
   --sbindir=/usr/bin --sysconfdir=/etc \
   --without-crond-dir --without-systemd-unit-dir --without-udev-rules-dir \
-  --enable-elf-shlibs --disable-nls
+  --enable-elf-shlibs --disable-nls --disable-uuidd
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 make install-libs DESTDIR="$PEKIT_OUT"
@@ -182,13 +120,21 @@ make install-libs DESTDIR="$PEKIT_OUT"
 # Drop libtool archives (hardcoded paths + overlink; DT_NEEDED supersedes).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
+# e2scrub and e2scrub_all are bash scripts that snapshot filesystems through
+# LVM. Peios packages no LVM and ships them no bash dependency, so they could
+# only fail; they are left out of the payload together with their manuals.
+for tool in e2scrub e2scrub_all; do
+  test -f "$PEKIT_OUT/usr/bin/$tool"
+  rm "$PEKIT_OUT/usr/bin/$tool" "$PEKIT_OUT/usr/share/man/man8/$tool.8"
+done
+
 # --- multicall aliases: hard links -> symlinks, and fsck backends to libexec --
 #
 # e2fsprogs ships four argv[0]-dispatch programs whose aliases are installed as
 # HARD links, so each alias is a full copy of the binary as far as anything
 # outside the build tree is concerned. The peipkg format has no hard-link
-# representation (pack validates symlinks only, §3.4: relative, resolving
-# inside the tree), so those copies are what actually get installed — four
+# representation (the peipkg specification admits only symlinks: relative,
+# resolving inside the tree), so those copies are what actually get installed — four
 # 352 KB e2fsck images, four 150 KB mke2fs images. Relative symlinks carry the
 # same argv[0] dispatch and cost a few bytes.
 #
@@ -213,42 +159,12 @@ for t in ext2 ext3 ext4; do
   ln -s ../../bin/e2fsck "$PEKIT_OUT/usr/libexec/fsck/fsck.$t"
 done
 
-# Debug split (same shape as util-linux-lib/gmp/glibc): debugedit scrubs the
-# build path (-> /usr/src/debug/net.sourceforge.e2fsprogs) and records referenced sources;
-# split debug info build-id-indexed under usr/lib/debug/.build-id; strip the
-# shipped ELF; stage the referenced sources. The .c sources live in
-# $PEKIT_SOURCE_ROOT (the compiler saw absolute paths to it).
-SRCROOT="$DEBUG_ROOT"
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  debugedit -b "$SRCROOT" -d /usr/src/debug/net.sourceforge.e2fsprogs -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$SRCROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/net.sourceforge.e2fsprogs/$(dirname "$rel")"
-  cp "$SRCROOT/$rel" "usr/src/debug/net.sourceforge.e2fsprogs/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Debug split: build-ID debuginfo, stripped ELFs and static archives, and the
+# DWARF-referenced sources under /usr/src/debug/net.sourceforge.e2fsprogs.
+# make install-libs leaves some archives read-only (libblkid.a), which strip
+# cannot rewrite; make them owner-writable first.
+find "$PEKIT_OUT/usr" -type f -name '*.a' -exec chmod u+w {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" net.sourceforge.e2fsprogs "$PEKIT_OUT/usr"
 find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9fn {} +
 find "$PEKIT_OUT/usr/share/man" -type l | while IFS= read -r link; do
   target=$(readlink "$link")
@@ -259,16 +175,15 @@ done
 
 [build.main.dependencies.peipkg]
 # The C floor: compiler, binutils, libc/kernel headers, the shell + userland
-# every build assumes, and the debug-split tools (debugedit, patchelf; strip/
-# objcopy/readelf come with binutils) the command below invokes.
+# every build assumes, and the debug-split tools (debugedit; strip/objcopy/
+# readelf come with binutils) the command below invokes.
 "dev.peios.build-essentials-c" = "*"
 # makeinfo, for doc/libext2fs.info (claimed as usr/share/info/**).
 "org.gnu.texinfo" = "*"
 "org.pkgconf.pkgconf" = "*"
 # The Peios patches call peios_sddl_parse_sd() / peios_sd_reinherit(), so the
 # build needs libpeios's headers and dev symlink; -devel pulls kernel-headers
-# for the <pkm/*.h> those headers include. This replaces the vendored deps/
-# bridge the recipe used before libpeios published (deps/README.md).
+# for the <pkm/*.h> those headers include.
 "dev.peios.libpeios" = "*"
 "dev.peios.libpeios-devel" = "*"
 
@@ -282,6 +197,11 @@ done
 "org.gnu.which" = "*"
 
 [build.main.dependencies.apt]
+# Debian has no Peios ABI packages: libpeios, its SDK and the PKM UAPI headers
+# come from the signed catalogue (see the README's catalogue packages).
+"dev.peios.libpeios"       = "*"
+"dev.peios.libpeios-devel" = "*"
+"dev.peios.kernel-headers" = "*"
 build-essential = "*"
 debugedit = "*"
 texinfo = "*"
@@ -294,18 +214,14 @@ debianutils = "*"
 
 [test]
 gate = true
-needs = ["main", "reference-sdk"]
+needs = ["main"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
 export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
-
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = apt ]; then
-  REF_SDK="$PEKIT_REFERENCE_SDK_OUT/usr"
-  export CPPFLAGS="${CPPFLAGS:-} -I$REF_SDK/include"
-  export LDFLAGS="${LDFLAGS:-} -L$REF_SDK/lib/x86_64-linux-peios"
-  export LD_LIBRARY_PATH="$REF_SDK/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-fi
+# libpeios-devel's include and library directories, as in the build.
+PEIOS_CFLAGS=$(pkg-config --cflags peios)
+PEIOS_LIBDIRS=$(pkg-config --libs-only-L peios)
 
 output=$("$BIN/mke2fs" -V 2>&1)
 case "$output" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
@@ -327,7 +243,7 @@ export LD_LIBRARY_PATH="$PEKIT_OUT/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+
 SMOKE="$PEKIT_OUT/.peios-sd-smoke"
 mkdir -p "$SMOKE/tree/dir"
 touch "$SMOKE/tree/file"
-cc ${CPPFLAGS:-} ${LDFLAGS:-} -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
+cc $PEIOS_CFLAGS $PEIOS_LIBDIRS -Wall -Wextra -Werror -o "$SMOKE/sd-fixture" \
   "$PEKIT_RECIPE_ROOT/tests/sd-fixture.c" -lpeios
 
 ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)'
@@ -395,6 +311,9 @@ rm -rf "$SMOKE"
 "org.sourceware.bzip2" = "*"
 
 [test.dependencies.apt]
+"dev.peios.libpeios"       = "*"
+"dev.peios.libpeios-devel" = "*"
+"dev.peios.kernel-headers" = "*"
 build-essential = "*"
 texinfo = "*"
 pkgconf = "*"

@@ -35,7 +35,7 @@ cp -a . "$PEKIT_OUT/source"
 SRC="$PEKIT_OUT/source"
 cd "$PEKIT_OUT"
 
-CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.gnu.gawk -fmacro-prefix-map=$SRC=/usr/src/debug/org.gnu.gawk/source" \
+CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.gnu.gawk -fmacro-prefix-map=$SRC=/usr/src/debug/org.gnu.gawk/source" \
 "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \
@@ -62,50 +62,12 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc" \
 find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -name '*.la' -delete
 sed -i '1s|^#!/bin/sh|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/gawkbug"
 
-BIN="$PEKIT_OUT/usr/bin/gawk"
-LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk"
-SMOKE="$PEKIT_OUT/.gawk-build"
-mkdir -p "$SMOKE"
-find "$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk" -type f -name '*.so' \
-  | LC_ALL=C sort > "$SMOKE/extensions"
-test -s "$SMOKE/extensions"
-printf '%s\n' "$BIN" \
-  "$PEKIT_OUT/usr/libexec/awk/grcat" \
-  "$PEKIT_OUT/usr/libexec/awk/pwcat" \
-  | cat - "$SMOKE/extensions" > "$SMOKE/elfs"
-while IFS= read -r elf; do
-  patchelf --remove-rpath "$elf" 2>/dev/null || true
-done < "$SMOKE/elfs"
-
 # Produce conventional build-ID debuginfo and exact DWARF-referenced source
-# for the interpreter and every installed extension module.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-while IFS= read -r absolute; do
-  elf=${absolute#"$PEKIT_OUT/"}
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.gawk \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done < "$SMOKE/elfs"
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.gnu.gawk/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.gawk/$rel"
-    done
-rm -rf "$SMOKE"
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# for the interpreter, its helpers and every installed extension module.
+test -n "$(find "$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk" -type f -name '*.so' -print -quit)"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gawk \
+  "$PEKIT_OUT/usr/bin/gawk" "$PEKIT_OUT/usr/libexec/awk" \
+  "$PEKIT_OUT/usr/lib/x86_64-linux-peios/gawk"
 """
 
 [build.main.dependencies.peipkg]
@@ -118,7 +80,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.glibc-langpack-ru"  = ">= 2.43"
 "org.gnu.mpfr-devel"         = ">= 4.2.2"
 "org.sourceware.debugedit"   = "*"
-"org.nixos.patchelf"         = "*"
 "org.gnu.gzip"               = "*"
 
 [build.main.dependencies.apt]
@@ -126,7 +87,6 @@ build-essential = "*"
 debugedit       = "*"
 locales-all     = "*"
 libmpfr-dev     = "*"
-patchelf        = "*"
 gzip            = "*"
 
 [test]

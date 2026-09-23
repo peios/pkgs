@@ -29,6 +29,7 @@
 [allow_files."payload.scripts"]
 "usr/share/cmake-*/Modules/CompilerId/GHS_default.gpj.in" = "Green Hills project-file template consumed by CMake, not a host-executable script"
 "usr/share/cmake-*/Modules/CompilerId/GHS_lib.gpj.in" = "Green Hills project-file template consumed by CMake, not a host-executable script"
+"usr/share/cmake-*/Modules/Internal/CPack/CPack.RuntimeScript.in" = "Template CPack configures into a macOS bundle launcher; the installed .in file is data, not an executable script"
 "usr/share/cmake-*/Modules/Platform/AIX/ExportImportList" = "Upstream AIX-only helper uses that platform's shell dialect; Linux shell syntax does not apply"
 
 [allow_files."split.devel.packages"]

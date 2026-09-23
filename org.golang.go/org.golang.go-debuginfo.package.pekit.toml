@@ -3,7 +3,7 @@ name        = "org.golang.go-debuginfo"
 description = "Go toolchain detached debugging symbols"
 
 [dependencies]
-"org.golang.go" = "{{version}}-1"
+"org.golang.go" = "= {{release}}"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.golang.go-debuginfo/LICENSE"

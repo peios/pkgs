@@ -5,7 +5,7 @@ name        = "org.gnome.glib-static"
 description = "Static GLib, GObject, GIO, GModule, GThread and GIRepository libraries"
 
 [dependencies]
-"org.gnome.glib-devel" = "{{version}}-1"
+"org.gnome.glib-devel" = "= {{release}}"
 
 [files]
 "@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.gnome.glib-static/"

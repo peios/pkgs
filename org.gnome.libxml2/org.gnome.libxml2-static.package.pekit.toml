@@ -5,7 +5,7 @@ description = "libxml2 static library"
 [provides]
 
 [dependencies]
-"org.gnome.libxml2-devel" = "{{version}}-1"
+"org.gnome.libxml2-devel" = "= {{release}}"
 
 [files]
 "@source:Copyright"                     = "usr/share/licenses/org.gnome.libxml2-static/"

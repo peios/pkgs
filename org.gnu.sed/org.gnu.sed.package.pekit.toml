@@ -9,7 +9,7 @@ license     = "GPL-3.0-or-later"
 
 [dependencies]
 "org.gnu.glibc"                = ">= 2.43"
-"org.gnu.sed-common" = "{{version}}-1"
+"org.gnu.sed-common" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.sed/"

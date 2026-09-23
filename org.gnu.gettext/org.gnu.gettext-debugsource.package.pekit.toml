@@ -4,7 +4,7 @@ description = "Debug source for GNU Gettext tools and libraries"
 
 # Generated source and headers must match the architecture's symbol package.
 [dependencies]
-"org.gnu.gettext-debuginfo" = "{{version}}-1"
+"org.gnu.gettext-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.gettext-debugsource/"

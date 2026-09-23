@@ -3,7 +3,7 @@ Author: Peios maintainers
 
 GCC hardcodes the Debian multiarch directory name for this target as
 `x86_64-linux-gnu`.  Peios installs architecture-specific libraries under
-`/usr/lib/x86_64-linux-peios` (PSD-009 3.4.2), so the name has to follow the
+`/usr/lib/x86_64-linux-peios` (per the peipkg specification), so the name has to follow the
 triplet, or the compiler searches a directory that does not exist and installs
 its own runtime libraries into one nothing looks in.
 

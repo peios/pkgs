@@ -5,7 +5,7 @@ description = "GNU MPFR development files"
 [provides]
 
 [dependencies]
-"org.gnu.mpfr"      = "{{version}}-1"
+"org.gnu.mpfr"      = "= {{release}}"
 "org.gnu.gmp-devel" = ">= 6.3.0"
 
 [files]

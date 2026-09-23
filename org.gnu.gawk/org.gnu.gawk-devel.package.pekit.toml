@@ -3,7 +3,7 @@ name        = "org.gnu.gawk-devel"
 description = "GNU Awk loadable extension development interface"
 
 [dependencies]
-"org.gnu.gawk" = "{{version}}-1"
+"org.gnu.gawk" = "= {{release}}"
 
 [files]
 "@source:COPYING"       = "usr/share/licenses/org.gnu.gawk-devel/"

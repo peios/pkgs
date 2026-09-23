@@ -34,7 +34,7 @@ PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Preserve physical DWARF paths until debugedit collects the source files.
-export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnome.libxml2"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnome.libxml2"
 
 mkdir -p "$BUILD"
 cd "$BUILD"
@@ -71,7 +71,11 @@ make -j"$(nproc)"
 # every shipped ELF and the deterministic static archive byte for byte.
 REPRO="$PEKIT_OUT/.repro"
 mkdir -p "$REPRO"
-cp .libs/libxml2.so.16.1.* "$REPRO/libxml2.so"
+# The real object's minor follows upstream; the SONAME major is gated below.
+BUILT_SO=$(find .libs -maxdepth 1 -type f -name 'libxml2.so.16.*')
+test "$(printf '%s\n' "$BUILT_SO" | grep -c .)" -eq 1
+readelf -d "$BUILT_SO" | grep -F 'Library soname: [libxml2.so.16]'
+cp "$BUILT_SO" "$REPRO/libxml2.so"
 cp .libs/libxml2.a "$REPRO/libxml2.a"
 cp .libs/xmllint "$REPRO/xmllint"
 cp .libs/xmlcatalog "$REPRO/xmlcatalog"
@@ -96,40 +100,22 @@ gzip -9n "$PREFIX/share/man/man1/xml2-config.1" \
   "$PREFIX/share/man/man1/xmllint.1" \
   "$PREFIX/share/man/man1/xmlcatalog.1"
 
-LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.1.*' \
-  | LC_ALL=C sort)
-# Create conventional build-ID-indexed symbols and copy exactly the source
-# files named by rewritten DWARF into the debugsource payload.
-strip --strip-debug "$LIBDIR/libxml2.a"
-: > "$PEKIT_OUT/.srclist"
-for elf in "$LIBXML_SO" "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"; do
-  patchelf --remove-rpath "$elf"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.libxml2 \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  case "$elf" in
-    "$LIBXML_SO") DEBUGROOT="$PREFIX/lib/debug-libxml2" ;;
-    *) DEBUGROOT="$PREFIX/lib/debug-libxml2-utils" ;;
-  esac
-  mkdir -p "$DEBUGROOT/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" \
-    "$DEBUGROOT/.build-id/$p2/$rest.debug"
-  chmod 0644 "$DEBUGROOT/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.gnome.libxml2/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.libxml2/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.*')
+test "$(printf '%s\n' "$LIBXML_SO" | grep -c .)" -eq 1
+# Libtool relinks the tools with RUNPATH=/usr/lib/x86_64-linux-peios: Peios
+# roots have no ld.so.conf, so libtool's system search list is only /lib and
+# /usr/lib and it treats the triplet directory as non-standard. The loader
+# already searches it, so the entry is redundant and the workspace forbids it.
+patchelf --remove-rpath "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"
+# The library and the tools ship separate debuginfo packages, so split each
+# group on its own and move its build-ID tree aside before the next one. The
+# shared debugsource tree accumulates across both calls.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnome.libxml2 \
+  "$LIBXML_SO" "$LIBDIR/libxml2.a"
+mv "$PREFIX/lib/debug" "$PREFIX/lib/debug-libxml2"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnome.libxml2 \
+  "$PREFIX/bin/xmllint" "$PREFIX/bin/xmlcatalog"
+mv "$PREFIX/lib/debug" "$PREFIX/lib/debug-libxml2-utils"
 '''
 
 [build.main.dependencies.peipkg]
@@ -150,7 +136,7 @@ REPRO="$PEKIT_MAIN_OUT/.repro"
 cd "$BUILD"
 make clean
 make -j"$(nproc)"
-cmp "$REPRO/libxml2.so" .libs/libxml2.so.16.1.*
+cmp "$REPRO/libxml2.so" "$(find .libs -maxdepth 1 -type f -name 'libxml2.so.16.*')"
 cmp "$REPRO/libxml2.a" .libs/libxml2.a
 cmp "$REPRO/xmllint" .libs/xmllint
 cmp "$REPRO/xmlcatalog" .libs/xmlcatalog
@@ -177,7 +163,7 @@ mkdir -p "$SMOKE"
 find "$PREFIX/bin" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort > "$SMOKE/actual-bin"
 printf '%s\n' xml2-config xmlcatalog xmllint | LC_ALL=C sort > "$SMOKE/expected-bin"
 diff -u "$SMOKE/expected-bin" "$SMOKE/actual-bin"
-LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.1.*' | LC_ALL=C sort)
+LIBXML_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libxml2.so.16.*' | LC_ALL=C sort)
 test "$(printf '%s\n' "$LIBXML_SO" | grep -c .)" -eq 1
 test -L "$LIBDIR/libxml2.so.16"
 test -L "$LIBDIR/libxml2.so"

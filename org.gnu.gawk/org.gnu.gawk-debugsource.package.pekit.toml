@@ -3,7 +3,7 @@ name        = "org.gnu.gawk-debugsource"
 description = "GNU Awk interpreter, helper and extension debug sources"
 
 [dependencies]
-"org.gnu.gawk-debuginfo" = "{{version}}-1"
+"org.gnu.gawk-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gawk-debugsource/"

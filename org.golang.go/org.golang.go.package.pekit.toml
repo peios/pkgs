@@ -7,7 +7,7 @@ description = "Compiler, formatter, build command, and target tools for Go"
 [provides]
 
 [dependencies]
-"org.golang.go-src" = "{{version}}-1"
+"org.golang.go-src" = "= {{release}}"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.golang.go/LICENSE"

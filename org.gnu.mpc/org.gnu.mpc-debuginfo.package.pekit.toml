@@ -7,7 +7,7 @@ description = "GNU MPC debugging symbols"
 [replaces]
 
 [dependencies]
-"org.gnu.mpc" = "{{version}}-1"
+"org.gnu.mpc" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-debuginfo/"

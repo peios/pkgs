@@ -1,9 +1,10 @@
 # Go 1.24.6 binary bootstrap seed for building Go 1.26 and 1.27.
 #
 # Go's compiler is self-hosting. Upstream requires Go 1.24.6 or newer to build
-# Go 1.26, so this authenticated HTTPS release and Pekit's immutable SHA-256
-# lock are the explicit binary root of trust. It lives under a private prefix
-# and is intended only for the source-built org.golang.go recipe.
+# Go 1.26, so this signature-verified upstream release, pinned by Pekit's
+# immutable SHA-256 lock, is the explicit binary root of trust. It lives under
+# a private prefix and is intended only for the source-built org.golang.go
+# recipe.
 
 out_dir = "out"
 
@@ -15,6 +16,17 @@ url      = "https://go.dev/dl/go{{version}}.linux-amd64.tar.gz"
 extract  = true
 root     = "go"
 versions = "= 1.24.6"
+
+# go.dev/dl publishes an armored detached signature beside each archive
+# (<archive>.asc, served from dl.google.com), made with a signing subkey of
+# Google's Linux package signing key. The pinned primary fingerprint matches
+# the key published at https://dl.google.com/linux/linux_signing_key.pub and
+# Google's documentation at https://www.google.com/linuxrepositories/.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/google-linux-signing-key.asc"]
+fingerprints = ["EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"]
 
 [build.main]
 command = '''
@@ -42,6 +54,10 @@ find "$PREFIX/src" -type f -path '*/testdata/*' -exec sh -c '
 find "$PREFIX/src" -type f -name .gitignore -delete
 find "$PREFIX/src" -type f -path '*/testdata/*'   \( -name '*.o' -o -name '*.a' \) -delete
 rm -f "$PREFIX/src/all.rc" "$PREFIX/src/clean.rc" "$PREFIX/src/make.rc" "$PREFIX/src/run.rc"
+# The vendored telemetry npm/npx wrappers serve upstream's web development
+# workflow only (the source-built org.golang.go drops them too).
+rm -f "$PREFIX/src/cmd/vendor/golang.org/x/telemetry/npm" \
+  "$PREFIX/src/cmd/vendor/golang.org/x/telemetry/npx"
 
 
 '''

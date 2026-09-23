@@ -4,7 +4,7 @@ description = "GNU Patch - debugging symbols"
 license     = "GPL-3.0-or-later"
 
 [dependencies]
-"org.gnu.patch" = "{{version}}-1"
+"org.gnu.patch" = "= {{release}}"
 
 [files]
 "@source:COPYING"  = "usr/share/licenses/org.gnu.patch-debuginfo/COPYING"

@@ -3,7 +3,7 @@ name        = "org.gnu.bc-debuginfo"
 description = "GNU bc and dc debugging symbols"
 
 [dependencies]
-"org.gnu.bc" = "{{version}}-2"
+"org.gnu.bc" = "= {{release}}"
 
 [files]
 "@source:COPYING*"  = "usr/share/licenses/org.gnu.bc-debuginfo/"

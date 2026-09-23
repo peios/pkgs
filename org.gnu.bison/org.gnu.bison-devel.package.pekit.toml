@@ -6,7 +6,7 @@ name        = "org.gnu.bison-devel"
 description = "GNU Bison - liby library and parser internationalisation macro"
 
 [dependencies]
-"org.gnu.bison" = "{{version}}-1"
+"org.gnu.bison" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.bison-devel/"

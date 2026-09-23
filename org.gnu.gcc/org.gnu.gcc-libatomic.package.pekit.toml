@@ -1,7 +1,7 @@
 # libatomic — GCC's out-of-line atomic operations runtime (libatomic.so.1),
 # linked in for atomics the hardware can't do inline (over-sized or misaligned
-# types). The dev .so symlink and static libatomic.a are deferred to the
-# milestone-2 toolchain.
+# types). The dev .so symlink is libatomic-devel; the static libatomic.a is
+# libatomic-static.
 #
 # A glob source ("so.1*") maps to a DIRECTORY.
 

@@ -3,7 +3,7 @@ name        = "org.gnu.gettext-debuginfo"
 description = "Debug symbols for GNU Gettext tools and libraries"
 
 [dependencies]
-"org.gnu.gettext" = "{{version}}-1"
+"org.gnu.gettext" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.gettext-debuginfo/"

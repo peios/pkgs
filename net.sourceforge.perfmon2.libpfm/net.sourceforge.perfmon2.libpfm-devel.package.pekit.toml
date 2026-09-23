@@ -14,7 +14,7 @@ description = "libpfm - headers and link library"
 [provides]
 
 [dependencies]
-"net.sourceforge.perfmon2.libpfm" = "{{version}}-1"
+"net.sourceforge.perfmon2.libpfm" = "= {{release}}"
 
 [files]
 "@source:COPYING"                      = "usr/share/licenses/net.sourceforge.perfmon2.libpfm-devel/"

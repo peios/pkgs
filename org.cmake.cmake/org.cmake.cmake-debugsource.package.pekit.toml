@@ -3,7 +3,7 @@ name        = "org.cmake.cmake-debugsource"
 description = "CMake - debug sources"
 
 [dependencies]
-"org.cmake.cmake-debuginfo" = "{{version}}-1"
+"org.cmake.cmake-debuginfo" = "= {{release}}"
 
 [files]
 ":usr/src/debug/**" = "usr/src/debug"

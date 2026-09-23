@@ -9,7 +9,7 @@ description = "libxslt and libexslt headers and development metadata"
 [replaces]
 
 [dependencies]
-"org.gnome.libxslt"       = "{{version}}-1"
+"org.gnome.libxslt"       = "= {{release}}"
 "org.gnome.libxml2-devel" = ">= 2.15.3-1"
 
 [files]

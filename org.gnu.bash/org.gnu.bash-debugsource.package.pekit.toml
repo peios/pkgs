@@ -3,7 +3,7 @@ name        = "org.gnu.bash-debugsource"
 description = "GNU Bash debug sources"
 
 [dependencies]
-"org.gnu.bash-debuginfo" = "{{version}}-1"
+"org.gnu.bash-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*"   = "usr/share/licenses/org.gnu.bash-debugsource/"

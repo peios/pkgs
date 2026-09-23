@@ -3,7 +3,7 @@ name        = "org.gnu.gperf-debuginfo"
 description = "GNU gperf debugging symbols"
 
 [dependencies]
-"org.gnu.gperf" = "{{version}}-2"
+"org.gnu.gperf" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gperf-debuginfo/COPYING"

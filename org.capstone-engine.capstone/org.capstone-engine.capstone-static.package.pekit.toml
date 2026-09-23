@@ -3,7 +3,7 @@ name        = "org.capstone-engine.capstone-static"
 description = "Capstone - static SDK compatibility umbrella"
 
 [dependencies]
-"org.capstone-engine.capstone-devel" = "{{version}}-1"
+"org.capstone-engine.capstone-devel" = "= {{release}}"
 
 [files]
 "@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone-static/"

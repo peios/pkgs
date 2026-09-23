@@ -7,7 +7,7 @@ description = "GNU pattern scanning and processing language"
 "org.gnu.gmp"                   = ">= 6.3.0"
 "org.gnu.mpfr"                  = ">= 4.2.2"
 "org.git.kernel.dash"                  = "*"
-"org.gnu.gawk-common" = "{{version}}-1"
+"org.gnu.gawk-common" = "= {{release}}"
 
 [files]
 "@source:COPYING"                         = "usr/share/licenses/org.gnu.gawk/"

@@ -73,41 +73,10 @@ for tool in gdbus-codegen glib-genmarshal glib-mkenums gtester-report; do
   test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/usr/bin/python3'
 done
 
-# Static archives keep their code but leave debug sections to the shared
-# objects' debuginfo.
-for a in "$LIBDIR"/*.a; do strip --strip-debug "$a"; done
-
-# Build-ID debug data for every ELF program and shared object, and the exact
-# source tree it references, then strip.
-: > "$PEKIT_OUT/.srclist"
-find "$PREFIX/bin" "$PREFIX/libexec" "$LIBDIR" -type f 2>/dev/null |
-  while IFS= read -r f; do
-    case "$f" in *.a) continue;; esac
-    head -c 4 "$f" | grep -q 'ELF' || continue
-    printf '%s\n' "$f"
-  done > "$PEKIT_OUT/.elves"
-test -s "$PEKIT_OUT/.elves"
-while IFS= read -r elf; do
-  debugedit -b "$ROOT" -d /usr/src/debug/org.gnome.glib \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done < "$PEKIT_OUT/.elves"
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.gnome.glib/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.gnome.glib/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Build-ID debug data for every ELF program and shared object and the exact
+# source tree it references; strip them, and strip the static archives' debug
+# sections, leaving those to the shared objects' debuginfo.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnome.glib "$PREFIX"
 '''
 
 [build.main.dependencies.peipkg]

@@ -11,7 +11,7 @@ description  = "GNU gzip non-interactive shell utilities"
 "org.gnu.sed"                 = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.diffutils" = "*"
-"org.gnu.gzip"      = "{{version}}-1"
+"org.gnu.gzip"      = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.gnu.gzip-utils/COPYING"

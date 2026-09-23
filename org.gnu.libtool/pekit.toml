@@ -63,7 +63,7 @@ make install DESTDIR="$PEKIT_OUT"
 # This prevents inherited hardening/linker flags from leaking into libtool's
 # generated consumer scripts while keeping the actual runtime fully hardened.
 cd "$LTDL_BUILD"
-LTDL_CFLAGS="${CFLAGS-} -fmacro-prefix-map=$WORK=$DEBUG_PREFIX"
+LTDL_CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$WORK=$DEBUG_PREFIX"
 "$SRC/libltdl/configure" \
   --prefix=/usr \
   --libdir=/usr/lib/x86_64-linux-peios \
@@ -72,7 +72,7 @@ LTDL_CFLAGS="${CFLAGS-} -fmacro-prefix-map=$WORK=$DEBUG_PREFIX"
   --enable-static \
   CFLAGS="$LTDL_CFLAGS" \
   CPPFLAGS="${CPPFLAGS-}" \
-  LDFLAGS="${LDFLAGS-} -Wl,-z,ibtplt"
+  LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
@@ -97,29 +97,11 @@ done
 chmod 0755 "$PEKIT_OUT/usr/share/libtool/build-aux/ltmain.sh"
 find "$PEKIT_OUT/usr/share/man/man1" -type f -name '*.1' -exec gzip -9n {} +
 
-# Create build-ID-indexed symbols and copy exactly the source/generated files
-# named by the runtime's rewritten DWARF.
-strip --strip-debug "$LIBDIR/libltdl.a"
-patchelf --remove-rpath "$LTDL_SO"
-debugedit -b "$WORK" -d /usr/src/debug/org.gnu.libtool \
-  -l "$PEKIT_OUT/.srclist" -n "$LTDL_SO"
-bid=$(readelf -n "$LTDL_SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "$PEKIT_OUT/usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$LTDL_SO" \
-  "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "$PEKIT_OUT/usr/lib/debug/.build-id/$p2/$rest.debug"
-strip "$LTDL_SO"
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$WORK/$rel" || continue
-  mkdir -p "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$(dirname "$rel")"
-  cp "$WORK/$rel" "$PEKIT_OUT/usr/src/debug/org.gnu.libtool/$rel"
-done
-rm -f "$PEKIT_OUT/.srclist"
+# Create build-ID-indexed symbols, strip the static archive's debug sections
+# and copy exactly the source/generated files named by the runtime's rewritten
+# DWARF. The prefix map above is relative to $WORK, not the job root.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --build-root "$WORK" \
+  org.gnu.libtool "$LTDL_SO" "$LIBDIR/libltdl.a"
 """
 
 [test]
@@ -197,7 +179,7 @@ PATH="$BIN:$PATH" _lt_pkgdatadir="$STAGED_DATA" \
 ACLOCAL_PATH="$STAGE/usr/share/aclocal" aclocal
 autoconf
 automake --add-missing --copy
-env CFLAGS="${CFLAGS-}" LDFLAGS="${LDFLAGS-}" ./configure \
+env CFLAGS="${CFLAGS:?}" LDFLAGS="${LDFLAGS:?}" ./configure \
   --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios
 make -j"$(nproc)"
 ./answer-client
@@ -267,6 +249,5 @@ readelf -d "$LTDL_SO" | grep -F 'Shared library: [libc.so.6]'
 "org.sourceware.debugedit"               = "*"
 "org.gnu.autoconf"      = "*"
 "org.gnu.automake"      = "*"
-"org.nixos.patchelf"                 = "*"
 "org.gnu.tar"                       = "*"
 "org.gnu.gzip"                      = "*"

@@ -1,0 +1,20 @@
+Subject: Stagger the SIGCHLD fixture's sleeping children
+Origin: Peios packaging, test fixture race fix
+
+Concurrent equal-duration child exits make the SIGCHLD fixture race: standard
+signals may coalesce, so fewer CHLD traps can run than the golden output
+expects. Keep the same four children, job-control operations and expected
+output, but separate the three sleep completions.
+
+--- a/tests/trap8.sub
++++ b/tests/trap8.sub
+@@ -8,7 +8,7 @@
+ wait
+
+ sleep 1 &
+-sleep 1 &
++sleep 2 &
+
+-sleep 1
++sleep 3
+ wait

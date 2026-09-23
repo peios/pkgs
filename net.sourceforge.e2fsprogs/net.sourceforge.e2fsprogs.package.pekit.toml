@@ -1,15 +1,20 @@
 # e2fsprogs — the ext2/3/4 filesystem tools: mke2fs (+ mkfs.ext{2,3,4}), e2fsck
 # (+ fsck.ext{2,3,4}), tune2fs, resize2fs, dumpe2fs, debugfs, badblocks, blkid,
-# findfs, e2image, e2undo, e2label, filefrag, logsave, and the e2scrub helpers.
+# findfs, e2image, e2undo, e2label, filefrag and logsave.
 # Patched for Peios: mke2fs grows -E root_sddl=/root_sd_file= and SD-aware -d,
-# both via libpeios (a libpeios.so.0 runtime dep is auto-derived from mke2fs/
-# debugfs — satisfiable once libpeios publishes a package).
+# both via libpeios (the libpeios.so.0 runtime dependency is derived from the
+# mke2fs/debugfs DT_NEEDED entries).
 
 # libblkid.3 documents the libblkid library, which e2fsprogs does NOT ship
 # (org.kernel.libblkid owns it) — drop it from the usr/share/man/** glob so we
-# don't carry a man page for an absent library.
+# don't carry a man page for an absent library. The com_err/ss code generators
+# and their manuals are development tools, owned by -devel.
 excludes = [
   ":usr/share/man/man3/libblkid.3.gz",
+  ":usr/bin/compile_et",
+  ":usr/bin/mk_cmds",
+  ":usr/share/man/man1/compile_et.1.gz",
+  ":usr/share/man/man1/mk_cmds.1.gz",
 ]
 
 # PSPU §5.24: a payload carrying man pages SHOULD declare man-db, so that
@@ -24,11 +29,11 @@ description = "Ext2/3/4 filesystem utilities"
 
 [dependencies]
 "org.gnu.glibc"      = ">= 2.43"
-"net.sourceforge.e2fsprogs-libcom-err" = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libss"      = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libext2fs"  = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libe2p"     = "{{version}}-1"
-"net.sourceforge.e2fsprogs-libuuid"    = "{{version}}-1"
+"net.sourceforge.e2fsprogs-libcom-err" = "= {{release}}"
+"net.sourceforge.e2fsprogs-libss"      = "= {{release}}"
+"net.sourceforge.e2fsprogs-libext2fs"  = "= {{release}}"
+"net.sourceforge.e2fsprogs-libe2p"     = "= {{release}}"
+"net.sourceforge.e2fsprogs-libuuid"    = "= {{release}}"
 # libblkid.so.1 comes from org.kernel.libblkid (the bundled copy is unshipped).
 "org.kernel.libblkid" = "*"
 
@@ -43,12 +48,8 @@ description = "Ext2/3/4 filesystem utilities"
 # helper, and the recipe pins --without-crond-dir, so it is never built.)
 ":usr/libexec/**"         = "usr/libexec"
 ":usr/lib/x86_64-linux-peios/e2initrd_helper"     = "usr/lib/x86_64-linux-peios/e2initrd_helper"
-# NOTE: mke2fs.conf / e2scrub.conf are config, not package payload — Peios
-# projects config from the registry (/etc is generated; see peios-config-
-# philosophy). The Patch 3 deltas (inode_size 512, ea_inode, drop acl) are the
-# CONTENT SPEC for that registry entry; delivering it is a separate config step.
-# Left unclaimed here so the payload stays §3.4.1-compliant.
+# mke2fs.conf and e2scrub.conf, which make install writes under etc/, stay
+# unclaimed: a package never writes live /etc, and Patch 3 compiles the Peios
+# mke2fs defaults (inode_size 512, ea_inode, no acl) into the binary, so no
+# configuration file is needed for them to apply.
 ":usr/share/man/**"       = "usr/share/man"
-":usr/share/info/**"      = "usr/share/info"
-":usr/share/et/**"        = "usr/share/et"
-":usr/share/ss/**"        = "usr/share/ss"

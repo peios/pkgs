@@ -8,7 +8,7 @@ name        = "net.sourceforge.e2fsprogs-debugsource"
 description = "Ext2/3/4 filesystem utilities - debug sources"
 
 [dependencies]
-"net.sourceforge.e2fsprogs-debuginfo" = "{{version}}-1"
+"net.sourceforge.e2fsprogs-debuginfo" = "= {{release}}"
 
 [files]
 "@source:NOTICE"    = "usr/share/licenses/net.sourceforge.e2fsprogs-debugsource/"

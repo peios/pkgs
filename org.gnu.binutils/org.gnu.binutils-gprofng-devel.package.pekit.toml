@@ -4,7 +4,7 @@ name = "org.gnu.binutils-gprofng-devel"
 description = "GNU Next Generation Profiler - link-time library files"
 
 [dependencies]
-"org.gnu.binutils-gprofng" = "{{version}}-1"
+"org.gnu.binutils-gprofng" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.binutils-gprofng-devel/"

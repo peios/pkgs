@@ -7,7 +7,7 @@ name        = "org.capstone-engine.capstone"
 description = "Multi-architecture command-line disassembler"
 
 [dependencies]
-"org.capstone-engine.capstone-libs" = "{{version}}-1"
+"org.capstone-engine.capstone-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSE.TXT"      = "usr/share/licenses/org.capstone-engine.capstone/"

@@ -3,7 +3,7 @@ name        = "org.gnu.findutils-debuginfo"
 description = "GNU Findutils debugging symbols"
 
 [dependencies]
-"org.gnu.findutils" = "{{version}}-1"
+"org.gnu.findutils" = "= {{release}}"
 
 [files]
 "@source:COPYING*"  = "usr/share/licenses/org.gnu.findutils-debuginfo/"

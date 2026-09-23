@@ -3,7 +3,7 @@ name        = "org.gnu.tar-debugsource"
 description = "GNU tar debug sources"
 
 [dependencies]
-"org.gnu.tar-debuginfo" = "{{version}}-1"
+"org.gnu.tar-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.tar-debugsource/"

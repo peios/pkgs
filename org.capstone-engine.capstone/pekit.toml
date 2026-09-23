@@ -21,20 +21,22 @@ SRC="$(pwd)"
 BUILD="$PEKIT_OUT/build"
 LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 
-# Keep DWARF paths physical until debugedit collects the referenced files.
+# CMake takes the workspace CFLAGS/LDFLAGS from the environment; append only
+# this recipe's extras. Keep DWARF paths physical until split-debug collects
+# the referenced files, and generate IBT PLT entries. The RelWithDebInfo
+# per-configuration flags are emptied so CMake's own -O2 -g -DNDEBUG does not
+# override the distribution set.
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-CFLAGS_COMMON="-O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3 -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.capstone-engine.capstone"
-LDFLAGS_COMMON="-Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.capstone-engine.capstone"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 cmake -S "$SRC" -B "$BUILD" \
   -DPROJECT_VERSION="$PEKIT_VERSION" \
   -DCMAKE_INSTALL_PREFIX=/usr \
   -DCMAKE_INSTALL_LIBDIR=lib/x86_64-linux-peios \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DCMAKE_C_FLAGS_RELWITHDEBINFO="$CFLAGS_COMMON" \
-  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="$CFLAGS_COMMON" \
-  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS_COMMON" \
-  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS_COMMON" \
+  -DCMAKE_C_FLAGS_RELWITHDEBINFO= \
+  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO= \
   -DBUILD_SHARED_LIBS=ON \
   -DBUILD_STATIC_LIBS=ON \
   -DCAPSTONE_BUILD_TESTS=ON \
@@ -52,45 +54,13 @@ install -m 0644 "$SRC/README.md" "$SRC/ChangeLog" "$SRC/CREDITS.TXT" \
   "$SRC/SPONSORS.TXT" "$DOCDIR/"
 
 # Distribution debug split.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.capstone-engine.capstone -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.capstone-engine.capstone/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.capstone-engine.capstone/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.capstone-engine.capstone "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake" = "*"
 "org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 
 [test]

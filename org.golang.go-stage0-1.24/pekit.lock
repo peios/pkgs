@@ -9,4 +9,5 @@ schema = 1
   version = "1.24.6"
   url = "https://go.dev/dl/go1.24.6.linux-amd64.tar.gz"
   sha256 = "bbca37cc395c974ffa4893ee35819ad23ebb27426df87af92e93a9ec66ef8712"
-  locked_at = "2026-09-09T22:56:23Z"
+  signature_key = "eb4c1bfd4f042f6dddccec917721f63bd38b4796"
+  locked_at = "2026-09-23T12:21:39Z"

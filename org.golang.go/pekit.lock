@@ -9,10 +9,12 @@ schema = 1
   version = "1.26.5"
   url = "https://go.dev/dl/go1.26.5.src.tar.gz"
   sha256 = "495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42"
-  locked_at = "2026-09-09T23:03:20Z"
+  signature_key = "eb4c1bfd4f042f6dddccec917721f63bd38b4796"
+  locked_at = "2026-09-23T12:21:29Z"
 
 [[source]]
   version = "1.27.1"
   url = "https://go.dev/dl/go1.27.1.src.tar.gz"
   sha256 = "4e408abae126d916b6164627193f2c54f0e3ca1312d693b86db45f862ab238b1"
-  locked_at = "2026-09-11T20:28:12Z"
+  signature_key = "eb4c1bfd4f042f6dddccec917721f63bd38b4796"
+  locked_at = "2026-09-23T12:21:34Z"

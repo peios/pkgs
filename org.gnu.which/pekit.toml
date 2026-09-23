@@ -57,36 +57,7 @@ find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 # upstream documentation in the noarch common package.
 rm -rf "$PEKIT_OUT/usr/share/info"
 
-BIN="$PEKIT_OUT/usr/bin/which"
-
-# Enforce the inherited distribution hardening and runtime-closure contract
-# on the sole installed ELF before creating conventional build-ID debuginfo.
-patchelf --remove-rpath "$BIN" 2>/dev/null || true
-patchelf --remove-needed ld-linux-x86-64.so.2 "$BIN" 2>/dev/null || true
-
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.which \
-  -l "$PEKIT_OUT/.srclist" -n usr/bin/which
-bid=$(readelf -n usr/bin/which \
-  | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug usr/bin/which \
-  "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip usr/bin/which
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.gnu.which/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.which/$rel"
-    done
-rm -f "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.which "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
@@ -95,7 +66,6 @@ rm -f "$PEKIT_OUT/.srclist"
 # AC_PROG_CXX and tests C++ warning flags even for this package.
 "dev.peios.build-essentials-c++" = "*"
 "org.sourceware.debugedit"              = "*"
-"org.nixos.patchelf"               = "*"
 
 [test]
 needs = ["main"]

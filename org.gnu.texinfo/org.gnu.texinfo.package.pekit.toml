@@ -8,7 +8,7 @@ license     = "GPL-3.0-or-later"
 [replaces]
 
 [dependencies]
-"org.gnu.texinfo-common" = "{{version}}-1"
+"org.gnu.texinfo-common" = "= {{release}}"
 "org.perl.perl"          = "*"
 
 [files]

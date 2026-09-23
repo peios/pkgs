@@ -3,7 +3,7 @@ name        = "org.gnu.sed-debugsource"
 description = "GNU sed debug sources"
 
 [dependencies]
-"org.gnu.sed-debuginfo" = "{{version}}-1"
+"org.gnu.sed-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.sed-debugsource/"

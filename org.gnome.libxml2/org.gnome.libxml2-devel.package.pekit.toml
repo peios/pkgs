@@ -9,7 +9,7 @@ description = "libxml2 headers and shared-library development metadata"
 [replaces]
 
 [dependencies]
-"org.gnome.libxml2" = "{{version}}-1"
+"org.gnome.libxml2" = "= {{release}}"
 "io.github.zlib-ng.zlib-ng-compat-devel"        = "*"
 
 [files]

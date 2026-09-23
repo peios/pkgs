@@ -3,8 +3,8 @@ name        = "org.capstone-engine.capstone-devel"
 description = "Capstone - headers and development metadata"
 
 [dependencies]
-"org.capstone-engine.capstone" = "{{version}}-1"
-"org.capstone-engine.capstone-libs" = "{{version}}-1"
+"org.capstone-engine.capstone" = "= {{release}}"
+"org.capstone-engine.capstone-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSE.TXT"                           = "usr/share/licenses/org.capstone-engine.capstone-devel/"

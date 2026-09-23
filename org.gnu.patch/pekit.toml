@@ -12,6 +12,11 @@ file_regex  = 'patch-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
 # Soft maintenance floor: follow authenticated stable releases automatically.
 versions    = ">= 2.8"
 
+# GNU Patch releases are signed by maintainer Andreas Gruenbacher. The pinned
+# full primary fingerprint matches his entry in GNU's official keyring
+# (https://ftp.gnu.org/gnu/gnu-keyring.gpg); the committed key is his current
+# export of that primary, with its renewed expiry. Unattended discovery must
+# authenticate every newly selected release against it.
 [source.url.signature]
 url          = "{{source_url}}.sig"
 of           = "artifact"
@@ -39,28 +44,7 @@ make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 gzip -9n "$PEKIT_OUT/usr/share/man/man1/patch.1"
 
-cd "$PEKIT_OUT"
-BIN=usr/bin/patch
-patchelf --remove-rpath "$BIN" 2>/dev/null || true
-debugedit -b "$ROOT" -d /usr/src/debug/org.gnu.patch \
-  -l "$PEKIT_OUT/.srclist" -n "$BIN"
-bid=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$BIN" "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip "$BIN"
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$ROOT/$rel" || continue
-      mkdir -p "usr/src/debug/org.gnu.patch/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.gnu.patch/$rel"
-    done
-rm -f "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.patch "$PEKIT_OUT/usr"
 '''
 
 [build.main.dependencies.peipkg]
@@ -68,7 +52,6 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.sourceware.debugedit"     = "*"
 "org.gnu.gettext"              = "*"
 "org.gnu.gzip"                 = "*"
-"org.nixos.patchelf"           = "*"
 "org.perl.perl"                = "*"
 
 [test]

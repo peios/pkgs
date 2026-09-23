@@ -6,7 +6,7 @@ name        = "net.sourceforge.e2fsprogs-static"
 description = "Ext2/3/4 filesystem utilities - static libraries"
 
 [dependencies]
-"net.sourceforge.e2fsprogs-devel" = "{{version}}-1"
+"net.sourceforge.e2fsprogs-devel" = "= {{release}}"
 
 [files]
 "@source:NOTICE"                              = "usr/share/licenses/net.sourceforge.e2fsprogs-static/"

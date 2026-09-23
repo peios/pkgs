@@ -8,11 +8,11 @@ description = "GNU Multiple Precision Arithmetic Library - development files"
 [provides]
 
 [dependencies]
-"org.gnu.gmp" = "{{version}}-1"
+"org.gnu.gmp" = "= {{release}}"
 # gmpxx.h and the libgmpxx.so dev symlink live here, so the runtime they
 # resolve against has to come too. Fedora's gmp-devel Requires gmp-c++ for the
 # same reason.
-"org.gnu.gmp-c++" = "{{version}}-1"
+"org.gnu.gmp-c++" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.gmp-devel/"

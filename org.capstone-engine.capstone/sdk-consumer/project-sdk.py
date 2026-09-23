@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Project only the selected SDK's declared same-family payload closure."""
 from pathlib import Path
-import argparse,hashlib,json,shutil,tomllib
+import argparse,hashlib,json,re,shutil,tomllib
+# An exact same-family pin: `= {{release}}`, or a hand-written revision of the
+# family version in either spelling.
+EXACT=re.compile(r'= \{\{release\}\}|(= )?\{\{version\}\}-[0-9]+')
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--recipe',type=Path,required=True);p.add_argument('--stage',type=Path,required=True)
 p.add_argument('--sdk',required=True);p.add_argument('--out',type=Path,required=True)
@@ -17,7 +20,7 @@ def visit(name,stack=()):
  selected.add(name)
  for dep,constraint in packages[name].get('dependencies',{}).items():
   if dep in packages:
-   if constraint not in ('{{version}}-1','= {{version}}-1'):raise ValueError('SDK family dependency must select exact matching revision')
+   if not EXACT.fullmatch(constraint):raise ValueError('SDK family dependency must select exact matching revision')
    visit(dep,stack+(name,))
   else:external.add(dep)
 visit(a.sdk)

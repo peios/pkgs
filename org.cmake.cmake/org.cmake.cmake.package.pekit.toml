@@ -8,7 +8,7 @@ name        = "org.cmake.cmake"
 description = "Cross-platform build-system generator"
 
 [dependencies]
-"org.cmake.cmake-data" = "{{version}}-1"
+"org.cmake.cmake-data" = "= {{release}}"
 
 [files]
 ":usr/bin/cmake" = "usr/bin/cmake"
