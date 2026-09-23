@@ -167,6 +167,46 @@ env -u USER "$GDB" -nx -nh -batch -data-directory "$PREFIX/share/gdb" \
   cat "$SMOKE/selftest"; exit 1; }
 grep -E '^Ran [0-9]+ unit tests, 0 failed$' "$SMOKE/selftest"
 
+# A bounded slice of GDB's DejaGnu testsuite, against the build tree (the whole
+# suite is ~2,000 files and hours of runtime): core CLI debugging, Python,
+# threads and C++ (PEI-1172). Run in parallel; the merged gdb.sum is parsed
+# strictly. Left out of the slice, for reasons outside GDB:
+#  - gdb.base/callfuncs.exp builds a deliberately K&R variant of its program,
+#    which GCC 16's C23 default rejects;
+#  - gdb.cp/classes.exp: GCC 16 warns on its anonymous typedef'd class, and
+#    the testsuite treats any compiler output as a failed build;
+#  - gdb.base/corefile.exp needs a kernel core dump, which the sandbox does
+#    not produce (gdb.base/gcore.exp covers GDB-written cores).
+# py-breakpoint's SystemTap-probe case reports UNTESTED: no sdt.h here.
+GDB_TESTS="
+  gdb.base/break.exp gdb.base/step-test.exp gdb.base/finish.exp
+  gdb.base/return.exp gdb.base/display.exp gdb.base/list.exp
+  gdb.base/ptype.exp gdb.base/whatis.exp gdb.base/setshow.exp
+  gdb.base/funcargs.exp gdb.base/recurse.exp
+  gdb.base/watchpoint.exp gdb.base/gcore.exp
+  gdb.base/signals.exp gdb.base/info-proc.exp gdb.base/until.exp
+  gdb.base/advance.exp gdb.base/condbreak.exp gdb.base/define.exp
+  gdb.python/python.exp gdb.python/py-value.exp gdb.python/py-type.exp
+  gdb.python/py-frame.exp gdb.python/py-breakpoint.exp
+  gdb.python/py-prettyprint.exp gdb.python/py-cmd.exp gdb.python/py-function.exp
+  gdb.threads/pthreads.exp gdb.threads/thread-specific.exp gdb.threads/killed.exp
+  gdb.cp/inherit.exp gdb.cp/templates.exp gdb.cp/overload.exp"
+command -v runtest >/dev/null
+rm -f "$STAGE/gdb/testsuite/gdb.sum"
+make -C "$STAGE/gdb" check -j"$(nproc)" FORCE_PARALLEL=1 \
+  TESTS="$(echo $GDB_TESTS)" > "$SMOKE/dejagnu.log" 2>&1 || true
+SUM="$STAGE/gdb/testsuite/gdb.sum"
+test -s "$SUM"
+grep -E '^# of ' "$SUM"
+if grep -Eq '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS|DUPLICATE|PATH):' "$SUM"; then
+  grep -E '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS|DUPLICATE|PATH):' "$SUM"
+  exit 1
+fi
+if grep -E '^# of unexpected core files' "$SUM"; then exit 1; fi
+pass=$(sed -n 's/^# of expected passes[[:space:]]*//p' "$SUM")
+# 3249 expected passes at 17.2; guard against the slice silently shrinking.
+test "${pass:-0}" -ge 3249
+
 # Every intended integration is compiled in, and none of the omitted ones.
 run_gdb -ex 'show configuration' > "$SMOKE/configuration"
 for option in --with-python=/usr --with-expat --with-lzma --with-xxhash --enable-tui \
@@ -312,7 +352,9 @@ test -f "$PREFIX/include/gdb/jit-reader.h"
 '''
 
 [test.dependencies.peipkg]
-"dev.peios.build-essentials-c"   = "*"
+# The DejaGnu slice compiles C and C++ test programs.
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.dejagnu"                = "*"
 "org.gnu.glibc-gconv-extra"      = ">= 2.43"
 "org.gnu.readline"               = ">= 8.3"
 "org.gnu.ncurses-libs"           = "*"
