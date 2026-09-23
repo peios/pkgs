@@ -1,5 +1,11 @@
 Subject: Stagger the SIGCHLD fixture's sleeping children
-Origin: Peios packaging, test fixture race fix
+Description: Peios runs Bash's upstream test suite as a build gate, and
+ the trap8 fixture fails intermittently there because SIGCHLD signals from
+ simultaneous child exits can coalesce. Staggering the children makes the
+ gate deterministic without changing what it asserts.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, test fixture race fix
+Forwarded: no
 
 Concurrent equal-duration child exits make the SIGCHLD fixture race: standard
 signals may coalesce, so fewer CHLD traps can run than the golden output

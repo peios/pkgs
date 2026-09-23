@@ -1,5 +1,7 @@
 Description: Install pure and platform Python modules in the Peios ABI directory
-Origin: vendor, Peios
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: not-needed
 
 PEIOS-DIVERGENCE(purelib): one site-packages, inside the triplet directory.
 

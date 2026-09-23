@@ -1,7 +1,13 @@
 From: Sunil Dora <sunilkumar.dora@windriver.com>
 Subject: [PATCH] rustc_codegen_llvm: skip removed AMX-TF32 mapping with LLVM 23
-Origin: https://git.openembedded.org/openembedded-core/commit/?id=99548382539f2e9b7fb9ba182f9e0f6707d4f360
-Upstream-Status: Inappropriate [Rust 1.98 compatibility with external LLVM 23; upstream removed the feature after 1.98 in https://github.com/rust-lang/rust/pull/159310]
+Origin: vendor, https://git.openembedded.org/openembedded-core/commit/?id=99548382539f2e9b7fb9ba182f9e0f6707d4f360
+Forwarded: not-needed
+
+Peios builds Rust 1.98 against its system LLVM 23 rather than Rust's bundled
+LLVM, so rustc must not ask LLVM 23 for a feature it no longer has. Upstream
+Rust dropped the mapping itself after 1.98
+(https://github.com/rust-lang/rust/pull/159310), so this 1.98-only fix has
+nothing to forward.
 
 LLVM removed AMX-TF32 in https://github.com/llvm/llvm-project/pull/207673.
 Keep the existing Rust mapping with earlier LLVM versions, but omit this

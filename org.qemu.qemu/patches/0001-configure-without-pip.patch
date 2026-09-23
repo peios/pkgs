@@ -1,4 +1,4 @@
-From: Peios packaging
+Author: Peios maintainers <packaging@peios.org>
 Subject: Configure without pip: use the system meson and skip the tooling group
 
 QEMU's configure builds its Python tooling venv with mkvenv.py, which refuses

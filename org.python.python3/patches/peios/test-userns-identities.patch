@@ -1,5 +1,11 @@
 Description: Require representable Linux user-namespace identities in ownership tests
-Origin: vendor, Peios
+ Peios runs CPython's test suite as a build gate inside a single-ID user
+ namespace, where changing to an unmapped uid or gid fails with EINVAL.
+ Ownership tests now skip only when the ID they need is outside the
+ namespace map; other permission errors and mapped-ID cases keep upstream's
+ assertions.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
 Forwarded: not-needed; package worker uses a single-ID user namespace
 
 --- a/Lib/test/support/os_helper.py

@@ -11,6 +11,15 @@ Subject: [PATCH] Quote file names in error messages and in listings.
 * src/main.c: New options: --quoting-style and --quote-chars.
 (process_args): Set default quoting style.
 * tests/CVE-2019-14866.at: Fix expected output.
+
+Peios uses cpio to build initramfs images and packages. cpio 2.15 prints
+archive-controlled member names raw in diagnostics and listings, so a
+crafted name can inject terminal control sequences. This upstream security
+fix quotes them by default (with --quoting-style and --quote-chars to
+adjust); it is one of the three commits fixing CVE-2026-66484..66486 and is
+not in any release yet.
+
+Origin: backport, https://git.savannah.gnu.org/cgit/cpio.git/commit/?id=2ff9600c9ef32e88759843cdbde74c8db5ae9b30
 ---
  doc/cpio.texi           | 13 ++++++++++
  src/copyin.c            | 39 +++++++++++++++++-------------

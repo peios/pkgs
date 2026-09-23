@@ -1,5 +1,6 @@
 Subject: ld: do not add GNU tooldir library paths on Peios
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 
 Peios has one architecture-specific runtime library directory:
 /usr/lib/x86_64-linux-peios.  The native linker's generic tooldir fallback

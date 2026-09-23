@@ -12,6 +12,14 @@ Move the part of the test that looks at a nonempty directory ...
 * tests/extrac30.at: ... to this new file, because the test now
 must be run as non-root.  Adjust the test to match the new behavior.
 * tests/Makefile.am (TESTSUITE_AT), tests/testsuite.at: Add it.
+
+In GNU tar 1.35, --no-overwrite-dir still chmods an existing directory
+briefly during extraction, so an archive can open up its permissions for a
+moment. Peios carries this upstream fix so the option never touches an
+existing directory; it is also a prerequisite for the later security
+backports in this series. It is not in any release yet.
+
+Origin: backport, https://git.savannah.gnu.org/cgit/tar.git/commit/?id=e290431ef27897afea228052425478f82d69fa29
 ---
  NEWS               | 11 ++++++++++-
  src/extract.c      | 25 ------------------------

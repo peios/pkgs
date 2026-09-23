@@ -1,5 +1,7 @@
-From: Peios package maintainers
+Author: Peios maintainers <packaging@peios.org>
 Subject: Make local-socket and raw-ICMP tests honor NO_NETWORK_TESTING
+Origin: vendor
+Forwarded: no
 
 Pekit's native build root has an intentionally empty network namespace. Its
 namespace uid 0 has no raw-socket capability, and the loopback interface stays

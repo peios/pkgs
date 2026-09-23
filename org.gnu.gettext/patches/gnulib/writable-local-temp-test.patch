@@ -1,5 +1,5 @@
 Description: Use an available writable local temporary directory for copy tests
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
 Origin: vendor
 Forwarded: no
 Last-Update: 2026-09-16

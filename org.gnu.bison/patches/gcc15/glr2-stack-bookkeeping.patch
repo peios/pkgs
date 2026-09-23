@@ -1,5 +1,13 @@
 Description: Keep C++ GLR lookahead bookkeeping synchronized when deleting stacks
-Origin: upstream, https://lists.gnu.org/archive/html/bison-patches/2024-07/msg00000.html
+ Peios builds Bison with GCC 15 or later, whose libstdc++ assertions
+ bounds-check vector<bool>. Bison 3.8.2's glr2.cc skeleton lets yystates and
+ yylookaheadNeeds drift out of step when stacks are deleted, so generated C++
+ GLR parsers abort under those assertions. This keeps the two in step.
+ Proposed upstream as "glr2.cc: ensure yylookaheadNeeds is same size as
+ yystates"; not in Bison 3.8.2 and not yet committed to Bison's git.
+Author: Arsen Arsenović
+Origin: other, https://lists.gnu.org/archive/html/bison-patches/2024-07/msg00000.html
+Forwarded: https://lists.gnu.org/archive/html/bison-patches/2024-07/msg00000.html
 Bug: https://bugs.gentoo.org/935754
 
 * data/skeletons/glr2.cc (yyundeleteLastStack): Recover

@@ -5,6 +5,14 @@ Subject: [PATCH] Minor fixes
 
 * src/makepath.c: Don't use alloca.
 * src/userspec.c: Likewise.
+
+Peios uses cpio to build initramfs images and packages. cpio 2.15, the
+newest stable release, sizes stack buffers from archive-controlled path and
+user names with alloca, so a crafted archive can overflow the stack. This
+upstream security fix allocates them on the heap instead; it is one of the
+three commits fixing CVE-2026-66484..66486 and is not in any release yet.
+
+Origin: backport, https://git.savannah.gnu.org/cgit/cpio.git/commit/?id=3cd514031371d8aeeaf2048aa10103e02831aaa9
 ---
  src/makepath.c | 31 ++++++++++++++---------
  src/userspec.c | 67 +++++++++++++++++++++++++-------------------------

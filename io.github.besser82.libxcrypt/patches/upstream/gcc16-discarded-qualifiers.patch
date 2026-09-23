@@ -6,7 +6,13 @@ Subject: [PATCH] fix -Werror=discarded-qualifiers
 On Fedora rawhide (to be Fedora 44), gcc became more strict
 wrt. const-ness.
 
-Upstream-Status: Backport [174c24d6e87aeae631bc0a7bb1ba983cf8def4de]
+Peios builds libxcrypt 4.5.2 with GCC 16 against glibc's C23
+const-preserving strchr(), which rejects assigning its const result to
+a plain char pointer. The patch changes only the two casts so the
+gost-yescrypt and sm3-yescrypt methods compile; their hashing output is
+unchanged. libxcrypt 4.5.2 does not contain this commit.
+
+Origin: backport, https://github.com/besser82/libxcrypt/commit/174c24d6e87aeae631bc0a7bb1ba983cf8def4de
 ---
  lib/crypt-gost-yescrypt.c | 2 +-
  lib/crypt-sm3-yescrypt.c  | 2 +-

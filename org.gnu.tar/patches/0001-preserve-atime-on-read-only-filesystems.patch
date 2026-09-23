@@ -11,6 +11,14 @@ Resolves: #500742
 Upstream bugreport (still downstream):
 http://lists.gnu.org/archive/html/bug-tar/2009-06/msg00016.html
 
+Peios carries this Fedora/CentOS Stream fix so that archiving from a
+read-only filesystem with --atime-preserve does not fail merely because tar
+cannot restore the source file's access time; the archive written is
+unchanged. GNU tar 1.35 does not include it.
+
+Origin: vendor, https://gitlab.com/redhat/centos-stream/rpms/tar/-/tree/c10s
+Forwarded: http://lists.gnu.org/archive/html/bug-tar/2009-06/msg00016.html
+
 ---
  src/create.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

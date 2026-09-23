@@ -1,5 +1,12 @@
 Description: Accept the Peios multiarch platform triplet
-Origin: vendor, Peios
+ Peios's toolchain reports x86_64-linux-peios from --print-multiarch, and
+ CPython's configure rejects any multiarch value that differs from its
+ glibc-derived x86_64-linux-gnu triplet. Adopt the Peios triplet so configure
+ succeeds and SOABI and extension-module suffixes name the Peios ABI, and let
+ test_sysconfig accept that suffix.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: not-needed
 
 --- a/configure
 +++ b/configure

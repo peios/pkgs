@@ -1,5 +1,11 @@
 Description: Raise libxslt's template-recursion limit for large DocBook inputs
-Origin: Peios packaging
+ Peios renders the kernel's perf man pages through xmlto, and the larger
+ ones exceed libxslt's default recursion depth. Passing a higher --maxdepth
+ lets those real documents render; it changes no output for documents that
+ already rendered.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: no
 
 PEIOS-DIVERGENCE(maxdepth): raise libxslt's template-recursion limit.
 

@@ -1,8 +1,12 @@
 Subject: Keep the comma-only auth test portable without a POSIX account
-Origin: Peios packaging, test-only portability adaptation
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, test-only portability adaptation
+Forwarded: no
 
-Preserve comma-only username checks when no POSIX account exists for the
-worker's UID; report the group-rule coverage as unavailable.
+Peios runs rsync's test suite as a build gate in a worker whose UID has no
+POSIX account entry, and this test assumed one exists. Preserve comma-only
+username checks when no POSIX account exists for the worker's UID; report the
+group-rule coverage as unavailable.
 
 --- a/testsuite/daemon-auth-users-comma-only_test.py
 +++ b/testsuite/daemon-auth-users-comma-only_test.py

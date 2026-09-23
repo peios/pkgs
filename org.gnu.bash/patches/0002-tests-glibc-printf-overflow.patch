@@ -1,5 +1,11 @@
 Subject: Assert glibc overflow behavior in the printf fixture
-Origin: Peios packaging, Linux/glibc test fixture adaptation
+Description: Peios runs Bash's upstream test suite as a build gate on
+ glibc, whose snprintf rejects an over-range inline precision. The fixture
+ now records the glibc result (status 1, empty variable) instead of another
+ libc's output. The overflow case and the following %Q test still run.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, Linux/glibc test fixture adaptation
+Forwarded: no
 
 # glibc snprintf rejects an inline precision exceeding its integer range.
 # The host glibc Bash reproduces status 1 and an empty variable for this input.

@@ -5,6 +5,15 @@ Subject: [PATCH] The --no-absolute-filenames option affects hard link targets
  too.
 
 * src/tar.c (stash_tar_linkname): Apply cpio_safer_name_suffix.
+
+Peios uses cpio to build initramfs images and packages. In cpio 2.15, the
+--no-absolute-filenames option strips absolute and ../ prefixes from member
+names but not from tar hard-link targets, so a crafted archive can link
+outside the extraction directory. This upstream security fix applies the same
+sanitising to link targets; it is one of the three commits fixing
+CVE-2026-66484..66486 and is not in any release yet.
+
+Origin: backport, https://git.savannah.gnu.org/cgit/cpio.git/commit/?id=e2b9cbdd3354d2b1569b7390d1bc15c1930559ad
 ---
  src/tar.c | 2 ++
  1 file changed, 2 insertions(+)

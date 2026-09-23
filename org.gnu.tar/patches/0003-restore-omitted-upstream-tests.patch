@@ -10,6 +10,14 @@ Sources:
 
 Repoted to upstream in ML:
 *https://lists.gnu.org/archive/html/bug-tar/2023-07/msg00002.html
+
+The tar 1.35 tarball's tests/testsuite.at includes exclude17.at and
+exclude18.at but does not ship them, so the testsuite cannot be regenerated
+once the later patches in this series add tests. Peios restores the two
+upstream files so its build gate runs the complete upstream suite.
+
+Origin: vendor, https://gitlab.com/redhat/centos-stream/rpms/tar/-/tree/c10s
+Forwarded: https://lists.gnu.org/archive/html/bug-tar/2023-07/msg00002.html
 ---
  tests/exclude17.at | 35 +++++++++++++++++++
  tests/exclude18.at | 87 ++++++++++++++++++++++++++++++++++++++++++++++

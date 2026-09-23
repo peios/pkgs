@@ -1,10 +1,10 @@
-From: Peios Packaging <packages@peios.org>
+From: Peios maintainers <packaging@peios.org>
 Subject: [PATCH] Use the Peios system shell path by default
 
 Peios intentionally has no legacy /bin contract. Recipes without an explicit
 SHELL assignment must therefore invoke the declared /usr/bin/sh provider.
 
-Upstream-Status: Inappropriate [Peios filesystem layout]
+Forwarded: not-needed
 ---
  src/job.c                 | 2 +-
  tests/run_make_tests.pl   | 2 +-

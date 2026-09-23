@@ -4,7 +4,12 @@ Subject: Make dc handle out-of-radix digits consistently with bc
 Single-digit input retains its literal value. In a multi-digit number, clamp
 digits outside ibase to ibase-1, matching GNU bc's documented behaviour.
 
-Origin: Fedora, bc-1.06-dc_ibase.patch
+Peios ships dc and bc together and carries this Fedora fix so the two
+interpret the same input the same way; without it dc gives different results
+from bc for out-of-radix digits.
+
+Origin: vendor, Fedora bc package, bc-1.06-dc_ibase.patch
+Forwarded: no
 
 diff --git a/dc/numeric.c b/dc/numeric.c
 --- a/dc/numeric.c

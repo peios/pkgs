@@ -1,6 +1,11 @@
-From: Peios Package Maintainers <packages@peios.dev>
+From: Peios maintainers <packaging@peios.org>
 Subject: [PATCH] psm: declare and implement x86_64 ELF CET compatibility
-Upstream-Status: Pending [CET IBT/SHSTK compatibility for vendored x86_64 assembly]
+Forwarded: not-needed
+
+Peios builds every x86_64 binary CET-enabled (IBT and SHSTK). The vendored
+psm crate's hand-written assembly carries no GNU property note, so linking it
+would silently clear the CET markings on rustc and anything else that uses
+psm. This patch makes that assembly CET-compatible and declares it.
 
 Compiler branch protection does not instrument handwritten assembly. Add
 ENDBR64 to the four externally callable SysV entry points. The instruction

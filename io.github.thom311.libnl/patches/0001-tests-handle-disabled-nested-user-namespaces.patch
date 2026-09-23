@@ -1,12 +1,15 @@
 Description: Handle disabled nested namespaces in the upstream test harness
-Origin: vendor, Peios packaging
-Upstream-Status: Pending
+ Peios runs libnl's test suite inside the pekit build sandbox, where
+ bubblewrap --disable-userns makes nested namespace creation fail with
+ ENOSPC. Treat ENOSPC like EPERM using the existing no-private-netns skip
+ path, so the suite runs to completion there. Only the test harness changes;
+ the installed library is untouched. Kernel roundtrip coverage stays a
+ separate acceptance requirement; never touch the host network namespace or
+ relax the build sandbox to obtain a green result.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: no
 Scope: test harness only
-
-Bubblewrap --disable-userns reports ENOSPC for nested namespace creation.
-Treat this like EPERM using the existing no-private-netns skip path. Keep
-kernel roundtrip coverage a separate acceptance requirement; never touch the
-host network namespace or relax the build sandbox to obtain a green result.
 
 --- a/tests/nl-test-util.c
 +++ b/tests/nl-test-util.c

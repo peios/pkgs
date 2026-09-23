@@ -1,5 +1,12 @@
 Subject: Match Linux signal-number ordering in the trap fixture
-Origin: Peios packaging, Linux/glibc test fixture adaptation
+Description: Peios runs Bash's upstream test suite as a build gate on
+ Linux/glibc. The trap golden file lists entries in another platform's
+ signal-number order, so the test fails on Linux although Bash behaves
+ correctly. The fixture now expects Linux order; every trap entry and
+ execution assertion is kept.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, Linux/glibc test fixture adaptation
+Forwarded: no
 
 # Linux SIGUSR1 is 10 and SIGTERM is 15; Bash prints trap entries in signal
 # number order. The upstream golden file uses the opposite platform order.

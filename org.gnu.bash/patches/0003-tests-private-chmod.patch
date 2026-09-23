@@ -1,5 +1,10 @@
 Subject: Keep chmod available to shell PATH-reset fixtures
-Origin: Peios packaging, test-only command prerequisite
+Description: Peios's build root supplies GNU chmod privately rather than on
+ the fixture's reset PATH, so the fixture would fail to find it. It now
+ calls chmod by its captured absolute path; the test itself is unchanged.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, test-only command prerequisite
+Forwarded: not-needed
 
 Peios provides GNU chmod privately for builds. The fixture must retain its
 controlled PATH while invoking that declared tool by its captured absolute path.

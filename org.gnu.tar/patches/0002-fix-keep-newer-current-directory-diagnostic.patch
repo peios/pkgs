@@ -14,6 +14,14 @@ reverts the change made in 79d1ac38c1.
 * tests/extrac27.at: New file.
 * tests/Makefile.am: Add new test.
 * tests/testsuite.at: Likewise.
+
+GNU tar 1.35 reports a spurious error when extracting "." with the
+--keep-newer-files option, so scripted extractions into an existing
+directory fail.
+Peios carries this upstream fix; it is also a prerequisite for the later
+security backports in this series. It is not in any release yet.
+
+Origin: backport, https://git.savannah.gnu.org/cgit/tar.git/commit/?id=1e6ce98e3a4ef5c807458a35973af7e3503c678c
 ---
  src/extract.c      | 19 ++++++++++---------
  tests/Makefile.am  |  1 +

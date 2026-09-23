@@ -1,4 +1,7 @@
 Description: Backport the relative --one-top-level diagnostic prerequisite
+ Peios needs this small upstream change only because the CVE-2026-18508
+ fix later in this series builds on it; it makes tar reject a
+ non-relative --one-top-level directory with a clear diagnostic.
 Origin: backport, https://gitlab.com/redhat/centos-stream/rpms/tar/-/tree/c10s
 
 diff --git a/NEWS b/NEWS

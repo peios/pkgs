@@ -1,7 +1,12 @@
 From: Fedora bc maintainers
 Subject: Document the scale of multiplication results
 
-Origin: Fedora, bc-1.06.95-doc.patch
+The shipped bc manual does not say how the scale of a product is chosen.
+Peios carries this Fedora documentation fix so the installed manual states
+the rule bc actually applies. Only documentation changes.
+
+Origin: vendor, Fedora bc package, bc-1.06.95-doc.patch
+Forwarded: no
 
 diff --git a/doc/bc.1 b/doc/bc.1
 --- a/doc/bc.1

@@ -1,5 +1,6 @@
 Description: Preserve interpreter tests in offline Peios workers without resolver or account services
-Origin: vendor, Peios; CPython 3.14.7 release source
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor; against the CPython 3.14.7 release source
 Forwarded: not-needed; Peios authority-service and package-worker integration
 Upstream-Source: https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz
 Upstream-SHA256: 3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81

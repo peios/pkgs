@@ -1,5 +1,11 @@
 Description: Detect glibc's redirected posix_spawn_file_actions_addchdir declaration
-Origin: upstream, https://git.savannah.gnu.org/cgit/gnulib.git/commit/?id=ca635799
+ Peios builds against glibc 2.44, which declares
+ posix_spawn_file_actions_addchdir through a redirect
+ (https://sourceware.org/bugzilla/show_bug.cgi?id=34437). The bundled gnulib
+ link test then misdetects it and ends up defining a recursive _np alias.
+ This backports gnulib's switch to a declaration check, so gettext's spawn
+ helpers use the working glibc function.
+Origin: backport, https://git.savannah.gnu.org/cgit/gnulib.git/commit/?id=ca635799
 
 diff -ur a/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4 b/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4
 --- a/gettext-tools/gnulib-m4/posix_spawn_faction_addchdir.m4
