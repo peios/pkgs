@@ -56,6 +56,9 @@ KERNEL_TARGETS = KERNEL_TOOLCHAIN_TARGETS | {
     'build-upstream', 'build-source', 'build-headers', 'build-debuginfo',
     'build-tools', 'build-fwsig', 'test-kunit', 'test-modsig', 'test-fwsig',
     'test-stratafs', 'test-uapi', 'gen-uapi',
+    # The Rust cores' cargo suites use Debian's own rustc/cargo (1.85 meets
+    # the workspace's rust-version), not the pinned kernel toolchain.
+    'test-cores',
 }
 # Debian packages a toolchain replaces. A recipe may only name them
 # unconstrained: the pin, not the recipe, chooses the version.
