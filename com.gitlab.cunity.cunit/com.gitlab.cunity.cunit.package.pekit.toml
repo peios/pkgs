@@ -1,0 +1,11 @@
+# The DTDs and XSL stylesheets for viewing CUnit's automated XML reports.
+
+[package]
+name         = "com.gitlab.cunity.cunit"
+architecture = "noarch"
+description  = "C unit-testing framework report stylesheets"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/com.gitlab.cunity.cunit/"
+"@source:README.md" = "usr/share/doc/com.gitlab.cunity.cunit/"
+":usr/share/CUnit/**" = "usr/share/CUnit"

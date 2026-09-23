@@ -1,0 +1,148 @@
+# CUnit — the C unit-testing framework. Upstream test suites that link
+# `-lcunit` (libtraceevent, libtracefs) build their runners against it.
+#
+# This is the CUnity fork, the maintained continuation of SourceForge CUnit
+# (whose last release, 2.1-3, dates from 2014): the same CU_* API and
+# <CUnit/...> headers, with fixes, a CMake build and JUnit/CI runners. Its
+# CMake build produces only a static libcunit, which suits a test framework;
+# the -devel package therefore brings the static archive with it.
+
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.git]
+url       = "https://gitlab.com/cunity/cunit.git"
+ref       = "{{version}}"
+tag_regex = '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow every newer release; API changes stop at the
+# upstream suite and the consumer gates below.
+versions  = ">= 3.5.5"
+
+# Release tags are unsigned lightweight tags and upstream publishes no signed
+# checksums. lint.pekit.toml declares the exception: HTTPS authenticates the
+# transport and the commit pinned in pekit.lock fixes the accepted source.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+PREFIX="$PEKIT_OUT/usr"
+BUILD="$PEKIT_OUT/build"
+DEBUG_DEST=/usr/src/debug/com.gitlab.cunity.cunit
+
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+
+# Upstream adds -Wall -Werror for GCC; keep it (the workspace flags build
+# cleanly) so a new warning is a visible gate failure. The library is
+# PIC so it can be linked into shared test harnesses too.
+cmake -S "$SRC" -B "$BUILD" \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS_RELWITHDEBINFO= \
+  -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR="lib/$TRIPLET" \
+  -DCUNIT_DISABLE_TESTS=FALSE \
+  -DCUNIT_DISABLE_EXAMPLES=FALSE
+cmake --build "$BUILD" -j"$(nproc)"
+DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
+
+# The static archive keeps its code and loses only its debug sections.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.gitlab.cunity.cunit \
+  "$PREFIX/lib/$TRIPLET/libcunit.a"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.cmake.cmake"              = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# Upstream suite: the MEMTRACE framework self-test (cunit_test), the CI
+# runner cases (passing, multi-suite, skips, split suites, value printing)
+# and the expected-failure fixture check. Guard against silent test loss.
+ctest --test-dir "$BUILD" --output-on-failure -j"$(nproc)" | tee "$SMOKE/ctest"
+grep -E '^100% tests passed' "$SMOKE/ctest"
+test "$(sed -n 's/^100% tests passed.* out of \([0-9]*\)$/\1/p' "$SMOKE/ctest")" -ge 11
+
+# Installed interface: headers, the static archive, pkg-config and CMake.
+test -f "$PREFIX/include/CUnit/Basic.h"
+test -f "$PREFIX/include/CUnit/CUnit.h"
+test -f "$PREFIX/include/CUnit/CUnitCI.h"
+if find "$PREFIX/include" -name '*.in' | grep .; then exit 1; fi
+test -s "$LIBDIR/libcunit.a"
+if readelf -S "$LIBDIR/libcunit.a" | grep -F '.debug_'; then exit 1; fi
+test -f "$PREFIX/share/CUnit/CUnit-Run.xsl"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkgconf --validate cunit
+test "$(pkgconf --modversion cunit)" = "$PEKIT_VERSION"
+if grep -rF "$STAGE" "$LIBDIR/pkgconfig" "$LIBDIR/cmake"; then exit 1; fi
+
+# A consumer as libtraceevent's utest builds one: a registry, a suite with a
+# passing and a failing test, run through the Basic interface.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <CUnit/Basic.h>
+static void passes(void) { CU_ASSERT_EQUAL(6 * 7, 42); }
+static void fails(void) { CU_ASSERT_STRING_EQUAL("a", "b"); }
+int main(void)
+{
+  CU_pSuite suite;
+  if (CU_initialize_registry() != CUE_SUCCESS) return 10;
+  suite = CU_add_suite("smoke", NULL, NULL);
+  if (!suite || !CU_add_test(suite, "passes", passes) ||
+      !CU_add_test(suite, "fails", fails)) return 11;
+  CU_basic_set_mode(CU_BRM_VERBOSE);
+  CU_basic_run_tests();
+  if (CU_get_number_of_tests_run() != 2) return 12;
+  if (CU_get_number_of_tests_failed() != 1) return 13;
+  CU_cleanup_registry();
+  return 0;
+}
+EOF
+cc $(pkgconf --cflags cunit) "$SMOKE/consumer.c" $(pkgconf --libs cunit) \
+  -o "$SMOKE/consumer"
+"$SMOKE/consumer" > "$SMOKE/consumer.out"
+grep -E '^ +Tests +: +2 +1 +0 +0$' "$SMOKE/consumer.out"
+if readelf -d "$SMOKE/consumer" | grep -F libcunit; then exit 1; fi
+
+# The exported CMake package resolves the target and its include directory.
+mkdir -p "$SMOKE/cmake"
+cp "$SMOKE/consumer.c" "$SMOKE/cmake/"
+cat > "$SMOKE/cmake/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.12)
+project(smoke C)
+find_package(CUnit REQUIRED CONFIG)
+if(NOT CUNIT_INCLUDE_DIRS MATCHES "/usr/include$")
+  message(FATAL_ERROR "CUNIT_INCLUDE_DIRS=${CUNIT_INCLUDE_DIRS}")
+endif()
+add_executable(consumer consumer.c)
+target_link_libraries(consumer ${CUNIT_LIBRARIES})
+EOF
+cmake -S "$SMOKE/cmake" -B "$SMOKE/cmake/build" \
+  -DCUnit_DIR="$LIBDIR/cmake/CUnit" > "$SMOKE/cmake.out"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.cmake.cmake"              = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.sed"                  = "*"

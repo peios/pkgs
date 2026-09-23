@@ -1,0 +1,16 @@
+# Headers, pkg-config module and CMake package. CUnit builds only a static
+# library, so the development package brings it in.
+
+[package]
+name        = "com.gitlab.cunity.cunit-devel"
+description = "C unit-testing framework headers and build files"
+
+[dependencies]
+"com.gitlab.cunity.cunit"        = "= {{release}}"
+"com.gitlab.cunity.cunit-static" = "= {{release}}"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/com.gitlab.cunity.cunit-devel/"
+":usr/include/CUnit/**" = "usr/include/CUnit"
+":usr/lib/x86_64-linux-peios/pkgconfig/cunit.pc" = "usr/lib/x86_64-linux-peios/pkgconfig/cunit.pc"
+":usr/lib/x86_64-linux-peios/cmake/CUnit/**"     = "usr/lib/x86_64-linux-peios/cmake/CUnit"

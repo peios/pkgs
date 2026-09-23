@@ -1,0 +1,9 @@
+# The static CUnit library.
+
+[package]
+name        = "com.gitlab.cunity.cunit-static"
+description = "C unit-testing framework static library"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/com.gitlab.cunity.cunit-static/"
+":usr/lib/x86_64-linux-peios/libcunit.a" = "usr/lib/x86_64-linux-peios/libcunit.a"
