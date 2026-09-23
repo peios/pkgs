@@ -1,2 +1,2 @@
 [allow]
-"source.signature.required" = "Release tags are unsigned lightweight tags on git.kernel.org and upstream publishes no detached signatures; HTTPS plus the commit pinned in pekit.lock is the available provenance boundary"
+"source.url.scheme" = "Upstream's release directory is served over plain HTTP only; every tarball must match Herbert Xu's clear-signed SHA-512 manifest, so the transport is not the trust boundary"

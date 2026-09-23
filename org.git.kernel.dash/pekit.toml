@@ -1,6 +1,8 @@
 # DASH — Peios's small POSIX system shell and the provider of the `sh` role.
-# Build directly from the authoritative kernel.org Git tags so Pekit can
-# discover every upstream maintenance release, including four-part versions.
+# Built from Herbert Xu's release tarballs, which he authenticates with a
+# clear-signed SHA-512 checksum manifest beside each one. (The kernel.org Git
+# release tags are unsigned lightweight tags, so the tarball is the only
+# release form upstream vouches for.)
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -10,19 +12,26 @@ out_dir = "out"
 [source_package]
 license = "GPL-2.0-or-later"
 
-[source.git]
-url       = "https://git.kernel.org/pub/scm/utils/dash/dash.git"
-ref       = "v{{version}}"
-tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)*)$'
+# Upstream serves its release directory over plain HTTP only. The transport
+# is not the trust boundary: every artifact must match the signed manifest
+# (lint.pekit.toml records the source.url.scheme allowance).
+[source.url]
+url         = "http://gondor.apana.org.au/~herbert/dash/files/dash-{{version}}.tar.gz"
+listing_url = "http://gondor.apana.org.au/~herbert/dash/files/"
+extract     = true
+root        = "dash-{{version}}"
+file_regex  = 'dash-[0-9]+(?:\.[0-9]+)+\.tar\.gz'
 # Soft maintenance floor. Follow every later stable release automatically;
 # the upstream suite and staged POSIX-shell contract test guard semantics.
-versions  = ">= 0.5.13.5"
+versions    = ">= 0.5.13.5"
 
-# v0.5.13.5 is a lightweight tag, so there is no upstream tag signature for
-# Pekit to verify. HTTPS authenticates kernel.org transport and pekit.lock pins
-# the accepted commit; first acceptance of a future lightweight tag remains an
-# explicit TOFU boundary. Signed annotated tags still await Pekit Git-signature
-# verification support.
+# dash-X.tar.gz.sha512sum lists "<sha512> <size> <name>" for the tarball and
+# is clear-signed by Herbert Xu; the key is his kernel.org pgpkeys entry.
+[source.url.signature]
+of           = "checksums"
+url          = "{{source_url}}.sha512sum"
+key_files    = ["keys/herbert-xu.asc"]
+fingerprints = ["9F9D45FE50AE361530983792C7271D0A49B18BA7"]
 
 [build.main]
 command = '''
@@ -35,13 +44,10 @@ SMOKE="$PEKIT_OUT/.dash-smoke"
 BIN="$PEKIT_OUT/usr/bin/dash"
 
 mkdir -p "$BUILD_SRC" "$OBJ" "$SMOKE"
+# Configure from a private copy so nothing the build writes can alter the
+# locked source tree. The release tarball carries upstream's own generated
+# configure, which is part of what the manifest signature covers.
 cp -a "$LOCKED_SRC/." "$BUILD_SRC/"
-
-# Git tags intentionally contain only maintained source inputs. Bootstrap a
-# private copy so generated Autotools files never alter the locked source tree
-# or leak into the corresponding-source package.
-cd "$BUILD_SRC"
-./autogen.sh
 
 cd "$OBJ"
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
@@ -71,15 +77,11 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.git.kernel.dash "$BIN"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"         = "*"
-"org.gnu.autoconf"        = ">= 2.72"
-"org.gnu.automake"        = ">= 1.18"
 "org.sourceware.debugedit" = "*"
 "org.gnu.gzip"             = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
-autoconf        = "*"
-automake        = "*"
 debugedit       = "*"
 dwz             = "*"
 gzip            = "*"
@@ -213,14 +215,10 @@ rm -rf "$PEKIT_MAIN_OUT/.dash-smoke" "$PEKIT_MAIN_OUT/src-copy" "$PEKIT_MAIN_OUT
 
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c"         = "*"
-"org.gnu.autoconf"        = ">= 2.72"
-"org.gnu.automake"        = ">= 1.18"
 "org.nixos.patchelf"      = "*"
 "org.sourceware.debugedit" = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
-autoconf        = "*"
-automake        = "*"
 debugedit       = "*"
 patchelf        = "*"
