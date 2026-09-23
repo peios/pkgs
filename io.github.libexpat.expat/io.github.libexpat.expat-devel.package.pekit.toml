@@ -1,0 +1,22 @@
+# Headers, linker name, pkg-config and CMake package files, and the HTML API
+# reference. Static linkage stays opt-in through the static sibling.
+
+[package]
+name        = "io.github.libexpat.expat-devel"
+description = "Expat development files"
+license     = "MIT"
+
+[dependencies]
+"io.github.libexpat.expat" = "= {{release}}"
+
+[files]
+"@source:COPYING"            = "usr/share/licenses/io.github.libexpat.expat-devel/"
+"@source:doc/reference.html" = "usr/share/doc/io.github.libexpat.expat-devel/"
+"@source:doc/style.css"      = "usr/share/doc/io.github.libexpat.expat-devel/"
+"@source:doc/ok.min.css"     = "usr/share/doc/io.github.libexpat.expat-devel/"
+":usr/include/expat.h"          = "usr/include/expat.h"
+":usr/include/expat_config.h"   = "usr/include/expat_config.h"
+":usr/include/expat_external.h" = "usr/include/expat_external.h"
+":usr/lib/x86_64-linux-peios/libexpat.so"         = "usr/lib/x86_64-linux-peios/libexpat.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/expat.pc"  = "usr/lib/x86_64-linux-peios/pkgconfig/expat.pc"
+":usr/lib/x86_64-linux-peios/cmake/**"            = "usr/lib/x86_64-linux-peios/cmake"

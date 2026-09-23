@@ -1,0 +1,17 @@
+# xmlwf, Expat's XML well-formedness checker.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "io.github.libexpat.expat-tools"
+description = "xmlwf, the Expat XML well-formedness checker"
+license     = "MIT"
+
+[dependencies]
+"org.gnu.glibc"            = ">= 2.43"
+"io.github.libexpat.expat" = "= {{release}}"
+
+[files]
+"@source:COPYING"                = "usr/share/licenses/io.github.libexpat.expat-tools/"
+":usr/bin/xmlwf"                 = "usr/bin/xmlwf"
+":usr/share/man/man1/xmlwf.1.gz" = "usr/share/man/man1/xmlwf.1.gz"

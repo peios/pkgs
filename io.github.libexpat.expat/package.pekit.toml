@@ -1,0 +1,13 @@
+# Shared metadata for the Expat package family. Each package is defined in its
+# own *.package.pekit.toml; this file is only the base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# Expat is MIT; the SipHash implementation compiled into it is CC0-1.0.
+license       = "MIT AND CC0-1.0"
+license_class = "free"
+homepage      = "https://libexpat.github.io/"
+

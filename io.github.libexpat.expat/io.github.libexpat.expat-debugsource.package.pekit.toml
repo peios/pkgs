@@ -1,0 +1,10 @@
+[package]
+name        = "io.github.libexpat.expat-debugsource"
+description = "Expat debug sources"
+
+[dependencies]
+"io.github.libexpat.expat-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/io.github.libexpat.expat-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

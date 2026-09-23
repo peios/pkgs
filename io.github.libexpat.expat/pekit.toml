@@ -1,0 +1,213 @@
+# Expat — the stream-oriented XML parser library. GDB links it to read XML
+# target descriptions and memory maps from remote stubs; the library, its
+# headers and the xmlwf checker come from one build and are split so a
+# consumer installs only what it links.
+#
+# Autotools, as Debian and Fedora build it. xmlwf's manual is the one upstream
+# ships prebuilt, so no DocBook toolchain is needed.
+
+out_dir = "out"
+
+# The release tree also carries the Autotools and Libtool build machinery.
+[source_package]
+license = "FSFAP AND FSFUL AND FSFULLR AND X11 AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-2.0-or-later WITH Libtool-exception) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND (GPL-3.0-or-later WITH Autoconf-exception-macro)"
+
+[source.url]
+url         = "https://github.com/libexpat/libexpat/releases/download/R_{{major}}_{{minor}}_{{patch}}/expat-{{version}}.tar.xz"
+listing_url = "https://api.github.com/repos/libexpat/libexpat/releases?per_page=100"
+extract     = true
+root        = "expat-{{version}}"
+file_regex  = 'expat-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'
+# Soft production floor. Follow every newer stable release; ABI or behaviour
+# changes stop at the upstream suite and the smoke gates below.
+versions    = ">= 2.8.5"
+
+# Releases are signed by maintainer Sebastian Pipping with a signing subkey;
+# pin his complete primary-key fingerprint.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/sebastian-pipping.asc"]
+fingerprints = ["3176EF7DB2367F1FCA4F306B1F9B0E909AF37285"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.libexpat.expat"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.libexpat.expat"
+PREFIX="$PEKIT_OUT/usr"
+cd "$PEKIT_OUT"
+
+# Every feature switch is stated so the payload never depends on what the
+# build root happens to contain. getrandom(2) seeds the hash salt; the
+# fallbacks stay off. Generate IBT PLT entries.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --docdir=/usr/share/doc/expat \
+  --enable-shared \
+  --enable-static \
+  --with-xmlwf \
+  --without-examples \
+  --with-tests \
+  --without-docbook \
+  --with-getrandom \
+  --without-arc4random \
+  --without-arc4random-buf \
+  --without-dev-urandom \
+  --disable-silent-rules
+
+# libtool would hardcode the install libdir as a run path into xmlwf; Peios'
+# loader searches it by default. Blank the rpath machinery at source.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|' \
+    -i libtool
+
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# libtool archives only hardcode build paths; pkg-config and CMake supersede
+# them. The packages map the chosen documents back from the source tree.
+find "$PREFIX" -name '*.la' -delete
+rm -rf "$PREFIX/share/doc"
+gzip -9n "$PREFIX/share/man/man1/xmlwf.1"
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.libexpat.expat "$PREFIX"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.gzip"                   = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+BIN="$PREFIX/bin"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
+
+# Upstream suite: the runtests driver (C and C++ API cases). The
+# rpath is blanked, so point the loader at the fresh library and prove once
+# that it resolves there rather than an Expat the root may already carry.
+LD_LIBRARY_PATH="$STAGE/lib/.libs" make -C "$STAGE" -j"$(nproc)" check
+LD_LIBRARY_PATH="$STAGE/lib/.libs" LD_TRACE_LOADED_OBJECTS=1 \
+  "$STAGE/xmlwf/.libs/xmlwf" > "$SMOKE/suite-trace"
+grep -F "libexpat.so.1 => $STAGE/lib/.libs/libexpat.so.1" "$SMOKE/suite-trace"
+grep -Eq '^# FAIL: +0$' "$STAGE/tests/test-suite.log"
+grep -Eq '^# PASS: +[1-9]' "$STAGE/tests/test-suite.log"
+
+export LD_LIBRARY_PATH="$LIBDIR"
+
+# xmlwf accepts well-formed input, rejects malformed input, and refuses a
+# billion-laughs expansion under its default amplification limit.
+"$BIN/xmlwf" -v | grep -F "xmlwf using expat_$PEKIT_VERSION"
+printf '%s\n' '<?xml version="1.0"?>' '<doc a="1"><item>é</item></doc>' > "$SMOKE/good.xml"
+test -z "$("$BIN/xmlwf" "$SMOKE/good.xml")"
+printf '%s\n' '<doc><item></doc>' > "$SMOKE/bad.xml"
+"$BIN/xmlwf" "$SMOKE/bad.xml" | grep -F 'mismatched tag'
+{
+  printf '%s\n' '<?xml version="1.0"?>' '<!DOCTYPE lolz [' '<!ENTITY lol "lol">'
+  prev=lol
+  for i in 1 2 3 4 5 6 7 8 9; do
+    printf '<!ENTITY lol%s "%s">\n' "$i" "$(printf '&%s;' $prev $prev $prev $prev $prev $prev $prev $prev $prev $prev)"
+    prev=lol$i
+  done
+  printf '%s\n' ']>' '<lolz>&lol9;</lolz>'
+} > "$SMOKE/lolz.xml"
+"$BIN/xmlwf" "$SMOKE/lolz.xml" | grep -F 'amplification'
+
+# Library metadata, as GDB's build will read it.
+test -L "$LIBDIR/libexpat.so.1"
+test -L "$LIBDIR/libexpat.so"
+test -s "$LIBDIR/libexpat.a"
+readelf -d "$LIBDIR/libexpat.so.1" | grep -F 'Library soname: [libexpat.so.1]'
+test -f "$PREFIX/include/expat.h"
+test -f "$PREFIX/include/expat_external.h"
+test -f "$LIBDIR/cmake/expat-$PEKIT_VERSION/expat-config.cmake"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkgconf --validate expat
+test "$(pkgconf --modversion expat)" = "$PEKIT_VERSION"
+if grep -rF "$STAGE" "$LIBDIR/pkgconfig" "$LIBDIR/cmake"; then exit 1; fi
+
+# Shared and static consumers of the parser API.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <string.h>
+#include <expat.h>
+
+static int depth, max_depth, elements;
+static void XMLCALL start(void *u, const XML_Char *n, const XML_Char **a)
+{ (void)u; (void)n; (void)a; elements++; if (++depth > max_depth) max_depth = depth; }
+static void XMLCALL end(void *u, const XML_Char *n) { (void)u; (void)n; depth--; }
+
+int main(void)
+{
+  static const char doc[] = "<a><b><c/></b><b/></a>";
+  XML_Parser p = XML_ParserCreate(NULL);
+  if (p == NULL) return 1;
+  XML_SetElementHandler(p, start, end);
+  if (XML_Parse(p, doc, (int)strlen(doc), 1) != XML_STATUS_OK) return 2;
+  XML_ParserFree(p);
+  if (elements != 4 || max_depth != 3) return 3;
+  p = XML_ParserCreate(NULL);
+  if (XML_Parse(p, "<a></b>", 7, 1) != XML_STATUS_ERROR) return 4;
+  if (XML_GetErrorCode(p) != XML_ERROR_TAG_MISMATCH) return 5;
+  XML_ParserFree(p);
+  return 0;
+}
+EOF
+cc $(pkgconf --cflags expat) "$SMOKE/consumer.c" $(pkgconf --libs expat) \
+  -o "$SMOKE/shared-consumer"
+"$SMOKE/shared-consumer"
+LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/shared-consumer" |
+  grep -F "libexpat.so.1 => $LIBDIR/libexpat.so.1"
+cc -I"$PREFIX/include" "$SMOKE/consumer.c" "$LIBDIR/libexpat.a" \
+  -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer"
+if readelf -d "$SMOKE/static-consumer" | grep -F 'libexpat'; then exit 1; fi
+
+# Debug split and hardening of every shipped object.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/io.github.libexpat.expat" -type f -name 'xmlparse.c' -print -quit)"
+for elf in "$BIN/xmlwf" "$LIBDIR/libexpat.so.1"; do
+  elf=$(readlink -f "$elf")
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+needed() {
+  readelf -d "$1" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | LC_ALL=C sort | tr '\n' ' '
+}
+# The amplification guard's ratio arithmetic pulls in libm.
+test "$(needed "$LIBDIR/libexpat.so.1")" = 'libc.so.6 libm.so.6 '
+test "$(needed "$BIN/xmlwf")" = 'libc.so.6 libexpat.so.1 '
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.pkgconf.pkgconf"            = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.findutils"              = "*"
+"org.gnu.grep"                   = "*"
+"org.gnu.sed"                    = "*"
+"org.gnu.diffutils"              = "*"
+# Upstream's test-driver wrapper is a Bash script.
+"org.gnu.bash"                   = "*"

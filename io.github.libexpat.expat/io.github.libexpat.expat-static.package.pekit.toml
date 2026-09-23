@@ -1,0 +1,12 @@
+# The static Expat library for consumers that deliberately link it in.
+
+[package]
+name        = "io.github.libexpat.expat-static"
+description = "Expat static library"
+
+[dependencies]
+"io.github.libexpat.expat-devel" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/io.github.libexpat.expat-static/"
+":usr/lib/x86_64-linux-peios/libexpat.a" = "usr/lib/x86_64-linux-peios/libexpat.a"

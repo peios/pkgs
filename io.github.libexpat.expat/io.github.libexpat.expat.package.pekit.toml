@@ -1,0 +1,14 @@
+# The Expat runtime library, libexpat.so.1.
+
+[package]
+name        = "io.github.libexpat.expat"
+description = "Stream-oriented XML parser library"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/io.github.libexpat.expat/"
+"@source:README.md" = "usr/share/doc/io.github.libexpat.expat/"
+"@source:Changes"   = "usr/share/doc/io.github.libexpat.expat/"
+":usr/lib/x86_64-linux-peios/libexpat.so.1*" = "usr/lib/x86_64-linux-peios"
