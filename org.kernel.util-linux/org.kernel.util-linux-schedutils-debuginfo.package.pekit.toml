@@ -1,0 +1,11 @@
+[package]
+name        = "org.kernel.util-linux-schedutils-debuginfo"
+description = "util-linux schedutils debugging symbols"
+license     = "GPL-2.0-only AND BSD-4-Clause-UC AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+
+[dependencies]
+"org.kernel.util-linux-schedutils" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.util-linux-schedutils-debuginfo/COPYING"
+":schedutils-debug/usr/lib/debug/**" = "usr/lib/debug"

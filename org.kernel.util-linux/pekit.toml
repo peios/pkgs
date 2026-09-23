@@ -1,10 +1,25 @@
-# util-linux: build only libblkid and enhanced getopt(1).
+# util-linux: libblkid and a deliberately chosen set of commands.
 #
 # Peiosutils owns the command surfaces normally supplied by util-linux. A
 # second implementation of mount, lsblk, dmesg, and the other tools would
 # create ambiguous policy and PATH ownership. libblkid remains the platform
 # filesystem-signature library used by peiosutils, eudev and e2fsprogs;
 # getopt remains because shell tooling such as xmlto requires it.
+#
+# Beyond those, only commands that neither overlap peiosutils nor carry
+# identity, device or kernel-policy authority ship, grouped as:
+#   schedutils  taskset, chrt, ionice, renice (CPU affinity and scheduling)
+#   script      script, scriptreplay, scriptlive (terminal session recording)
+#   extra       flock, setsid, rev, col, colcrt, colrm (shell and text tools)
+# Deliberately not built: login-utils (login, su, runuser, newgrp, chsh, chfn,
+# sulogin, last, lslogins: authd and KACS own identity and logon); storage and
+# mount tools (mount, umount, lsblk, findmnt, blkid, fdisk, sfdisk, mkfs,
+# swapon, losetup, wipefs, ...: peiosutils' storage tools own them); wall,
+# write and mesg (they rely on a setgid tty group); setpriv, unshare, nsenter
+# and setarch (capability and namespace manipulation outside KACS policy);
+# kill, more, dmesg and the other peiosutils equivalents; hwclock, rtcwake,
+# eject and other device-control tools; and anything needing the disabled
+# libmount, libsmartcols, libuuid or libfdisk (column, prlimit, lscpu, ...).
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -72,8 +87,13 @@ make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 
-# getopt's old Automake declaration cannot override --disable-all-programs,
-# so configure a separate build tree and compile only that explicit target.
+# The commands' old Automake declarations cannot override
+# --disable-all-programs, so configure a separate build tree and compile only
+# the explicit targets. Optional integrations are stated so the commands never
+# depend on what the build root contains.
+SCHEDUTILS="taskset chrt ionice renice"
+SCRIPT="script scriptreplay scriptlive"
+EXTRA="flock setsid rev col colcrt colrm"
 cd "$GETOPT_BUILD"
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
@@ -83,9 +103,15 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   --libdir=/usr/lib/x86_64-linux-peios \
   --disable-nls \
   --without-python \
+  --without-utempter \
+  --without-systemd \
+  --without-selinux \
+  --without-audit \
+  --without-cap-ng \
   --disable-rpath \
   --disable-silent-rules
-make -j"$(nproc)" getopt hexdump test_sysinfo
+make -j"$(nproc)" getopt hexdump test_sysinfo test_script test_md5 test_strerror \
+  $SCHEDUTILS $SCRIPT $EXTRA
 install -D -m 0755 getopt "$PEKIT_OUT/usr/bin/getopt"
 install -D -m 0644 "$SRC/misc-utils/getopt.1" \
   "$PEKIT_OUT/usr/share/man/man1/getopt.1"
@@ -93,6 +119,15 @@ install -D -m 0644 "$SRC/misc-utils/getopt.1" \
 # hexdump is needed by upstream byte-level regression suites, including Bash.
 install -D -m 0755 hexdump "$PEKIT_OUT/usr/bin/hexdump"
 install -D -m 0644 "$SRC/text-utils/hexdump.1" "$PEKIT_OUT/usr/share/man/man1/hexdump.1"
+
+# The selected commands and their prebuilt manuals.
+for tool in $SCHEDUTILS $SCRIPT $EXTRA; do
+  install -D -m 0755 "$tool" "$PEKIT_OUT/usr/bin/$tool"
+  page=$(find "$SRC/schedutils" "$SRC/term-utils" "$SRC/sys-utils" "$SRC/text-utils" \
+    -maxdepth 1 -name "$tool.1" -print)
+  test "$(printf '%s\n' "$page" | grep -c .)" -eq 1
+  install -D -m 0644 "$page" "$PEKIT_OUT/usr/share/man/man1/$tool.1"
+done
 
 # Compress every installed manual deterministically.
 find "$PEKIT_OUT/usr/share/man" -type f \( -name '*.1' -o -name '*.3' \) \
@@ -106,13 +141,19 @@ test "$(printf '%s\n' "$LIB" | grep -c .)" -eq 1
 # source is gathered once in the family debugsource tree under usr/src/debug.
 SPLIT="$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug"
 sh "$SPLIT" org.kernel.util-linux "$LIB" "$LIBDIR/libblkid.a"
-for tool in getopt hexdump; do
-  mkdir -p "$PEKIT_OUT/$tool-debug"
-  sh "$SPLIT" --stage "$PEKIT_OUT/$tool-debug" org.kernel.util-linux \
-    "$PEKIT_OUT/usr/bin/$tool"
-  cp -R "$PEKIT_OUT/$tool-debug/usr/src/." "$PEKIT_OUT/usr/src/"
-  rm -rf "$PEKIT_OUT/$tool-debug/usr/src"
-done
+split_group() {
+  group=$1; shift
+  mkdir -p "$PEKIT_OUT/$group-debug"
+  set -- $(for tool in "$@"; do printf '%s\n' "$PEKIT_OUT/usr/bin/$tool"; done)
+  sh "$SPLIT" --stage "$PEKIT_OUT/$group-debug" org.kernel.util-linux "$@"
+  cp -R "$PEKIT_OUT/$group-debug/usr/src/." "$PEKIT_OUT/usr/src/"
+  rm -rf "$PEKIT_OUT/$group-debug/usr/src"
+}
+split_group getopt getopt
+split_group hexdump hexdump
+split_group schedutils $SCHEDUTILS
+split_group script $SCRIPT
+split_group extra $EXTRA
 '''
 
 [test]
@@ -131,7 +172,44 @@ mkdir -p "$SMOKE"
 
 make -C "$BUILD" -j"$(nproc)" check
 "$SRC/tests/run.sh" --srcdir="$SRC" --builddir="$GETOPT_BUILD" \
-  --parallel="$(nproc)" getopt hexdump
+  --parallel="$(nproc)" getopt hexdump script flock setsid rev col colcrt colrm \
+  | tee "$SMOKE/commands-suite"
+# Every shipped command's upstream cases run, except flock's: they need
+# procps' pgrep and the unbuilt lslocks. flock is exercised directly below.
+if grep -F SKIPPED "$SMOKE/commands-suite" | grep -v -E '^ *flock:'; then exit 1; fi
+BIN="$STAGE/usr/bin"
+
+# Scheduling tools act on this shell; taskset must honour an affinity mask.
+"$BIN/taskset" -p $$ | grep -E "pid $$'s current affinity mask: [0-9a-f]+"
+test "$("$BIN/taskset" -c 0 sh -c 'grep Cpus_allowed_list /proc/self/status')" \
+  = "$(printf 'Cpus_allowed_list:\t0')"
+"$BIN/chrt" -p $$ | grep -F "pid $$'s current scheduling policy: SCHED_OTHER"
+"$BIN/chrt" --batch 0 sh -c '"$0" -p $$' "$BIN/chrt" | grep -F SCHED_BATCH
+"$BIN/ionice" -p $$ | grep -E '^(none|best-effort|idle|realtime)'
+"$BIN/ionice" -c 3 sh -c '"$0" -p $$' "$BIN/ionice" | grep -Fx idle
+"$BIN/renice" -n 0 -p $$ | grep -F "$$ (process ID) old priority"
+
+# script records a session on a pseudo-terminal; scriptreplay replays it.
+"$BIN/script" -q -c 'echo recorded-output' -T "$SMOKE/timing" "$SMOKE/typescript" \
+  < /dev/null > "$SMOKE/script.out"
+grep -F recorded-output "$SMOKE/typescript"
+"$BIN/scriptreplay" -m 0.001 -t "$SMOKE/timing" "$SMOKE/typescript" | grep -F recorded-output
+
+# flock serialises, setsid detaches, and the text filters transform.
+"$BIN/flock" "$SMOKE/lock" sh -c 'test -e "$0"' "$SMOKE/lock"
+"$BIN/flock" -n "$SMOKE/lock" true
+"$BIN/flock" "$SMOKE/lock" sh -c 'touch "$0.held"; sleep 5' "$SMOKE/lock" &
+holder=$!
+while [ ! -e "$SMOKE/lock.held" ]; do sleep 0.1; done
+status=0
+"$BIN/flock" -n "$SMOKE/lock" true || status=$?
+test "$status" -eq 1
+"$BIN/flock" -s -n "$SMOKE/lock" true && exit 1
+"$BIN/flock" -w 10 "$SMOKE/lock" true
+wait "$holder"
+test "$("$BIN/setsid" -w sh -c 'ps_sid=$(cut -d" " -f6 /proc/$$/stat); test "$ps_sid" = $$ && echo leader')" = leader
+test "$(printf 'abc\n' | "$BIN/rev")" = cba
+test "$(printf 'abcdef\n' | "$BIN/colrm" 2 3)" = adef
 
 test "$(printf '%s\n' "$LIB" | grep -c .)" -eq 1
 test -s "$LIBDIR/libblkid.a"
@@ -162,7 +240,9 @@ gcc ${CPPFLAGS:-} ${CFLAGS:?} -I"$STAGE/usr/include" "$SMOKE/libblkid.c" \
   -L"$LIBDIR" -lblkid -o "$SMOKE/libblkid"
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libblkid"
 
-for elf in "$LIB" "$STAGE/usr/bin/getopt" "$STAGE/usr/bin/hexdump"; do
+for elf in "$LIB" "$STAGE/usr/bin/getopt" "$STAGE/usr/bin/hexdump" \
+    $(for tool in taskset chrt ionice renice script scriptreplay scriptlive \
+        flock setsid rev col colcrt colrm; do printf '%s\n' "$STAGE/usr/bin/$tool"; done); do
   readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -d "$elf" | grep -F 'BIND_NOW'
@@ -176,6 +256,9 @@ readelf -d "$LIB" | grep -F 'Library soname: [libblkid.so.1]'
 readelf -d "$LIB" | grep -F 'Shared library: [libc.so.6]'
 test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
 test "$(find "$STAGE/getopt-debug/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test "$(find "$STAGE/schedutils-debug/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 4
+test "$(find "$STAGE/script-debug/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
+test "$(find "$STAGE/extra-debug/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 6
 test -n "$(find "$STAGE/usr/src/debug/org.kernel.util-linux" -type f -print -quit)"
 '''
 

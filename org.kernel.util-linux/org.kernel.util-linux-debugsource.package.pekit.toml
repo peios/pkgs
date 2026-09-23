@@ -1,13 +1,15 @@
 [package]
 name        = "org.kernel.util-linux-debugsource"
 description = "util-linux sources referenced by packaged debugging data"
-license     = "GPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-4-Clause-UC"
+license     = "GPL-2.0-only AND GPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-4-Clause-UC AND MIT AND LicenseRef-Public-Domain"
 
 [dependencies]
 "org.kernel.libblkid-debuginfo"         = "= {{release}}"
 "org.kernel.util-linux-getopt-debuginfo" = "= {{release}}"
-
 "org.kernel.util-linux-hexdump-debuginfo" = "= {{release}}"
+"org.kernel.util-linux-schedutils-debuginfo" = "= {{release}}"
+"org.kernel.util-linux-script-debuginfo" = "= {{release}}"
+"org.kernel.util-linux-extra-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.kernel.util-linux-debugsource/COPYING"

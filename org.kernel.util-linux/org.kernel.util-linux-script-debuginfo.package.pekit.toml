@@ -1,0 +1,11 @@
+[package]
+name        = "org.kernel.util-linux-script-debuginfo"
+description = "util-linux script debugging symbols"
+license     = "BSD-4-Clause-UC AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+
+[dependencies]
+"org.kernel.util-linux-script" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.util-linux-script-debuginfo/COPYING"
+":script-debug/usr/lib/debug/**" = "usr/lib/debug"

@@ -1,0 +1,31 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.util-linux-extra"
+description = "File locking, session and text filter utilities"
+license     = "MIT AND BSD-4-Clause-UC AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-extra/"
+"@source:Documentation/licenses/COPYING.BSD-4-Clause-UC" = "usr/share/licenses/org.kernel.util-linux-extra/"
+"@source:Documentation/licenses/COPYING.MIT" = "usr/share/licenses/org.kernel.util-linux-extra/"
+"@source:Documentation/licenses/COPYING.LGPL-2.1-or-later" = "usr/share/licenses/org.kernel.util-linux-extra/"
+":usr/bin/flock" = "usr/bin/flock"
+":usr/share/man/man1/flock.1.gz" = "usr/share/man/man1/flock.1.gz"
+":usr/bin/setsid" = "usr/bin/setsid"
+":usr/share/man/man1/setsid.1.gz" = "usr/share/man/man1/setsid.1.gz"
+":usr/bin/rev" = "usr/bin/rev"
+":usr/share/man/man1/rev.1.gz" = "usr/share/man/man1/rev.1.gz"
+":usr/bin/col" = "usr/bin/col"
+":usr/share/man/man1/col.1.gz" = "usr/share/man/man1/col.1.gz"
+":usr/bin/colcrt" = "usr/bin/colcrt"
+":usr/share/man/man1/colcrt.1.gz" = "usr/share/man/man1/colcrt.1.gz"
+":usr/bin/colrm" = "usr/bin/colrm"
+":usr/share/man/man1/colrm.1.gz" = "usr/share/man/man1/colrm.1.gz"

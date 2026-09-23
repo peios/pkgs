@@ -1,0 +1,24 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.util-linux-script"
+description = "Terminal session recording and replay tools"
+license     = "BSD-4-Clause-UC AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-script/"
+"@source:Documentation/licenses/COPYING.BSD-4-Clause-UC" = "usr/share/licenses/org.kernel.util-linux-script/"
+"@source:Documentation/licenses/COPYING.LGPL-2.1-or-later" = "usr/share/licenses/org.kernel.util-linux-script/"
+":usr/bin/script" = "usr/bin/script"
+":usr/share/man/man1/script.1.gz" = "usr/share/man/man1/script.1.gz"
+":usr/bin/scriptreplay" = "usr/bin/scriptreplay"
+":usr/share/man/man1/scriptreplay.1.gz" = "usr/share/man/man1/scriptreplay.1.gz"
+":usr/bin/scriptlive" = "usr/bin/scriptlive"
+":usr/share/man/man1/scriptlive.1.gz" = "usr/share/man/man1/scriptlive.1.gz"

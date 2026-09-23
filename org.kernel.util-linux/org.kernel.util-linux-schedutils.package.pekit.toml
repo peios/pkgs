@@ -1,0 +1,27 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.kernel.util-linux-schedutils"
+description = "CPU affinity and process scheduling tools"
+license     = "GPL-2.0-only AND BSD-4-Clause-UC AND GPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-schedutils/"
+"@source:Documentation/licenses/COPYING.BSD-4-Clause-UC" = "usr/share/licenses/org.kernel.util-linux-schedutils/"
+"@source:Documentation/licenses/COPYING.GPL-2.0-only" = "usr/share/licenses/org.kernel.util-linux-schedutils/"
+"@source:Documentation/licenses/COPYING.LGPL-2.1-or-later" = "usr/share/licenses/org.kernel.util-linux-schedutils/"
+":usr/bin/taskset" = "usr/bin/taskset"
+":usr/share/man/man1/taskset.1.gz" = "usr/share/man/man1/taskset.1.gz"
+":usr/bin/chrt" = "usr/bin/chrt"
+":usr/share/man/man1/chrt.1.gz" = "usr/share/man/man1/chrt.1.gz"
+":usr/bin/ionice" = "usr/bin/ionice"
+":usr/share/man/man1/ionice.1.gz" = "usr/share/man/man1/ionice.1.gz"
+":usr/bin/renice" = "usr/bin/renice"
+":usr/share/man/man1/renice.1.gz" = "usr/share/man/man1/renice.1.gz"
