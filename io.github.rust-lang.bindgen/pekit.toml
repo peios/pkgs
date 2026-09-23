@@ -72,6 +72,13 @@ mkdir -p "$PEKIT_OUT/usr/bin"
 BIN="$PEKIT_OUT/usr/bin/bindgen"
 cp "$PEKIT_OUT/target/release/bindgen" "$BIN"
 
+# Ship the notices of every crate bindgen links and hold the package
+# definition to the conjunction of their licences (PEI-1163).
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/collect-rust-licences" \
+  --licence-root "$PEKIT_OUT/licenses" --root bindgen-cli \
+  --check "$PEKIT_RECIPE_ROOT/package.pekit.toml"
+test -s "$PEKIT_OUT/licenses/crate-licenses.tsv"
+
 # Preserve build-ID-indexed symbols and exactly the source files referenced by
 # the binary's DWARF, including its locked vendored Rust dependencies. This
 # stays hand-written rather than using _pkgtools_/split-debug: the vendored
@@ -129,6 +136,7 @@ rm -rf "$PEKIT_OUT/target"
 "org.sourceware.debugedit" = "*"
 "org.gnu.binutils" = "*"
 "org.gnu.gzip" = "*"
+"org.python.python3" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
@@ -138,6 +146,7 @@ libclang-18-dev = "*"
 debugedit = "*"
 binutils = "*"
 gzip = "*"
+python3 = "*"
 
 [test]
 gate = true

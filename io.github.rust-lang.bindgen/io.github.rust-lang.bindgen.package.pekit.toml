@@ -13,5 +13,6 @@ description = "C-to-Rust FFI bindings generator from the bindgen-cli crate"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/io.github.rust-lang.bindgen/"
+":licenses/**" = "usr/share/licenses/io.github.rust-lang.bindgen/third-party"
 ":usr/bin/bindgen" = "usr/bin/bindgen"
 ":usr/share/man/man1/bindgen.1.gz" = "usr/share/man/man1/bindgen.1.gz"

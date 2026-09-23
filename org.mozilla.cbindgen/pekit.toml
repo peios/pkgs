@@ -57,6 +57,13 @@ cp "$PEKIT_OUT/target/release/cbindgen" "$BIN"
 mkdir -p "$PEKIT_OUT/usr/share/man/man1"
 gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/cbindgen.1" > "$PEKIT_OUT/usr/share/man/man1/cbindgen.1.gz"
 
+# Ship the notices of every crate cbindgen links and hold the package
+# definition to the conjunction of their licences (PEI-1163).
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/collect-rust-licences" \
+  --licence-root "$PEKIT_OUT/licenses" --root cbindgen \
+  --check "$PEKIT_RECIPE_ROOT/package.pekit.toml"
+test -s "$PEKIT_OUT/licenses/crate-licenses.tsv"
+
 # Hand-written rather than _pkgtools_/split-debug: DWARF references both the
 # crate tree and the vendored crates, which live outside any one build root
 # (vendor/* resolves into the vendor target's output).
@@ -99,6 +106,7 @@ rm -f "$LIST"
 "org.gnu.gcc-c++"          = ">= 16, < 17"
 "org.gnu.binutils"         = "*"
 "org.sourceware.debugedit" = "*"
+"org.python.python3"       = "*"
 
 [test]
 needs = ["main", "vendor"]

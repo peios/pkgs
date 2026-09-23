@@ -7,4 +7,5 @@ description = "cbindgen debugging symbols"
 
 [files]
 "@source:LICENSE"       = "usr/share/licenses/org.mozilla.cbindgen-debuginfo/LICENSE"
+":licenses/**"          = "usr/share/licenses/org.mozilla.cbindgen-debuginfo/third-party"
 ":usr/lib/debug/**"     = "usr/lib/debug"

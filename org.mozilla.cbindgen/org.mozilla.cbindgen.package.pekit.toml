@@ -6,6 +6,7 @@ description = "Rust-to-C and C++ bindings generator"
 
 [files]
 "@source:LICENSE"      = "usr/share/licenses/org.mozilla.cbindgen/LICENSE"
+":licenses/**"         = "usr/share/licenses/org.mozilla.cbindgen/third-party"
 ":usr/bin/cbindgen"    = "usr/bin/cbindgen"
 
 ":usr/share/man/man1/cbindgen.1.gz" = "usr/share/man/man1/cbindgen.1.gz"

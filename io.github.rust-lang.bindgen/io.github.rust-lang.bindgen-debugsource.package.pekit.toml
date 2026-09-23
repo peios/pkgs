@@ -2,11 +2,11 @@
 name         = "io.github.rust-lang.bindgen-debugsource"
 architecture = "noarch"
 description  = "Bindgen debug sources"
-license      = "BSD-3-Clause"
 
 [dependencies]
 "io.github.rust-lang.bindgen-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE"     = "usr/share/licenses/io.github.rust-lang.bindgen-debugsource/LICENSE"
+":licenses/**"        = "usr/share/licenses/io.github.rust-lang.bindgen-debugsource/third-party"
 ":usr/src/debug/**"   = "usr/src/debug"

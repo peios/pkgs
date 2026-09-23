@@ -8,4 +8,5 @@ description  = "cbindgen debug sources"
 
 [files]
 "@source:LICENSE"         = "usr/share/licenses/org.mozilla.cbindgen-debugsource/LICENSE"
+":licenses/**"            = "usr/share/licenses/org.mozilla.cbindgen-debugsource/third-party"
 ":usr/src/debug/**"       = "usr/src/debug"

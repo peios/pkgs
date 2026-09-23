@@ -1,11 +1,11 @@
 [package]
 name        = "io.github.rust-lang.bindgen-debuginfo"
 description = "Bindgen debugging symbols"
-license     = "BSD-3-Clause"
 
 [dependencies]
 "io.github.rust-lang.bindgen" = "= {{release}}"
 
 [files]
 "@source:LICENSE"   = "usr/share/licenses/io.github.rust-lang.bindgen-debuginfo/LICENSE"
+":licenses/**"      = "usr/share/licenses/io.github.rust-lang.bindgen-debuginfo/third-party"
 ":usr/lib/debug/**" = "usr/lib/debug"

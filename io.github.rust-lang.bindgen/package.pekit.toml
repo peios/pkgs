@@ -4,6 +4,8 @@ format = "peipkg"
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "BSD-3-Clause"
+# The crate closure bindgen links; build.main's collect-rust-licences --check
+# holds this to what those crates declare.
+license       = "((MIT OR Apache-2.0) AND Unicode-DFS-2016) AND Apache-2.0 AND (Apache-2.0 OR MIT) AND (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) AND BSD-3-Clause AND ISC AND MIT AND (MIT OR Unlicense)"
 license_class = "free"
 homepage      = "https://github.com/rust-lang/rust-bindgen"
