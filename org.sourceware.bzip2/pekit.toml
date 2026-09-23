@@ -70,8 +70,6 @@ ln -s bzip2 "$BINDIR/bzcat"
 # Keep the wrappers whose dependency closure Peios can satisfy today. bzmore
 # and bzless remain omitted until a packaged pager exists.
 install -m 0755 bzgrep bzdiff "$BINDIR/"
-sed -i 's|/usr/bin:/bin:|/usr/bin:|' "$BINDIR/bzdiff"
-sed -i 's|/bin/rm|/usr/bin/rm|' "$BINDIR/bzdiff"
 ln -s bzgrep "$BINDIR/bzegrep"
 ln -s bzgrep "$BINDIR/bzfgrep"
 ln -s bzdiff "$BINDIR/bzcmp"

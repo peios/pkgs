@@ -103,7 +103,8 @@ test -n "$(find "$STAGE/usr/share/locale" -type f -name 'make.mo' -print -quit)"
 test "$(find "$STAGE/usr/bin" -type f | wc -l)" -eq 1
 
 # Exercise the staged executable as a real build driver. No SHELL assignment
-# is supplied: successful recipes prove the Peios /usr/bin/sh default patch.
+# is supplied: successful recipes prove upstream's /bin/sh default resolves
+# through the runtime view.
 mkdir -p "$SMOKE"
 cat > "$SMOKE/Makefile" <<'EOF'
 .PHONY: all

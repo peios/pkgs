@@ -43,9 +43,9 @@ export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.m4"
 BIN="$PEKIT_OUT/usr/bin/m4"
 cd "$PEKIT_OUT"
 
-# Peios has no legacy /bin contract. Compile syscmd/esyscmd to invoke the
-# declared Dash runtime directly. Generate IBT PLT entries without overriding
-# the linker's compatibility-note merge for unmarked startup objects.
+# syscmd/esyscmd keep upstream's /bin/sh, the runtime view of the declared
+# shell. Generate IBT PLT entries without overriding the linker's
+# compatibility-note merge for unmarked startup objects.
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
 "$SRC/configure" \
   --build=x86_64-pc-linux-gnu \
@@ -54,7 +54,6 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   --bindir=/usr/bin \
   --mandir=/usr/share/man \
   --localedir=/usr/share/locale \
-  --with-syscmd-shell=/usr/bin/sh \
   --disable-silent-rules
 
 make -j"$(nproc)"
