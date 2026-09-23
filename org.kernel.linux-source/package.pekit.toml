@@ -1,8 +1,0 @@
-format = "peipkg"
-
-[package]
-version       = "{{version}}-1"
-architecture  = "noarch"
-license       = "GPL-2.0-only WITH Linux-syscall-note"
-license_class = "free"
-homepage      = "https://www.kernel.org/"
