@@ -2,9 +2,9 @@
 # (kernel HZ table generation) feeds on bc.
 #
 # PEI-158 kernel-tooling leaf: autotools from the signed release tarball,
-# out-of-source via DESTDIR (the m4 shape). Readline support is deliberately
-# deferred to PEI-613 because Peios does not yet package the library; bc and dc
-# remain fully functional for non-interactive use. The tarball ships generated
+# out-of-source via DESTDIR (the m4 shape). Interactive bc edits its input and
+# keeps history through GNU Readline (PEI-613); dc reads plain lines, as
+# upstream builds it. The tarball ships generated
 # scanner/parser sources but its documentation build still needs makeinfo, so
 # texinfo is a build dependency even though Peios does not yet ship Info files.
 # dc rides along (one tarball, one package).
@@ -41,7 +41,9 @@ ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.bc"
 cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man \
-  --infodir=/usr/share/info
+  --infodir=/usr/share/info --with-readline
+# configure drops Readline silently when its probe fails; insist on it.
+grep -Fx '#define READLINE 1' config.h
 make -j"$(nproc)"
 
 make install DESTDIR="$PEKIT_OUT"
@@ -57,6 +59,9 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.bc \
 "org.gnu.texinfo" = "*"
 "org.gnu.gzip" = "*"
 "org.sourceware.debugedit" = "*"
+"org.gnu.readline-devel" = ">= 8.3"
+# configure accepts --with-readline only when flex is the lexer.
+"io.github.westes.flex" = "*"
 
 [test]
 gate = true
@@ -64,6 +69,8 @@ needs = ["main"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
 test "$(printf '%s\n' 'scale=4; 1/8' | "$BIN/bc")" = .1250
 test "$(printf '%s\n' '16i FF p' | "$BIN/dc")" = 255
 
@@ -113,6 +120,25 @@ if printf '1+1\n' | "$PEKIT_OUT/bc/bc" > /dev/full 2>/dev/null; then
   exit 1
 fi
 
+# Interactive bc through a terminal: Readline history recall (Up-arrow) and
+# editing (Ctrl-A to the start of the line). bc prompts with nothing, so each
+# step waits for the previous result.
+cc -O2 -o "$SMOKE/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+cat > "$SMOKE/session" <<'EOF'
+send 6*7\r
+expect 42
+send \e[A\r
+expect 42
+send +2\x0197\r
+expect 99
+send quit\r
+EOF
+TERM=xterm "$SMOKE/pty-drive" "$SMOKE/session" -- "$BIN/bc" -q > "$SMOKE/bc.out"
+# Results follow Readline's bracketed-paste escapes on the same line.
+test "$(tr -d '\r' < "$SMOKE/bc.out" | grep -c '42$')" -eq 2
+tr -d '\r' < "$SMOKE/bc.out" | grep '99$'
+readelf -d "$BIN/bc" | grep -F 'Shared library: [libreadline.so.8]'
+
 test "$(find "$PEKIT_MAIN_OUT/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
 test -n "$(find "$PEKIT_MAIN_OUT/usr/src/debug/org.gnu.bc" -type f -print -quit)"
 for elf in "$BIN/bc" "$BIN/dc"; do
@@ -131,3 +157,6 @@ done
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.texinfo" = "*"
 "org.git.kernel.dash" = "*"
+# make check recompiles the objects, so it needs what the build needed.
+"org.gnu.readline-devel" = ">= 8.3"
+"io.github.westes.flex" = "*"

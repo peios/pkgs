@@ -10,6 +10,7 @@ description = "GNU bc - arbitrary-precision calculator language (bc and dc)"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"
+"org.gnu.readline" = ">= 8.3"
 
 [files]
 "@source:COPYING*"   = "usr/share/licenses/org.gnu.bc/"

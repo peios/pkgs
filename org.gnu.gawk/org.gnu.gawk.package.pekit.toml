@@ -6,6 +6,7 @@ description = "GNU pattern scanning and processing language"
 "org.gnu.glibc"                 = ">= 2.43"
 "org.gnu.gmp"                   = ">= 6.3.0"
 "org.gnu.mpfr"                  = ">= 4.2.2"
+"org.gnu.readline"              = ">= 8.3"
 "org.git.kernel.dash"                  = "*"
 "org.gnu.gawk-common" = "= {{release}}"
 

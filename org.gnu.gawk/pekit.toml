@@ -1,9 +1,8 @@
 # GNU Gawk — GNU's awk implementation and extension runtime.
 #
 # Loadable modules live under the architecture-qualified Peios library root.
-# Readline support is intentionally disabled until PEI-613 supplies a
-# production Readline package; batch awk and the debugger otherwise remain
-# fully functional.
+# The debugger (gawk -D) edits its commands and keeps history through GNU
+# Readline (PEI-613), which is therefore in the minimal-bootstrap seed too.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -45,7 +44,9 @@ CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.gnu.gawk -f
   --enable-extensions \
   --disable-pma \
   --with-mpfr=/usr \
-  --without-readline
+  --with-readline=/usr
+# configure drops Readline silently when its probe fails; insist on it.
+grep -Fx '#define HAVE_LIBREADLINE 1' config.h
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
@@ -80,6 +81,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gawk \
 "org.gnu.glibc-langpack-ja"  = ">= 2.43"
 "org.gnu.glibc-langpack-ru"  = ">= 2.43"
 "org.gnu.mpfr-devel"         = ">= 4.2.2"
+"org.gnu.readline-devel"     = ">= 8.3"
 "org.sourceware.debugedit"   = "*"
 "org.gnu.gzip"               = "*"
 
@@ -89,6 +91,7 @@ debugedit       = "*"
 dwz             = "*"
 locales-all     = "*"
 libmpfr-dev     = "*"
+libreadline-dev = "*"
 gzip            = "*"
 
 [test]
@@ -138,6 +141,26 @@ test "$(cat "$SMOKE/extension.out")" = 65
 "$GAWK" --version | grep -F 'GNU MPFR'
 "$GAWK" --version | grep -F 'GNU MP'
 
+# The debugger through a terminal: Readline history recall (Up-arrow) must
+# re-run the previous command.
+cc -O2 -o "$SMOKE/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+printf '%s\n' 'BEGIN { x = 1 }' > "$SMOKE/prog.awk"
+cat > "$SMOKE/session" <<'EOF'
+expect gawk> 
+send eval "print 6*7"\r
+expect 42
+expect gawk> 
+send \e[A\r
+expect 42
+expect gawk> 
+send quit\r
+EOF
+TERM=xterm "$SMOKE/pty-drive" "$SMOKE/session" -- "$GAWK" -D -f "$SMOKE/prog.awk" \
+  > "$SMOKE/debugger.out"
+# Results follow Readline's bracketed-paste escapes on the same line.
+test "$(tr -d '\r' < "$SMOKE/debugger.out" | grep -c '42$')" -eq 2
+readelf -d "$GAWK" | grep -F 'Shared library: [libreadline.so.8]'
+
 find "$LIBDIR" -type f -name '*.so' | LC_ALL=C sort > "$SMOKE/extensions"
 test -s "$SMOKE/extensions"
 printf '%s\n' "$GAWK" "$STAGE/usr/libexec/awk/grcat" "$STAGE/usr/libexec/awk/pwcat" \
@@ -161,6 +184,7 @@ rm -rf "$SMOKE"
 "org.gnu.glibc-langpack-ja" = ">= 2.43"
 "org.gnu.glibc-langpack-ru" = ">= 2.43"
 "org.gnu.mpfr-devel" = ">= 4.2.2"
+"org.gnu.readline-devel" = ">= 8.3"
 "org.git.kernel.dash" = "*"
 
 [test.dependencies.apt]
@@ -168,5 +192,6 @@ build-essential = "*"
 debugedit = "*"
 locales-all = "*"
 libmpfr-dev = "*"
+libreadline-dev = "*"
 patchelf = "*"
 dash = "*"
