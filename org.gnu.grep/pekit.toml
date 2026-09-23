@@ -1,8 +1,8 @@
 # GNU Grep — GNU's line-oriented pattern matching utility.
 #
-# PCRE matching remains deliberately disabled until Peios has a production
-# PCRE2 package. BRE, ERE and fixed-string matching are complete; the staged
-# smoke test below makes the temporary absence of `grep -P` explicit.
+# Built with Perl-compatible matching (`grep -P`) against the packaged PCRE2,
+# as Fedora and Debian ship it. Grep is in the minimal-bootstrap seed, so PCRE2
+# is too: the seed grep links Debian's libpcre2-8 and runs against org.pcre.pcre2.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -42,7 +42,7 @@ cd "$PEKIT_OUT"
   --bindir=/usr/bin \
   --mandir=/usr/share/man \
   --disable-rpath \
-  --disable-perl-regexp
+  --enable-perl-regexp
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
@@ -83,10 +83,14 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.grep "$PEKIT_OUT/usr"
 "org.gnu.glibc-langpack-zh"  = ">= 2.43"
 "org.gnu.gettext" = "*"
 "org.perl.perl"               = "*"
+"org.pcre.pcre2-devel"        = "*"
+"org.pkgconf.pkgconf"         = "*"
 
 [build.main.dependencies.apt]
 gzip = "*"
 build-essential = "*"
+libpcre2-dev    = "*"
+pkgconf         = "*"
 debugedit       = "*"
 gettext         = "*"
 locales-all     = "*"
@@ -145,12 +149,15 @@ cmp "$SMOKE/egrep.expected" "$SMOKE/egrep"
   2> "$SMOKE/fgrep.err"
 test "$(cat "$SMOKE/fgrep")" = 'gamma[1]'
 
-status=0
-"$GREP" -P needle "$SMOKE/input" > "$SMOKE/pcre.out" \
-  2> "$SMOKE/pcre.err" || status=$?
-test "$status" -eq 2
-grep -F 'Perl matching not supported in a --disable-perl-regexp build' \
-  "$SMOKE/pcre.err"
+# Perl-compatible matching: lookaround, \d, and UTF-8 character properties
+# (PCRE2 is built with Unicode support, and grep enables UTF for UTF-8 locales).
+"$GREP" -P -o '(?<=beta-)\d+' "$SMOKE/input" > "$SMOKE/pcre"
+test "$(cat "$SMOKE/pcre")" = 42
+printf '%s\n' 'Äpfel' 'apples' > "$SMOKE/pcre-utf8-input"
+LC_ALL=de_DE.UTF-8 "$GREP" -P -x '\p{Lu}\p{Ll}+' "$SMOKE/pcre-utf8-input" \
+  > "$SMOKE/pcre-utf8"
+test "$(cat "$SMOKE/pcre-utf8")" = 'Äpfel'
+readelf -d "$GREP" | grep -F 'Shared library: [libpcre2-8.so.0]'
 
 "$GREP" --version | head -1 | grep -F "$PEKIT_VERSION"
 readelf -h "$GREP" | grep -E 'Type:[[:space:]]+DYN'
@@ -179,6 +186,7 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.grep" -type f -print -quit)"
 "org.perl.perl"             = "*"
 "org.gnu.binutils"          = "*"
 "org.gnu.findutils"         = "*"
+"org.pcre.pcre2-devel"      = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
@@ -186,3 +194,4 @@ locales-all     = "*"
 perl            = "*"
 binutils        = "*"
 findutils       = "*"
+libpcre2-dev    = "*"

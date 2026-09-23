@@ -8,6 +8,7 @@ license     = "GPL-3.0-or-later"
 [dependencies]
 "org.git.kernel.dash"                  = "*"
 "org.gnu.glibc"                 = ">= 2.43"
+"org.pcre.pcre2"                = ">= 10.48"
 "org.gnu.grep-common" = "= {{release}}"
 
 [files]

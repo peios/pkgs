@@ -1,5 +1,5 @@
-# PCRE2 — the Perl-compatible regular expression library. glib (and through it
-# QEMU, PEI-534) needs libpcre2-8 and its pkg-config module; the 16- and 32-bit
+# PCRE2 — the Perl-compatible regular expression library. grep (`grep -P`) and
+# glib need libpcre2-8 and its pkg-config module; the 16- and 32-bit
 # code-unit libraries, the POSIX wrapper and the pcre2grep/pcre2test commands
 # come from the same build and are split so a consumer installs only what it
 # links.
@@ -14,8 +14,10 @@
 # is packaged for Peios), and pcre2grep's in-process .gz/.bz2 readers (Fedora
 # omits them too; compressed input can be piped through zcat/bzcat, and the
 # command keeps a closure of PCRE2 and libc only).
+#
+# In the minimal-bootstrap seed because the seed's grep links libpcre2-8.
 
-tags = ["bootstrap"]
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
@@ -119,6 +121,11 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.pcre.pcre2 "$PREFIX"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.gzip"                 = "*"
 "org.sourceware.debugedit"     = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gzip            = "*"
+debugedit       = "*"
 
 [test]
 needs = ["main"]
@@ -287,7 +294,10 @@ for elf in $ELFS; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  # Debian's startup objects carry no CET notes (see debian.env.pekit.toml).
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
 done
@@ -314,3 +324,12 @@ test "$(needed "$BIN/pcre2test")" = \
 "org.gnu.grep"                 = "*"
 "org.gnu.diffutils"            = "*"
 "org.gnu.sed"                  = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"
+diffutils       = "*"
+sed             = "*"
