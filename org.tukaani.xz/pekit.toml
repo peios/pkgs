@@ -2,6 +2,7 @@
 # grep/diff wrappers. Pager wrappers remain omitted until Peios has a pager
 # provider; all other normal upstream functionality is built and tested.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -17,6 +17,7 @@
 # Qualification tools are acquired and recorded outside the bootstrap build;
 # final build/test workers remain offline.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -27,6 +27,7 @@
 # list of reasons. The suite is stdlib-only, so no test tools are acquired
 # and there is no vendor target; every stage runs offline.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # PyPI's stable per-project source URL (no content hash in the path) and Simple

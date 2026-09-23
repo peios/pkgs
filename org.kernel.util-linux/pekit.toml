@@ -6,6 +6,7 @@
 # filesystem-signature library used by peiosutils, eudev and e2fsprogs;
 # getopt remains because shell tooling such as xmlto requires it.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

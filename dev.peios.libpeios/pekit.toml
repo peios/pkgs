@@ -6,6 +6,7 @@
 # workspace's peipkg-net profile for Peios builds; compilation still runs in
 # the ordinary offline package root.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 delegate = true
 

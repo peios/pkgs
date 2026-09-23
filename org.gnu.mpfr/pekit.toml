@@ -2,6 +2,7 @@
 # GCC uses it for compile-time folding, so the complete upstream correctness
 # suite and installed shared/static API tests are release gates.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

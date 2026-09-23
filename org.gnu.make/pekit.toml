@@ -2,6 +2,7 @@
 # Release tarballs contain the generated build system, so this recipe does not
 # create a bootstrap dependency on Autoconf or Automake.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

@@ -32,6 +32,7 @@
 #
 #   pekit publish --latest --env peipkg --keyring dev --all
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 # Follow the canonical kernel.org release archive.  Releases are enumerated

@@ -5,6 +5,7 @@
 # until native GDB and DWZ packages exist. Debian reference builds run all 58
 # upstream tests; native builds run the 44 tests for every shipped C tool.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

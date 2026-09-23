@@ -63,6 +63,7 @@
 # itself a Special System Package, and an image composes it only by granting
 # the exemption explicitly (bypass_path_restrictions in its peiso spec).
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [build]

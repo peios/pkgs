@@ -1,5 +1,6 @@
 # GNU Diffutils — diff, cmp, diff3 and sdiff.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

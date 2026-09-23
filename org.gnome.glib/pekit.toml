@@ -7,6 +7,7 @@
 # and the gi-docgen reference manual are off. Manuals for the command-line
 # tools are generated with docutils' rst2man.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

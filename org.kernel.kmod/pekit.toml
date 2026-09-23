@@ -19,6 +19,7 @@
 # tools/objtool/objtool, without which Kbuild cannot compile a single external
 # module (CONFIG_OBJTOOL is on).
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

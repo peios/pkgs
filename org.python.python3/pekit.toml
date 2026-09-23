@@ -6,6 +6,7 @@
 # line are discovered and locked automatically; moving to 3.15 requires the
 # coordinated Python-package rebuild documented by PEI-725.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

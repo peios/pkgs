@@ -1,5 +1,6 @@
 # GNU Libtool — portable shared-library build tooling and libltdl.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

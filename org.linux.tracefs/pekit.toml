@@ -1,6 +1,7 @@
 # libtracefs — the kernel tracefs interaction library used by trace-cmd,
 # perf/rtla and other tracing clients.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

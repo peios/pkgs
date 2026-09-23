@@ -4,6 +4,7 @@
 # it is the final DocBook 4 DTD. DocBook 5 is a distinct, namespace-aware
 # RELAX NG schema line and cannot replace this package for DocBook 4 consumers.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # OASIS publishes the normative archive without a detached signature or

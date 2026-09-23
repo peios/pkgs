@@ -3,6 +3,7 @@
 # have no namespace, so using the namespaced tree adds a conversion pass and
 # can exhaust libxslt's template-depth limit on large generated manual pages.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The installed XSL/XML payload is already the complete preferred form for

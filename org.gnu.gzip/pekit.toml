@@ -1,5 +1,6 @@
 # GNU gzip — DEFLATE compression plus its non-interactive shell utilities.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -6,6 +6,7 @@
 # stack yet, and PEI-731 tracks the ownership/transaction design for the
 # shared /usr/share/info/dir file.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

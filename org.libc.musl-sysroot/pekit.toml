@@ -3,6 +3,7 @@
 # process libc: keeping every file under a private prefix prevents it from
 # competing with glibc or advertising a musl dynamic runtime.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source_package]

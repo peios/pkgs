@@ -6,6 +6,7 @@
 # Pekit's tracked-path mode therefore creates a dated release only when the
 # pci.ids bytes change and pins that observation to an immutable commit/blob.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

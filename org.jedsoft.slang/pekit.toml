@@ -2,6 +2,7 @@
 # modules. Upstream's release build is not out-of-source capable, so the
 # authenticated tree is copied into the target stage before configuration.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

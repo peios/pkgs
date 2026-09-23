@@ -6,6 +6,7 @@
 # and FetchContent, so the bundled curl is built with TLS rather than silently
 # producing a network-limited CMake.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

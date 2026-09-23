@@ -1,5 +1,6 @@
 # Track authenticated upstream stable releases; retain older ABI runtimes separately.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

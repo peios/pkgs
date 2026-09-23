@@ -12,6 +12,7 @@
 # libpsl, brotli, libidn2, libssh2, LDAP, GSS-API, QUIC) are explicitly off so
 # a new build dependency can never switch one on silently.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

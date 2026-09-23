@@ -11,6 +11,7 @@
 # offline. LLVM and OpenSSL are Peios system libraries rather than bundled
 # copies; the upstream llvm-project tree is never built.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # This frozen kernel-toolchain lane and the rolling userspace lane package the

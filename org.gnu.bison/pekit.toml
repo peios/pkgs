@@ -5,6 +5,7 @@
 # checkout: it carries the generated build system and parser sources needed to
 # avoid a bootstrap dependency on Bison itself.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # Compatibility fixes already carried by Fedora: correct the C++ GLR skeleton's

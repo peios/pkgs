@@ -2,6 +2,7 @@
 # upstream repository owner; revision-exact legacy provides keep existing
 # Peios consumers and installed packages on a safe rename path.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

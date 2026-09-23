@@ -7,6 +7,7 @@
 # configure and Makefile.in files needed to bootstrap Autoconf without an
 # existing Autotools stack.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

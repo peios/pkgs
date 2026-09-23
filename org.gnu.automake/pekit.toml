@@ -7,6 +7,7 @@
 # generated configure and Makefile.in files needed to build without an
 # existing Automake installation.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

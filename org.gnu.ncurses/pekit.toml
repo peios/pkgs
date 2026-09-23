@@ -2,6 +2,7 @@
 # Peios ships the modern wide-character ABI. The narrow, C++, Ada and old ABI
 # compatibility surfaces are intentionally omitted until a consumer needs one.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

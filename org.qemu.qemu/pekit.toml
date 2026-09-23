@@ -22,6 +22,7 @@
 # architectures, several of them foreign ELF files. Only the x86 firmware is
 # installed, by the list below.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

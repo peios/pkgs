@@ -1,6 +1,7 @@
 # Ninja is a deliberately small build executor. Upstream does not sign release
 # tags, so Pekit's Git lock pins every accepted tag to its exact commit.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

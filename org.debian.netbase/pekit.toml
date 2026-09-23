@@ -3,6 +3,7 @@
 # StrataFS presents it through the conventional /etc view. The RPC database is
 # already shipped by glibc and deliberately remains owned there.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

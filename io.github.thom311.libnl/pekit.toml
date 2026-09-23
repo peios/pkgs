@@ -3,6 +3,7 @@
 # below separately exercise every public library without requiring privileged
 # access to the host network namespace.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

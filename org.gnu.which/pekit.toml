@@ -4,6 +4,7 @@
 # Upstream's shared cwm4 configure layer still performs mandatory C++ compiler
 # probes, however, so the build closure intentionally retains a C++ compiler.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

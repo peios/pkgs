@@ -4,6 +4,7 @@
 # 2.16. Generated API documentation and manuals come from the official release
 # archive, avoiding a circular Doxygen/xsltproc/DocBook bootstrap dependency.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

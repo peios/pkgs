@@ -2,6 +2,7 @@
 # Regenerate configure for the carried Gnulib/glibc compatibility fix using
 # the declared bootstrap Autoconf toolchain.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

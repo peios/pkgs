@@ -9,6 +9,7 @@
 #
 #   pekit package --all --env peipkg
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source_package]

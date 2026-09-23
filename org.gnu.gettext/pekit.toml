@@ -18,6 +18,7 @@
 # symbol and the resulting function recursively jumps to itself. Drop when a
 # Gettext release bundles Gnulib ca635799 or later.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

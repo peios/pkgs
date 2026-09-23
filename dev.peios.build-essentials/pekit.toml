@@ -7,4 +7,5 @@
 # deliberately excludes compilers. Language toolchains stack on it so recipes
 # can request only the contract they actually need.
 
+tags = ["bootstrap"]
 out_dir = "out"

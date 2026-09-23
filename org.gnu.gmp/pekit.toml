@@ -7,6 +7,7 @@
 # download + extract, enumerating versions by parsing the ftp.gnu.org directory
 # index (file_regex keeps three-component .tar.xz releases; `versions` caps the line).
 #
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

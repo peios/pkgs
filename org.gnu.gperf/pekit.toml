@@ -1,5 +1,6 @@
 # GNU gperf — a perfect-hash-function generator.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

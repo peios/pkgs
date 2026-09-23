@@ -1,5 +1,6 @@
 # GNU Patch — strict unified/context diff application for source builds.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

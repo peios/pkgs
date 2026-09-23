@@ -23,6 +23,7 @@
 # supports. Packaging instead runs the deterministic parser/configuration
 # unit suites and exercises the installed program end to end with C and Ninja.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

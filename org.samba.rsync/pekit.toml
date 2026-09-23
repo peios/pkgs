@@ -3,6 +3,7 @@
 # but Peios does not ship a service definition until its identity and policy
 # integration have been designed.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

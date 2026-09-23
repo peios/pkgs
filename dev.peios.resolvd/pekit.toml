@@ -3,6 +3,7 @@
 # follows its immutable production releases while retaining the local checkout
 # for pre-release qualification.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 delegate = true
 

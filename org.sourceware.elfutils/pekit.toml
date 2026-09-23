@@ -6,6 +6,7 @@
 # every recommended compression format. A bounded unstrip output-name repair
 # fixes offline archives of a single executable.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

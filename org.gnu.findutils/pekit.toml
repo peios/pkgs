@@ -6,6 +6,7 @@
 # system. locate/updatedb are deliberately omitted: maintaining a global file
 # index is a separately designed service concern, not a build-base side effect.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

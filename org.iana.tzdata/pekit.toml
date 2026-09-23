@@ -1,6 +1,7 @@
 # IANA Time Zone Database — architecture-independent TZif data used by libc,
 # Jiff, Python, and every service that interprets a named civil timezone.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -5,6 +5,7 @@
 # lock selects major 18. Point releases within the signed 18.x line are
 # automatic; a major upgrade is coordinated with pkm rather than pinned here.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

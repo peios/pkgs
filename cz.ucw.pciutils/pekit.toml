@@ -4,6 +4,7 @@
 # explicit DNS lookup support, libkmod module lookup, and udev HWDB fallback.
 # The fast-moving PCI database is packaged independently as cz.ucw.pciids.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -1,6 +1,7 @@
 # GNU cpio — archive and pass-through copier used by initramfs and package
 # construction.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # GNU cpio 2.15 remains the newest stable release. These three narrowly scoped

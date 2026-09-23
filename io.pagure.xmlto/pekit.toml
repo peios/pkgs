@@ -26,6 +26,7 @@
 # Peipkg is signed; a future upstream signing mechanism can strengthen this
 # without changing the automatic-update shape.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

@@ -11,6 +11,7 @@
 # Upstream's README, NEWS and AUTHORS are contributor notes or empty, so no
 # documentation is shipped.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

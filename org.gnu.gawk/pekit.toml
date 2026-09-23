@@ -5,6 +5,7 @@
 # production Readline package; batch awk and the debugger otherwise remain
 # fully functional.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

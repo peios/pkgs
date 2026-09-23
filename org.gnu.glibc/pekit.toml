@@ -16,6 +16,7 @@
 # libc's point of view they're vanilla Linux, so we don't pass
 # --with-headers and let the compiler supply them.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 # Build flags: glibc implements the hardening features itself and must not be

@@ -15,6 +15,7 @@
 # Manual pages are generated from the release's AsciiDoc with asciidoc and the
 # DocBook XSL transform, invoked directly as tracefs does (see build.main).
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

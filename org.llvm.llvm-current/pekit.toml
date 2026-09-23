@@ -2,6 +2,7 @@
 # kernel's frozen LLVM 18 family has a separate retained recipe and exact
 # dependencies, so routine updates here cannot move Kbuild.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # This recipe is a disjoint current-version lane for the same upstream LLVM

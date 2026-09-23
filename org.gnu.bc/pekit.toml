@@ -9,6 +9,7 @@
 # texinfo is a build dependency even though Peios does not yet ship Info files.
 # dc rides along (one tarball, one package).
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]

@@ -4,6 +4,7 @@
 # PCRE2 package. BRE, ERE and fixed-string matching are complete; the staged
 # smoke test below makes the temporary absence of `grep -P` explicit.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

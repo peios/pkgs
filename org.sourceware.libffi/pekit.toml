@@ -8,6 +8,7 @@
 # Texinfo manual is not built (--disable-docs): Peios does not yet ship Info
 # files, and the API manual pages ship with the development files.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

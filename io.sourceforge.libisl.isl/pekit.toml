@@ -2,6 +2,7 @@
 # exact polyhedral results can affect generated code, so the complete upstream
 # correctness suite and installed-interface probes are release gates.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

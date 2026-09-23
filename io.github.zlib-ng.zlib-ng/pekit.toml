@@ -5,6 +5,7 @@
 # packages use an explicit -compat suffix, matching upstream terminology and
 # Fedora's production split.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.git]

@@ -1,5 +1,6 @@
 # GNU tar — the canonical general-purpose archive implementation.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 # GNU tar 1.35 remains the newest stable release. The upstream fixes below

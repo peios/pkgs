@@ -1,6 +1,7 @@
 # patchelf — the ELF interpreter, run-path and dynamic-dependency editor used
 # throughout the package farm's debug-split and payload-normalisation stages.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

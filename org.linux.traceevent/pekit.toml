@@ -3,6 +3,7 @@
 # carries the plugins and preserves the complete payload of the retired
 # combined `libtraceevent` package.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

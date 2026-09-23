@@ -12,6 +12,7 @@
 # Pekit's remote patch series maps base 5.3 plus patches 001..N to version
 # 5.3.N and discovers future patchlevels without recipe maintenance.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source]

@@ -678,6 +678,46 @@ exhaust the host when multiplied; unattended parallelism is not a quality gate.
 Do not run workspace publication until every included recipe is intended for
 that repository and all selected artifacts have passed the gates above.
 
+Workspace runs order members by their gate and runtime dependencies, so a batch
+publishes producers before consumers.
+
+## Bootstrapping from an empty repository
+
+The native environment installs everything from the catalogue itself, so an
+empty repository needs a seed built elsewhere. Two recipe tags mark it:
+
+- `minimal-bootstrap` (37 recipes) is the smallest set whose absence leaves no
+  cycle among native build and test dependencies. It is the toolchain and
+  ambient userland (`build-essentials-c` and what it installs), plus the members
+  that break the remaining cycles: bash, m4, tar, flex, gzip, ncurses, pkgconf,
+  ca-certificates, e2fsprogs (Python links its libuuid) and resolvd (native
+  acquisition needs its NSS module).
+- `bootstrap` (98 recipes, including those 37) is that seed closed under its
+  own native dependencies: everything the seed needs to rebuild itself natively.
+
+Minimal seed: the Debian stage is as small as possible, and the native
+toolchain arrives only at the end, so rebuild the rest a second time:
+
+```sh
+"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env debian
+"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --env peipkg
+"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env peipkg
+"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --env peipkg
+```
+
+Closed seed: more is built in Debian, but the seed rebuilds natively before
+anything else, so the rest is built by native tools once:
+
+```sh
+"$PEKIT" workspace publish --all --latest --tag bootstrap --env debian
+"$PEKIT" workspace publish --all --latest --tag bootstrap --env peipkg
+"$PEKIT" workspace publish --all --latest --exclude-tag bootstrap --env peipkg
+```
+
+The sets are derived from declared dependencies (PEI-1156). Recompute them when
+a recipe's native dependencies change which members form cycles, and keep the
+tags in the member recipes, never in a delegated source.
+
 ## Completion checklist
 
 A package is ready for production publication only when all answers are yes:

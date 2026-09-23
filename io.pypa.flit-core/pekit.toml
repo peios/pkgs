@@ -18,6 +18,7 @@
 # Test tools are acquired only for qualification, outside the bootstrap build
 # and runtime closure; the worker consumes their recorded wheels offline.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # PyPI's stable per-project source URL (no content hash in the path) and Simple

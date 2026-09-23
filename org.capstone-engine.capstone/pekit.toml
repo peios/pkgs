@@ -3,6 +3,7 @@
 # feature surface while keeping runtime, development, and static payloads
 # independently installable.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]

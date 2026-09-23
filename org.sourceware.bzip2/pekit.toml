@@ -5,6 +5,7 @@
 # Makefile embeds the release number; relinking from its PIC objects lets Pekit
 # track newer releases without a version-literal downstream patch.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

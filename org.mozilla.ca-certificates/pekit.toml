@@ -13,6 +13,7 @@
 # therefore important: a Mozilla removal drops out on upgrade instead of
 # lingering as an additive registry seed.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.git]

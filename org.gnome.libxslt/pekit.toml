@@ -4,6 +4,7 @@
 # separately versioned language surface, and Peios currently has no consumers
 # for any of them. Debugger and profiler APIs remain enabled.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -2,6 +2,7 @@
 # GCC uses it for compile-time constant folding, so both the upstream
 # correctness suite and installed-interface tests are release gates.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

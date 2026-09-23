@@ -15,6 +15,7 @@
 # omits them too; compressed input can be piped through zcat/bzcat, and the
 # command keeps a closure of PCRE2 and libc only).
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

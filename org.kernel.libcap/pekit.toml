@@ -6,6 +6,7 @@
 # complete production dependency stacks are available. The C libraries,
 # capability tools and complete unprivileged upstream suite are enabled.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

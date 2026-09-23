@@ -25,6 +25,7 @@
 # split.
 #
 #   pekit package --all --env peipkg --version 16.2.0
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 # Peios's three GCC patches — the OS-identity work that used to be in-recipe

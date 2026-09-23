@@ -2,6 +2,7 @@
 # perfmon2 project is authoritative; wcohen/libpfm4 identifies itself as a
 # mirror and is not used as the source of release bytes.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

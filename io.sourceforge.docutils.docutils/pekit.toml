@@ -14,6 +14,7 @@
 #
 #   pekit publish --latest --env peipkg --keyring dev
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.pypi]

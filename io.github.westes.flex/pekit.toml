@@ -2,6 +2,7 @@
 # carries its generated bootstrap sources, while the build still exercises
 # Flex's self-hosting path and complete native regression suite.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

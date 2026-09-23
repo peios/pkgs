@@ -5,6 +5,7 @@
 # build rungs. Mode and ownership preservation remain available. Re-enable
 # each integration when its runtime library enters the package catalogue.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

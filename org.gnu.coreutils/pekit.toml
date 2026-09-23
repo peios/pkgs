@@ -8,6 +8,7 @@
 # capability keeps consumers independent of which implementation fills that
 # role later in the bootstrap.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 # Coreutils 9.12 incorporates the four security/correctness backports carried

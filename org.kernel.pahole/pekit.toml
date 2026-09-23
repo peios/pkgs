@@ -3,6 +3,7 @@
 # kernel BPF documentation says to use these tarballs rather than generated
 # source archives because the latter omit the submodule content.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

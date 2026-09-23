@@ -2,6 +2,7 @@
 # Build directly from the authoritative kernel.org Git tags so Pekit can
 # discover every upstream maintenance release, including four-part versions.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.git]

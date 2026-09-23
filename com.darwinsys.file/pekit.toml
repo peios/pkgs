@@ -1,6 +1,7 @@
 # file — the standard file-type identifier, its libmagic API, and the magic
 # database that gives both their breadth.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

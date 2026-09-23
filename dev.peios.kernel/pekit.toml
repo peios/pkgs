@@ -18,6 +18,7 @@
 # Build fixes belong in pkm itself and reach this recipe with its next tag;
 # nothing here patches or overrides the borrowed pipeline.
 
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 delegate = true
 

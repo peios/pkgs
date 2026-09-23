@@ -35,6 +35,7 @@
 # does not exist here would at best warn at every load and at worst mislead a
 # reader into thinking it meant something.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]

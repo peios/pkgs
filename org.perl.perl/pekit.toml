@@ -7,6 +7,7 @@
 # pin; a future 5.46/5.48 release is selected without recipe work unless it
 # genuinely changes the build contract.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source]
