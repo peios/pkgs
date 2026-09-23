@@ -167,10 +167,6 @@ JOBS=2
 export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtracefs"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
-# Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
-# which the catalogue does not package yet (PEI-1164). The hermetic tests below
-# are the gate until it does.
-
 test "$(find "$PREFIX/include/tracefs" -mindepth 1 -maxdepth 1 \
   -type f -printf '%f\n')" = tracefs.h
 find "$LIBDIR" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
@@ -212,6 +208,26 @@ make -C "$SRC" O="$BUILD" -j"$JOBS" \
 cmp "$STAGE/.repro/libtracefs.a" "$BUILD/lib/libtracefs.a"
 cmp "$STAGE/.repro/libtracefs.so.$PEKIT_VERSION" \
   "$BUILD/lib/libtracefs.so.$PEKIT_VERSION"
+
+# Upstream's CUnit suite (utest/trace-utest) is one suite of 37 cases whose
+# initialiser creates a tracefs instance and parses the running kernel's event
+# formats (tracefs_instance_create, tracefs_local_events). Every case --
+# mounting, cpu reads, SQL-to-synthetic-event, kprobes, eprobes, uprobes, ... --
+# drives live ftrace, so none can run in a build root; that needs a privileged
+# composed-kernel stage. Build and link the suite against CUnit and the rebuilt
+# library, then run it: without tracefs the suite initialiser must be what
+# stops it, with all 37 cases registered and none run.
+mkdir -p "$SMOKE"
+make -C "$SRC" O="$BUILD" -j"$JOBS" test
+test -x "$BUILD/utest/trace-utest"
+status=0
+"$BUILD/utest/trace-utest" > "$SMOKE/utest.out" 2>&1 || status=$?
+cat "$SMOKE/utest.out"
+grep -F "CUnit - A unit testing framework for C" "$SMOKE/utest.out"
+grep -F "Suite initialization failed for 'tracefs library'" "$SMOKE/utest.out"
+awk '$1 == "Suites" && $2 == ":" { suites = $4 }
+     $1 == "Tests" && $2 == ":" { run = $3 }
+     END { exit !(suites == 1 && run == 0) }' "$SMOKE/utest.out"
 
 LIBSO="$LIBDIR/libtracefs.so.$PEKIT_VERSION"
 readelf -d "$LIBSO" | grep -F 'Library soname: [libtracefs.so.1]'
@@ -292,6 +308,8 @@ if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
 
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
+# Upstream's unit suite links -lcunit.
+"com.gitlab.cunity.cunit-devel" = "*"
 "org.gnu.findutils"            = "*"
 "org.gnu.grep"                 = "*"
 "org.gnu.make"                 = "*"
