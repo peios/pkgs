@@ -1,0 +1,14 @@
+# Shared metadata for the git package family and its complete corresponding
+# source. Git is GPL-2.0-only overall; bundled components carry their own
+# terms (xdiff and compat/regex/obstack LGPL-2.1-or-later, reftable
+# BSD-3-Clause, sha1dc/khash/poll MIT, compat/inet_ntop ISC, and
+# GPL-2.0-or-later files). This matches Fedora's reviewed expression plus ISC.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-only AND GPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-3-Clause AND MIT AND ISC"
+license_class = "free"
+homepage      = "https://git-scm.com/"

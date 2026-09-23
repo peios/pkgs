@@ -1,0 +1,31 @@
+# The complete git client and server-side helpers as upstream installs them,
+# including the smart-HTTP transport (libcurl), scalar, translations and the
+# bash completion script. Commands needing Perl or Python are upstream's
+# NO_PERL/NO_PYTHON stubs, which explain the omission when run.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "com.git-scm.git"
+description = "Distributed version-control system"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc"                    = ">= 2.43"
+"se.curl.libcurl"                  = ">= 8.22.0"
+"io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
+# git-sh-setup, the merge strategies and mergetools are POSIX shell.
+"sh"                               = "*"
+
+[files]
+"@source:COPYING"                        = "usr/share/licenses/com.git-scm.git/"
+"@source:LGPL-2.1"                       = "usr/share/licenses/com.git-scm.git/"
+":usr/bin/**"                            = "usr/bin"
+":usr/libexec/git-core/**"               = "usr/libexec/git-core"
+":usr/share/git-core/**"                 = "usr/share/git-core"
+":usr/share/locale/**"                   = "usr/share/locale"
+":usr/share/bash-completion/**"          = "usr/share/bash-completion"
+":usr/share/man/**"                      = "usr/share/man"

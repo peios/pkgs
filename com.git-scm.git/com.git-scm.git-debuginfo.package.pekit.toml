@@ -1,0 +1,11 @@
+[package]
+name        = "com.git-scm.git-debuginfo"
+description = "git debugging symbols"
+
+[dependencies]
+"com.git-scm.git" = "{{version}}-1"
+
+[files]
+"@source:COPYING"       = "usr/share/licenses/com.git-scm.git-debuginfo/"
+"@source:LGPL-2.1"      = "usr/share/licenses/com.git-scm.git-debuginfo/"
+":usr/lib/debug/**"     = "usr/lib/debug"

@@ -1,0 +1,265 @@
+# git — the distributed version-control system (PEI-1157).
+#
+# Packaged so native roots can acquire sources without Debian: Cargo fetches
+# Git dependencies through the git CLI (CARGO_NET_GIT_FETCH_WITH_CLI), whose
+# HTTPS transport is git-remote-https over libcurl, and the installer's
+# vendor step requires git directly.
+#
+# Upstream's Makefile build with a config.mak freezing the feature policy.
+# Git 2.55's Rust core (gitcore, no external crates) is built offline as
+# upstream defaults. Not built, because Peios packages none of them yet:
+#   * Perl commands (send-email, svn, cvs*, archimport, instaweb) and Git.pm
+#   * Python (git-p4) and Tcl/Tk (gitk, git-gui)
+#   * expat, so no WebDAV push (git-http-push); smart HTTP is unaffected
+#   * PCRE2, so no `git grep -P` (PEI-663)
+# Manual pages are generated from the release's AsciiDoc with asciidoc and the
+# DocBook XSL transform, invoked directly as tracefs does (see build.main).
+
+out_dir = "out"
+
+[source.url]
+url         = "https://cdn.kernel.org/pub/software/scm/git/git-{{version}}.tar.xz"
+listing_url = "https://cdn.kernel.org/pub/software/scm/git/"
+extract     = true
+root        = "git-{{version}}"
+file_regex  = 'git-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# release candidates (git-X.Y.Z.rcN) never match the regex.
+versions    = ">= 2.55.0"
+
+# kernel.org publishes Junio C Hamano's detached signature over the
+# DECOMPRESSED tar. The key comes from kernel.org's pgpkeys repository
+# (keys/20D04E5A713660A7.asc), the authority for kernel.org release
+# signatures; keys/junio-hamano.asc is that key exported alone.
+[source.url.signature]
+url          = "https://cdn.kernel.org/pub/software/scm/git/git-{{version}}.tar.sign"
+of           = "decompressed"
+key_files    = ["keys/junio-hamano.asc"]
+fingerprints = ["96E07AF25771955980DAD10020D04E5A713660A7"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+PREFIX="$PEKIT_OUT/usr"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
+# Git's Rust core has no dependencies; never let Cargo reach the network.
+export CARGO_HOME="$PEKIT_OUT/cargo-home" CARGO_NET_OFFLINE=true
+# gitcore is a static library linked into git and git-shell. The linker keeps
+# the IBT/SHSTK property only if every input carries it, and stable rustc
+# emits it only under -Zcf-protection. Peios' libstd is itself built that way
+# (org.rust-lang.rust), so instrument gitcore too, with the same bootstrap
+# escape hatch, rather than exempting git from the CET rule.
+export RUSTC_BOOTSTRAP=1 RUSTFLAGS="${RUSTFLAGS-} -Zcf-protection=full"
+
+# Git builds in its source tree. Build from a private copy so the pristine
+# source stays untouched for the source package and debug-source paths.
+BUILD="$PEKIT_OUT/src"
+cp -a "$SRC/." "$BUILD/"
+cd "$BUILD"
+
+cat > config.mak <<EOF
+prefix = /usr
+gitexecdir = libexec/git-core
+sysconfdir = /etc
+mandir = /usr/share/man
+CFLAGS = $CFLAGS -fmacro-prefix-map=$ROOT=/usr/src/debug/com.git-scm.git -ffile-prefix-map=$ROOT=/usr/src/debug/com.git-scm.git
+LDFLAGS = $LDFLAGS -Wl,-z,ibtplt
+SHELL_PATH = /bin/sh
+NO_PERL = YesPlease
+NO_PYTHON = YesPlease
+NO_TCLTK = YesPlease
+NO_EXPAT = YesPlease
+NO_GITWEB = YesPlease
+INSTALL_SYMLINKS = YesPlease
+SKIP_DASHED_BUILT_INS = YesPlease
+NO_INSTALL_HARDLINKS = YesPlease
+V = 1
+EOF
+
+make -j"$(nproc)" all
+make install DESTDIR="$PEKIT_OUT"
+
+# Manual pages. asciidoc renders DocBook; the DocBook XSL manpage transform
+# is applied with xsltproc through the narrow `xmlto -m ... man FILE`
+# interface Documentation/Makefile uses (xmlto's own runtime is not needed).
+DOCXSL="$PEKIT_OUT/peios-manpage"
+cat > "$PEKIT_OUT/xmlto-manpage" <<'XMLTO'
+#!/bin/sh
+set -eu
+imports= params=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -m) imports="$imports $2"; shift 2 ;;
+    --stringparam) params="$params --stringparam ${2%%=*} ${2#*=}"; shift 2 ;;
+    --skip-validation) shift ;;
+    man) shift; break ;;
+    *) echo "xmlto-manpage: unsupported argument $1" >&2; exit 2 ;;
+  esac
+done
+test $# -eq 1
+xsl="$PEIOS_MANPAGE_DIR/$(basename "$1" .xml).xsl"
+{
+  printf '%s\n' '<?xml version="1.0"?>' \
+    '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">' \
+    '<xsl:import href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl"/>'
+  for m in $imports; do printf '<xsl:import href="%s"/>\n' "$PWD/$m"; done
+  printf '%s\n' '</xsl:stylesheet>'
+} > "$xsl"
+# shellcheck disable=SC2086
+exec xsltproc --nonet $params "$xsl" "$1"
+XMLTO
+chmod 0755 "$PEKIT_OUT/xmlto-manpage"
+mkdir -p "$DOCXSL"
+# AsciiDoc-style table cells are rendered by a nested `python3 -m asciidoc`
+# filter, which cannot see the package's private module directory: only the
+# /usr/bin/asciidoc launcher puts it on sys.path (PEI-1158). Give the nested
+# processes the same view. asciidoc reports such failures only as warnings
+# and still exits 0, so any warning fails this build rather than shipping a
+# page with a silently empty section.
+export PYTHONPATH=/usr/lib/x86_64-linux-peios/asciidoc
+PEIOS_MANPAGE_DIR="$DOCXSL" make -C Documentation -j"$(nproc)" \
+  XMLTO="$PEKIT_OUT/xmlto-manpage" man > "$PEKIT_OUT/doc.log" 2>&1 || {
+  cat "$PEKIT_OUT/doc.log"; exit 1; }
+if grep -E 'asciidoc: (WARNING|ERROR)' "$PEKIT_OUT/doc.log"; then exit 1; fi
+unset PYTHONPATH
+PEIOS_MANPAGE_DIR="$DOCXSL" make -C Documentation \
+  XMLTO="$PEKIT_OUT/xmlto-manpage" install-man DESTDIR="$PEKIT_OUT"
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} +
+
+# Build-ID-indexed debuginfo for every ELF (the dashed builtins are symlinks
+# to git itself), then exactly the sources the rewritten DWARF names.
+: > "$PEKIT_OUT/.srclist"
+find "$PREFIX/bin" "$PREFIX/libexec/git-core" -type f | LC_ALL=C sort > "$PEKIT_OUT/.files"
+while IFS= read -r elf; do
+  readelf -h "$elf" >/dev/null 2>&1 || continue
+  debugedit -b "$ROOT" -d /usr/src/debug/com.git-scm.git \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done < "$PEKIT_OUT/.files"
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/com.git-scm.git/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/com.git-scm.git/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.files"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.rust-lang.rust" = ">= 1.98.1"
+"se.curl.libcurl-devel" = ">= 8.22.0"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.gzip" = "*"
+# `make install` copies the hook templates with tar.
+"org.gnu.tar" = "*"
+"io.github.asciidoc-py.asciidoc" = "*"
+"org.gnome.libxslt" = "*"
+"org.docbook.docbook-xsl" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+cargo = "*"
+rustc = "*"
+libcurl4-openssl-dev = "*"
+zlib1g-dev = "*"
+gettext = "*"
+gzip = "*"
+tar = "*"
+asciidoc-base = "*"
+xsltproc = "*"
+docbook-xsl = "*"
+debugedit = "*"
+patchelf = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/src"
+PREFIX="$STAGE/usr"
+GIT="$PREFIX/bin/git"
+
+# Upstream's full suite, lints included, against the built tree. The suite
+# itself needs Perl even though git is built NO_PERL (upstream INSTALL).
+# Tests whose prerequisites (Python, expat, PCRE, a web server, ...) are
+# absent skip themselves. -k reports every failing script, not the first.
+export CARGO_HOME="$PEKIT_OUT/cargo-home" CARGO_NET_OFFLINE=true
+make -C "$BUILD/t" -k -j"$(nproc)" test \
+  GIT_TEST_OPTS="--root=$PEKIT_OUT/trash" DEFAULT_TEST_TARGET=test
+
+# The installed client: identity, HTTPS transport and a local round trip.
+"$GIT" --version | grep -Fx "git version $PEKIT_VERSION"
+test -x "$PREFIX/libexec/git-core/git-remote-https"
+"$GIT" --exec-path | grep -Fx /usr/libexec/git-core
+REMOTE_HTTPS="$PREFIX/libexec/git-core/git-remote-https"
+readelf -d "$REMOTE_HTTPS" | grep -F 'Shared library: [libcurl.so.4]'
+# The staged tree is not installed at its runtime prefix: point git at its
+# own helpers and templates, as /usr would on a real system.
+export HOME="$PEKIT_OUT/home" GIT_CONFIG_NOSYSTEM=1
+export PATH="$PREFIX/bin:$PATH" GIT_EXEC_PATH="$PREFIX/libexec/git-core"
+export GIT_TEMPLATE_DIR="$PREFIX/share/git-core/templates"
+mkdir -p "$HOME"
+W="$PEKIT_OUT/smoke"
+git init -q -b main "$W/origin"
+printf 'peios\n' > "$W/origin/file"
+git -C "$W/origin" add file
+git -C "$W/origin" -c user.name=Peios -c user.email=build@peios.invalid commit -q -m smoke
+git clone -q "$W/origin" "$W/clone"
+test "$(cat "$W/clone/file")" = peios
+
+for elf in "$GIT" "$REMOTE_HTTPS"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+test -n "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
+test -n "$(find "$PREFIX/src/debug/com.git-scm.git" -type f -print -quit)"
+test -f "$PREFIX/share/man/man1/git.1.gz"
+ROOT=$(dirname "$(dirname "$STAGE")")
+if strings "$GIT" | grep -F "$ROOT"; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.rust-lang.rust" = ">= 1.98.1"
+"se.curl.libcurl-devel" = ">= 8.22.0"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.bash" = "*"
+"org.perl.perl" = "*"
+# The archive tests unpack git's tar and tgz output with the real tools.
+"org.gnu.tar" = "*"
+"org.gnu.gzip" = "*"
+"dev.peios.resolvd-nss" = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+cargo = "*"
+rustc = "*"
+libcurl4-openssl-dev = "*"
+zlib1g-dev = "*"
+gettext = "*"
+bash = "*"
+perl = "*"
+tar = "*"
+gzip = "*"
