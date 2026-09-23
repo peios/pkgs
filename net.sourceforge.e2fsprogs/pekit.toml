@@ -30,7 +30,7 @@
 # fuzz — so on a version bump a stale patch fails loudly; rebase it manually
 # against the new tag.
 #
-#   pekit publish --latest --env peipkg --keyring dev --all
+#   pekit publish --latest --keyring dev --all
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"

@@ -39,10 +39,10 @@ The workspace files are intentional shared policy:
   derivation.
 - [`package.pekit.toml`](package.pekit.toml) supplies the local artifact pool
   and signed Peipkg repository targets.
-- `debian.env.pekit.toml`, `peipkg.env.pekit.toml`, and
-  [`peipkg-net.env.pekit.toml`](peipkg-net.env.pekit.toml) supply the clean
-  Debian (bootstrap seed only), native Peipkg, and networked source-vendoring
-  environments.
+- [`env.pekit.toml`](env.pekit.toml) is the default environment: every target
+  runs in a clean native root composed from the signed repository, and only
+  `build:vendor` gets network access. `debian.env.pekit.toml` (`--env debian`)
+  is the Debian root for the `minimal-bootstrap` seed only.
 - [`lint.pekit.toml`](lint.pekit.toml) is inherited by every member.
 
 Do not copy those settings or environment links into individual recipes. A
@@ -359,17 +359,17 @@ CPU, build timestamps, signing keys or language-vendoring network policy. Retain
 all referenced archives for as long as the corresponding release is supported.
 
 Compilation and testing are offline. If an ecosystem requires vendoring, give
-the hash-pinned materialization target an explicit `build:vendor`-style boundary
-and use `--env peipkg-net`; all compiler and test targets continue through the
-ordinary offline `peipkg` environment. Never give the whole build network
+the hash-pinned materialization target an explicit `build:vendor` boundary; the
+default environment grants network access to that target alone, and all
+compiler and test targets stay offline. Never give the whole build network
 access.
 
-`peipkg-net` picks the acquisition root from the recipe's declared vendor
-dependencies. A vendor target with a non-empty native set acquires in a native
-Peipkg root. Peios glibc resolves hosts only through resolvd's socket, which a
-build root does not run, so that root also receives `dev.peios.resolvd-nss`
+The acquisition root is composed from the vendor target's declared native
+dependencies, which must not be empty. Peios glibc resolves hosts only through
+resolvd's socket, which a build root does not run, so that root also receives
+`dev.peios.resolvd-nss`
 and `_peiroot_/buildroot-resolver.py`, which the profile's sandbox entry
-(`_peiroot_/net-entry.sh`) starts for the job and which answers from the
+(`_peiroot_/entry.sh`) starts for the job and which answers from the
 `resolv.conf` Pekit copies in. TLS trust is rendered from
 `org.mozilla.ca-certificates` at `/etc/ssl/certs/ca-certificates.crt` and
 OpenSSL's default `/etc/ssl/cert.pem`. The root adds only that machinery and a
@@ -673,11 +673,10 @@ RECIPE=org.example.product
    ```
 
 3. Build, test and package every split in the native environment. `package`
-   runs the gated tests and lint over the finished archives. Use `peipkg-net`
-   only when the recipe has a deliberately isolated vendoring target:
+   runs the gated tests and lint over the finished archives:
 
    ```sh
-   "$PEKIT" --recipe "$RECIPE" package --all --latest --env peipkg --keyring dev
+   "$PEKIT" --recipe "$RECIPE" package --all --latest --keyring dev
    ```
 
 4. Inspect the package manifests and payloads, repeat for reproducibility, and
@@ -692,7 +691,7 @@ RECIPE=org.example.product
    contract:
 
    ```sh
-   "$PEKIT" --recipe "$RECIPE" publish --all --latest --strict --env peipkg --keyring dev
+   "$PEKIT" --recipe "$RECIPE" publish --all --latest --strict --keyring dev
    peipkg-repo verify _peipkgRepo_
    ```
 
@@ -701,7 +700,7 @@ command flags after it:
 
 ```sh
 "$PEKIT" workspace --jobs 4 lock --latest
-"$PEKIT" workspace --jobs 4 --fail-fast package --all --latest --env peipkg --keyring dev
+"$PEKIT" workspace --jobs 4 --fail-fast package --all --latest --keyring dev
 ```
 
 Choose concurrency according to memory and I/O cost. Toolchains and kernels can
@@ -733,9 +732,9 @@ second time:
 
 ```sh
 "$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env debian
-"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --env peipkg
-"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env peipkg
-"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --env peipkg
+"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap
+"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap
+"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap
 ```
 
 A recipe joining `minimal-bootstrap` gains apt sets for every target; one

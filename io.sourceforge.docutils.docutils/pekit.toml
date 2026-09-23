@@ -12,7 +12,7 @@
 # in site-packages, and its tools ride along in the same package — the
 # Fedora shape, not Debian's docutils-common split.
 #
-#   pekit publish --latest --env peipkg --keyring dev
+#   pekit publish --latest --keyring dev
 
 tags = ["bootstrap"]
 out_dir = "out"

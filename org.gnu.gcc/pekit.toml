@@ -24,7 +24,7 @@
 # libquadmath) built by the same toolchain — see the <name>.package.pekit.toml
 # split.
 #
-#   pekit package --all --env peipkg --version 16.2.0
+#   pekit package --all --version 16.2.0
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 

@@ -1,108 +1,64 @@
 #!/bin/sh
-# Prepare declared native dependencies. Pekit owns worker isolation.
+# Sandbox command of the workspace's default profile (env.pekit.toml). Every
+# target gets a native root composed from its declared peipkg set by
+# compose-root.sh.
+#
+# build:vendor is the only networked target. It acquires sources in a clean
+# native root built from the vendor target's declared peipkg set. Peios glibc
+# resolves hosts only through resolvd's socket, which no sandbox runs, so the
+# root also gets resolvd's NSS shim and the build-root resolver
+# (buildroot-resolver.py), started by entry.sh for this job only. TLS
+# trust comes from the declared Mozilla bundle, which trustd composes on a
+# booted system but nothing composes in a build root. Go needs neither shim
+# nor resolver (its netgo resolver reads the copied resolv.conf), but receives
+# them like every other acquisition.
+#
+# Compilation and tests always run offline in the native root. The host root,
+# home, rustup, cargo credentials and caches are never mounted.
 set -eu
-: "${PEKIT_SANDBOX_ROOT:?Pekit must supply a private root destination}"
-: "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
-repo=$(python3 "$PEKIT_WORKSPACE_ROOT/_peiroot_/snapshot-repository.py")
-# Repository trust is intentionally pinned out of band, in repository.anchor
-# (shared with the Debian preparer's catalogue overlay). Update it only as part
-# of an explicit repository-key rotation ceremony.
-repo_anchor=$(cat "$PEKIT_WORKSPACE_ROOT/_peiroot_/repository.anchor")
-case "$repo_anchor" in
-  *[!0-9a-f]*|"") echo "peiroot: invalid repository trust anchor" >&2; exit 1 ;;
-esac
-[ "${#repo_anchor}" -eq 64 ] || { echo "peiroot: invalid repository trust anchor" >&2; exit 1; }
-
-[ -f "$repo/repo.json" ] || {
-  echo "peiroot: signed package repository is missing: $repo" >&2
-  exit 1
+entry() {
+  mkdir -p "$PEKIT_SANDBOX_ROOT/usr/libexec/peiroot"
+  install -m 0755 "$PEKIT_WORKSPACE_ROOT/_peiroot_/entry.sh" \
+    "$PEKIT_SANDBOX_ROOT/usr/libexec/peiroot/entry"
 }
 
-work=$(mktemp -d "${TMPDIR:-/tmp}/peiroot.XXXXXX")
-trap 'rm -rf "$work"' EXIT INT TERM
-
-{
-  printf 'schema = 1\narch = "x86_64"\nsource_date = "2026-01-01T00:00:00Z"\n'
-  printf '[[repository]]\nname = "peios"\nbase_url = "file://%s"\n' "$repo"
-  printf 'priority = 10\nsignature_policy = "required"\ntrust_anchors = ["%s"]\n' "$repo_anchor"
-  printf '[[package]]\nname = "dev.peios.fsbase"\nversion = "*"\n'
-  printf '%s\n' "${PEKIT_DEPENDENCIES:-}" | while read -r name constraint; do
-    [ -n "$name" ] || continue
-    printf '[[package]]\nname = "%s"\nversion = "%s"\n' "$name" "${constraint:-*}"
+if [ "${PEKIT_COMMAND:-}:${PEKIT_TARGET:-}" = build:vendor ]; then
+  PEKIT_DEPENDENCIES=$(python3 - "$PEKIT_DEPENDENCIES_FILE" <<'PYDEPS'
+import json, sys
+with open(sys.argv[1]) as f:
+    deps = dict(json.load(f)["all_providers"].get("peipkg", {}))
+if not deps:
+    sys.exit("vendor acquisition requires declared peipkg dependencies")
+# Only what the acquisition machinery itself needs: a shell for the entry,
+# python3 for the resolver, and resolvd's NSS shim for it to answer through.
+# Recipes declare every tool their commands use, as in any native root;
+# nothing else is ambient. Recipe constraints always take precedence.
+for name in ["org.git.kernel.dash", "org.mozilla.ca-certificates",
+             "org.python.python3", "dev.peios.resolvd-nss"]:
+    deps.setdefault(name, "*")
+for name, constraint in sorted(deps.items()):
+    print(name, constraint)
+PYDEPS
+  )
+  export PEKIT_DEPENDENCIES
+  "$PEKIT_WORKSPACE_ROOT/_peiroot_/compose-root.sh"
+  # The two bundle paths trustd renders on a booted system: Go's first probe,
+  # and OpenSSL's default CAfile (libcurl, hence git and Cargo, read it).
+  bundle="$PEKIT_SANDBOX_ROOT/usr/share/ca-certificates/mozilla.crt"
+  for trust in etc/ssl/certs/ca-certificates.crt etc/ssl/cert.pem; do
+    trust="$PEKIT_SANDBOX_ROOT/$trust"
+    [ -e "$trust" ] && continue
+    [ -s "$bundle" ] || {
+      echo "peiroot: native acquisition root has no Mozilla trust bundle" >&2
+      exit 1
+    }
+    mkdir -p "${trust%/*}"
+    cp "$bundle" "$trust"
   done
-} > "$work/root.toml"
-
-# --dangerously-bypass-path-restrictions: this root always includes
-# dev.peios.fsbase, whose whole job is to mint the mountpoint tree (/dev, /proc,
-# /run, /sys, /tmp) that the payload layout rules otherwise protect.
-# dev.peios.fsbase declares special_system_package; this flag is the composer's
-# half of that two-key exemption. A build root is precisely the case
-# it exists for, and it grants nothing to a package that has not
-# declared itself special.
-#
-# --record-xattrs: package build roots are disposable bwrap inputs, not images
-# that will boot, and the unprivileged maintainer process cannot set security.*
-# attributes on the host filesystem. Preserve compose's complete descriptor
-# output in the temporary work area rather than weakening package validation;
-# it is discarded together with the root after the build target exits.
-peipkg-compose build "$work/root.toml" --out "$PEKIT_SANDBOX_ROOT" \
-  --record-xattrs "$work/xattrs.jsonl" \
-  --dangerously-bypass-path-restrictions
-
-# Keep exact automatically selected dependency identities for this job.
-record="$PEKIT_JOB_STATE/dependencies/$PEKIT_COMMAND-$PEKIT_TARGET"
-mkdir -p "$record"
-cp "$work/root.toml" "$work/root.lock.toml" "$record/"
-
-# Root-level runtime views. A booted Peios gets /bin, /sbin and /lib from
-# StrataFS (stratafs-base-topo's mount hook); peipkg-compose used to mint
-# them as usr-merge symlinks until that intrinsic was deliberately removed,
-# on the grounds that filesystem topology is not a composer side effect.
-# Correct — but a bwrap build root has no StrataFS, and essentially every
-# upstream build system hardcodes /bin/sh (autotools' configure, generated
-# libtool, make's default SHELL). Without these the rung cannot run a single
-# autotools recipe.
-#
-# So the sandbox mints them itself, which is where the responsibility now
-# sits. /lib -> usr/lib, the shape every package in the farm was built and
-# verified against — and now also what the StrataFS hooks mount at runtime.
-# They used to point /lib at usr/lib/<triplet>, which resolved no library the
-# loader could not already find by absolute path, while breaking the two
-# consumers that do use /lib: kmod has /lib/modules compiled in and the
-# kernel's firmware loader searches /lib/firmware. Sandbox and running system
-# agree again, so a package built here sees the paths it will see on a booted
-# system. /lib64 is skipped —
-# dev.peios.fsbase owns it as real package payload.
-for view in bin sbin lib; do
-  [ -e "$PEKIT_SANDBOX_ROOT/$view" ] || ln -s "usr/$view" "$PEKIT_SANDBOX_ROOT/$view"
-done
-
-# /etc is also a StrataFS view on a booted Peios system. Packages put vendor
-# defaults in /usr/etc, registry-derived values in /system/retc, and local
-# overrides in /lcl/etc; the build root has no StrataFS mount, so materialise
-# an effective snapshot in the same low-to-high precedence order. This is only
-# sandbox state and is discarded with the root. It makes configure scripts and
-# test suites observe the runtime paths without allowing package payloads to
-# claim /etc itself.
-mkdir -p "$PEKIT_SANDBOX_ROOT/etc"
-for tier in usr/etc system/retc lcl/etc; do
-  [ -d "$PEKIT_SANDBOX_ROOT/$tier" ] || continue
-  cp -a "$PEKIT_SANDBOX_ROOT/$tier/." "$PEKIT_SANDBOX_ROOT/etc/"
-done
-
-# A build sandbox has a synthetic uid/gid and no boot-time identity or network
-# initialisation. Give libc and upstream test suites the minimal matching
-# static databases they would otherwise receive from those runtime layers.
-# These files exist only in the disposable build root and are never packaged.
-[ -e "$PEKIT_SANDBOX_ROOT/etc/passwd" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/passwd" <<'EOF'
-root:x:0:0:root:/root:/bin/sh
-peibuild:x:1000:1000:Peios package builder:/tmp:/bin/sh
-EOF
-[ -e "$PEKIT_SANDBOX_ROOT/etc/group" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/group" <<'EOF'
-root:x:0:
-peibuild:x:1000:
-EOF
-[ -e "$PEKIT_SANDBOX_ROOT/etc/hosts" ] || cat > "$PEKIT_SANDBOX_ROOT/etc/hosts" <<'EOF'
-127.0.0.1 localhost
-::1 localhost ip6-localhost ip6-loopback
-EOF
+  entry
+  install -m 0644 "$PEKIT_WORKSPACE_ROOT/_peiroot_/buildroot-resolver.py" \
+    "$PEKIT_SANDBOX_ROOT/usr/libexec/peiroot/buildroot-resolver.py"
+  exit 0
+fi
+"$PEKIT_WORKSPACE_ROOT/_peiroot_/compose-root.sh"
+entry

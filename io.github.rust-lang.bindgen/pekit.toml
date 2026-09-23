@@ -12,8 +12,8 @@
 #
 # Two-stage shape: [build.vendor] materialises the Cargo.lock closure in the
 # workspace's source-fetch environment; [build.main] consumes it with cargo's
-# network-disabled `--offline --locked` mode. Package in one invocation with
-# `--env=peipkg-net`; only the vendor stage makes network requests.
+# network-disabled `--offline --locked` mode. Package in one invocation; only
+# the vendor stage makes network requests.
 #
 # clang-sys stays on its default runtime-loading feature, so libclang is
 # a RUNTIME dep (dlopen), not a link-time build dep.  Clang carries the driver

@@ -25,7 +25,7 @@ exclude = ["dev.peios.dwed"]
 #
 # This lives at workspace level — not in an env file — because it is a
 # property of THE DISTRIBUTION, not of how a build was entered. Flags set in
-# _peiroot_/enter.sh would apply on the peipkg rung and silently vanish on the
+# _peiroot_/enter.sh would apply in the native root and silently vanish on the
 # debian rung and the future VM rung.
 #
 # A recipe overrides any of these in its own [env] (workspace → recipe → env

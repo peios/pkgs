@@ -21,7 +21,7 @@
 # not just build ones, and a consumer must have XML_CATALOG_FILES pointed at
 # that catalog (or be on a booted system, where /etc/xml/catalog is it).
 #
-#   pekit publish --version 10.2.1 --env peipkg --keyring dev
+#   pekit publish --version 10.2.1 --keyring dev
 
 tags = ["bootstrap"]
 out_dir = "out"

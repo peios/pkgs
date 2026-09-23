@@ -13,7 +13,7 @@ no cache and no policy, and it speaks DNS itself: resolving through the
 standard library would route back through the shim to this process.
 
 It exists only for the lifetime of one sandboxed vendor job (see
-net-entry.sh) and is never part of a package.
+entry.sh) and is never part of a package.
 """
 import ipaddress
 import os

@@ -7,7 +7,7 @@
 # Tarball source (the binutils-gdb git repo is huge and bundles gdb; the release
 # tarball is binutils-only and ships configure). Versions are 2- or 3-component.
 #
-#   pekit package --all --env peipkg
+#   pekit package --all
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"

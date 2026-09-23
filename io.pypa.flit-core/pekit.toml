@@ -35,7 +35,7 @@ file_regex  = 'flit_core-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 versions    = ">= 4.0.2"
 
 # Test tools are acquired separately from the minimal bootstrap build.
-# Final qualification uses --env peipkg-net; only vendor has network.
+# Only vendor has network.
 [build.vendor]
 command = '''python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" acquire "$PWD" "$PEKIT_OUT" --project flit_core --version "$PEKIT_VERSION"'''
 [build.vendor.dependencies.peipkg]

@@ -2,9 +2,8 @@
 # build and package split; this workspace member adds release discovery,
 # distribution policy, and publication targets.
 #
-# The locked Cargo Git inputs are materialised only by build.vendor, so use the
-# workspace's peipkg-net profile for Peios builds; compilation still runs in
-# the ordinary offline package root.
+# The locked Cargo Git inputs are materialised only by build.vendor, the one
+# networked target; compilation still runs in the offline package root.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Pekit sandbox entry for the peipkg-net profile ([sandbox] entry). It runs
+# Pekit sandbox entry for the default native profile ([sandbox] entry). It runs
 # inside the sandbox ahead of every target command and then execs it.
 #
 # Networked native acquisition roots also carry the build-root resolver
