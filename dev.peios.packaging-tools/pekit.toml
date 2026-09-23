@@ -1,0 +1,96 @@
+# packaging-tools — the distribution's packaging helpers, as a package
+# (PEI-1163).
+#
+# Recipes in this workspace call _pkgtools_/ through $PEKIT_WORKSPACE_ROOT,
+# but first-party repositories also build standalone, outside the workspace.
+# This package installs the same helpers at a fixed path so both can declare
+# it as an ordinary build dependency:
+#
+#   /usr/libexec/peios-packaging/split-debug
+#   /usr/libexec/peios-packaging/collect-rust-licences
+#
+# Sourceless: its authoritative source is this catalogue commit. It is a seed
+# member because the seed's Rust recipes (resolvd, peiosutils, libpeios) use
+# it in their Debian builds, where it arrives as a catalogue package.
+
+tags = ["bootstrap", "minimal-bootstrap"]
+out_dir = "out"
+
+[build]
+command = """
+set -eu
+DEST="$PEKIT_OUT/usr/libexec/peios-packaging"
+mkdir -p "$DEST" "$PEKIT_OUT/usr/share/doc/dev.peios.packaging-tools"
+for tool in split-debug collect-rust-licences; do
+  install -m 0755 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/$tool" "$DEST/$tool"
+done
+cp "$PEKIT_RECIPE_ROOT/docs/README" "$PEKIT_OUT/usr/share/doc/dev.peios.packaging-tools/README"
+"""
+
+[build.dependencies.peipkg]
+"org.git.kernel.dash"            = "*"
+"dev.peios.peiosutils"           = "*"
+# install -m: peiosutils deliberately has no mode tools.
+"org.gnu.coreutils-build-compat" = "*"
+
+[build.dependencies.apt]
+coreutils = "*"
+
+[test]
+gate = true
+needs = ["main"]
+command = '''
+set -eu
+TOOLS="$PEKIT_MAIN_OUT/usr/libexec/peios-packaging"
+WORK="$PEKIT_OUT/work"
+rm -rf "$WORK"
+mkdir -p "$WORK"
+
+# The shipped copies are the workspace's, byte for byte.
+for tool in split-debug collect-rust-licences; do
+  cmp "$TOOLS/$tool" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/$tool"
+  test -x "$TOOLS/$tool"
+done
+
+# collect-rust-licences: closure, notices, expression and --check.
+# The tests load the tool from beside their own directory: test the shipped copy.
+cp -R "$PEKIT_WORKSPACE_ROOT/_pkgtools_/tests" "$WORK/tests"
+cp "$TOOLS/collect-rust-licences" "$WORK/collect-rust-licences"
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$WORK/tests" -v
+
+# split-debug: a real ELF with DWARF, a hard link and a static archive.
+JOB="$WORK/job"
+mkdir -p "$JOB/source" "$JOB/out/stage"
+cd "$JOB/source"
+printf 'int main(void){return 0;}\n' > m.c
+printf 'int f(void){return 1;}\n' > f.c
+cc -g -O1 -Wl,--build-id=sha1 -o "$JOB/out/stage/prog" m.c
+cc -g -c f.c -o f.o
+ar rcs "$JOB/out/stage/libf.a" f.o
+ln "$JOB/out/stage/prog" "$JOB/out/stage/prog2"
+PEKIT_OUT="$JOB/out/stage" "$TOOLS/split-debug" org.example.test "$JOB/out/stage"
+test "$(find "$JOB/out/stage/usr/lib/debug/.build-id" -name '*.debug' | wc -l)" -eq 1
+test -f "$JOB/out/stage/usr/src/debug/org.example.test/source/m.c"
+if readelf -S "$JOB/out/stage/prog" | grep -q '\.debug_info'; then
+  echo "packaging-tools: split-debug left DWARF in the executable" >&2; exit 1
+fi
+if readelf -S "$JOB/out/stage/libf.a" | grep -q '\.debug_info'; then
+  echo "packaging-tools: split-debug left DWARF in the archive" >&2; exit 1
+fi
+# Fails closed: an ELF without debug info is refused.
+cc -O1 -o "$JOB/out/stage/nodebug" m.c
+if PEKIT_OUT="$JOB/out/stage" "$TOOLS/split-debug" org.example.test "$JOB/out/stage/nodebug" 2>/dev/null; then
+  echo "packaging-tools: split-debug accepted an ELF with no debug info" >&2; exit 1
+fi
+rm -rf "$WORK"
+'''
+
+[test.dependencies.peipkg]
+"org.git.kernel.dash"          = "*"
+"dev.peios.build-essentials-c" = "*"
+"org.python.python3"           = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+debugedit       = "*"
+python3         = "*"

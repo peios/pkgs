@@ -1,0 +1,25 @@
+Peios packaging helpers
+=======================
+
+Build-time tools shared by Peios package recipes. They are not commands for
+people: recipes call them by path.
+
+/usr/libexec/peios-packaging/split-debug [options] PACKAGE PATH...
+
+    Splits debug information out of every ELF file and static archive under
+    PATH. Each ELF's DWARF source paths are rewritten to
+    /usr/src/debug/PACKAGE, its debug sections go to a build-ID-indexed file
+    under usr/lib/debug/.build-id, and the file is stripped; archives lose only
+    their debug sections. The sources the DWARF references are copied to
+    usr/src/debug/PACKAGE. It fails rather than skipping an ELF with no build
+    ID or no debug information (--allow-stripped accepts a prebuilt blob).
+    Options: --stage DIR, --build-root DIR.
+
+/usr/libexec/peios-packaging/collect-rust-licences --licence-root DIR --root CRATE... [options]
+
+    Run in a vendored Cargo workspace. For the root crates' normal and build
+    dependency closure it copies each crate's LICENSE, COPYING and NOTICE files
+    to DIR/<crate>-<version>/, writes DIR/crate-licenses.tsv, and prints the
+    SPDX expression the shipped binaries are under. --check FILE fails unless
+    that TOML file's [package].license equals it. --notice PREFIX=FILE supplies
+    a reviewed notice for git crates that carry none of their own.

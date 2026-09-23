@@ -127,7 +127,7 @@ for elf in "$BIN" "$LIBDIR/libfl.so.2.0.0"; do
   readelf -d "$elf" | grep -F 'RELR'
   if readelf -d "$elf" | grep -E '(RPATH|RUNPATH)'; then exit 1; fi
 done
-if readelf -SW "$LIBDIR/libfl.a" | grep -Eq '\\.debug_(info|line)'; then
+if readelf -SW "$LIBDIR/libfl.a" | grep -Eq '\.debug_(info|line)'; then
   echo "io.github.westes.flex: libfl.a still carries DWARF" >&2
   exit 1
 fi

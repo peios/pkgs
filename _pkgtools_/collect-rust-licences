@@ -1,0 +1,156 @@
+#!/bin/python3
+"""collect-rust-licences: the licence closure of shipped Rust binaries (PEI-1163).
+
+Rust links every crate it uses into the binary, and MIT, Apache-2.0 and most
+other crate licences require their notices to travel with binary copies. For
+the root crates given, this walks the normal and build dependency graph Cargo
+resolved for the target and:
+
+  * copies each non-workspace crate's LICENSE*, COPYING*, NOTICE* and
+    UNLICENSE* files to LICENCE_ROOT/<crate>-<version>/;
+  * writes LICENCE_ROOT/crate-licenses.tsv (crate, version, declared licence,
+    source);
+  * computes the conjunction of every distinct declared licence expression,
+    the SPDX expression the shipped binaries are actually under;
+  * with --check TOML, fails unless that file's [package].license equals it,
+    so a new dependency with new terms stops the build instead of shipping
+    under a stale licence.
+
+Run it from the Cargo workspace, after vendoring, like any offline cargo
+command. Workspace and path crates are Peios code covered by the release's own
+LICENSE and are listed but not copied. A git crate without package-local
+notices needs --notice SOURCE-PREFIX=FILE naming the reviewed notice to ship;
+anything else without notices fails.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+import tomllib
+
+NOTICE_PREFIXES = ("LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE")
+
+
+def cargo_metadata(target: str, manifest: str | None) -> dict:
+    cmd = ["cargo", "metadata", "--locked", "--offline", "--format-version", "1",
+           "--filter-platform", target]
+    if manifest:
+        cmd += ["--manifest-path", manifest]
+    return json.loads(subprocess.check_output(cmd))
+
+
+def reachable(data: dict, roots: set[str]) -> list[dict]:
+    packages = {p["id"]: p for p in data["packages"]}
+    nodes = {n["id"]: n for n in data["resolve"]["nodes"]}
+    start = {p["id"] for p in data["packages"] if p["source"] is None and p["name"] in roots}
+    missing = roots - {packages[i]["name"] for i in start}
+    if missing:
+        raise SystemExit(f"collect-rust-licences: no workspace crate named {', '.join(sorted(missing))}")
+    seen: set[str] = set()
+    pending = list(start)
+    while pending:
+        pid = pending.pop()
+        if pid in seen:
+            continue
+        seen.add(pid)
+        for dep in nodes[pid]["deps"]:
+            if any(k["kind"] in (None, "normal", "build") for k in dep["dep_kinds"]):
+                pending.append(dep["pkg"])
+    return sorted((packages[i] for i in seen), key=lambda p: (p["name"], p["version"]))
+
+
+def normalise(expression: str) -> str:
+    """Cargo still accepts the legacy "MIT/Apache-2.0" form; it means OR.
+
+    A plain choice ("MIT OR Apache-2.0") is order-independent, so its operands
+    are sorted and duplicates of the same choice written differently merge.
+    """
+    expression = " ".join(expression.replace("/", " OR ").split())
+    if "(" not in expression and " AND " not in expression and " WITH " not in expression:
+        expression = " OR ".join(sorted(set(expression.split(" OR "))))
+    return expression
+
+
+def combined(expressions: set[str]) -> str:
+    parts = []
+    for e in sorted(expressions):
+        compound = " OR " in e or " AND " in e or " WITH " in e
+        parts.append(f"({e})" if compound and len(expressions) > 1 and not (e.startswith("(") and e.endswith(")")) else e)
+    return " AND ".join(parts)
+
+
+def collect(data: dict, roots: set[str], licence_root: pathlib.Path,
+            notices: dict[str, pathlib.Path]) -> str:
+    licence_root.mkdir(parents=True, exist_ok=True)
+    rows = ["crate\tversion\tdeclared-license\tsource\n"]
+    expressions: set[str] = set()
+    for package in reachable(data, roots):
+        declared = package.get("license")
+        if not declared:
+            raise SystemExit(f"collect-rust-licences: {package['name']} {package['version']} declares no licence")
+        expression = normalise(declared)
+        expressions.add(expression)
+        source = package.get("source") or "workspace/path"
+        rows.append(f"{package['name']}\t{package['version']}\t{expression}\t{source}\n")
+        if package.get("source") is None:
+            continue
+        crate_root = pathlib.Path(package["manifest_path"]).parent
+        found = sorted(p for p in crate_root.iterdir()
+                       if p.is_file() and p.name.upper().startswith(NOTICE_PREFIXES))
+        if not found:
+            found = [path for prefix, path in notices.items() if source.startswith(prefix)][:1]
+        if not found:
+            raise SystemExit(f"collect-rust-licences: {package['name']} {package['version']} "
+                             f"({source}) has no distributable licence notice; pass --notice")
+        destination = licence_root / f"{package['name']}-{package['version']}"
+        destination.mkdir(exist_ok=True)
+        for notice in found:
+            shutil.copyfile(notice, destination / notice.name)
+    (licence_root / "crate-licenses.tsv").write_text("".join(rows), encoding="utf-8")
+    return combined(expressions)
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--licence-root", required=True, type=pathlib.Path)
+    parser.add_argument("--root", action="append", required=True,
+                        help="workspace crate whose closure ships (repeatable)")
+    parser.add_argument("--target", default="x86_64-unknown-linux-gnu")
+    parser.add_argument("--manifest-path")
+    parser.add_argument("--notice", action="append", default=[],
+                        help="SOURCE-PREFIX=FILE: reviewed notice for git crates without one")
+    parser.add_argument("--metadata-json", type=pathlib.Path,
+                        help="read cargo metadata from a file instead of running cargo")
+    parser.add_argument("--expression-out", type=pathlib.Path)
+    parser.add_argument("--check", type=pathlib.Path,
+                        help="package TOML whose [package].license must equal the collected expression")
+    args = parser.parse_args(argv)
+
+    notices = {}
+    for item in args.notice:
+        prefix, sep, path = item.partition("=")
+        if not sep or not prefix or not path:
+            parser.error(f"--notice wants SOURCE-PREFIX=FILE, got {item!r}")
+        if not pathlib.Path(path).is_file():
+            parser.error(f"--notice file {path} does not exist")
+        notices[prefix] = pathlib.Path(path)
+
+    data = (json.loads(args.metadata_json.read_text()) if args.metadata_json
+            else cargo_metadata(args.target, args.manifest_path))
+    expression = collect(data, set(args.root), args.licence_root, notices)
+    if args.expression_out:
+        args.expression_out.write_text(expression + "\n", encoding="utf-8")
+    print(expression)
+    if args.check:
+        declared = tomllib.loads(args.check.read_text()).get("package", {}).get("license", "")
+        if declared != expression:
+            sys.exit(f"collect-rust-licences: {args.check} declares license = {declared!r}, "
+                     f"but the shipped crates are under {expression!r}")
+
+
+if __name__ == "__main__":
+    main()

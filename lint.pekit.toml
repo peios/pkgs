@@ -22,7 +22,7 @@ references    = "reverse-dns"
 # Unqualified names are reserved for genuine interchangeable interfaces, not
 # compatibility aliases for concrete packages. Structured capabilities such as
 # pkgconfig(foo), python(abi), and ELF SONAMEs are recognised automatically.
-virtual_capabilities = ["awk", "cc", "init", "ish", "prelude-hook-abi", "registryd", "sh"]
+virtual_capabilities = ["cc", "init", "ish", "prelude-hook-abi", "registryd", "sh"]
 architecture  = "consistent"
 
 [source]
@@ -40,6 +40,8 @@ signature.required    = true
 signature.fingerprint = "full"
 signature.keys        = true
 patches.headers       = true
+# Every patch records where it stands upstream, so an upgrade knows what to drop.
+patches.status        = true
 
 [build]
 # Every build target declares its native inputs; an empty table says "none"
@@ -49,10 +51,14 @@ dependencies.providers = ["peipkg"]
 test                   = true
 
 [payload]
-junk                 = true
+# Info manuals are never shipped: Peios has no Info reader or index, and the
+# few manuals that are a library's only reference ship as HTML in -doc.
+junk                 = ["@default", "usr/share/info/**"]
 scripts              = true
-# Peios exposes Python through /bin; wheel entry points use that runtime view.
-interpreters = ["/bin/sh", "/usr/bin/sh", "/bin/bash", "/usr/bin/bash", "/usr/bin/env", "/usr/bin/python3", "/bin/python3", "/usr/bin/perl"]
+# Installed scripts name their interpreter through the root-level runtime
+# views, never through /usr package storage or PATH (/usr/bin/env). Boot hooks
+# that run before the StrataFS views exist are allowed per file, with a reason.
+interpreters = ["/bin/sh", "/bin/bash", "/bin/python3", "/bin/perl"]
 symlinks.dangling    = "forbidden"
 symlinks.absolute    = "forbidden"
 filenames            = "portable"

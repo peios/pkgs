@@ -1,0 +1,27 @@
+format = "peipkg"
+
+[package]
+name          = "dev.peios.packaging-tools"
+version       = "1.0.0-1"
+architecture  = "noarch"
+description   = "Peios packaging helpers: debug-info split and Rust licence closure"
+license       = "MIT"
+license_class = "free"
+homepage      = "https://github.com/peios/pkgs"
+
+[dependencies]
+# split-debug
+"org.git.kernel.dash"      = "*"
+"dev.peios.peiosutils"     = "*"
+"org.gnu.findutils"        = "*"
+"org.gnu.grep"             = "*"
+"org.gnu.sed"              = "*"
+"org.gnu.binutils"         = "*"
+"org.sourceware.debugedit" = "*"
+# collect-rust-licences
+"org.python.python3"       = ">= 3.11"
+
+[files]
+"@recipe:docs/LICENSE" = "usr/share/licenses/dev.peios.packaging-tools/LICENSE"
+":usr/libexec/peios-packaging/**" = "usr/libexec/peios-packaging"
+":usr/share/doc/dev.peios.packaging-tools/README" = "usr/share/doc/dev.peios.packaging-tools/README"
