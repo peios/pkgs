@@ -32,3 +32,15 @@ Origin: vendor, Peios
  if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
    if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
      AC_MSG_ERROR([internal configure error for the platform triplet, please file a bug report])
+--- a/Lib/test/test_sysconfig.py
++++ b/Lib/test/test_sysconfig.py
+@@ -568,7 +568,8 @@
+             if ctypes.sizeof(ctypes.c_char_p()) == 4:
+                 expected_suffixes = 'i386-linux-gnu.so', 'x86_64-linux-gnux32.so', 'i386-linux-musl.so'
+             else: # 8 byte pointer size
+-                expected_suffixes = 'x86_64-linux-gnu.so', 'x86_64-linux-musl.so'
++                expected_suffixes = ('x86_64-linux-gnu.so', 'x86_64-linux-musl.so',
++                                     'x86_64-linux-peios.so')
+             self.assertEndsWith(suffix, expected_suffixes)
+
+     @unittest.skipUnless(sys.platform == 'android', 'Android-specific test')

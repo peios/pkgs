@@ -7,7 +7,7 @@ description = "Python 3 headers, embedding library and build metadata"
 [provides]
 
 [dependencies]
-"org.python.python3-libs" = "{{version}}-1"
+"org.python.python3-libs" = "{{version}}-5"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.python.python3-devel/LICENSE"

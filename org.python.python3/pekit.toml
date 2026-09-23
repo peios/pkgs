@@ -41,13 +41,12 @@ export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.python.py
 REL_SRC=$(realpath --relative-to="$PEKIT_OUT" "$SRC")
 
 # Keep unavailable optional modules deterministically disabled. PEI-725 tracks
-# libffi, SQLite, GDBM and tzdata; PEI-613 tracks Readline. The dependency set
-# below deliberately enables TLS, bzip2, XZ, Zstandard, curses, and UUID
-# support now.
+# SQLite and GDBM; PEI-613 tracks Readline. The dependency set below
+# deliberately enables TLS, bzip2, XZ, Zstandard, curses, UUID and ctypes (the
+# system libffi); the test gate imports each, so a missing one fails the build.
 #
 # Compile with the workspace's -fcf-protection and generate IBT PLT entries.
 # Do not assert compatibility on behalf of unmarked provider startup objects.
-py_cv_module__ctypes=disabled \
 py_cv_module__sqlite3=disabled \
 py_cv_module__dbm=disabled \
 py_cv_module__gdbm=disabled \
@@ -311,8 +310,8 @@ fi
 export LD_LIBRARY_PATH="$LIBDIR"
 export PYTHONHOME="$STAGE/usr"
 "$PYTHON" - "$PEKIT_VERSION" <<'PY'
-import bz2, compression.zstd, curses, hashlib, lzma, multiprocessing
-import ssl, subprocess, sys, sysconfig, threading, uuid
+import bz2, compression.zstd, ctypes, curses, hashlib, lzma, multiprocessing
+import os, ssl, subprocess, sys, sysconfig, threading, uuid
 assert sys.version_info[:3] == tuple(map(int, sys.argv[1].split('.')))
 assert sysconfig.get_path('purelib') == sysconfig.get_path('platlib')
 assert sysconfig.get_path('purelib') == (
@@ -326,6 +325,14 @@ assert uuid.uuid4().version == 4
 assert subprocess.check_output([sys.executable, '-c', 'print(42)']) == b'42\n'
 t = threading.Thread(target=lambda: None); t.start(); t.join()
 parent, child = multiprocessing.Pipe(); child.send('ok'); assert parent.recv() == 'ok'
+# A foreign call, and a Python callback called back from C: the callback is a
+# libffi closure, so this exercises its trampolines under CET.
+libc = ctypes.CDLL(None)
+assert libc.getpid() == os.getpid()
+values = (ctypes.c_int * 5)(5, 1, 4, 2, 3)
+CMP = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+libc.qsort(values, len(values), ctypes.sizeof(ctypes.c_int), CMP(lambda a, b: a[0] - b[0]))
+assert list(values) == [1, 2, 3, 4, 5]
 PY
 
 mkdir -p "$SMOKE"
@@ -378,6 +385,7 @@ done
 "io.github.zlib-ng.zlib-ng-compat-devel"       = "*"
 "org.tukaani.xz-devel"                         = "*"
 "com.facebook.zstd-devel"                      = "*"
+"org.sourceware.libffi-devel"                  = "*"
 
 [build.main.dependencies.peipkg]
 "org.gnu.coreutils-build-compat" = "*"
@@ -393,3 +401,4 @@ done
 "io.github.zlib-ng.zlib-ng-compat-devel"                        = "*"
 "org.tukaani.xz-devel"                          = "*"
 "com.facebook.zstd-devel"                        = "*"
+"org.sourceware.libffi-devel"     = "*"

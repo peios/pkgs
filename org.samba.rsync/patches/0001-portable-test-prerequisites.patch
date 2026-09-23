@@ -1,58 +1,19 @@
-Subject: Keep rsync test prerequisites portable across native Python builds
+Subject: Keep the comma-only auth test portable without a POSIX account
 Origin: Peios packaging, test-only portability adaptation
 
-Use os.chroot, defer Darwin-only ctypes imports, and use a compiled fallocate
-probe with identical allocation checks. Preserve comma-only username checks
-when no POSIX account exists; report the group-rule coverage as unavailable.
+Preserve comma-only username checks when no POSIX account exists for the
+worker's UID; report the group-rule coverage as unavailable.
 
---- a/testsuite/daemon-chroot_test.py
-+++ b/testsuite/daemon-chroot_test.py
-@@ -21,7 +21,6 @@
- without it.
- """
- 
--import ctypes
- import os
- import subprocess
- 
-@@ -40,7 +39,7 @@
- pid = os.fork()
- if pid == 0:
-     try:
--        ctypes.CDLL(None).chroot(b"/")
-+        os.chroot("/")
-         os._exit(0)
-     except Exception:
-         os._exit(1)
---- a/testsuite/macos-setgid-ordinary-mode-regression_test.py
-+++ b/testsuite/macos-setgid-ordinary-mode-regression_test.py
-@@ -8,7 +8,6 @@
- the ordinary bits.  A pinned-descriptor fchmod preserves the former semantics.
- """
- 
--import ctypes
- import errno
- import os
- import tempfile
-@@ -23,6 +22,8 @@
- 
- if platform.system() != "Darwin":
-     test_skipped("macOS-specific fchmodat setgid behavior")
-+
-+import ctypes
- 
- AT_FDCWD = -2
- AT_SYMLINK_NOFOLLOW = 0x0020
 --- a/testsuite/daemon-auth-users-comma-only_test.py
 +++ b/testsuite/daemon-auth-users-comma-only_test.py
 @@ -46,7 +46,7 @@
- 
+
  from rsyncfns import (
      SCRATCHDIR, makepath, rmtree, rsync_argv, start_test_daemon, test_fail,
 -    write_daemon_conf,
 +    write_daemon_conf, test_skipped,
  )
- 
+
  PORT = 12949
 @@ -67,7 +67,10 @@
  # The group half needs an auth name the daemon can resolve to a real uid, or
@@ -63,57 +24,16 @@ when no POSIX account exists; report the group-rule coverage as unavailable.
 +    REALUSER = pwd.getpwuid(os.geteuid()).pw_name
 +except KeyError:
 +    REALUSER = None
- 
+
  secrets = base / 'auth-users.secrets'
  secrets.write_text(f'{USER}:{PASSWORD}\n{REALUSER}:{PASSWORD}\n')
 @@ -142,6 +145,9 @@
  if proc.returncode != 0:
      test_fail(f'transfer was allowed but failed ({ctx})')
- 
+
 +if REALUSER is None:
 +    test_skipped('comma-only username assertions passed; group-rule assertions require a resolvable POSIX account')
 +
  # Group control: everything the group half depends on must work first.
  proc, landed = push('grpctl', grpc, as_user=REALUSER)
  ctx = f'rc={proc.returncode}, output={proc.stdout.strip()[:300]!r}'
---- a/testsuite/preallocate_test.py
-+++ b/testsuite/preallocate_test.py
-@@ -44,30 +44,14 @@
-     seek-based sparseness yet still keep every block on a punch (e.g. where
-     rsync's punch falls back to writing zeros), so probe the real capability and
-     assert the hole only where it actually frees blocks."""
--    import ctypes
--    import ctypes.util
--    KEEP_SIZE, PUNCH_HOLE = 0x01, 0x02
--    p = src / 'punch-probe'
--    fd = -1
--    try:
--        libc = ctypes.CDLL(ctypes.util.find_library('c') or 'libc.so.6',
--                           use_errno=True)
--        libc.fallocate.argtypes = [ctypes.c_int, ctypes.c_int,
--                                   ctypes.c_longlong, ctypes.c_longlong]
--        fd = os.open(p, os.O_CREAT | os.O_RDWR | os.O_TRUNC, 0o644)
--        os.write(fd, b'\xff' * 65536)
--        before = os.fstat(fd).st_blocks
--        ret = libc.fallocate(fd, PUNCH_HOLE | KEEP_SIZE, 0, 65536)
--        return ret == 0 and os.fstat(fd).st_blocks < before
--    except (OSError, AttributeError, ValueError):
--        return False
--    finally:
--        if fd >= 0:
--            os.close(fd)
--        try:
--            os.unlink(p)
--        except OSError:
--            pass
-+    import subprocess
-+    helper = os.environ.get('PEKIT_RSYNC_PUNCH_PROBE')
-+    if not helper:
-+        raise RuntimeError('the declared filesystem probe is required')
-+    result = subprocess.run([helper, str(src / 'punch-probe')])
-+    if result.returncode not in (0, 1):
-+        raise RuntimeError('filesystem hole-punch probe failed')
-+    return result.returncode == 0
- 
- 
- can_punch = fs_can_punch_holes()

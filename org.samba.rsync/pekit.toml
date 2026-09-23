@@ -40,7 +40,8 @@ cd "$BUILD"
 
 # Bundled popt is the only popt implementation currently in the catalogue.
 # Use the system compression and cryptography libraries, retain generic xattrs,
-# and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead.
+# and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead. IDN host
+# names (3.5.1+) stay off until libidn2 is packaged.
 CFLAGS="$CFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
 CXXFLAGS="$CXXFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
@@ -54,6 +55,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
     --enable-roll-simd \
     --disable-lz4 \
     --disable-acl-support \
+    --disable-idn \
     --disable-md2man
 
 make -j"$(nproc)"
@@ -108,8 +110,6 @@ VERSION_OUT="$PEKIT_OUT/rsync-version"
 # identity or trusted procfs-owner prerequisite is unavailable; all other
 # security assertions remain mandatory. Short scratch paths avoid upstream's
 # documented 256-byte batch filename limit.
-cc "$PEKIT_RECIPE_ROOT/tools/punch-probe.c" -o "$PEKIT_OUT/punch-probe"
-export PEKIT_RSYNC_PUNCH_PROBE="$PEKIT_OUT/punch-probe"
 RSYNC_EXCLUDE=$(python3 "$PEKIT_RECIPE_ROOT/tools/test-prerequisites.py")
 export scratchbase=/tmp/rsync-tests
 mkdir -p "$scratchbase"
@@ -120,7 +120,7 @@ test "$(head -n 1 "$PREFIX/bin/rrsync")" = '#!/bin/python3'
 for define in HAVE_OPENAT2 HAVE_XXHASH_H HAVE_ZSTD_H SUPPORT_XATTRS USE_OPENSSL USE_ROLL_SIMD; do
   grep -Eq "^#define $define 1$" "$BUILD/config.h"
 done
-if grep -Eq '^#define (HAVE_LZ4_H|SUPPORT_ACLS) 1$' "$BUILD/config.h"; then exit 1; fi
+if grep -Eq '^#define (HAVE_LZ4_H|SUPPORT_ACLS|SUPPORT_IDN) 1$' "$BUILD/config.h"; then exit 1; fi
 
 "$RSYNC" --version > "$VERSION_OUT"
 grep -F "rsync  version $PEKIT_VERSION" "$VERSION_OUT"

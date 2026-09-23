@@ -11,16 +11,6 @@ import tomllib
 import sys
 
 
-def lazy_windows_ctypes(text):
-    if '\nimport ctypes\n' not in text:
-        return text  # upstream may already have made the import lazy
-    expected = 'def is_hidden_Windows(path):\n    res = ctypes.windll.kernel32.GetFileAttributesW(path)'
-    if text.count('\nimport ctypes\n') != 1 or text.count('ctypes.') != 1 or expected not in text:
-        raise ValueError('jaraco.path ctypes usage changed; review the Windows-only portability adjustment')
-    return text.replace('\nimport ctypes\n', '\n').replace(expected,
-        'def is_hidden_Windows(path):\n    import ctypes\n\n    res = ctypes.windll.kernel32.GetFileAttributesW(path)')
-
-
 def prepare(source, python, record):
     changes = []
     def edit(path, transform, reason):
@@ -34,12 +24,6 @@ def prepare(source, python, record):
     edit(source / 'pytest.ini', lambda s: ''.join(line for line in s.splitlines(True)
             if 'coverage.exceptions.CoverageWarning' not in line),
          'Coverage instrumentation is not enabled; omit its optional warning category while retaining warning errors.')
-    path = Path(subprocess.check_output([str(python), '-c',
-        'import importlib.util; print(importlib.util.find_spec("jaraco.path").origin)'], text=True).strip())
-    if not path.resolve().is_relative_to(python.parent.parent.resolve()):
-        raise ValueError('jaraco.path is outside the private test environment')
-    edit(path, lazy_windows_ctypes,
-         'Load ctypes only inside the Windows implementation; Linux hidden-file tests do not require the optional native module.')
     # Runtime packages deliberately omit CPython's regression tests. Supply
     # its public test helpers from the matching, declared source package only
     # inside this private test venv, never from the developer's interpreter.
