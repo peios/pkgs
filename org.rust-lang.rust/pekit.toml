@@ -206,14 +206,21 @@ EOF
 
 # Avoid rebuilding the self-hosted compiler merely to repeat packaging or its
 # independent test. The stamp covers every input outside config.toml that can
-# alter x.py's output; a clean source/version has its own Pekit output root.
-# Target C/C++ flags are not part of x.py's native-libunwind cache key, so a
-# changed contract also removes that small target slice before rebuilding.
+# alter x.py's output: the flags, the patch series applied to this source, and
+# the system LLVM, OpenSSL, C compiler and musl sysroot it builds against. A
+# clean source/version has its own Pekit output root. Target C/C++ flags are
+# not part of x.py's native-libunwind cache key, so a changed contract also
+# removes that small target slice before rebuilding.
 BUILD_STAMP="$PEKIT_OUT/.xpy-install.stamp"
 BUILD_CONTRACT=$(
   {
     sha256sum "$PEKIT_OUT/config.toml"
     printf '%s\n' "$RUSTFLAGS_NOT_BOOTSTRAP" "$MUSL_CFLAGS"
+    cat "$PEKIT_RECIPE_ROOT"/patches/*
+    "$LLVM_CONFIG" --version
+    printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_TEXT\n' | cc -E -P -x c - | tail -n 1
+    cc --version | head -n 1
+    sha256sum "$MUSL_ROOT/lib/libc.a"
   } | sha256sum | awk '{print $1}'
 )
 if test -x "$PREFIX/bin/rustc" && \
@@ -288,6 +295,18 @@ test -z "$(find "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib" \
 if nm -u "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib/self-contained/libunwind.a" |
    grep -Eq '__[^[:space:]]*_chk$'; then
   echo "rust: musl libunwind contains glibc fortified references" >&2
+  exit 1
+fi
+# The self-contained musl CRT objects and C archives (crt*.o, libc.a,
+# libunwind.a) are linked statically into every musl target program. Like any
+# shipped static archive they keep their code but not their DWARF, which named
+# the directories they were built in and leaked into consumers' debug files.
+find "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib/self-contained" -type f \
+  \( -name '*.o' -o -name '*.a' \) -exec strip --strip-debug {} +
+if find "$PEKIT_OUT$TRIPLET_DIR/rustlib/$MUSL_TARGET/lib/self-contained" -type f \
+     \( -name '*.o' -o -name '*.a' \) -exec readelf -SW {} + 2>/dev/null |
+   grep -q '\.debug_info'; then
+  echo "rust: musl self-contained objects still carry debug info" >&2
   exit 1
 fi
 
@@ -540,39 +559,6 @@ for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -Eq '\.debug_info|\.symtab'
 done
 
-# Verify the actual installed outputs against the workspace ELF contract. The
-# target's Rust-specific CET flag emits protected landing pads. Compatibility
-# notes must survive the ordinary linker merge; payload lint also inspects code.
-# Forwarded LDFLAGS supply RELR and full RELRO. Reject build-tree search paths.
-while IFS= read -r elf; do
-  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+(DYN|EXEC)'
-  readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
-  readelf -lW "$elf" | grep -q 'GNU_RELRO'
-  readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
-  readelf -dW "$elf" | grep -q '(RELR)'
-  readelf -nW "$elf" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
-  readelf -nW "$elf" | grep -q 'Build ID:'
-  if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
-    echo "rust: forbidden dynamic tag in $elf" >&2
-    exit 1
-  fi
-done < "$PEKIT_OUT/.debug-elfs"
-
-LLVM_LIBRARY=$("$LLVM_CONFIG" --link-shared --libfiles)
-# Upstream llvm-config returns exactly the selected monolithic shared library.
-test -f "$LLVM_LIBRARY"
-LLVM_SONAME=$(readelf -dW "$LLVM_LIBRARY" | sed -n 's/.*(SONAME).*\[\(.*\)\].*/\1/p')
-test -n "$LLVM_SONAME"
-readelf -dW "$LIBDIR"/librustc_driver-*.so | grep -F "Shared library: [$LLVM_SONAME]"
-
-# Cargo links the system OpenSSL (openssl-sys supports 3.x and 4.x). Check the
-# SONAME of the SDK actually installed rather than freezing one ABI here.
-crypto_major=$(printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_MAJOR\n' | cc -E -P -x c - | tail -n 1)
-case "$crypto_major" in 3|4) ;; *) echo "rust: unreviewed OpenSSL ABI $crypto_major" >&2; exit 1 ;; esac
-for needed in "libssl.so.$crypto_major" "libcrypto.so.$crypto_major" libz.so.1; do
-  readelf -dW usr/bin/cargo | grep -F "Shared library: [$needed]"
-done
-
 rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
   "$PEKIT_OUT/.debug-buildids" "$PEKIT_OUT/.debug-elfs"
 '''
@@ -613,6 +599,35 @@ export LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$
 test "$(rustc --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test "$(cargo --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test "$(rustc --version --verbose | sed -n 's/^host: //p')" = "$TRIPLET"
+
+# Verify the installed outputs against the workspace ELF contract. The
+# target's Rust-specific CET flag emits protected landing pads. Compatibility
+# notes must survive the ordinary linker merge; payload lint also inspects code.
+# Forwarded LDFLAGS supply RELR and full RELRO. Reject build-tree search paths.
+# readelf also accepts ar/rlib archives, so only executables and shared objects
+# are checked.
+find "$PREFIX/bin" "$LIBDIR" -type f -print | LC_ALL=C sort | while IFS= read -r elf; do
+  readelf -h "$elf" 2>/dev/null | grep -Eq 'Type:[[:space:]]+(DYN|EXEC)' || continue
+  readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
+  readelf -lW "$elf" | grep -q 'GNU_RELRO'
+  readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
+  readelf -dW "$elf" | grep -q '(RELR)'
+  readelf -nW "$elf" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
+  readelf -nW "$elf" | grep -q 'Build ID:'
+  if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
+    echo "rust: forbidden dynamic tag in $elf" >&2
+    exit 1
+  fi
+done
+
+# The compiler links the system's monolithic LLVM, and cargo the system OpenSSL
+# (openssl-sys supports 3.x and 4.x) and zlib; nothing is bundled.
+readelf -dW "$LIBDIR"/librustc_driver-*.so | grep -Eq 'Shared library: \[libLLVM\.so\.'
+crypto_major=$(readelf -dW "$PREFIX/bin/cargo" | sed -n 's/.*Shared library: \[libcrypto\.so\.\([0-9]*\)\].*/\1/p')
+case "$crypto_major" in 3|4) ;; *) echo "rust: cargo links unreviewed OpenSSL ABI '$crypto_major'" >&2; exit 1 ;; esac
+for needed in "libssl.so.$crypto_major" libz.so.1; do
+  readelf -dW "$PREFIX/bin/cargo" | grep -F "Shared library: [$needed]"
+done
 
 mkdir -p "$SMOKE/src" "$SMOKE/cargo-home"
 cat > "$SMOKE/src/main.rs" <<'RS'

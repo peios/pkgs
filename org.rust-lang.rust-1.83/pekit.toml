@@ -316,7 +316,6 @@ while IFS= read -r elf; do
   rest=$(printf %s "$bid" | cut -c3-)
   dbg="usr/lib/debug/.build-id/$p2/$rest.debug"
   if ! grep -Fxq "$bid" "$PEKIT_OUT/.debug-buildids"; then
-    printf '%s\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
     : > "$PEKIT_OUT/.debug-one"
     debugedit -b "$ROOT" -d "$DEBUGROOT" \
       -l "$PEKIT_OUT/.debug-one" -n "$elf"
@@ -324,9 +323,20 @@ while IFS= read -r elf; do
     mkdir -p "$(dirname "$dbg")"
     objcopy --only-keep-debug "$elf" "$dbg"
     python3 -c 'import os, sys; os.chmod(sys.argv[1], 0o644)' "$dbg"
+    if readelf -SW "$dbg" 2>/dev/null | grep -Eq '\.debug_info|\.symtab'; then
+      printf '%s\n' "$bid" >> "$PEKIT_OUT/.debug-buildids"
+    else
+      # Upstream installs some helpers already stripped. Keep them in the
+      # runtime checks, but publish no empty detached-symbol file and attach
+      # no debuglink to one (the rolling lane's fix).
+      rm -f "$dbg"
+      dbg=
+    fi
   fi
   strip --strip-unneeded "$elf"
-  objcopy --add-gnu-debuglink="$dbg" "$elf"
+  if test -n "$dbg"; then
+    objcopy --add-gnu-debuglink="$dbg" "$elf"
+  fi
 done
 
 LC_ALL=C sort -u "$PEKIT_OUT/.debug-sources" |

@@ -4,7 +4,8 @@ Two sources, neither selectable by a recipe's paths:
 
 * Rust toolchains, from Rust's own signed release archives, pinned here by
   hash. Peios already trusts these: its native Rust bootstraps from the same
-  upstream binaries (org.rust-lang.rust-stage0). A Peios-built compiler cannot
+  upstream binaries, which the rust recipe's build:vendor fetches as pinned by
+  the source release's src/stage0. A Peios-built compiler cannot
   serve here, because the Debian rung is what builds the seed that a native
   compiler needs (PEI-1156).
 * Catalogue packages a recipe names in its apt dependency set, such as
