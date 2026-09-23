@@ -106,13 +106,18 @@ gate = true
 command = '''
 set -eu
 
+# The sorter's WHENCE licence accounting, on synthetic cases.
+python3 "$PEKIT_RECIPE_ROOT/tools/test_sort_firmware.py"
+
 # Re-run the release-accounting policy independently of the transformation:
-# every WHENCE entry must be assigned, licences must match, and no relative
-# link may cross a package-family boundary.
+# every WHENCE entry must be assigned, every file licensed, each family's
+# declared SPDX expression must equal the one derived from what its files
+# cite, no relative link may cross a package-family boundary, and each staged
+# family must ship exactly its cited licence texts plus the WHENCE excerpt.
 python3 "$PEKIT_RECIPE_ROOT/tools/sort-firmware.py" \
   --families "$PEKIT_RECIPE_ROOT/families.toml" \
   --source "$(pwd)" \
-  --check
+  --check --staged "$PEKIT_MAIN_OUT/family"
 
 ROOT="$PEKIT_MAIN_OUT/family"
 test -d "$ROOT"

@@ -4,7 +4,7 @@
 [package]
 name          = "org.kernel.linux-firmware-broadcom"
 description   = "Broadcom and Cypress Wi-Fi, Bluetooth, and Ethernet firmware"
-license       = "LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
+license       = "GPL-2.0-only AND LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
 license_class = "firmware"
 
 [files]

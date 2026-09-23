@@ -4,7 +4,7 @@
 [package]
 name          = "org.kernel.linux-firmware-misc"
 description   = "Miscellaneous x86 peripheral firmware"
-license       = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
+license       = "GPL-1.0-or-later AND GPL-2.0-only AND GPL-2.0-or-later AND GPL-3.0-only AND LicenseRef-Abilis-Firmware AND LicenseRef-Agere-Firmware AND LicenseRef-Atmel-Firmware AND LicenseRef-BayCom-Firmware AND LicenseRef-Bosch-Firmware AND LicenseRef-Comtrol-Firmware AND LicenseRef-Conexant-Firmware AND LicenseRef-Cresta-Firmware AND LicenseRef-DiBcom-Firmware AND LicenseRef-Emagic-Firmware AND LicenseRef-ITE-Firmware AND LicenseRef-Keyspan-Firmware AND LicenseRef-Micronas-Firmware AND LicenseRef-Montage-Firmware AND LicenseRef-Morse-Micro-Firmware AND LicenseRef-Moxa-Firmware AND LicenseRef-Multi-Tech-Firmware AND LicenseRef-Redpine-Firmware AND LicenseRef-STMicroelectronics-Firmware AND LicenseRef-Sagrad-Firmware AND LicenseRef-Sensoray-Firmware AND LicenseRef-Siano-Firmware AND LicenseRef-Silicon-Labs-Firmware AND LicenseRef-Telegent-Firmware AND LicenseRef-TerraTec-Firmware AND LicenseRef-VIA-Firmware AND LicenseRef-Xceive-Firmware"
 license_class = "firmware"
 
 [files]

@@ -4,7 +4,7 @@
 [package]
 name          = "org.kernel.linux-firmware-amd-graphics"
 description   = "AMD Radeon graphics firmware (amdgpu, radeon, r128)"
-license       = "LicenseRef-AMD-Firmware"
+license       = "LicenseRef-AMD-Firmware AND MIT"
 license_class = "firmware"
 
 [files]

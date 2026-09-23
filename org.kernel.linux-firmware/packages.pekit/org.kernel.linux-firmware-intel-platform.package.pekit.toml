@@ -4,7 +4,7 @@
 [package]
 name          = "org.kernel.linux-firmware-intel-platform"
 description   = "Intel platform, sensor, camera, accelerator, and NIC firmware"
-license       = "LicenseRef-Intel-Firmware"
+license       = "GPL-2.0-only AND LicenseRef-Dell-Firmware AND LicenseRef-HP-Firmware AND LicenseRef-Intel-Firmware AND LicenseRef-Lenovo-Firmware"
 license_class = "firmware"
 
 [files]

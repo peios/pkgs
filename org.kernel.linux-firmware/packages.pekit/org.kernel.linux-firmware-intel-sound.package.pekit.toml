@@ -4,7 +4,7 @@
 [package]
 name          = "org.kernel.linux-firmware-intel-sound"
 description   = "Intel AVS, catpt, and Skylake SST audio DSP firmware"
-license       = "LicenseRef-Intel-Firmware"
+license       = "Apache-2.0 AND LicenseRef-Intel-Firmware"
 license_class = "firmware"
 
 [files]

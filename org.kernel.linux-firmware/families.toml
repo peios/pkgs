@@ -10,7 +10,7 @@
 #   tools/sort-firmware.py sorts the WHENCE-listed blobs into per-family
 #                          trees at build time, and FAILS if any blob is not
 #                          claimed by a family or the ignore list, or if a
-#                          family's blobs cite a licence text it does not declare
+#                          family's licences do not match what its blobs cite
 #
 # So a new upstream release that adds a driver, a directory or a vendor
 # licence stops the build with a name, and a human adds it here. Derived with
@@ -23,21 +23,21 @@
 # `paths` fnmatch pattern matches the path. Families are tried in file order.
 # A block's Link: entries follow the family of the file they point at.
 #
-# `licenses` is the closed list of upstream LICEN[CS]E.* texts a family's
-# blobs may cite; they are shipped under the canonical package's directory in
-# /usr/share/licenses/.
-# `extra_licenses` are further texts under upstream's LICENSES/ that the
-# family's SPDX expression needs but that WHENCE does not cite by a
-# LICEN[CS]E.* name (GPL-2.0 is cited as "See GPL-2.0", or not at all, as for
-# starfire). They are checked to exist and shipped beside `licenses`.
-# `license` is the SPDX expression the package declares; Peios follows SPDX's
-# LicenseRef- convention for vendor terms with no SPDX id, and `license_class`
-# is "firmware" (PSPU §18) unless a family is genuinely free software.
+# Licences (PEI-1166). What a family ships is derived from WHENCE, per file:
+# every LICEN[CS]E.* and NOTICE.* text cited for the family's files, the
+# LICENSES/<id> text behind every worded declaration ("GPLv2 or later. See
+# GPL-2.0", "MIT", "Allegedly GPLv2+, ..."), and a WHENCE excerpt carrying
+# upstream's wording and copyright notices for each entry the family ships.
+# `license` is the SPDX expression the package declares; the build derives it
+# too (vendor texts through [licence_ids] below, worded declarations through
+# the sorter's FREE_LICENCES table) and fails unless the two agree, printing
+# the expected expression. Peios follows SPDX's LicenseRef- convention for
+# vendor terms with no SPDX id; `license_class` is "firmware" (PSPU §18)
+# unless a family is genuinely free software.
 
 [family.iwlwifi]
 description = "Intel Wireless Wi-Fi (iwlwifi) firmware"
 drivers  = ["iwlwifi"]
-licenses = ["LICENCE.iwlwifi_firmware"]
 license  = "LicenseRef-Intel-Firmware"
 
 [family.atheros]
@@ -46,107 +46,84 @@ drivers  = ["ar9170", "ath9k_htc", "ath3k", "ath6kl", "ath10k", "ath11k", "ath12
             "ar5523", "carl9170", "wil6210", "btqca", "qca",
             "DFU Driver for Atheros bluetooth chipset AR3012",
             "Atheros AR300x UART HCI Bluetooth Chip driver"]
-licenses = ["LICENCE.atheros_firmware", "LICENCE.open-ath9k-htc-firmware",
-            "LICENSE.QualcommAtheros_ar3k", "LICENSE.QualcommAtheros_ath10k", "LICENSE.qcom"]
-license  = "LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Firmware AND BSD-3-Clause"
-# ath9k_htc's open firmware is BSD-3-Clause built from source (open-ath9k-htc-firmware).
+license  = "BSD-3-Clause AND GPL-2.0-or-later AND LicenseRef-Qualcomm-Atheros-Firmware AND LicenseRef-Qualcomm-Firmware"
 
 [family.mediatek]
 description = "MediaTek Wi-Fi and Bluetooth firmware (mt76, mt79xx, btmtk)"
 drivers  = ["mt7601u", "btmtk_usb", "btmtk", "mt76x0", "mt76x2e", "mt76x2u", "mt7615e", "mt7622",
             "mt7663", "mt7915e", "mt7902", "mt7920", "mt7921", "mt7922", "mt7925", "mt7927", "mt7996e",
             "mtk_wed", "mtk-2p5ge"]
-licenses = ["LICENCE.mediatek", "LICENCE.ralink_a_mediatek_company_firmware"]
 license  = "LicenseRef-MediaTek-Firmware"
 
 [family.ralink]
 description = "Ralink rt2x00 Wi-Fi firmware"
 drivers  = ["rt61pci", "rt73usb", "rt2800pci", "rt2860sta", "rt2800usb", "rt2870sta"]
-licenses = ["LICENCE.ralink-firmware.txt"]
 license  = "LicenseRef-Ralink-Firmware"
 
 [family.realtek]
 description = "Realtek Wi-Fi, Bluetooth, Ethernet, and audio firmware"
 drivers  = ["r8712u", "rtl8[0-9a-z]+", "rtw88", "rtw89", "r8169", "r8152", "rt1320"]
 paths    = ["rtl_bt/*"]
-licenses = ["LICENCE.rtlwifi_firmware.txt", "LICENSE.r8169", "LICENSE.rt1320"]
 license  = "LicenseRef-Realtek-Firmware"
 
 [family.broadcom]
 description = "Broadcom and Cypress Wi-Fi, Bluetooth, and Ethernet firmware"
 drivers  = ["brcmfmac", "brcmsmac", "BCM-0bb4-0306", "tg3", "bnx2", "bnx2x"]
-licenses = ["LICENCE.broadcom_bcm43xx", "LICENCE.cypress", "LICENCE.tigon", "LICENCE.bnx2", "LICENCE.bnx2x"]
-license  = "LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
+license  = "GPL-2.0-only AND LicenseRef-Broadcom-Firmware AND LicenseRef-Cypress-Firmware"
 
 [family.marvell]
 description = "Marvell and NXP Wi-Fi and Bluetooth firmware"
 drivers  = ["libertas", "mwl8k", "mwifiex", "mwlwifi", "nxpwifi", "btnxpuart", "nxp-sr1xx"]
-licenses = ["LICENCE.Marvell", "LICENCE.OLPC", "LICENCE.NXP", "LICENSE.nxp"]
 license  = "LicenseRef-Marvell-Firmware AND LicenseRef-NXP-Firmware"
 
 [family.amd-graphics]
 description = "AMD Radeon graphics firmware (amdgpu, radeon, r128)"
 drivers  = ["amdgpu", "radeon", "r128", "isp"]
-licenses = ["LICENSE.amdgpu", "LICENSE.radeon", "LICENSE.amdisp"]
-license  = "LicenseRef-AMD-Firmware"
+license  = "LicenseRef-AMD-Firmware AND MIT"
 
 [family.amd-platform]
 description = "AMD platform firmware: PSP/SEV (ccp), Platform Management Framework, XDNA NPU"
 drivers  = ["ccp", "amd_pmf", "amdxdna"]
-licenses = ["LICENSE.amd-sev", "LICENSE.amd_pmf", "LICENSE.amdnpu"]
 license  = "LicenseRef-AMD-Firmware"
 
 [family.intel-graphics]
 description = "Intel graphics firmware (i915, xe: GuC, HuC, DMC)"
 drivers  = ["i915", "xe"]
-licenses = ["LICENSE.i915", "LICENSE.xe"]
 license  = "LicenseRef-Intel-Firmware"
 
 [family.intel-platform]
 description = "Intel platform, sensor, camera, accelerator, and NIC firmware"
 drivers  = ["btusb", "ish", "atomisp", "ipu3-imgu", "intel-ipu6-isys", "intel-ipu7-isys", "mei-vsc-hw",
             "intel_vpu", "qat", "ice", "e100", "isci"]
-licenses = ["LICENCE.ibt_firmware", "LICENCE.HP", "LICENCE.lenovo", "LICENSE.dell", "LICENSE.intel",
-            "LICENSE.ivsc", "LICENSE.ipu3_firmware", "LICENSE.intel_vpu", "LICENCE.qat_firmware",
-            "LICENSE.ice", "LICENSE.ice_enhanced", "LICENCE.e100"]
-license  = "LicenseRef-Intel-Firmware"
+license  = "GPL-2.0-only AND LicenseRef-Dell-Firmware AND LicenseRef-HP-Firmware AND LicenseRef-Intel-Firmware AND LicenseRef-Lenovo-Firmware"
 # btusb's block also lists Realtek Bluetooth blobs (rtl_bt/); the realtek
 # family's path pattern claims those first — see the matching note above.
 
 [family.intel-sound]
 description = "Intel AVS, catpt, and Skylake SST audio DSP firmware"
 drivers  = ["snd_soc_sst_acpi", "snd_soc_catpt", "snd_soc_avs", "snd_intel_sst_core", "snd-soc-skl"]
-licenses = ["LICENCE.fw_sst_0f28", "LICENCE.IntcSST2", "LICENCE.adsp_sst"]
-license  = "LicenseRef-Intel-Firmware"
+license  = "Apache-2.0 AND LicenseRef-Intel-Firmware"
 
 [family.nvidia-graphics]
 description = "NVIDIA GPU firmware for nouveau and nova (GSP)"
 drivers  = ["nouveau"]
-licenses = ["LICENCE.nvidia"]
 license  = "LicenseRef-NVIDIA-Firmware"
 
 [family.audio-codecs]
 description = "Laptop audio codec and amplifier firmware"
 drivers  = ["cs35l41", "cs35l56", "cs42l43", "cs42l45", "ti-tas257x", "ti-tas2781", "ti-tas2783", "ti-tas2563", "PCM6240",
             "snd-hda-codec-ca0132"]
-licenses = ["LICENSE.cirrus", "LICENCE.ti-tspa", "LICENCE.ca0132"]
 license  = "LicenseRef-Cirrus-Firmware AND LicenseRef-TI-Firmware AND LicenseRef-Creative-Firmware"
 
 [family.nic]
 description = "Wired Ethernet adapter and PHY firmware"
 drivers  = ["cxgb3", "cxgb4", "qed", "myri10ge", "tehuti", "typhoon", "vxge", "slicoss", "sxg", "netxen_nic",
             "kaweth", "starfire", "as21xxx"]
-licenses = ["LICENCE.cxgb3", "LICENCE.chelsio_firmware", "LICENSE.qed", "LICENCE.myri10ge_firmware",
-            "LICENSE.tehuti", "LICENCE.typhoon", "LICENSE.vxge", "LICENCE.alacritech", "LICENCE.phanfw",
-            "LICENCE.kaweth", "LICENSE.aeonsemi"]
-extra_licenses = ["GPL-2.0"]
-license  = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
-# starfire's firmware is GPL-2.0-or-later (upstream "LICENSED" marker).
+license  = "GPL-2.0-only AND LicenseRef-3Com-Firmware AND LicenseRef-Aeonsemi-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Chelsio-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-NetLogic-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Tehuti-Firmware"
 
 [family.storage]
 description = "Storage HBA, Fibre Channel, and card-reader firmware"
 drivers  = ["qla2xxx", "qla1280", "advansys", "BFA/BNA", "ene-ub6250"]
-licenses = ["LICENCE.qla2xxx", "LICENCE.qla1280", "LICENCE.advansys", "LICENSE.bfa", "LICENCE.ene_firmware"]
 license  = "LicenseRef-QLogic-Firmware AND LicenseRef-AdvanSys-Firmware AND LicenseRef-ENE-Firmware"
 
 [family.misc]
@@ -159,14 +136,7 @@ drivers  = ["keyspan", "keyspan_pda", "emi26", "ti_usb_3410_5052", "whiteheat", 
             "orinoco", "vt6656", "cw1200", "rsi", "wfx", "wilc1000", "mm81x", "atusb",
             "pcnet_cs", "3c589_cs", "3c574_cs", "serial_cs", "smc91c92_cs",
             "snd-sb16-csp", "snd-wavefront", "dsp56k", "bmi260", "Mont-TSSE"]
-licenses = ["LICENCE.keyspan", "LICENCE.emi26", "LICENCE.multitech", "LICENCE.moxa", "LICENSE.rp2",
-            "LICENCE.dabusb", "LICENSE.conexant", "LICENCE.xc4000", "LICENCE.xc5000", "LICENCE.xc5000c",
-            "LICENSE.dib0700", "LICENSE.drxk", "LICENCE.it913x", "LICENCE.Abilis", "LICENCE.siano",
-            "LICENCE.go7007", "LICENCE.sensoray", "LICENSE.tlg2300",
-            "LICENCE.agere", "LICENCE.via_vt6656", "LICENCE.cw1200", "LICENCE.cw1200-sdd", "LICENSE.rsi",
-            "LICENCE.wf200", "LICENSE.atmel", "LICENCE.morsemicro", "LICENSE.bmi260", "LICENSE.montage"]
-extra_licenses = ["GPL-2.0"]
-license  = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
+license  = "GPL-1.0-or-later AND GPL-2.0-only AND GPL-2.0-or-later AND GPL-3.0-only AND LicenseRef-Abilis-Firmware AND LicenseRef-Agere-Firmware AND LicenseRef-Atmel-Firmware AND LicenseRef-BayCom-Firmware AND LicenseRef-Bosch-Firmware AND LicenseRef-Comtrol-Firmware AND LicenseRef-Conexant-Firmware AND LicenseRef-Cresta-Firmware AND LicenseRef-DiBcom-Firmware AND LicenseRef-Emagic-Firmware AND LicenseRef-ITE-Firmware AND LicenseRef-Keyspan-Firmware AND LicenseRef-Micronas-Firmware AND LicenseRef-Montage-Firmware AND LicenseRef-Morse-Micro-Firmware AND LicenseRef-Moxa-Firmware AND LicenseRef-Multi-Tech-Firmware AND LicenseRef-Redpine-Firmware AND LicenseRef-STMicroelectronics-Firmware AND LicenseRef-Sagrad-Firmware AND LicenseRef-Sensoray-Firmware AND LicenseRef-Siano-Firmware AND LicenseRef-Silicon-Labs-Firmware AND LicenseRef-Telegent-Firmware AND LicenseRef-TerraTec-Firmware AND LicenseRef-VIA-Firmware AND LicenseRef-Xceive-Firmware"
 
 # Not shipped. Non-x86 SoC firmware, datacentre switch and accelerator blobs,
 # and blobs Peios packages elsewhere. Listed explicitly so that the gate
@@ -189,3 +159,104 @@ drivers = [
   "mlxsw_spectrum", "nfp", "prestera", "rvu_cptpf", "liquidio", "nitrox", "inside-secure",
   "ib_qib", "hfi1", "mga",
 ]
+
+# Every vendor licence text a packaged family's blobs cite, mapped to the SPDX
+# identifier Peios declares for it. A text no family cites any more fails the
+# build, as does a newly cited one with no entry: read it, then add it here.
+# Identifiers name the licensor; several texts from one licensor share one.
+[licence_ids]
+"LICENCE.iwlwifi_firmware"          = "LicenseRef-Intel-Firmware"
+"LICENCE.ibt_firmware"              = "LicenseRef-Intel-Firmware"
+"LICENCE.qat_firmware"              = "LicenseRef-Intel-Firmware"
+"LICENCE.e100"                      = "LicenseRef-Intel-Firmware"
+"LICENCE.IntcSST2"                  = "LicenseRef-Intel-Firmware"
+"LICENCE.adsp_sst"                  = "LicenseRef-Intel-Firmware"
+"LICENCE.fw_sst_0f28"               = "LicenseRef-Intel-Firmware"
+"LICENSE.i915"                      = "LicenseRef-Intel-Firmware"
+"LICENSE.xe"                        = "LicenseRef-Intel-Firmware"
+"LICENSE.intel"                     = "LicenseRef-Intel-Firmware"
+"LICENSE.ivsc"                      = "LicenseRef-Intel-Firmware"
+"LICENSE.ipu3_firmware"             = "LicenseRef-Intel-Firmware"
+"LICENSE.intel_vpu"                 = "LicenseRef-Intel-Firmware"
+"LICENSE.ice"                       = "LicenseRef-Intel-Firmware"
+"LICENSE.ice_enhanced"              = "LicenseRef-Intel-Firmware"
+"LICENCE.HP"                        = "LicenseRef-HP-Firmware"
+"LICENCE.lenovo"                    = "LicenseRef-Lenovo-Firmware"
+"LICENSE.dell"                      = "LicenseRef-Dell-Firmware"
+"LICENCE.atheros_firmware"          = "LicenseRef-Qualcomm-Atheros-Firmware"
+"LICENSE.QualcommAtheros_ar3k"      = "LicenseRef-Qualcomm-Atheros-Firmware"
+"LICENSE.QualcommAtheros_ath10k"    = "LicenseRef-Qualcomm-Atheros-Firmware"
+"LICENSE.qcom"                      = "LicenseRef-Qualcomm-Firmware"
+# ath9k_htc's firmware is free software built from source (open-ath9k-htc-firmware).
+"LICENCE.open-ath9k-htc-firmware"   = "BSD-3-Clause"
+"LICENCE.mediatek"                  = "LicenseRef-MediaTek-Firmware"
+"LICENCE.ralink_a_mediatek_company_firmware" = "LicenseRef-MediaTek-Firmware"
+"LICENCE.ralink-firmware.txt"       = "LicenseRef-Ralink-Firmware"
+"LICENCE.rtlwifi_firmware.txt"      = "LicenseRef-Realtek-Firmware"
+"LICENSE.r8169"                     = "LicenseRef-Realtek-Firmware"
+"LICENSE.rt1320"                    = "LicenseRef-Realtek-Firmware"
+"LICENCE.broadcom_bcm43xx"          = "LicenseRef-Broadcom-Firmware"
+"LICENCE.tigon"                     = "LicenseRef-Broadcom-Firmware"
+"LICENCE.bnx2"                      = "LicenseRef-Broadcom-Firmware"
+"LICENCE.bnx2x"                     = "LicenseRef-Broadcom-Firmware"
+"LICENCE.cypress"                   = "LicenseRef-Cypress-Firmware"
+"LICENCE.Marvell"                   = "LicenseRef-Marvell-Firmware"
+"LICENCE.OLPC"                      = "LicenseRef-Marvell-Firmware"
+"LICENCE.NXP"                       = "LicenseRef-NXP-Firmware"
+"LICENSE.nxp"                       = "LicenseRef-NXP-Firmware"
+"LICENSE.amdgpu"                    = "LicenseRef-AMD-Firmware"
+"LICENSE.radeon"                    = "LicenseRef-AMD-Firmware"
+"LICENSE.amdisp"                    = "LicenseRef-AMD-Firmware"
+"LICENSE.amd-sev"                   = "LicenseRef-AMD-Firmware"
+"LICENSE.amd_pmf"                   = "LicenseRef-AMD-Firmware"
+"LICENSE.amdnpu"                    = "LicenseRef-AMD-Firmware"
+"LICENCE.nvidia"                    = "LicenseRef-NVIDIA-Firmware"
+"LICENSE.cirrus"                    = "LicenseRef-Cirrus-Firmware"
+"LICENCE.ti-tspa"                   = "LicenseRef-TI-Firmware"
+"LICENCE.ca0132"                    = "LicenseRef-Creative-Firmware"
+"LICENCE.chelsio_firmware"          = "LicenseRef-Chelsio-Firmware"
+# The Chelsio T3 PHY (AEL2005) microcode is NetLogic's.
+"LICENCE.cxgb3"                     = "LicenseRef-NetLogic-Firmware"
+"LICENSE.qed"                       = "LicenseRef-QLogic-Firmware"
+"LICENCE.phanfw"                    = "LicenseRef-QLogic-Firmware"
+"LICENCE.qla2xxx"                   = "LicenseRef-QLogic-Firmware"
+"LICENCE.qla1280"                   = "LicenseRef-QLogic-Firmware"
+# Brocade BFA/BNA, now QLogic's; the text carries both copyrights.
+"LICENSE.bfa"                       = "LicenseRef-QLogic-Firmware"
+"LICENCE.myri10ge_firmware"         = "LicenseRef-Myricom-Firmware"
+"LICENSE.tehuti"                    = "LicenseRef-Tehuti-Firmware"
+"LICENCE.typhoon"                   = "LicenseRef-3Com-Firmware"
+"LICENSE.vxge"                      = "LicenseRef-Exar-Firmware"
+"LICENCE.alacritech"                = "LicenseRef-Alacritech-Firmware"
+"LICENCE.kaweth"                    = "LicenseRef-Kaweth-Firmware"
+"LICENSE.aeonsemi"                  = "LicenseRef-Aeonsemi-Firmware"
+"LICENCE.advansys"                  = "LicenseRef-AdvanSys-Firmware"
+"LICENCE.ene_firmware"              = "LicenseRef-ENE-Firmware"
+"LICENCE.keyspan"                   = "LicenseRef-Keyspan-Firmware"
+"LICENCE.emi26"                     = "LicenseRef-Emagic-Firmware"
+"LICENCE.multitech"                 = "LicenseRef-Multi-Tech-Firmware"
+"LICENCE.moxa"                      = "LicenseRef-Moxa-Firmware"
+"LICENSE.rp2"                       = "LicenseRef-Comtrol-Firmware"
+"LICENCE.dabusb"                    = "LicenseRef-BayCom-Firmware"
+"LICENSE.conexant"                  = "LicenseRef-Conexant-Firmware"
+"LICENCE.xc4000"                    = "LicenseRef-Xceive-Firmware"
+"LICENCE.xc5000"                    = "LicenseRef-Xceive-Firmware"
+"LICENCE.xc5000c"                   = "LicenseRef-Cresta-Firmware"
+"LICENSE.dib0700"                   = "LicenseRef-DiBcom-Firmware"
+"LICENSE.drxk"                      = "LicenseRef-TerraTec-Firmware"
+"LICENCE.it913x"                    = "LicenseRef-ITE-Firmware"
+"LICENCE.Abilis"                    = "LicenseRef-Abilis-Firmware"
+"LICENCE.siano"                     = "LicenseRef-Siano-Firmware"
+"LICENCE.go7007"                    = "LicenseRef-Micronas-Firmware"
+"LICENCE.sensoray"                  = "LicenseRef-Sensoray-Firmware"
+"LICENSE.tlg2300"                   = "LicenseRef-Telegent-Firmware"
+"LICENCE.agere"                     = "LicenseRef-Agere-Firmware"
+"LICENCE.via_vt6656"                = "LicenseRef-VIA-Firmware"
+"LICENCE.cw1200"                    = "LicenseRef-STMicroelectronics-Firmware"
+"LICENCE.cw1200-sdd"                = "LicenseRef-Sagrad-Firmware"
+"LICENSE.rsi"                       = "LicenseRef-Redpine-Firmware"
+"LICENCE.wf200"                     = "LicenseRef-Silicon-Labs-Firmware"
+"LICENSE.atmel"                     = "LicenseRef-Atmel-Firmware"
+"LICENCE.morsemicro"                = "LicenseRef-Morse-Micro-Firmware"
+"LICENSE.bmi260"                    = "LicenseRef-Bosch-Firmware"
+"LICENSE.montage"                   = "LicenseRef-Montage-Firmware"
