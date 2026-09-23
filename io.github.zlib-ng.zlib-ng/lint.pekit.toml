@@ -2,3 +2,6 @@
 # Keep checking each runtime ELF against that package's actual debug files.
 [elf]
 debuginfo = "io.github.zlib-ng.zlib-ng-debuginfo"
+
+[allow]
+"source.signature.required" = "Release tags are unsigned lightweight tags and upstream publishes no maintainer-signed checksums; HTTPS plus the commit pinned in pekit.lock is the available provenance boundary"

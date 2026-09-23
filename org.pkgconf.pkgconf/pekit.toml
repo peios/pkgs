@@ -17,8 +17,8 @@ versions    = ">= 3.0.6"
 
 # Upstream release tags are SSH-signed on GitHub, but neither the official
 # tarball directory nor the release assets publish detached signatures Pekit
-# can authenticate. This is therefore an explicit HTTPS + immutable lockfile
-# hash exception until Pekit can verify signed Git tags (PEI-665).
+# can authenticate, and Pekit verifies only OpenPGP Git signatures. This is
+# therefore an explicit HTTPS + immutable lockfile hash exception.
 
 [build.main]
 command = '''

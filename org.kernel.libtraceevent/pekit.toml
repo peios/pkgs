@@ -14,10 +14,12 @@ tag_regex = '^libtraceevent-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 # SONAME, header, plugin, and test gates stop incompatible ABI changes.
 versions  = ">= 1.9"
 
-# Upstream's release tags are annotated and signed, but Pekit cannot yet
-# authenticate Git tag signatures (PEI-665). HTTPS authenticates transport and
-# the Git lock pins the accepted commit immutably; first acceptance of a new
-# tag remains an explicit TOFU exception until that support lands.
+# Upstream's release tags are annotated and OpenPGP-signed by Steven Rostedt.
+# The key is kernel.org's official pgpkeys.git copy (keys/EBC26CDB5A56DE73.asc);
+# tags are signed by its subkey 514B0EDE3C387F944FB3799329E574109AEBFAAA.
+[source.git.signature]
+key_files    = ["keys/steven-rostedt.asc"]
+fingerprints = ["5ED9A48FC54C0A22D1D0804CEBC26CDB5A56DE73"]
 
 [build.main]
 command = '''

@@ -2,3 +2,6 @@
 # Keep checking each runtime ELF against that package's actual debug files.
 [elf]
 debuginfo = "org.capstone-engine.capstone-debuginfo"
+
+[allow]
+"source.signature.required" = "Release tags are OpenPGP-signed, but by key 0E088203E6CF0BA5, which neither the tagger's GitHub account nor keyserver.ubuntu.com or keys.openpgp.org publishes (checked 2026-09-23); HTTPS plus the commit pinned in pekit.lock is the boundary until the key is available"

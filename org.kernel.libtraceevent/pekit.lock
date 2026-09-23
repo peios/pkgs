@@ -1,6 +1,7 @@
 # pekit.lock — machine-written by pekit; records pinned source inputs.
-# Do not edit by hand. To accept changed upstream bytes for a version, run:
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
 #   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
 
 schema = 1
 
@@ -8,4 +9,5 @@ schema = 1
   version = "1.9.0"
   ref = "libtraceevent-1.9.0"
   commit = "13701b5532e0c3295bf5670361692b0d0044228d"
-  locked_at = "2026-09-05T23:36:58Z"
+  signature_key = "5ed9a48fc54c0a22d1d0804cebc26cdb5a56de73"
+  locked_at = "2026-09-23T17:05:14Z"

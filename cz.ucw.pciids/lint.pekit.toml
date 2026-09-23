@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Tracked snapshot of the pci.ids file on upstream's master branch; upstream signs no commits and pekit verifies no tracked snapshots, so HTTPS plus the blob hash pinned in pekit.lock is the provenance boundary"

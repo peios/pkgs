@@ -5,3 +5,6 @@ debuginfo = "io.github.numactl.numactl-debuginfo"
 
 [allow_files."payload.manpages.required"]
 "usr/bin/numademo" = "Upstream's deliberately low-level NUMA policy demonstration binary has no command-line contract or maintained manual; the supported user interface is numactl(8)."
+
+[allow]
+"source.signature.required" = "Release tags are unsigned lightweight tags and upstream publishes no detached signatures; HTTPS plus the commit pinned in pekit.lock is the available provenance boundary"

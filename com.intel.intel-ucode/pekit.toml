@@ -15,9 +15,10 @@ enabled = false
 
 [source.git]
 url = "https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files.git"
-# Intel's release tags are unsigned lightweight tags. Until authenticated Git
-# sources land under PEI-665, retrieval therefore relies on HTTPS and pekit's
-# immutable commit lock: a moved tag cannot silently change locked source.
+# Intel's release tags are unsigned lightweight tags, so there is nothing for
+# [source.git.signature] to pin; lint.pekit.toml declares the exception.
+# Retrieval relies on HTTPS and pekit's immutable commit lock: a moved tag
+# cannot silently change locked source.
 # Named captures present microcode-YYYYMMDD as YYYY.MM.DD, corrective -revN
 # tags as a fourth numeric component, and letter-suffixed tags unchanged. The
 # ref template round-trips every accepted version to its exact upstream tag.

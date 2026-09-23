@@ -2,3 +2,6 @@
 # Keep checking each runtime ELF against that package's actual debug files.
 [elf]
 debuginfo = "com.xxhash.xxhash-debuginfo"
+
+[allow]
+"source.signature.required" = "Release tags are lightweight; the tagged commits carry only GitHub's web-flow signature, which attests GitHub's merge machinery rather than an xxHash maintainer, so HTTPS plus the commit pinned in pekit.lock is the provenance boundary"

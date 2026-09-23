@@ -1,2 +1,3 @@
 [allow]
+"source.signature.required" = "Intel publishes microcode as unsigned lightweight Git tags with no detached signatures; HTTPS plus the commit pinned in pekit.lock is the available provenance boundary"
 "package.architecture" = "Intel CPU microcode targets x86 CPUs and is an x86_64 early-boot payload; absence of ELF does not make it portable firmware"

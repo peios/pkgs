@@ -507,4 +507,5 @@ schema = 1
   version = "2026.09.10"
   ref = "20260910"
   commit = "eeccccbe83daf22e1931e3557ba05b2c02427e4e"
-  locked_at = "2026-09-11T00:42:32Z"
+  signature_key = "4cde8575e547bf835fe15807a31b6bd72486cfd6"
+  locked_at = "2026-09-23T17:05:20Z"

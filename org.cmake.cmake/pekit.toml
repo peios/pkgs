@@ -17,11 +17,13 @@ tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
 # staged-client gates below fail closed on an incompatible future transition.
 versions  = ">= 4.4.3"
 
-# Authentication boundary: the source is a Git tag fetched over HTTPS from
-# Kitware's GitLab, without tag-signature verification (Pekit does not yet
-# verify Git signatures). Each newly discovered tag is trusted on first use;
-# pekit.lock then pins the accepted commit, so a later rewrite of the tag
-# fails the lock rather than changing the build.
+# Release tags are annotated and OpenPGP-signed by Brad King, CMake's release
+# manager. His Kitware GitLab account publishes this primary key, but that copy
+# still carries the signing subkey's 2023 expiry; the key file is the
+# keyserver.ubuntu.com copy, whose later self-signature extends it to 2027.
+[source.git.signature]
+key_files    = ["keys/brad-king.asc"]
+fingerprints = ["CBA23971357C2E6590D9EFD3EC8FEF3A7BFB4EDA"]
 
 [build.main]
 command = """

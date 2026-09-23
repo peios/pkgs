@@ -14,9 +14,12 @@ tag_regex = '^debian/(?P<version>[0-9]+\.[0-9]+)$'
 # later releases are selected automatically without an artificial major cap.
 versions  = ">= 6.6"
 
-# Upstream's annotated release tag is OpenPGP-signed, but Pekit cannot yet
-# authenticate Git tags (PEI-665). HTTPS plus the immutable commit in
-# pekit.lock is the explicit temporary source-authentication boundary.
+# Upstream's annotated release tags are OpenPGP-signed by the maintainer, Marco
+# d'Itri. The key is the one his salsa.debian.org account publishes
+# (https://salsa.debian.org/md.gpg).
+[source.git.signature]
+key_files    = ["keys/marco-d-itri.asc"]
+fingerprints = ["6791403B68AE2690517C42EAE6FFF1E38DC968B0"]
 
 [build.main]
 command = """

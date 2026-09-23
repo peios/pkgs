@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Release tags are unsigned lightweight tags on git.kernel.org and upstream publishes no detached signatures; HTTPS plus the commit pinned in pekit.lock is the available provenance boundary"

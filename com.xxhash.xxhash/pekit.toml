@@ -15,11 +15,10 @@ versions  = ">= 0.8.3"
 
 # Upstream publishes lightweight tags and no detached source signatures. The
 # v0.8.3 tag points at a GitHub web-flow-signed merge commit, which authenticates
-# GitHub's merge machinery rather than a dedicated xxHash maintainer key. This
-# is an explicit authentication exception: HTTPS authenticates transport and
-# Pekit's Git lock makes each accepted commit immutable, but first acceptance of
-# a newly discovered tag remains TOFU until Pekit can verify signed Git release
-# identities (PEI-665).
+# GitHub's merge machinery rather than a dedicated xxHash maintainer key, so
+# there is nothing for [source.git.signature] to pin. lint.pekit.toml declares
+# the exception: HTTPS authenticates transport and Pekit's Git lock makes each
+# accepted commit immutable, but first acceptance of a new tag is TOFU.
 
 [build.main]
 command = '''

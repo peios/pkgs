@@ -30,6 +30,13 @@ tag_regex = '^(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
 # or removing this floor.
 versions  = ">=2026.0.0"
 
+# linux-firmware's release tags are annotated and OpenPGP-signed by Josh Boyer,
+# the same key org.kernel.linux-firmware pins for kernel.org's tarball
+# signatures.
+[source.git.signature]
+key_files    = ["keys/josh-boyer.asc"]
+fingerprints = ["4CDE8575E547BF835FE15807A31B6BD72486CFD6"]
+
 # Concatenate the per-family AMD containers into the one blob the early loader
 # scans, in LC_ALL=C order for a byte-deterministic build.
 [build.main]

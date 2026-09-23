@@ -20,10 +20,9 @@ versions  = ">= 2.3.3"
 # Upstream publishes GitHub-generated source archives and Windows binaries,
 # but no maintainer-signed detached source checksum or signature.  Release
 # 2.3.3 is a lightweight, unsigned tag at the commit pinned in pekit.lock.
-# This is an explicit authentication exception: HTTPS authenticates transport
-# and Pekit's immutable commit lock prevents later tag movement from changing
-# accepted source, while discovery of a new release remains TOFU until Pekit
-# can authenticate signed Git identities (PEI-665).
+# lint.pekit.toml declares the authentication exception: HTTPS authenticates
+# transport and Pekit's immutable commit lock prevents later tag movement from
+# changing accepted source, while discovery of a new release is TOFU.
 
 [build.main]
 command = '''

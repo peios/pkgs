@@ -9,3 +9,6 @@
 # family, as zstd, elfutils and xz do, rather than the workspace default of one
 # per package (PEI-1143). pkm ships it as dev.peios.kernel-tools-debuginfo.
 debuginfo = "dev.peios.kernel-tools-debuginfo"
+
+[allow]
+"source.signature.required" = "First-party release tags are not yet signed (PEI-1169); HTTPS plus the commit pinned in pekit.lock is the provenance boundary until they are"

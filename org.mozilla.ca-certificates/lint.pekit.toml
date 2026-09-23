@@ -1,1 +1,2 @@
 [allow]
+"source.signature.required" = "Tracked snapshot of certdata.txt on Firefox's release branch; Mozilla signs no commits and pekit verifies no tracked snapshots, so HTTPS plus the blob hash pinned in pekit.lock is the provenance boundary"
