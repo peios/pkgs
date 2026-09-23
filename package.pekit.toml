@@ -12,6 +12,13 @@
 # So these are fallbacks: a member, or its upstream source, overrides
 # anything set here; the root only supplies what neither does — like the
 # publish target, which upstreams don't know about.
+
+# Every package's runtime [dependencies] name Peipkg packages, so they belong
+# to the peipkg dependency provider. Workspace ordering follows them when the
+# selected env's provider is peipkg (and never under the apt-backed Debian
+# env, whose builds install nothing this catalogue produces).
+dependency_provider = "peipkg"
+
 #
 # The signed Peios repository every recipe publishes to, and the one native
 # builds install their dependencies from. Per-recipe out/ trees remain the
