@@ -87,6 +87,12 @@ PEKIT_OUT="$PEKIT_OUT/vendor" sh "$REF/vendor.sh"
 '''
 
 [build.vendor.dependencies.peipkg]
+"org.rust-lang.rust" = ">= 1.85"
+"org.python.python3" = "*"
+"com.facebook.zstd" = "*"
+"dev.peios.peiosutils" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.findutils" = "*"
 
 [build.vendor.dependencies.apt]
 python3 = "*"

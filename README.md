@@ -333,16 +333,25 @@ ordinary offline `peipkg` environment. Never give the whole build network
 access.
 
 `peipkg-net` picks the acquisition root from the recipe's declared vendor
-dependencies. A vendor target whose native set declares `org.golang.go`
-acquires in the native Peipkg root. Go resolves hosts with its own resolver,
-and the root gets `/etc/ssl/certs/ca-certificates.crt` from the declared
-`org.mozilla.ca-certificates` bundle. Such recipes should set
-`GOTOOLCHAIN=local`, so a `go.mod` bump fails instead of downloading another
-compiler. Every other vendor target, including all Cargo and pip acquisition,
-uses a clean Debian root built from its declared apt set. Peios glibc resolves
-hosts only through resolvd, which a build root does not run. Declare both sets
-either way. The Debian reference environment builds from the apt set, so
-native acquisition does not replace it.
+dependencies. A vendor target with a non-empty native set acquires in a native
+Peipkg root. Peios glibc resolves hosts only through resolvd's socket, which a
+build root does not run, so that root also receives `dev.peios.resolvd-nss`
+and `_peiroot_/buildroot-resolver.py`, which the profile's sandbox entry
+(`_peiroot_/net-entry.sh`) starts for the job and which answers from the
+`resolv.conf` Pekit copies in. TLS trust is rendered from
+`org.mozilla.ca-certificates` at `/etc/ssl/certs/ca-certificates.crt` and
+OpenSSL's default `/etc/ssl/cert.pem`. The root adds only that machinery and a
+shell: declare every tool the vendor command runs, as in any native root.
+Cargo fetches Git dependencies with its built-in client unless the recipe sets
+`CARGO_NET_GIT_FETCH_WITH_CLI`, which needs `com.git-scm.git`. Go recipes
+should set `GOTOOLCHAIN=local`, so a `go.mod` bump fails instead of
+downloading another compiler.
+
+A vendor target whose native set is empty acquires in a clean Debian root
+built from its declared apt set. This remains only for acquisition tools Peios
+does not yet package: pip (`io.pypa.*`) and gnupg for the Rust stage0
+signatures. Declare both sets either way. The Debian reference environment
+builds from the apt set, so native acquisition does not replace it.
 
 If a delegated first-party recipe needs a remote upstream tree as a build
 input, package that tree separately under the upstream's qualified identity.
