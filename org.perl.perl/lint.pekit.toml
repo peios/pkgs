@@ -1,5 +1,15 @@
 [elf]
 debuginfo = "org.perl.perl-debuginfo"
 
+# Upstream installs these library modules non-executable, as modules loaded
+# with `require`, while keeping a #! line for running them by hand as
+# `perl <file>`. They are not commands and must not become executable.
+[allow_files."payload.scripts"]
+"usr/lib/x86_64-linux-peios/perl5/*/File/DosGlob.pm" = "library module with a vestigial #! line; loaded by require, not executed"
+"usr/share/perl5/*/ExtUtils/Miniperl.pm" = "library module with a vestigial #! line; loaded by require, not executed"
+"usr/share/perl5/*/ExtUtils/xsubpp" = "run as `perl xsubpp` by ExtUtils::MakeMaker; the installed command is /usr/bin/xsubpp"
+"usr/share/perl5/*/Getopt/Long.pm" = "library module with a vestigial #! line; loaded by require, not executed"
+"usr/share/perl5/*/Getopt/Long/Parser.pm" = "library module with a vestigial #! line; loaded by require, not executed"
+
 [allow]
 "source.signature.required" = "CPAN publishes Sigstore bundles rather than OpenPGP signatures; Pekit cannot yet verify their identities and transparency proofs, so the immutable lock remains the acceptance gate"
