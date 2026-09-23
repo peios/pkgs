@@ -177,6 +177,8 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.binutils "$PEKIT_OUT/u
 "org.perl.perl" = "*"
 # --with-system-zlib links the root's libz rather than binutils' bundled copy.
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+# libsframe compiles its unit tests only when configure finds dejagnu.h.
+"org.gnu.dejagnu-devel" = "*"
 
 [build.main.dependencies.apt]
 gzip = "*"
@@ -187,16 +189,47 @@ file = "*"
 patchelf = "*"
 perl = "*"
 zlib1g-dev = "*"
+dejagnu = "*"
 
 [test]
 gate = true
 needs = ["main"]
 command = '''
 set -eu
-# The upstream suites (gas, ld, binutils) run under DejaGnu, which Peios does
-# not package yet (PEI-1164), so this gate runs no upstream suite. It exercises
-# the staged tools directly instead.
 BIN="$PEKIT_MAIN_OUT/usr/bin"
+
+# Upstream DejaGnu suites for the binutils tools, the assembler, the linker and
+# libsframe, against the build tree, in both environments. Any unexpected
+# result fails the gate; expected failures are upstream's own XFAIL markings.
+check_dejagnu_sum() {
+  label=$1
+  sum=$2
+  test -s "$sum"
+  awk '/^# of expected passes/{if ($NF + 0 > 0) found=1} END{exit !found}' "$sum"
+  if grep -Eq '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS):' "$sum"; then
+    echo "binutils: unexpected DejaGnu result in $label ($sum)" >&2
+    grep -E '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS):' "$sum" >&2
+    exit 1
+  fi
+  grep -E '^# of ' "$sum" | sed "s|^|binutils: $label: |"
+}
+command -v runtest >/dev/null
+# The suites select target-specific cases with DejaGnu globs, and upstream's
+# "*-*-pe*" (Windows PE/COFF targets) matches x86_64-pc-linux-peios, so
+# dozens of PE, DLL and COFF cases would run against this ELF toolchain. Run
+# them as x86_64-pc-linux-gnu: the same x86-64 ELF/glibc ABI without the
+# collision (the one config.sub has, see config-sub-peios.sh).
+TRIPLET_FLAGS="--build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu"
+make -C "$PEKIT_MAIN_OUT" -k -j"$(nproc)" \
+  check-binutils check-gas check-ld check-libsframe check-libctf \
+  RUNTESTFLAGS="$TRIPLET_FLAGS" > "$PEKIT_OUT/dejagnu.log" 2>&1 || true
+check_dejagnu_sum binutils "$PEKIT_MAIN_OUT/binutils/binutils.sum"
+check_dejagnu_sum gas "$PEKIT_MAIN_OUT/gas/testsuite/gas.sum"
+check_dejagnu_sum ld "$PEKIT_MAIN_OUT/ld/ld.sum"
+check_dejagnu_sum libsframe "$PEKIT_MAIN_OUT/libsframe/libsframe.sum"
+check_dejagnu_sum libctf "$PEKIT_MAIN_OUT/libctf/libctf.sum"
+
+# Then the staged, installed tools directly.
 export LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios:/usr/lib/x86_64-linux-peios"
 case "$("$BIN/ld" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 case "$("$BIN/as" --version)" in *x86_64-linux-peios*) ;; *) exit 1;; esac
@@ -234,6 +267,16 @@ rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
+# The upstream suites: DejaGnu, and the C/C++ compilers the ld tests use.
+# `make check` first re-makes `all` against this root's headers, so the
+# build's own inputs are needed here too.
+"org.gnu.dejagnu" = "*"
+# libsframe's unit tests are compiled at check time against dejagnu.h.
+"org.gnu.dejagnu-devel" = "*"
+"dev.peios.build-essentials-c++" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.perl.perl" = "*"
+"com.darwinsys.file" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.gawk" = "*"
@@ -243,6 +286,12 @@ rm -rf "$SMOKE"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [test.dependencies.apt]
+dejagnu = "*"
+build-essential = "*"
+"g++" = "*"
+zlib1g-dev = "*"
+perl = "*"
+file = "*"
 dash = "*"
 coreutils = "*"
 diffutils = "*"
