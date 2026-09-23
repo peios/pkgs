@@ -1,0 +1,222 @@
+# Check — a unit-testing framework for C, running each test in a forked child
+# so crashes and timeouts are reported rather than fatal. libnl's check-all
+# and check-direct suites build against it.
+#
+# The GitHub release tarball carries the generated Autotools build. The Texinfo
+# manual is not built (Peios ships no Info); checkmk, the test-description
+# generator, ships in its own package under its own licence.
+
+out_dir = "out"
+
+# The release tree also carries the FDL manual, libcompat replacement sources
+# glibc never needs, and the Autotools build machinery.
+[source_package]
+license = "checkmk AND GFDL-1.2-or-later AND FSFAP AND FSFUL AND FSFULLR AND X11 AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-2.0-or-later WITH Libtool-exception) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0)"
+
+[source.url]
+url         = "https://github.com/libcheck/check/releases/download/{{version}}/check-{{version}}.tar.gz"
+listing_url = "https://api.github.com/repos/libcheck/check/releases?per_page=100"
+extract     = true
+root        = "check-{{version}}"
+file_regex  = 'check-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.gz'
+# Soft maintenance floor. Follow every newer release; API changes stop at the
+# upstream suite and the consumer gates below.
+versions    = ">= 0.15.2"
+
+# Upstream publishes no detached signature or signed checksum and its release
+# tags are lightweight. lint.pekit.toml declares the exception: HTTPS
+# authenticates the transport and pekit.lock pins the archive digest.
+
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.libcheck.check"
+PREFIX="$PEKIT_OUT/usr"
+
+# The 0.15.2 release tarball ships a stale checkmk test result
+# (checkmk/test/check_checkmk.log and .trs). In an out-of-tree build VPATH
+# finds it "up to date", so checkmk's test never runs. Build from a private
+# copy without it.
+SRC="$PEKIT_OUT/build-src"
+mkdir -p "$SRC"
+cp -a "$PEKIT_SOURCE_ROOT/." "$SRC/"
+rm -f "$SRC/checkmk/test/check_checkmk.log" "$SRC/checkmk/test/check_checkmk.trs"
+cd "$PEKIT_OUT"
+
+# Every feature switch is stated so the payload never depends on what the
+# build root happens to contain. No subunit (not packaged); fork-based
+# isolation and the timeout tests on. Generate IBT PLT entries.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+AWK_PATH=/bin/gawk \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --enable-shared \
+  --enable-static \
+  --enable-fork \
+  --enable-timeout-tests \
+  --disable-subunit \
+  --disable-build-docs \
+  --disable-gcov \
+  --disable-silent-rules
+
+# libtool would hardcode the install libdir as a run path; Peios' loader
+# searches it by default.
+sed -e 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|' \
+    -e 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|' \
+    -i libtool
+
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+find "$PREFIX" -name '*.la' -delete
+rm -rf "$PREFIX/share/info" "$PREFIX/share/doc"
+gzip -9n "$PREFIX/share/man/man1/checkmk.1"
+
+# checkmk carries its own permissive licence (SPDX "checkmk") in the script's
+# header; install that notice as the package's licence file.
+CHECKMK_LICENSES="$PREFIX/share/licenses/io.github.libcheck.check-checkmk"
+mkdir -p "$CHECKMK_LICENSES"
+sed -n '/^# Copyright (c) 2006, 2010  Micah Cowan/,/^# a scaled-down version/p' \
+  "$SRC/checkmk/checkmk.in" | sed 's/^# \{0,1\}//' > "$CHECKMK_LICENSES/LICENSE"
+grep -F 'Redistribution of this program in any form' "$CHECKMK_LICENSES/LICENSE"
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.libcheck.check \
+  "$PREFIX/lib/x86_64-linux-peios"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.gnu.gawk"                 = "*"
+"org.pkgconf.pkgconf"          = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# Upstream suite: check_check (the framework testing itself, including fork
+# isolation, signals and timeouts), the export-API variant, the output-format
+# scripts (text, XML, TAP, log), no-fork mode, message-size limits, and
+# checkmk's own tests. The rpath is blanked, so point the loader at the fresh
+# library and prove that the suite resolved it there. The output tests compare
+# __FILE__ with the real source path, so the test programs are compiled with
+# the plain workspace flags, without the build's macro-prefix-map (the build
+# already compiled them, as noinst programs, with it).
+make -C "$STAGE/tests" clean
+LD_LIBRARY_PATH="$STAGE/src/.libs" make -C "$STAGE" check CFLAGS="${CFLAGS:?}"
+LD_LIBRARY_PATH="$STAGE/src/.libs" LD_TRACE_LOADED_OBJECTS=1 \
+  "$STAGE/tests/.libs/check_check_export" > "$SMOKE/suite-trace"
+grep -F "libcheck.so.0 => $STAGE/src/.libs/libcheck.so.0" "$SMOKE/suite-trace"
+for log in tests/test-suite.log checkmk/test-suite.log; do
+  grep -Eq '^# FAIL: +0$' "$STAGE/$log"
+  grep -Eq '^# ERROR: +0$' "$STAGE/$log"
+  grep -Eq '^# SKIP: +0$' "$STAGE/$log"
+done
+grep -Eq '^# PASS: +9$' "$STAGE/tests/test-suite.log"
+grep -Eq '^# PASS: +1$' "$STAGE/checkmk/test-suite.log"
+
+export LD_LIBRARY_PATH="$LIBDIR"
+test -L "$LIBDIR/libcheck.so.0"
+test -L "$LIBDIR/libcheck.so"
+test -s "$LIBDIR/libcheck.a"
+readelf -d "$LIBDIR/libcheck.so.0" | grep -F 'Library soname: [libcheck.so.0]'
+test -f "$PREFIX/include/check.h"
+test -f "$PREFIX/include/check_stdint.h"
+test -f "$PREFIX/share/aclocal/check.m4"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+pkgconf --validate check
+test "$(pkgconf --modversion check)" = "$PEKIT_VERSION"
+if grep -F "$STAGE" "$LIBDIR/pkgconfig/check.pc"; then exit 1; fi
+
+# A consumer as libnl builds one: a passing test, a failing assertion, and a
+# segfault that fork isolation must turn into a reported error.
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <check.h>
+#include <stdlib.h>
+START_TEST(passes) { ck_assert_int_eq(6 * 7, 42); }
+END_TEST
+START_TEST(fails) { ck_assert_str_eq("a", "b"); }
+END_TEST
+START_TEST(crashes) { volatile int *p = NULL; *p = 1; }
+END_TEST
+int main(void)
+{
+  Suite *s = suite_create("smoke");
+  TCase *tc = tcase_create("core");
+  SRunner *sr;
+  int failed;
+  tcase_add_test(tc, passes);
+  tcase_add_test(tc, fails);
+  tcase_add_test(tc, crashes);
+  suite_add_tcase(s, tc);
+  sr = srunner_create(s);
+  srunner_run_all(sr, CK_NORMAL);
+  failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return failed == 2 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+EOF
+cc $(pkgconf --cflags check) "$SMOKE/consumer.c" $(pkgconf --libs check) \
+  -o "$SMOKE/shared-consumer"
+"$SMOKE/shared-consumer" > "$SMOKE/consumer.out" 2>&1
+grep -F '33%: Checks: 3, Failures: 1, Errors: 1' "$SMOKE/consumer.out"
+grep -F 'Received signal 11' "$SMOKE/consumer.out"
+LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/shared-consumer" |
+  grep -F "libcheck.so.0 => $LIBDIR/libcheck.so.0"
+cc -I"$PREFIX/include" "$SMOKE/consumer.c" "$LIBDIR/libcheck.a" -pthread -lm \
+  -o "$SMOKE/static-consumer"
+"$SMOKE/static-consumer" > /dev/null 2>&1
+if readelf -d "$SMOKE/static-consumer" | grep -F libcheck; then exit 1; fi
+
+# checkmk generates a runnable test program from a compact description.
+test "$(sed -n 1p "$PREFIX/bin/checkmk")" = '#! /bin/gawk -f'
+cat > "$SMOKE/sum.ts" <<'EOF'
+#suite arithmetic
+#tcase core
+#test sums
+ck_assert_int_eq(2 + 2, 4);
+EOF
+gawk -f "$PREFIX/bin/checkmk" "$SMOKE/sum.ts" > "$SMOKE/sum.c"
+cc $(pkgconf --cflags check) "$SMOKE/sum.c" $(pkgconf --libs check) -o "$SMOKE/sum"
+"$SMOKE/sum" | grep -F '100%: Checks: 1, Failures: 0, Errors: 0'
+
+# Debug split and hardening of the shared library.
+LIB=$(readlink -f "$LIBDIR/libcheck.so.0")
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
+test -n "$(find "$PREFIX/src/debug/io.github.libcheck.check" -type f -name 'check_run.c' -print -quit)"
+readelf -W -l "$LIB" | grep -E 'GNU_STACK.*RW '
+readelf -W -l "$LIB" | grep -F 'GNU_RELRO'
+readelf -d "$LIB" | grep -F 'BIND_NOW'
+readelf -d "$LIB" | grep -F 'RELR'
+readelf -n "$LIB" | grep -E 'x86 feature:.*IBT.*SHSTK'
+if readelf -d "$LIB" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+if readelf -S "$LIB" | grep -Fq '.debug_'; then exit 1; fi
+if readelf -S "$LIBDIR/libcheck.a" | grep -Fq '.debug_'; then exit 1; fi
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gawk"                 = "*"
+"org.gnu.bash"                 = "*"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.sed"                  = "*"
+"org.gnu.diffutils"            = "*"

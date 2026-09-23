@@ -1,0 +1,20 @@
+# checkmk, the Awk tool that turns a compact test-suite description into a
+# Check test program. It has its own permissive licence.
+
+side_effects = ["man-db"]
+
+[package]
+name         = "io.github.libcheck.check-checkmk"
+architecture = "noarch"
+description  = "Generator of Check test programs from compact descriptions"
+license      = "checkmk"
+
+[dependencies]
+"org.gnu.gawk"                   = "*"
+"io.github.libcheck.check-devel" = "= {{release}}"
+
+[files]
+":usr/share/licenses/io.github.libcheck.check-checkmk/LICENSE" = "usr/share/licenses/io.github.libcheck.check-checkmk/LICENSE"
+"@source:checkmk/README"         = "usr/share/doc/io.github.libcheck.check-checkmk/"
+":usr/bin/checkmk"               = "usr/bin/checkmk"
+":usr/share/man/man1/checkmk.1.gz" = "usr/share/man/man1/checkmk.1.gz"

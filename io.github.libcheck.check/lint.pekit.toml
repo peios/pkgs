@@ -1,0 +1,10 @@
+[elf]
+debuginfo = "io.github.libcheck.check-debuginfo"
+
+[allow]
+"source.signature.required" = "Upstream publishes the release tarball as a GitHub release asset with no detached signature or signed checksum, and its tags are unsigned; HTTPS plus the digest pinned in pekit.lock is the available provenance boundary"
+
+# checkmk is an Awk program run by gawk through the runtime view; add that one
+# interpreter to the workspace list.
+[payload]
+interpreters = ["/bin/sh", "/bin/bash", "/bin/python3", "/bin/perl", "/bin/gawk"]

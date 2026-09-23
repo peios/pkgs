@@ -1,0 +1,14 @@
+# The Check runtime library, libcheck.so.0.
+
+[package]
+name        = "io.github.libcheck.check"
+description = "Unit-testing framework for C"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING.LESSER" = "usr/share/licenses/io.github.libcheck.check/"
+"@source:README"         = "usr/share/doc/io.github.libcheck.check/"
+"@source:NEWS"           = "usr/share/doc/io.github.libcheck.check/"
+":usr/lib/x86_64-linux-peios/libcheck.so.0*" = "usr/lib/x86_64-linux-peios"

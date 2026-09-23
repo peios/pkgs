@@ -1,0 +1,16 @@
+# Headers, linker name, pkg-config module and the Autoconf AM_PATH_CHECK macro.
+
+[package]
+name        = "io.github.libcheck.check-devel"
+description = "Check development files"
+
+[dependencies]
+"io.github.libcheck.check" = "= {{release}}"
+
+[files]
+"@source:COPYING.LESSER" = "usr/share/licenses/io.github.libcheck.check-devel/"
+":usr/include/check.h"        = "usr/include/check.h"
+":usr/include/check_stdint.h" = "usr/include/check_stdint.h"
+":usr/lib/x86_64-linux-peios/libcheck.so"            = "usr/lib/x86_64-linux-peios/libcheck.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/check.pc"     = "usr/lib/x86_64-linux-peios/pkgconfig/check.pc"
+":usr/share/aclocal/check.m4"                        = "usr/share/aclocal/check.m4"

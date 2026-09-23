@@ -1,0 +1,10 @@
+# Shared metadata for the Check package family.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "LGPL-2.1-or-later"
+license_class = "free"
+homepage      = "https://libcheck.github.io/check/"

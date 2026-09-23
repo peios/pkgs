@@ -1,0 +1,12 @@
+# The static Check library.
+
+[package]
+name        = "io.github.libcheck.check-static"
+description = "Check static library"
+
+[dependencies]
+"io.github.libcheck.check-devel" = "= {{release}}"
+
+[files]
+"@source:COPYING.LESSER" = "usr/share/licenses/io.github.libcheck.check-static/"
+":usr/lib/x86_64-linux-peios/libcheck.a" = "usr/lib/x86_64-linux-peios/libcheck.a"

@@ -1,0 +1,10 @@
+[package]
+name        = "io.github.libcheck.check-debugsource"
+description = "Check debug sources"
+
+[dependencies]
+"io.github.libcheck.check-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING.LESSER" = "usr/share/licenses/io.github.libcheck.check-debugsource/"
+":usr/src/debug/**"      = "usr/src/debug"
