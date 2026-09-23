@@ -1,0 +1,22 @@
+# libcurl's stable SONAME 4 runtime. The build gate asserts the SONAME and the
+# linked OpenSSL/zlib/zstd ABIs so an upstream ABI transition cannot slip in.
+
+[package]
+name        = "se.curl.libcurl"
+description = "Multi-protocol URL transfer library"
+license     = "curl AND ISC"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc"                    = ">= 2.43"
+"org.openssl.libssl"               = ">= 3.5"
+"org.openssl.libcrypto"            = ">= 3.5"
+"io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
+"com.facebook.zstd-libs"           = ">= 1.5.7"
+
+[files]
+"@source:COPYING"                             = "usr/share/licenses/se.curl.libcurl/"
+":usr/lib/x86_64-linux-peios/libcurl.so.4*"   = "usr/lib/x86_64-linux-peios"

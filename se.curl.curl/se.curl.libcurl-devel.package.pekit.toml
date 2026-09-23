@@ -1,0 +1,25 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "se.curl.libcurl-devel"
+description = "libcurl headers, API manual pages and development metadata"
+license     = "curl"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"se.curl.libcurl" = "{{version}}-1"
+# curl-config is a POSIX shell script.
+"sh"              = "*"
+
+[files]
+"@source:COPYING"                                   = "usr/share/licenses/se.curl.libcurl-devel/"
+":usr/bin/curl-config"                              = "usr/bin/curl-config"
+":usr/include/curl/**"                              = "usr/include/curl"
+":usr/lib/x86_64-linux-peios/libcurl.so"            = "usr/lib/x86_64-linux-peios/libcurl.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/libcurl.pc"  = "usr/lib/x86_64-linux-peios/pkgconfig/libcurl.pc"
+":usr/share/aclocal/libcurl.m4"                     = "usr/share/aclocal/libcurl.m4"
+":usr/share/man/man1/curl-config.1.gz"              = "usr/share/man/man1/curl-config.1.gz"
+":usr/share/man/man3/**"                            = "usr/share/man/man3"

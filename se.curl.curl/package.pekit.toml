@@ -1,0 +1,14 @@
+# Shared metadata for the curl package family and its complete corresponding
+# source. The compiled client and library are `curl AND ISC` (lib/curlx's
+# inet_ntop/inet_pton are ISC); the runtime splits say so. This base
+# expression also covers the rest of the release tree: the test suite's
+# BSD-4-Clause-UC TFTP server and the generated autotools machinery.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "curl AND ISC AND BSD-4-Clause-UC AND X11 AND FSFUL AND FSFULLR AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-2.0-or-later WITH Libtool-exception) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0)"
+license_class = "free"
+homepage      = "https://curl.se/"

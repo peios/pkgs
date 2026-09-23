@@ -1,0 +1,209 @@
+# curl — the curl command-line client and libcurl (PEI-1157).
+#
+# Packaged so native roots can acquire sources without Debian: git's HTTPS
+# transport (git-remote-https) links libcurl, and git is what Cargo's
+# CLI fetcher uses for Git dependencies. It is ordinary distribution
+# software beyond that and ships the complete supported transfer set.
+#
+# TLS is OpenSSL with no compiled-in bundle path: `--with-ca-fallback` defers
+# to OpenSSL's own defaults (OPENSSLDIR=/etc/ssl -> /etc/ssl/cert.pem and the
+# hashed /etc/ssl/certs), which is exactly what trustd renders on Peios.
+# Features whose libraries Peios does not yet package (nghttp2 for HTTP/2,
+# libpsl, brotli, libidn2, libssh2, LDAP, GSS-API, QUIC) are explicitly off so
+# a new build dependency can never switch one on silently.
+
+out_dir = "out"
+
+[source.url]
+url         = "https://curl.se/download/curl-{{version}}.tar.xz"
+listing_url = "https://curl.se/download/"
+extract     = true
+root        = "curl-{{version}}"
+file_regex  = 'curl-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
+# Soft maintenance floor. Follow every newer authenticated stable release;
+# behaviour or ABI changes stop at the staged gates below.
+versions    = ">= 8.22.0"
+
+# Every release artifact carries a detached signature by Daniel Stenberg. The
+# fingerprint is published at https://curl.se/docs/verify.html and on
+# https://daniel.haxx.se/address.html; keys/daniel-stenberg.asc is that key
+# exported alone.
+[source.url.signature]
+url          = "{{source_url}}.asc"
+of           = "artifact"
+key_files    = ["keys/daniel-stenberg.asc"]
+fingerprints = ["27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+BUILD="$PEKIT_OUT/build"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Preserve physical DWARF paths until debugedit collects the source files.
+export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/se.curl.curl"
+mkdir -p "$BUILD"
+cd "$BUILD"
+
+"$SRC/configure" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --disable-static \
+  --disable-silent-rules \
+  --enable-threaded-resolver \
+  --enable-ipv6 \
+  --with-openssl \
+  --with-zlib \
+  --with-zstd \
+  --without-ca-bundle \
+  --without-ca-path \
+  --with-ca-fallback \
+  --without-libpsl \
+  --without-nghttp2 \
+  --without-ngtcp2 \
+  --without-nghttp3 \
+  --without-brotli \
+  --without-libidn2 \
+  --without-libssh2 \
+  --without-libgsasl \
+  --without-gssapi \
+  --without-librtmp \
+  --disable-ldap \
+  --disable-ldaps
+
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PREFIX" -name '*.la' -delete
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} +
+
+LIBCURL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libcurl.so.4.*' | LC_ALL=C sort)
+test -n "$LIBCURL_SO"
+: > "$PEKIT_OUT/.srclist"
+for elf in "$LIBCURL_SO" "$PREFIX/bin/curl"; do
+  patchelf --remove-rpath "$elf"
+  debugedit -b "$ROOT" -d /usr/src/debug/se.curl.curl \
+    -l "$PEKIT_OUT/.dl" -n "$elf"
+  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  test -n "$bid"
+  p2=$(printf %s "$bid" | cut -c1-2)
+  rest=$(printf %s "$bid" | cut -c3-)
+  case "$elf" in
+    "$LIBCURL_SO") DEBUGROOT="$PREFIX/lib/debug-libcurl" ;;
+    *) DEBUGROOT="$PREFIX/lib/debug-curl" ;;
+  esac
+  mkdir -p "$DEBUGROOT/.build-id/$p2"
+  objcopy --only-keep-debug "$elf" "$DEBUGROOT/.build-id/$p2/$rest.debug"
+  chmod 0644 "$DEBUGROOT/.build-id/$p2/$rest.debug"
+  strip "$elf"
+done
+LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
+  test -n "$rel" || continue
+  case "$rel" in */) continue;; esac
+  test -f "$ROOT/$rel" || continue
+  mkdir -p "$PREFIX/src/debug/se.curl.curl/$(dirname "$rel")"
+  cp "$ROOT/$rel" "$PREFIX/src/debug/se.curl.curl/$rel"
+done
+rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.openssl.openssl-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.perl.perl" = "*"
+"org.gnu.gzip" = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+libssl-dev = "*"
+zlib1g-dev = "*"
+libzstd-dev = "*"
+pkgconf = "*"
+perl = "*"
+gzip = "*"
+debugedit = "*"
+patchelf = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+BUILD="$STAGE/build"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+CURL="$PREFIX/bin/curl"
+
+# Upstream's suite against the built tree, skipping only the tests upstream
+# itself marks flaky or timing-dependent. Tests needing servers Peios does not
+# package (stunnel, sshd, ...) are skipped by the harness's own probes.
+make -C "$BUILD/tests" nonflaky-test TFLAGS="-j$(nproc)"
+
+# Frozen feature policy of the installed client.
+LD_LIBRARY_PATH="$LIBDIR" "$CURL" --version > "$PEKIT_OUT/version"
+grep -F "curl $PEKIT_VERSION" "$PEKIT_OUT/version"
+grep -E '^Protocols: .*\bhttps\b' "$PEKIT_OUT/version"
+for feature in IPv6 Largefile libz threadsafe UnixSockets zstd alt-svc HSTS HTTPS-proxy AsynchDNS; do
+  grep -E "^Features: .*\b$feature\b" "$PEKIT_OUT/version"
+done
+if grep -Eq '^Features: .*\b(HTTP2|HTTP3|PSL|IDN|brotli|GSS-API|Kerberos)\b' "$PEKIT_OUT/version"; then exit 1; fi
+if grep -Eq '^Protocols: .*\b(ldap|ldaps|scp|sftp)\b' "$PEKIT_OUT/version"; then exit 1; fi
+grep -F 'OpenSSL/' "$PEKIT_OUT/version"
+# No compiled-in bundle path: trust comes from OpenSSL's defaults.
+if strings "$LIBDIR"/libcurl.so.4.* | grep -Eq '/etc/ssl/certs/ca-certificates.crt|/etc/pki'; then exit 1; fi
+
+crypto_major=$(printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_MAJOR\n' | cc -E -P -x c - | tail -n 1)
+case "$crypto_major" in 3|4) ;; *) echo "Unreviewed OpenSSL ABI: $crypto_major" >&2; exit 1;; esac
+LIBCURL=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libcurl.so.4.*')
+readelf -d "$LIBCURL" | grep -F 'Library soname: [libcurl.so.4]'
+for soname in libc.so.6 "libssl.so.$crypto_major" "libcrypto.so.$crypto_major" libz.so.1 libzstd.so.1; do
+  readelf -d "$LIBCURL" | grep -F "Shared library: [$soname]"
+done
+readelf -d "$CURL" | grep -F 'Shared library: [libcurl.so.4]'
+for elf in "$CURL" "$LIBCURL"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+done
+test "$(find "$PREFIX/lib/debug-curl" "$PREFIX/lib/debug-libcurl" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/se.curl.curl" -type f -print -quit)"
+ROOT=$(dirname "$(dirname "$STAGE")")
+for elf in "$CURL" "$LIBCURL"; do
+  if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.openssl.openssl-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"org.perl.perl" = "*"
+"org.python.python3" = "*"
+# The suite generates its TLS test certificates with the openssl tool.
+"org.openssl.openssl" = "*"
+# The suite's servers and clients resolve localhost through NSS.
+"dev.peios.resolvd-nss" = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+libssl-dev = "*"
+zlib1g-dev = "*"
+libzstd-dev = "*"
+perl = "*"
+python3 = "*"
+openssl = "*"

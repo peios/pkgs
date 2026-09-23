@@ -1,0 +1,27 @@
+# The command-line client and upstream's wcurl download wrapper. The transfer
+# engine is libcurl, split so library consumers (git's HTTPS transport) do not
+# install a client they never run.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "se.curl.curl"
+description = "Command-line tool for transferring data with URLs"
+license     = "curl AND ISC"
+
+[provides]
+
+[replaces]
+
+[dependencies]
+"org.gnu.glibc"   = ">= 2.43"
+"se.curl.libcurl" = "{{version}}-1"
+# wcurl is a POSIX shell script.
+"sh"              = "*"
+
+[files]
+"@source:COPYING"                  = "usr/share/licenses/se.curl.curl/"
+":usr/bin/curl"                    = "usr/bin/curl"
+":usr/bin/wcurl"                   = "usr/bin/wcurl"
+":usr/share/man/man1/curl.1.gz"    = "usr/share/man/man1/curl.1.gz"
+":usr/share/man/man1/wcurl.1.gz"   = "usr/share/man/man1/wcurl.1.gz"

@@ -1,0 +1,11 @@
+[package]
+name        = "se.curl.curl-debuginfo"
+description = "curl command-line client debugging symbols"
+license     = "curl AND ISC"
+
+[dependencies]
+"se.curl.curl" = "{{version}}-1"
+
+[files]
+"@source:COPYING"             = "usr/share/licenses/se.curl.curl-debuginfo/"
+":usr/lib/debug-curl/**"      = "usr/lib/debug"
