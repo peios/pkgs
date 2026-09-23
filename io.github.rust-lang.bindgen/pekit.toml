@@ -20,7 +20,7 @@
 # and resource headers; clang-devel carries the unversioned libclang.so entry
 # point that clang-sys discovers dynamically.
 
-tags = ["bootstrap"]
+tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]

@@ -4,9 +4,14 @@ set -eu
 : "${PEKIT_SANDBOX_ROOT:?Pekit must supply a private root destination}"
 : "${PEKIT_WORKSPACE_ROOT:?peipkg.env requires a pekit workspace}"
 repo=$(python3 "$PEKIT_WORKSPACE_ROOT/_peiroot_/snapshot-repository.py")
-# Repository trust is intentionally pinned out of band. Update this only as
-# part of an explicit repository-key rotation ceremony.
-repo_anchor=63977c7be45624999b88bac5aa55ab5280656ee076617a285c87602a0d980602
+# Repository trust is intentionally pinned out of band, in repository.anchor
+# (shared with the Debian preparer's catalogue overlay). Update it only as part
+# of an explicit repository-key rotation ceremony.
+repo_anchor=$(cat "$PEKIT_WORKSPACE_ROOT/_peiroot_/repository.anchor")
+case "$repo_anchor" in
+  *[!0-9a-f]*|"") echo "peiroot: invalid repository trust anchor" >&2; exit 1 ;;
+esac
+[ "${#repo_anchor}" -eq 64 ] || { echo "peiroot: invalid repository trust anchor" >&2; exit 1; }
 
 [ -f "$repo/repo.json" ] || {
   echo "peiroot: signed package repository is missing: $repo" >&2

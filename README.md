@@ -299,6 +299,30 @@ package can build using the distribution it helps create. Both must remain
 usable. Provider names may differ, but they must supply equivalent inputs and
 the staged result must satisfy the same tests.
 
+Some inputs Debian cannot supply, and `_debroot_/reference.py` provides them
+without trusting anything outside the Peios build's own roots:
+
+- **Rust.** Recipes that need a newer compiler than Debian's receive Rust's
+  own signed release archives, pinned by hash in `reference.py` and verified
+  against the release key in `_debroot_/keys` on download (1.98.1, with the
+  musl target for the installer; 1.83.0 with rust-src for the kernel's Rust
+  targets). Debian's `cargo`, `rustc` and `rustfmt` are then dropped from the
+  root. Native Rust bootstraps from the same upstream binaries.
+- **Catalogue packages.** An apt set may name a reverse-DNS catalogue
+  package, such as `"dev.peios.libpeios-devel" = "= 0.5.0-1"`. The preparer
+  composes it from the signed repository, verified against
+  `_peiroot_/repository.anchor`, and copies into the Debian root only the
+  files the named packages own, never their Peios dependency closure.
+  `dev.peios.kernel-headers` contributes only `usr/include/pkm`; Debian's
+  `linux-libc-dev` keeps the Linux UAPI. Because the apt set names a package a
+  member defines, workspace runs order that member first even under
+  `--env debian`. Name every catalogue package the build uses, runtime library
+  included.
+
+Each root runs its toolchain and SDK through loader, compile and link checks
+before any recipe command, and records what it installed in
+`/usr/share/pekit-reference/reference-prerequisites.json`.
+
 The Debian preparer accepts concrete APT package names (including an optional
 architecture qualifier), `*`, or comma-separated comparisons using `=`, `>=`,
 `>`, `<=` and `<`. Versions use Debian's epoch and tilde ordering. It filters
@@ -686,13 +710,14 @@ publishes producers before consumers.
 The native environment installs everything from the catalogue itself, so an
 empty repository needs a seed built elsewhere. Two recipe tags mark it:
 
-- `minimal-bootstrap` (37 recipes) is the smallest set whose absence leaves no
+- `minimal-bootstrap` (38 recipes) is the smallest set whose absence leaves no
   cycle among native build and test dependencies. It is the toolchain and
   ambient userland (`build-essentials-c` and what it installs), plus the members
   that break the remaining cycles: bash, m4, tar, flex, gzip, ncurses, pkgconf,
   ca-certificates, e2fsprogs (Python links its libuuid) and resolvd (native
-  acquisition needs its NSS module).
-- `bootstrap` (98 recipes, including those 37) is that seed closed under its
+  acquisition needs its NSS module). bindgen joins them because the kernel's
+  Debian build takes it from the catalogue.
+- `bootstrap` (98 recipes, including those 38) is that seed closed under its
   own native dependencies: everything the seed needs to rebuild itself natively.
 
 Minimal seed: the Debian stage is as small as possible, and the native

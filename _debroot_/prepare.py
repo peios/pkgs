@@ -22,11 +22,14 @@ REFERENCE_IMAGES = {
     "org.gnome.libxslt": "debian:sid",
     "org.golang.go": "debian:sid",
     "org.rust-lang.rust": "debian:sid",
+    # Go modules that require a newer Go than Debian stable ships.
+    "dev.peios.loregd": "debian:sid",
+    "dev.peios.peipkg": "debian:sid",
 }
 
 def selected_image():
     recipe = Path(os.environ.get("PEKIT_RECIPE_ROOT", "")).name
-    return "debian:sid" if recipe in reference.SID_FAMILIES else REFERENCE_IMAGES.get(recipe, IMAGE)
+    return REFERENCE_IMAGES.get(recipe, IMAGE)
 
 SCHEMA = 1
 OPS = {"=": "eq", ">=": "ge", ">": "gt", "<=": "le", "<": "lt"}
@@ -152,22 +155,12 @@ printf 'peibuild:x:1000:\\n' >> /etc/group
 
 
 def policy_id():
+    # reference.py carries every pinned prerequisite, so its bytes are part of
+    # the policy; the repository snapshot a job composes from is recorded in
+    # each root's reference evidence.
     root = Path(__file__).resolve().parent
-    configuration_hash = ''
-    if Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name in reference.OVERLAY_FAMILIES:
-        replay = os.environ.get('PEKIT_DEBIAN_REPLAY')
-        if replay:
-            target = os.environ['PEKIT_COMMAND'] + '-' + os.environ['PEKIT_TARGET']
-            if not re.fullmatch(r'[A-Za-z0-9_.-]+', target):
-                raise ValueError('invalid replay target')
-            manifest = json.loads((Path(replay) / target / 'debian-root.json').read_text())
-            configuration_hash = manifest.get('reference_selection', {}).get('operator_configuration_sha256', '')
-            if not re.fullmatch('[a-f0-9]{64}', configuration_hash):
-                raise ValueError('missing captured reference operator identity')
-        else:
-            configuration_hash = reference.configuration_digest()
     return hashlib.sha256((digest(root / 'enter.sh') + digest(root / 'prepare.py') +
-                           digest(root / 'reference.py') + configuration_hash + selected_image()).encode()).hexdigest()
+                           digest(root / 'reference.py') + selected_image()).encode()).hexdigest()
 
 
 def load_record(directory, deps, policy):
@@ -184,10 +177,6 @@ def load_record(directory, deps, policy):
     if 'reference_sha256' in manifest:
         if digest(directory / 'reference-prerequisites.json') != manifest['reference_sha256']:
             raise ValueError('corrupt reference prerequisite record')
-    selection = manifest.get('reference_selection')
-    if selection and selection.get('operator_configuration') is not None:
-        if hashlib.sha256(reference.encoded(selection['operator_configuration'])).hexdigest() != selection['operator_configuration_sha256']:
-            raise ValueError('corrupt captured reference operator configuration')
     return manifest
 
 
@@ -213,10 +202,20 @@ def restore(store, manifest, destination):
             raise
 
 
+def catalogue_index(deps):
+    """Names the signed repository defines, read only when a request names a
+    reverse-DNS catalogue package."""
+    if not any(reference.is_catalogue_name(dep["name"]) for dep in deps):
+        return set()
+    snapshot, _ = reference.repository()
+    return reference.index_names(snapshot)
+
+
 def acquire(job, store, deps, policy, output):
     target = os.environ["PEKIT_COMMAND"] + "-" + os.environ["PEKIT_TARGET"]
-    selected = reference.selection(Path(os.environ["PEKIT_RECIPE_ROOT"]).name, target)
-    effective = reference.effective_requests(deps, selected)
+    names = catalogue_index(deps)
+    selected = reference.selection(Path(os.environ["PEKIT_RECIPE_ROOT"]).name, target, deps, names)
+    effective = reference.effective_requests(deps, selected, names)
     base_path = job / "debian-base.json"
     if base_path.exists():
         base = json.loads(base_path.read_text())
@@ -232,7 +231,7 @@ def acquire(job, store, deps, policy, output):
     # Never execute the mutable tag after resolving it for this job. Overlay
     # preparation needs a running container after APT finishes; ordinary roots
     # retain the existing start-and-wait lifecycle.
-    overlay = bool(selected and selected['groups'])
+    overlay = selected is not None
     command = ['sleep', 'infinity'] if overlay else ['sh', '-euc', install_script(effective)]
     container = run('docker', 'create', '--network', 'bridge', base['image_id'],
                     *command, capture=True).strip()
@@ -247,8 +246,9 @@ def acquire(job, store, deps, policy, output):
         with tempfile.TemporaryDirectory(prefix=".acquire-", dir=store) as temp:
             temp = Path(temp)
             ref_record = None
-            if selected and selected['groups']:
-                ref_record = reference.install_container(container, selected, temp / 'reference-sdk')
+            if overlay:
+                ref_record = reference.install_container(container, selected, temp / 'reference-sdk',
+                                                         store / 'upstream')
             installed = temp / "installed.tsv"
             run("docker", "cp", f"{container}:/tmp/dependencies.tsv", str(installed))
             raw = temp / "root.tar"
@@ -300,8 +300,6 @@ def prepare():
     # Serialize preparation within one job; unrelated jobs can acquire in parallel.
     with (job / "debian.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        if not replay:
-            reference.bind_job_configuration(job, Path(os.environ.get('PEKIT_RECIPE_ROOT', '')).name)
         policy = policy_id()
         key = hashlib.sha256(encoded({"requests": deps, "policy": policy})).hexdigest()
         cached = Path(replay).resolve() / target if replay else job / "debian-roots" / key

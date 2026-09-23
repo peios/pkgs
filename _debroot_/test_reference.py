@@ -1,151 +1,154 @@
-"""Portable reference adapter tests with private temporary synthetic policy.
+"""Debian root prerequisite policy and overlay safety tests.
 
-No operator configuration, qualified archive, or real trust key is required.
-The reject-only verifier fixture tests rejection propagation, not cryptographic
-signature validation; genuine signed inputs have a separate integration audit.
+Hermetic: no network, docker, repository or real toolchain is required. The
+upstream fetch is exercised against a local archive with a patched pin; real
+signature verification is covered by the integration run documented on
+PEI-1156.
 """
-import importlib.util, io, json, os, stat, sys, tarfile, tempfile, unittest
+import io, json, os, subprocess, sys, tarfile, tempfile, unittest
 from pathlib import Path
+from unittest.mock import patch
 D = Path(__file__).resolve().parent
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(D))
 import reference as r
 import prepare as p
 
+INDEX = {'dev.peios.libpeios', 'dev.peios.libpeios-devel', 'dev.peios.kernel-headers',
+         'io.github.rust-lang.bindgen'}
+
+
+def dep(name, *checks):
+    return dict(name=name, checks=[list(c) for c in checks])
+
+
+class Selection(unittest.TestCase):
+
+    def test_toolchain_scope(self):
+        self.assertIsNone(r.selection('arbitrary', 'build-main', [], INDEX))
+        self.assertRaises(ValueError, r.selection, 'dev.peios.authd', 'build-arbitrary', [], INDEX)
+        for family in r.RUST_FAMILIES - r.MUSL_FAMILIES:
+            for target in r.TARGETS:
+                self.assertEqual(r.selection(family, target, [], INDEX)['toolchain'], 'rust-1.98.1')
+        self.assertEqual(r.selection('dev.peios.peios-installer', 'build-main', [], INDEX)['toolchain'], 'rust-1.98.1-musl')
+        self.assertEqual(r.selection('dev.peios.peios-installer', 'build-vendor', [], INDEX)['toolchain'], 'rust-1.98.1')
+        # Go recipes need a newer Debian, not a Rust overlay.
+        self.assertIsNone(r.selection('dev.peios.loregd', 'build-vendor', [], INDEX))
+
+    def test_kernel_scope(self):
+        # Only the two targets that run rustc receive the pinned toolchain;
+        # every other kernel target is reviewed and keeps a plain Debian root.
+        for target in r.KERNEL_TOOLCHAIN_TARGETS:
+            self.assertEqual(r.selection('dev.peios.kernel', target, [], INDEX)['toolchain'], 'rust-1.83.0')
+        for target in r.KERNEL_TARGETS - r.KERNEL_TOOLCHAIN_TARGETS:
+            self.assertIsNone(r.selection('dev.peios.kernel', target, [], INDEX))
+        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-arbitrary', [], INDEX)
+        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-main', [], INDEX)
+
+    def test_kernel_stays_on_trixie(self):
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.kernel'}):
+            self.assertEqual(p.selected_image(), 'debian:trixie')
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.authd'}):
+            self.assertEqual(p.selected_image(), 'debian:trixie')
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.loregd'}):
+            self.assertEqual(p.selected_image(), 'debian:sid')
+
+    def test_catalogue_routing(self):
+        deps = [dep('gcc'), dep('dev.peios.libpeios-devel', ('>=', '0.5.0')), dep('python3.13')]
+        s = r.selection('arbitrary', 'build-main', deps, INDEX)
+        self.assertIsNone(s['toolchain'])
+        self.assertEqual(s['catalogue'], [deps[1]])
+        effective = {d['name'] for d in r.effective_requests(deps, s, INDEX)}
+        self.assertIn('gcc', effective)
+        self.assertIn('python3.13', effective)
+        self.assertNotIn('dev.peios.libpeios-devel', effective)
+        self.assertTrue(set(r.RUNTIME_APT) <= effective)
+        # A reverse-DNS name the repository lacks fails here, not in apt.
+        with self.assertRaisesRegex(ValueError, 'not in the repository'):
+            r.selection('arbitrary', 'build-main', [dep('dev.peios.missing')], INDEX)
+        self.assertIsNone(r.selection('arbitrary', 'build-main', [dep('gcc')], INDEX))
+        # The repository's unqualified historical names never shadow Debian's.
+        s = r.selection('arbitrary', 'build-main', [dep('debugedit')], INDEX | {'debugedit'})
+        self.assertIsNone(s)
+
+    def test_toolchain_substitution(self):
+        s = r.selection('dev.peios.authd', 'build-main', [], INDEX)
+        original = [dep('cargo'), dep('gcc', ('>=', '16')), dep('rustc'), dep('rustfmt')]
+        effective = r.effective_requests(original, s, INDEX)
+        self.assertFalse({'cargo', 'rustc', 'rustfmt'} & {x['name'] for x in effective})
+        self.assertIn(original[1], effective)
+        self.assertRaises(ValueError, r.effective_requests, [dep('rustc', ('>=', '1.98'))], s, INDEX)
+        # Without a toolchain, Debian's own rustc stays.
+        s = r.selection('arbitrary', 'build-main', [dep('dev.peios.libpeios')], INDEX)
+        self.assertIn('rustc', {x['name'] for x in r.effective_requests([dep('rustc')], s, INDEX)})
+
+    def test_constraint_rendering(self):
+        self.assertEqual(r.constraint([]), '*')
+        self.assertEqual(r.constraint([['>=', '0.5.0'], ['<', '1']]), '>= 0.5.0, < 1')
+
+    def test_pins_cover_every_toolchain_archive(self):
+        for name, toolchain in r.TOOLCHAINS.items():
+            for archive, components in toolchain['archives']:
+                self.assertRegex(r.RUST_ARCHIVES[archive], '^[0-9a-f]{64}$')
+                self.assertTrue(components)
+        self.assertTrue(r.RUST_KEY.is_file())
+
+
 class Safety(unittest.TestCase):
 
     def setUp(self):
-        from unittest.mock import patch
         environment = {key: value for key, value in os.environ.items() if not key.startswith('PEKIT_')}
         context = patch.dict(os.environ, environment, clear=True)
         context.start()
         self.addCleanup(context.stop)
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        r._job_configuration = None
-        self.original_config = r.CONFIG
-        r.CONFIG = self.root / 'selection.json'
-        r.configuration.cache_clear()
-        self.inspector = self.root / 'reject-unsigned.py'
-        self.inspector.write_text('#!' + sys.executable + '\nimport sys\nraise SystemExit(23)\n')
-        self.inspector.chmod(448)
-        self.key = self.root / 'test-only-key'
-        self.key.write_bytes(b'not a production key')
-        config = {'schema': 1, 'inspector': {'path': str(self.inspector), 'sha256': r.digest(self.inspector), 'key': str(self.key), 'key_sha256': r.digest(self.key)}, 'groups': {'rust': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rustc'}]}, 'libpeios-current': {'family': 'dev.peios.libpeios', 'artifacts': [{'Name': 'dev.peios.libpeios-devel'}]}, 'rust-musl': {'family': 'org.rust-lang.rust', 'artifacts': [{'Name': 'org.rust-lang.rust-std-x86-64-unknown-linux-musl'}]}, 'rust-1.83': {'family': 'org.rust-lang.rust-1.83', 'artifacts': [{'Name': 'org.rust-lang.rustc'}]}, 'bindgen': {'family': 'io.github.rust-lang.bindgen', 'artifacts': [{'Name': 'io.github.rust-lang.bindgen'}]}}}
-        r.CONFIG.write_text(json.dumps(config))
-        r.CONFIG.chmod(384)
+        self.src = self.root / 'src'
+        self.dst = self.root / 'dst'
+        self.src.mkdir()
+        self.dst.mkdir()
 
-    def tearDown(self):
-        r._job_configuration = None
-        r.CONFIG = self.original_config
-        r.configuration.cache_clear()
-        self.temp.cleanup()
-
-    def member(self, name='usr/include/a.h', kind=tarfile.REGTYPE, link='', mode=420):
-        m = tarfile.TarInfo(name)
-        m.type = kind
-        m.linkname = link
-        m.mode = mode
-        m.size = 1
-        return m
-
-    def put(self, m, data=b'x', identical=False):
-        r.safe_member(self.root, m, io.BytesIO(data), m.name, identical)
-
-    def test_scope(self):
-        self.assertIsNone(r.selection('arbitrary', 'build-main'))
-        self.assertRaises(ValueError, r.selection, 'dev.peios.authd', 'build-arbitrary')
-        self.assertEqual(len(r.selection('dev.peios.eventd', 'build-main')['groups']), 2)
-        self.assertEqual(len(r.selection('dev.peios.authd', 'build-vendor')['groups']), 1)
-        self.assertEqual(len(r.selection('dev.peios.authd', 'test-main')['groups']), 2)
-        self.assertEqual(r.selection('dev.peios.loregd', 'build-vendor')['groups'], [])
-        self.assertEqual(r.selection('dev.peios.peipkg', 'build-vendor')['groups'], [])
-        for family in r.SDK_FAMILIES:
-            for target in ['build-main', 'test-main']:
-                self.assertEqual([g['family'] for g in r.selection(family, target)['groups']], ['org.rust-lang.rust', 'dev.peios.libpeios'])
-        self.assertEqual([a['Name'] for a in r.selection('dev.peios.peios-installer', 'build-main')['groups'][1]['artifacts']], ['org.rust-lang.rust-std-x86-64-unknown-linux-musl'])
-        self.assertEqual(len(r.selection('dev.peios.peios-installer', 'build-vendor')['groups']), 1)
-
-    def test_kernel_scope(self):
-        # Only the two targets that run rustc and bindgen receive the pinned
-        # toolchain, and nothing else; every other kernel target is reviewed
-        # and keeps a plain Debian root.
-        for target in ['build-kunit', 'build-kernel']:
-            s = r.selection('dev.peios.kernel', target)
-            self.assertEqual([g['family'] for g in s['groups']], ['org.rust-lang.rust-1.83', 'io.github.rust-lang.bindgen'])
-            self.assertEqual(s['image'], 'debian:trixie')
-        for target in r.KERNEL_TARGETS - r.KERNEL_TOOLCHAIN_TARGETS:
-            self.assertIsNone(r.selection('dev.peios.kernel', target))
-        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-arbitrary')
-        # A SDK-family target name is not thereby reviewed for the kernel.
-        self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-main')
-
-    def test_kernel_stays_on_trixie(self):
-        # The 1.83 toolchain links trixie's libLLVM-18; moving the kernel to sid
-        # would quietly strand it.
-        from unittest.mock import patch
-        self.assertNotIn('dev.peios.kernel', r.SID_FAMILIES)
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.kernel'}):
-            self.assertEqual(p.selected_image(), 'debian:trixie')
-
-    def test_kernel_requires_both_groups(self):
-        config = json.loads(r.CONFIG.read_text())
-        del config['groups']['bindgen']
-        r.CONFIG.write_text(json.dumps(config))
-        r.configuration.cache_clear()
-        with self.assertRaisesRegex(ValueError, 'not qualified/selected: bindgen'):
-            r.selection('dev.peios.kernel', 'build-kernel')
-
-    def test_kernel_substitution(self):
-        s = r.selection('dev.peios.kernel', 'build-kernel')
-        original = [{'name': 'clang-18', 'checks': []}, {'name': 'rustc', 'checks': []}, {'name': 'bindgen', 'checks': []}]
-        effective = {x['name'] for x in r.effective_requests(original, s)}
-        self.assertFalse({'rustc', 'bindgen', 'cargo', 'rustfmt'} & effective)
-        self.assertIn('clang-18', effective)
-        # The kernel's rustc needs LLVM 18 at run time, not the SDK's LLVM 23.
-        self.assertIn('libllvm18', effective)
-        self.assertNotIn('libllvm23', effective)
-        sdk = {x['name'] for x in r.effective_requests([], r.selection('dev.peios.authd', 'build-main'))}
-        self.assertEqual(sdk, set(r.SDK_RUNTIME_APT))
-
-    def test_substitution(self):
-        s = r.selection('dev.peios.authd', 'build-main')
-        original = [{'name': 'cargo', 'checks': []}, {'name': 'gcc', 'checks': [['>=', '16']]}, {'name': 'rustc', 'checks': []}]
-        effective = r.effective_requests(original, s)
-        self.assertFalse({'cargo', 'rustc'} & {x['name'] for x in effective})
-        self.assertIn(original[1], effective)
-        self.assertEqual(original[0]['name'], 'cargo')
-        self.assertRaises(ValueError, r.effective_requests, [{'name': 'rustc', 'checks': [['>=', '1.98']]}], s)
+    def entry(self, name, data=b'x', mode=0o644, link=None):
+        path = self.src / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if link is not None:
+            path.symlink_to(link)
+        else:
+            path.write_bytes(data)
+            path.chmod(mode)
+        return path
 
     def test_paths(self):
-        for name in ['/usr/a', '../x', 'usr/../x', 'usr//x', 'usr/./x', 'etc/passwd', 'usr']:
-            if name == 'usr':
-                continue
+        for name in ['/usr/a', '../x', 'usr/../x', 'usr//x', 'usr/./x', 'etc/passwd']:
             with self.subTest(name=name):
-                self.assertRaises(ValueError, self.put, self.member(name))
+                self.assertRaises(ValueError, r.relative, name)
 
-    def test_links_special_modes(self):
-        for m in [self.member(kind=tarfile.LNKTYPE), self.member(kind=tarfile.CHRTYPE), self.member(kind=tarfile.SYMTYPE, link='/etc/passwd'), self.member(kind=tarfile.SYMTYPE, link='../../../escape'), self.member(mode=2541)]:
-            with self.subTest(m=m):
-                self.assertRaises(ValueError, self.put, m)
+    def test_links_and_modes(self):
+        for name, kwargs in [('usr/a', dict(link='/etc/passwd')), ('usr/b', dict(link='../../../escape')),
+                             ('usr/c', dict(mode=0o4755))]:
+            with self.subTest(name=name):
+                source = self.entry(name, **kwargs)
+                self.assertRaises(ValueError, r.place, self.dst, source, name)
+        good = self.entry('usr/lib/libx.so', link='libx.so.1')
+        r.place(self.dst, good, 'usr/lib/libx.so')
+        self.assertEqual(os.readlink(self.dst / 'usr/lib/libx.so'), 'libx.so.1')
 
     def test_symlink_parent(self):
-        (self.root / 'usr').symlink_to('/tmp')
-        self.assertRaises(ValueError, self.put, self.member())
+        (self.dst / 'usr').symlink_to('/tmp')
+        self.assertRaises(ValueError, r.place, self.dst, self.entry('usr/a'), 'usr/a')
 
     def test_collisions(self):
-        self.put(self.member())
-        self.assertRaises(ValueError, self.put, self.member())
-        self.put(self.member(), identical=True)
-        self.assertRaises(ValueError, self.put, self.member(), b'y', True)
+        source = self.entry('usr/a', mode=0o755)
+        r.place(self.dst, source, 'usr/a')
+        self.assertEqual((self.dst / 'usr/a').stat().st_mode & 0o777, 0o755)
+        self.assertRaises(ValueError, r.place, self.dst, source, 'usr/a')
 
     def test_debian_collisions(self):
         overlay = self.root / 'overlay'
         debian = self.root / 'debian'
-        overlay.mkdir()
-        debian.mkdir()
-        (overlay / 'usr').mkdir()
-        (debian / 'usr').mkdir()
+        (overlay / 'usr').mkdir(parents=True)
+        (debian / 'usr').mkdir(parents=True)
         (overlay / 'usr/a').write_text('x')
         r.check_collisions(debian, overlay)
         (debian / 'usr/a').write_text('x')
@@ -155,25 +158,53 @@ class Safety(unittest.TestCase):
         (debian / 'usr').symlink_to('/tmp')
         self.assertRaises(ValueError, r.check_collisions, debian, overlay)
 
-    def test_archive_hash_before_extract(self):
-        f = self.root / 'package'
-        f.write_bytes(b'not signed')
-        self.assertRaises(ValueError, r.extract_verified, dict(Path=str(f), SHA256='0' * 64), self.root / 'out')
+    def test_catalogue_copies_only_owned_files_and_subtrees(self):
+        scratch = self.root / 'work' / 'scratch'
+        for name in ['usr/include/pkm/psb.h', 'usr/include/linux/fs.h', 'usr/include/peios.h',
+                     'usr/lib/x86_64-linux-peios/libc.so.6']:
+            path = scratch / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name)
+        owned = {'dev.peios.kernel-headers': ['/usr', '/usr/include', '/usr/include/pkm',
+                                              '/usr/include/pkm/psb.h', '/usr/include/linux', '/usr/include/linux/fs.h'],
+                 'dev.peios.libpeios-devel': ['/usr', '/usr/include', '/usr/include/peios.h']}
 
-    def test_verifier_failure_rejects_unsigned_fixture(self):
-        selected = r.selection('dev.peios.authd', 'build-vendor')
-        g = selected['groups'][0].copy()
-        artifact = self.root / 'bad.peipkg'
-        artifact.write_bytes(b'not a signed archive')
-        a = dict(Name='fixture', Version='1-1', Architecture='noarch', Path=str(artifact), SHA256=r.digest(artifact))
-        receipt = self.root / 'receipt.json'
-        receipt.write_text(json.dumps(dict(Environment='debian', RecipeRef='fixture', Source='fixture', Artifacts=[a])))
-        audit = self.root / 'audit.jsonl'
-        audit.write_text(json.dumps(dict(Path=str(artifact), Signed=True, Environment='debian')) + '\n')
-        g.update(receipt=str(receipt), receipt_sha256=r.digest(receipt), audit=str(audit), audit_sha256=r.digest(audit), recipe_ref='fixture', source='fixture', version='1-1', artifacts=[a], source_artifact=a)
-        selected['groups'] = [g]
-        import subprocess
-        self.assertRaises(subprocess.CalledProcessError, r.inspect, selected, self.root)
+        def fake(cmd, **kwargs):
+            if cmd[0] == 'peipkg-compose':
+                (self.root / 'work' / 'root.lock.toml').write_text('lock')
+                return subprocess.CompletedProcess(cmd, 0, '', '')
+            if cmd[3] == 'list':
+                return subprocess.CompletedProcess(cmd, 0, 'dev.peios.kernel-headers  1-1  x86_64\n'
+                                                   'dev.peios.libpeios-devel  0.5.0-1  x86_64\n'
+                                                   'org.gnu.glibc  2.44-7  x86_64\n', '')
+            return subprocess.CompletedProcess(cmd, 0, '\n'.join(owned[cmd[4]]) + '\n', '')
+        with patch.object(r.subprocess, 'run', side_effect=fake):
+            record = r.install_catalogue([dep('dev.peios.kernel-headers'), dep('dev.peios.libpeios-devel')],
+                                         self.dst, Path('/snapshot'), '0' * 64, self.root / 'work')
+        self.assertTrue((self.dst / 'usr/include/pkm/psb.h').is_file())
+        self.assertTrue((self.dst / 'usr/include/peios.h').is_file())
+        # Linux UAPI comes from Debian; the closure's glibc never lands.
+        self.assertFalse((self.dst / 'usr/include/linux').exists())
+        self.assertFalse((self.dst / 'usr/lib').exists())
+        self.assertEqual([x['version'] for x in record['packages']], ['1-1', '0.5.0-1'])
+
+    def test_fetch_rejects_changed_cache_and_unpinned_download(self):
+        cache = self.root / 'cache'
+        cache.mkdir()
+        name = 'rust-src-1.83.0.tar.xz'
+        (cache / name).write_bytes(b'tampered')
+        self.assertRaisesRegex(ValueError, 'changed', r.fetch, name, cache)
+        (cache / name).unlink()
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+        with patch.object(r.urllib.request, 'urlopen', side_effect=lambda *a, **k: Response(b'not the pinned bytes')):
+            self.assertRaisesRegex(ValueError, 'pin', r.fetch, name, cache)
+        self.assertFalse((cache / name).exists())
 
     def test_replay_record_binds_overlay(self):
         record = self.root / 'record'
@@ -206,7 +237,6 @@ class Safety(unittest.TestCase):
         self.assertFalse((self.root / 'bad').exists())
 
     def test_dependency_record_capture(self):
-        from unittest.mock import patch
         recipe = self.root / 'dev.peios.authd'
         job = self.root / 'job'
         environ = {'PEKIT_RECIPE_ROOT': str(recipe), 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'vendor', 'PEKIT_DEPENDENCIES': 'cargo *', 'PEKIT_JOB_STATE': str(job), 'PEKIT_SANDBOX_ROOT': str(self.root / 'sandbox')}
@@ -228,33 +258,16 @@ class Safety(unittest.TestCase):
             self.assertEqual((capture / 'reference-prerequisites.json').read_bytes(), b'ref')
             self.assertEqual(json.loads((capture / 'debian-root.json').read_text()), manifest)
 
-    def test_private_operator_config(self):
-        r.CONFIG = self.root / 'selection.json'
-        r.configuration.cache_clear()
-        r.CONFIG.write_text('{"schema":1}')
-        r.CONFIG.chmod(420)
-        self.assertRaises(ValueError, r.configuration)
-        r.CONFIG.chmod(384)
-        self.assertEqual(r.configuration(), {'schema': 1})
-        r.configuration.cache_clear()
-        r.CONFIG.unlink()
-        r.CONFIG.symlink_to(self.key)
-        self.assertRaises(OSError, r.configuration)
-
     def lifecycle(self, overlay, fail=None):
-        from unittest.mock import patch
-        import subprocess
         job = self.root / 'job'
         store = self.root / 'store'
         out = self.root / 'record'
         job.mkdir()
         store.mkdir()
         state = dict(running=False, installed=False, removed=False)
-        calls = []
-        selected = {'groups': [{}]} if overlay else None
+        selected = {'toolchain': 'rust-1.98.1', 'catalogue': []} if overlay else None
 
         def run(*args, capture=False):
-            calls.append(args)
             if args[:3] == ('docker', 'image', 'inspect'):
                 return '[{"Id":"sha256:exact","RepoDigests":["debian@sha256:exact"],"Architecture":"amd64","Os":"linux"}]'
             if args[:2] == ('docker', 'create'):
@@ -284,13 +297,17 @@ class Safety(unittest.TestCase):
                 state['removed'] = True
             return ''
 
-        def install(*args):
+        def install(container, sel, directory, cache):
             self.assertTrue(state['running'])
             self.assertTrue(state['installed'])
+            self.assertEqual(cache, store / 'upstream')
             if fail == 'overlay':
                 raise ValueError('overlay failed')
             return {'runtime': {'passed': True}}
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/recipe/dev.peios.authd' if overlay else '/recipe/other', 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'main'}), patch.object(p, 'run', side_effect=run), patch.object(r, 'selection', return_value=selected), patch.object(r, 'effective_requests', return_value=[]), patch.object(r, 'install_container', side_effect=install) as hook:
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/recipe/dev.peios.authd' if overlay else '/recipe/other', 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'main'}), \
+                patch.object(p, 'run', side_effect=run), patch.object(r, 'selection', return_value=selected), \
+                patch.object(r, 'effective_requests', return_value=[]), \
+                patch.object(r, 'install_container', side_effect=install) as hook:
             if fail:
                 self.assertRaises((ValueError, subprocess.CalledProcessError), p.acquire, job, store, [], 'policy', out)
             else:
@@ -298,7 +315,6 @@ class Safety(unittest.TestCase):
                 self.assertEqual('reference_sha256' in manifest, overlay)
             self.assertEqual(hook.call_count, 1 if overlay and fail != 'apt' else 0)
         self.assertTrue(state['removed'])
-        return calls
 
     def test_overlay_running_lifecycle(self):
         self.lifecycle(True)
@@ -312,16 +328,6 @@ class Safety(unittest.TestCase):
     def test_overlay_failure_removes_container(self):
         self.lifecycle(True, 'overlay')
 
-    def test_replay_without_operator_config(self):
-        from unittest.mock import patch
-        replay = self.root / 'replay'
-        record = replay / 'build-vendor'
-        record.mkdir(parents=True)
-        config_hash = r.configuration_digest()
-        (record / 'debian-root.json').write_text(json.dumps({'reference_selection': {'operator_configuration_sha256': config_hash}}))
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/recipe/dev.peios.authd', 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'vendor'}):
-            initial = p.policy_id()
-            with patch.dict(os.environ, {'PEKIT_DEBIAN_REPLAY': str(replay)}), patch.object(r, 'configuration_digest', side_effect=AssertionError('must not read current private config')):
-                self.assertEqual(p.policy_id(), initial)
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
