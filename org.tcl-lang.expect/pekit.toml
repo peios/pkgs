@@ -8,6 +8,7 @@
 # Expect against Tcl 8.6). The example scripts upstream installs into /usr/bin
 # (autoexpect, kibitz, mkpasswd, unbuffer, …) are not shipped.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The release tree also carries the Autoconf/TEA build machinery.

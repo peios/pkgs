@@ -16,6 +16,7 @@
 # packaged. The gate runs GDB's built-in unit tests (`maint selftest`) and
 # exercises the installed debugger end to end instead.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The release tree also carries the documentation, the simulators, bundled

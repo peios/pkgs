@@ -798,8 +798,13 @@ empty repository needs a seed built elsewhere. Two recipe tags mark it:
   acquisition needs its NSS module). bindgen joins them because the kernel's
   Debian build takes it from the catalogue, PCRE2 because the seed's grep links
   it, and Readline because the seed's gawk does.
-- `bootstrap` (101 recipes, including those 42) is that seed closed under its
+- `bootstrap` (107 recipes, including those 42) is that seed closed under its
   own native dependencies: everything the seed needs to rebuild itself natively.
+  Test dependencies count: the seed's gates need GDB (debugedit, dwz), DejaGnu
+  with Expect and Tcl (binutils, gcc, dwz) and GoogleTest (ninja). Those are
+  not seed members themselves; the Debian seed build takes Debian's `gdb`,
+  `dwz` and `dejagnu` from its apt sets, and the native seed rebuild runs after
+  they exist.
 
 Only `minimal-bootstrap` recipes declare apt sets, so only they build in
 Debian. The seed is then rebuilt natively, and everything else a second time

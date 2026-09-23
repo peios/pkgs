@@ -9,6 +9,7 @@
 # tcl-core, not the full source archive: the bundled extension packages
 # (Itcl, SQLite, TDBC drivers, Thread) are not needed and are left out.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The release tree also carries the bundled zlib (unused: the system zlib is

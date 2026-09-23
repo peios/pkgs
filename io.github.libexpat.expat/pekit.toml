@@ -6,6 +6,7 @@
 # Autotools, as Debian and Fedora build it. xmlwf's manual is the one upstream
 # ships prebuilt, so no DocBook toolchain is needed.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The release tree also carries the Autotools and Libtool build machinery.

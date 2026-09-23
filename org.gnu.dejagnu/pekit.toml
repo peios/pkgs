@@ -2,6 +2,7 @@
 # binutils, GCC, GDB and dwz among them. Tcl scripts on Expect; no compiled
 # payload, so the package is architecture-independent.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 # The release tree also carries the Texinfo manual and the Automake build
