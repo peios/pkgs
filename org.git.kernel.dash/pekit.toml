@@ -5,6 +5,11 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# The installed shell is BSD-3-Clause; the corresponding source also carries
+# the GPL-2.0-or-later src/mksignames.c build helper, which no member ships.
+[source_package]
+license = "GPL-2.0-or-later"
+
 [source.git]
 url       = "https://git.kernel.org/pub/scm/utils/dash/dash.git"
 ref       = "v{{version}}"

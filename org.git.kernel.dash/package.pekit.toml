@@ -1,6 +1,6 @@
-# Metadata shared by the Dash package family and its corresponding-source
-# package. The installed shell is BSD-3-Clause; the broader family expression
-# also covers the GPL-2.0-or-later mksignames build helper in the locked tree.
+# Metadata shared by the Dash package family. Every member declares its own
+# license; the corresponding source package conjoins them with the
+# source-only license declared in pekit.toml's [source_package].
 
 format = "peipkg"
 

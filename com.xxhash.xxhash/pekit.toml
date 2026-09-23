@@ -5,6 +5,12 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# Material only the corresponding source carries: the GPL-2.0-only
+# tests/sanity_test_vectors_generator.c, and tests/collisions' pool and
+# threading helpers, offered under the root BSD licence or GPLv2.
+[source_package]
+license = "GPL-2.0-only AND (BSD-2-Clause OR GPL-2.0-only)"
+
 [source.git]
 url       = "https://github.com/Cyan4973/xxHash.git"
 ref       = "v{{version}}"
