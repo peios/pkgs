@@ -42,9 +42,9 @@ export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.python.py
 REL_SRC=$(realpath --relative-to="$PEKIT_OUT" "$SRC")
 
 # Keep unavailable optional modules deterministically disabled. PEI-725 tracks
-# SQLite and GDBM; PEI-613 tracks Readline. The dependency set below
-# deliberately enables TLS, bzip2, XZ, Zstandard, curses, UUID and ctypes (the
-# system libffi); the test gate imports each, so a missing one fails the build.
+# SQLite and GDBM. The dependency set below deliberately enables TLS, bzip2,
+# XZ, Zstandard, curses, GNU Readline (PEI-613), UUID and ctypes (the system
+# libffi); the test gate imports each, so a missing one fails the build.
 #
 # Compile with the workspace's -fcf-protection and generate IBT PLT entries.
 # Do not assert compatibility on behalf of unmarked provider startup objects.
@@ -60,7 +60,7 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   --enable-shared --enable-optimizations --with-lto=full \
   --with-computed-gotos=yes --enable-ipv6 --with-pkg-config=yes \
   --with-ssl-default-suites=openssl --with-openssl-rpath=no \
-  --without-readline --without-ensurepip
+  --with-readline=readline --without-ensurepip
 
 JOBS="$(nproc)"
 make -j"$JOBS" TESTTIMEOUT=1200
@@ -323,7 +323,7 @@ export LD_LIBRARY_PATH="$LIBDIR"
 export PYTHONHOME="$STAGE/usr"
 "$PYTHON" - "$PEKIT_VERSION" <<'PY'
 import bz2, compression.zstd, ctypes, curses, hashlib, lzma, multiprocessing
-import os, ssl, subprocess, sys, sysconfig, threading, uuid
+import os, readline, ssl, subprocess, sys, sysconfig, threading, uuid
 assert sys.version_info[:3] == tuple(map(int, sys.argv[1].split('.')))
 assert sysconfig.get_path('purelib') == sysconfig.get_path('platlib')
 assert sysconfig.get_path('purelib') == (
@@ -334,6 +334,10 @@ assert bz2.decompress(bz2.compress(b'peios')) == b'peios'
 assert lzma.decompress(lzma.compress(b'peios')) == b'peios'
 assert compression.zstd.decompress(compression.zstd.compress(b'peios')) == b'peios'
 assert uuid.uuid4().version == 4
+# GNU Readline, not an editline emulation.
+assert readline.backend == 'readline', readline.backend
+assert readline._READLINE_LIBRARY_VERSION.startswith('8.'), readline._READLINE_LIBRARY_VERSION
+readline.add_history('peios'); assert readline.get_history_item(1) == 'peios'
 assert subprocess.check_output([sys.executable, '-c', 'print(42)']) == b'42\n'
 t = threading.Thread(target=lambda: None); t.start(); t.join()
 parent, child = multiprocessing.Pipe(); child.send('ok'); assert parent.recv() == 'ok'
@@ -363,6 +367,33 @@ int main(void) {
 C
 cc "$SMOKE/embed.c" -I"$STAGE/usr/include/python$PYVER" \
   -L"$LIBDIR" -lpython$PYVER -o "$SMOKE/embed"
+
+# The basic REPL through a terminal: Readline history recall (Up-arrow) and
+# editing (Ctrl-A to the start of the line). PYTHON_BASIC_REPL selects the
+# Readline-driven REPL instead of the pure-Python default one.
+cc -O2 -o "$SMOKE/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+cat > "$SMOKE/repl-session" <<'EOF'
+expect >>> 
+send print(6*7)\r
+expect 42
+expect >>> 
+send \e[A\r
+expect 42
+expect >>> 
+send rint("x"+"y")\x01p\r
+expect xy
+expect >>> 
+send \x04
+EOF
+# (No -E or -I: those would ignore PYTHON_BASIC_REPL itself.)
+env -u PYTHONSTARTUP TERM=xterm PYTHON_BASIC_REPL=1 \
+  "$SMOKE/pty-drive" "$SMOKE/repl-session" -- "$PYTHON" -q > "$SMOKE/repl.out"
+# Results can follow Readline's bracketed-paste escapes on the same line.
+test "$(tr -d '\r' < "$SMOKE/repl.out" | grep -c '42$')" -eq 2
+tr -d '\r' < "$SMOKE/repl.out" | grep 'xy$'
+set -- "$STDLIB"/lib-dynload/readline.*.so
+[ "$#" -eq 1 ] && [ -f "$1" ]
+readelf -d "$1" | grep -F 'Shared library: [libreadline.so.8]'
 "$SMOKE/embed"
 
 test -n "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
@@ -396,6 +427,7 @@ done
 "org.openssl.openssl-devel"                    = "*"
 "org.sourceware.bzip2-devel"                   = "*"
 "org.gnu.ncurses-devel"                        = "*"
+"org.gnu.readline-devel"                       = ">= 8.3"
 "net.sourceforge.e2fsprogs-devel"              = "*"
 "org.debian.netbase"                           = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"       = "*"
@@ -412,6 +444,7 @@ done
 "org.openssl.openssl-devel"       = "*"
 "org.sourceware.bzip2-devel"      = "*"
 "org.gnu.ncurses-devel"           = "*"
+"org.gnu.readline-devel"          = ">= 8.3"
 "net.sourceforge.e2fsprogs-devel" = "*"
 "org.debian.netbase"              = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                        = "*"
