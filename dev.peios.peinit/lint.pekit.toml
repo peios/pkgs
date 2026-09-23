@@ -1,12 +1,5 @@
-[allow]
-
-# One source-family debug package owns build-ID symbols for PID 1, svctl, and
-# libpeinit. Splitting the identical source corpus by payload package would add
-# ambiguity and duplication without changing build-ID lookup.
-"elf.debuginfo" = "dev.peios.peinit-debuginfo intentionally owns build-ID symbols for every ELF emitted by the Peinit source family"
-
-# libpeinit-devel contains an ABI-specific linker symlink below the Peios
-# x86_64 triplet and exactly depends on that runtime. Conversely debugsource is
-# source-only; lint mistakes its conventional src/bin directory for an
-# installed executable directory.
-"package.architecture" = "libpeinit-devel is tied to the x86_64 ABI path and runtime, while debugsource's src/bin path contains Rust source rather than host executables"
+# peinit's own lint.pekit.toml names its single family debug package, but a
+# delegated source root's lint file merges before the workspace's, so the
+# workspace default "{{name}}-debuginfo" would win. Restate it here.
+[elf]
+debuginfo = "dev.peios.peinit-debuginfo"
