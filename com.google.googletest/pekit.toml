@@ -1,0 +1,173 @@
+# GoogleTest — Google's C++ testing framework, with GoogleMock. Ninja's C++
+# unit suite (ninja_test) builds against it; upstream CMake builds that would
+# otherwise fetch GoogleTest over the network find this package instead.
+#
+# Shared runtimes, as Fedora ships them, plus a separately built static set.
+# Upstream promises no ABI between releases, so the sonames carry the full
+# version and every consumer rebuilds with each GoogleTest update.
+
+out_dir = "out"
+
+[source.git]
+url       = "https://github.com/google/googletest.git"
+ref       = "v{{version}}"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Soft maintenance floor. Follow every newer release; API changes stop at the
+# upstream suite and the consumer gates below.
+versions  = ">= 1.18.0"
+
+# Upstream publishes lightweight tags and no detached signatures, and the
+# tagged commits carry only GitHub's web-flow signature, so there is nothing
+# for [source.git.signature] to pin. lint.pekit.toml declares the exception:
+# HTTPS authenticates transport and Pekit's Git lock makes each accepted
+# commit immutable, but first acceptance of a new tag is TOFU.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+TRIPLET=x86_64-linux-peios
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUG_DEST=/usr/src/debug/com.google.googletest
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=$DEBUG_DEST"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+
+# Workspace policy goes through CMake's cache explicitly. Python drives
+# upstream's end-to-end tests, so it is named rather than discovered.
+set -- \
+  -G Ninja \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-DNDEBUG \
+  -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR="lib/$TRIPLET" \
+  -DCMAKE_SKIP_INSTALL_RPATH=ON \
+  -DBUILD_GMOCK=ON \
+  -DINSTALL_GTEST=ON \
+  -DGTEST_HAS_ABSL=OFF \
+  -DPython_EXECUTABLE=/usr/bin/python3
+
+# Shared build, with upstream's test suite for the test stage.
+cmake -S "$SRC" -B "$PEKIT_OUT/build-shared" "$@" \
+  -DBUILD_SHARED_LIBS=ON -Dgtest_build_tests=ON -Dgmock_build_tests=ON
+cmake --build "$PEKIT_OUT/build-shared" -j"$(nproc)"
+DESTDIR="$PEKIT_OUT" cmake --install "$PEKIT_OUT/build-shared"
+
+# Static archives, installed into their own stage for the static package.
+cmake -S "$SRC" -B "$PEKIT_OUT/build-static" "$@" -DBUILD_SHARED_LIBS=OFF
+cmake --build "$PEKIT_OUT/build-static" -j"$(nproc)"
+DESTDIR="$PEKIT_OUT/static" cmake --install "$PEKIT_OUT/build-static"
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.google.googletest \
+  "$PEKIT_OUT/usr/lib/$TRIPLET"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --stage "$PEKIT_OUT/static" \
+  com.google.googletest "$PEKIT_OUT/static/usr/lib/$TRIPLET"
+rm -rf "$PEKIT_OUT/static/usr/src" "$PEKIT_OUT/static/usr/lib/debug"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.cmake.cmake"                = "*"
+"org.ninja-build.ninja"          = "*"
+"org.python.python3"             = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# Upstream suite: every gtest and gmock unit and Python-driven end-to-end test.
+ctest --test-dir "$STAGE/build-shared" -j"$(nproc)" --output-on-failure \
+  | tee "$SMOKE/ctest"
+# 63 cases in 1.18.0; guard against a harness change silently dropping some.
+total=$(sed -n 's/^100% tests passed.* out of \([0-9]*\)$/\1/p' "$SMOKE/ctest")
+test "${total:-0}" -ge 63
+
+# Library metadata, as CMake and pkg-config consumers read it.
+for lib in gtest gtest_main gmock gmock_main; do
+  so=$(readlink -f "$LIBDIR/lib$lib.so")
+  readelf -d "$so" | grep -F "Library soname: [lib$lib.so.$PEKIT_VERSION]"
+  test -s "$STAGE/static/usr/lib/x86_64-linux-peios/lib$lib.a"
+done
+test -f "$PREFIX/include/gtest/gtest.h"
+test -f "$PREFIX/include/gmock/gmock.h"
+test -f "$LIBDIR/cmake/GTest/GTestConfig.cmake"
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+for module in gtest gtest_main gmock gmock_main; do
+  pkgconf --validate "$module"
+  test "$(pkgconf --modversion "$module")" = "$PEKIT_VERSION"
+done
+if grep -rF "$STAGE" "$LIBDIR/pkgconfig" "$LIBDIR/cmake"; then exit 1; fi
+
+# A consumer through find_package(GTest), linked shared, and the same test
+# through pkg-config against the static archives.
+cat > "$SMOKE/sample_test.cc" <<'EOF'
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+struct Adder { virtual ~Adder() = default; virtual int add(int, int) = 0; };
+struct MockAdder : Adder { MOCK_METHOD(int, add, (int, int), (override)); };
+TEST(Sample, Arithmetic) { EXPECT_EQ(2 + 2, 4); }
+TEST(Sample, Mock) {
+  MockAdder m;
+  EXPECT_CALL(m, add(1, 2)).WillOnce(testing::Return(3));
+  EXPECT_EQ(m.add(1, 2), 3);
+}
+EOF
+cat > "$SMOKE/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.16)
+project(sample CXX)
+find_package(GTest REQUIRED CONFIG)
+add_executable(sample_test sample_test.cc)
+target_link_libraries(sample_test GTest::gmock_main)
+EOF
+cmake -S "$SMOKE" -B "$SMOKE/build" -G Ninja -DCMAKE_PREFIX_PATH="$PREFIX" \
+  -DCMAKE_FIND_ROOT_PATH="$STAGE" > "$SMOKE/cmake.out"
+cmake --build "$SMOKE/build"
+LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/build/sample_test" | grep -F '[  PASSED  ] 2 tests.'
+LD_LIBRARY_PATH="$LIBDIR" LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/build/sample_test" \
+  | grep -F "libgmock_main.so.$PEKIT_VERSION => $LIBDIR/"
+c++ -I"$PREFIX/include" "$SMOKE/sample_test.cc" \
+  "$STAGE/static/usr/lib/x86_64-linux-peios/libgmock_main.a" \
+  "$STAGE/static/usr/lib/x86_64-linux-peios/libgmock.a" \
+  "$STAGE/static/usr/lib/x86_64-linux-peios/libgtest.a" \
+  -o "$SMOKE/static_test"
+"$SMOKE/static_test" | grep -F '[  PASSED  ] 2 tests.'
+if readelf -d "$SMOKE/static_test" | grep -E 'libg(test|mock)'; then exit 1; fi
+
+# Debug split and hardening of the four shared runtimes.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 4
+test -n "$(find "$PREFIX/src/debug/com.google.googletest" -type f -name 'gtest.cc' -print -quit)"
+for lib in gtest gtest_main gmock gmock_main; do
+  elf=$(readlink -f "$LIBDIR/lib$lib.so")
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.cmake.cmake"                = "*"
+"org.ninja-build.ninja"          = "*"
+"org.python.python3"             = "*"
+"org.pkgconf.pkgconf"            = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.findutils"              = "*"
+"org.gnu.grep"                   = "*"
+"org.gnu.sed"                    = "*"

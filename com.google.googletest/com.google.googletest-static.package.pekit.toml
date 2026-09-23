@@ -1,0 +1,16 @@
+# Static GoogleTest and GoogleMock archives, for test binaries that must not
+# depend on the release-versioned shared runtimes.
+
+[package]
+name        = "com.google.googletest-static"
+description = "GoogleTest and GoogleMock static libraries"
+
+[dependencies]
+"com.google.googletest-devel" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.google.googletest-static/"
+":static/usr/lib/x86_64-linux-peios/libgtest.a"      = "usr/lib/x86_64-linux-peios/libgtest.a"
+":static/usr/lib/x86_64-linux-peios/libgtest_main.a" = "usr/lib/x86_64-linux-peios/libgtest_main.a"
+":static/usr/lib/x86_64-linux-peios/libgmock.a"      = "usr/lib/x86_64-linux-peios/libgmock.a"
+":static/usr/lib/x86_64-linux-peios/libgmock_main.a" = "usr/lib/x86_64-linux-peios/libgmock_main.a"

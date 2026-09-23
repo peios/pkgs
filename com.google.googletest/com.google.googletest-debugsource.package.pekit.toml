@@ -1,0 +1,10 @@
+[package]
+name        = "com.google.googletest-debugsource"
+description = "GoogleTest debug sources"
+
+[dependencies]
+"com.google.googletest-debuginfo" = "= {{release}}"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/com.google.googletest-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

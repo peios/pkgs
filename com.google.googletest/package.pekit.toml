@@ -1,0 +1,11 @@
+# Shared metadata for the GoogleTest package family. Each package is defined in
+# its own *.package.pekit.toml; this file is only the base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "BSD-3-Clause"
+license_class = "free"
+homepage      = "https://google.github.io/googletest/"

@@ -1,0 +1,20 @@
+# Headers, linker names, CMake package (GTest::gtest, GTest::gmock, ...) and
+# pkg-config modules. Static linkage stays opt-in through the static sibling.
+
+[package]
+name        = "com.google.googletest-devel"
+description = "GoogleTest and GoogleMock headers, CMake and pkg-config files"
+
+[dependencies]
+"com.google.googletest" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.google.googletest-devel/"
+":usr/include/gtest/**" = "usr/include/gtest"
+":usr/include/gmock/**" = "usr/include/gmock"
+":usr/lib/x86_64-linux-peios/libgtest.so"      = "usr/lib/x86_64-linux-peios/libgtest.so"
+":usr/lib/x86_64-linux-peios/libgtest_main.so" = "usr/lib/x86_64-linux-peios/libgtest_main.so"
+":usr/lib/x86_64-linux-peios/libgmock.so"      = "usr/lib/x86_64-linux-peios/libgmock.so"
+":usr/lib/x86_64-linux-peios/libgmock_main.so" = "usr/lib/x86_64-linux-peios/libgmock_main.so"
+":usr/lib/x86_64-linux-peios/cmake/GTest/**"   = "usr/lib/x86_64-linux-peios/cmake/GTest"
+":usr/lib/x86_64-linux-peios/pkgconfig/*.pc"   = "usr/lib/x86_64-linux-peios/pkgconfig"

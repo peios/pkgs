@@ -1,0 +1,10 @@
+[package]
+name        = "com.google.googletest-debuginfo"
+description = "GoogleTest debugging symbols"
+
+[dependencies]
+"com.google.googletest" = "= {{release}}"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/com.google.googletest-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

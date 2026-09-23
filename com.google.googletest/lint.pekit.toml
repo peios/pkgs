@@ -1,0 +1,6 @@
+# The four runtime libraries share the family symbol archive.
+[elf]
+debuginfo = "com.google.googletest-debuginfo"
+
+[allow]
+"source.signature.required" = "Release tags are lightweight; the tagged commits carry only GitHub's web-flow signature, which attests GitHub's merge machinery rather than a GoogleTest maintainer, and upstream publishes no detached signatures, so HTTPS plus the commit pinned in pekit.lock is the provenance boundary"

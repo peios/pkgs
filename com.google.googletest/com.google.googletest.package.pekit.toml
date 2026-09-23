@@ -1,0 +1,19 @@
+# The GoogleTest and GoogleMock shared runtimes. Their sonames carry the full
+# release version: upstream makes no ABI promise between releases.
+
+[package]
+name        = "com.google.googletest"
+description = "C++ testing and mocking framework runtime libraries"
+
+[dependencies]
+"org.gnu.glibc"        = ">= 2.43"
+"org.gnu.gcc-libstdc++" = "*"
+"org.gnu.gcc-libgcc"   = "*"
+
+[files]
+"@source:LICENSE"   = "usr/share/licenses/com.google.googletest/"
+"@source:README.md" = "usr/share/doc/com.google.googletest/"
+":usr/lib/x86_64-linux-peios/libgtest.so.*"       = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgtest_main.so.*"  = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgmock.so.*"       = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libgmock_main.so.*"  = "usr/lib/x86_64-linux-peios"
