@@ -50,6 +50,8 @@ export SHELL=/usr/bin/bash
 AUTOPOINT=true autoreconf -fi
 
 cd "$PEKIT_OUT"
+# No POSIX ACLs: KACS replaces them and the Peios kernel denies their xattrs,
+# so --acls would have nothing to archive and nothing it could restore.
 "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \

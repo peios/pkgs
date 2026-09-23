@@ -1,9 +1,9 @@
 # GNU sed — GNU's non-interactive stream editor.
 #
-# Peios does not yet ship libacl or libselinux, so their optional in-place
-# metadata integrations are explicitly disabled for reproducibility in both
-# the native and the Debian seed build. Mode and ownership preservation remain available. Re-enable
-# each integration when its runtime library enters the package catalogue.
+# In-place editing's optional ACL and SELinux metadata integrations are
+# disabled in both the native and the Debian seed build. Peios never honours
+# POSIX ACLs (KACS replaces them and the kernel denies their xattrs) and has
+# no SELinux. Mode and ownership preservation remain available.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
