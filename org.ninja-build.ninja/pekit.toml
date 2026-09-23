@@ -65,14 +65,28 @@ cmp "$PEKIT_OUT/ninja.1.gz" "$STAGE/usr/share/man/man1/ninja.1.gz"
 # Upstream scripts locate the tested executable relative to the working directory.
 cd "$BUILD"
 
-# Dependency-closed upstream regression coverage. Not run: the jobserver client
-# suite (misc/jobserver_test.py) needs util-linux's taskset and the
-# pseudo-terminal suite (misc/output_test.py) needs util-linux's script, and
-# the catalogue's util-linux does not ship either yet (PEI-1164). PEI-702
-# tracks the separate GoogleTest C++ suite.
+# Upstream's Python regression suites: the syntax module, the jobserver pool,
+# the jobserver client (pinned to one CPU with util-linux's taskset) and the
+# smart-terminal output suite (driven through util-linux's script).
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SRC/misc" \
   python3 "$SRC/misc/ninja_syntax_test.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_pool_test.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_test.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/output_test.py"
+
+# Upstream's C++ unit suite, ninja_test, against the packaged GoogleTest. The
+# staged executor drives the build; the GoogleTest download fallback is
+# disabled and a missing GTest is an error rather than a fetch.
+cmake -S "$SRC" -B "$PEKIT_OUT/unit" -G Ninja -DCMAKE_MAKE_PROGRAM="$BIN" \
+  -DBUILD_TESTING=ON -DCMAKE_REQUIRE_FIND_PACKAGE_GTest=ON \
+  -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+"$BIN" -C "$PEKIT_OUT/unit" ninja_test
+if [ -d "$PEKIT_OUT/unit/_deps" ]; then exit 1; fi
+(cd "$PEKIT_OUT/unit" && ./ninja_test) > "$PEKIT_OUT/unit.out" 2>&1 || {
+  tail -40 "$PEKIT_OUT/unit.out"; exit 1; }
+tail -3 "$PEKIT_OUT/unit.out"
+grep -E '^\[  PASSED  \] [0-9]+ tests\.$' "$PEKIT_OUT/unit.out"
+if grep -F '[  FAILED  ]' "$PEKIT_OUT/unit.out"; then exit 1; fi
 
 # Exercise the installed executor, its shell integration and target tooling.
 mkdir -p "$SMOKE"
@@ -110,6 +124,12 @@ test -n "$(find "$STAGE/usr/src/debug/org.ninja-build.ninja" -type f -print -qui
 "org.git.kernel.dash"            = "*"
 "dev.peios.peiosutils"           = "*"
 "org.python.python3"             = "*"
+"org.gnu.bash"                   = "*"
+"org.cmake.cmake"                = "*"
+"com.google.googletest-devel"    = ">= 1.18.0"
+# jobserver_test.py pins jobs with taskset; output_test.py runs under script.
+"org.kernel.util-linux-schedutils" = "*"
+"org.kernel.util-linux-script"   = "*"
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
