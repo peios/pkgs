@@ -40,9 +40,12 @@ The workspace files are intentional shared policy:
 - [`package.pekit.toml`](package.pekit.toml) supplies the signed Peipkg
   repository publication target.
 - `_pybuild_/` (Python wheel installation) and `_pkgtools_/` (`split-debug`,
-  `config-sub-peios.sh`) are shared helpers every recipe reaches through
-  `$PEKIT_WORKSPACE_ROOT`. `_peiroot_/` and `_debroot_/` prepare the native and
-  Debian roots.
+  `collect-rust-licences`, `install-manpages.py`, `config-sub-peios.sh`) are
+  shared helpers every recipe reaches through `$PEKIT_WORKSPACE_ROOT`.
+  `dev.peios.packaging-tools` ships `split-debug` and `collect-rust-licences`
+  under `/usr/libexec/peios-packaging/` for first-party repositories, which also
+  build outside this workspace. `_peiroot_/` and `_debroot_/` prepare the
+  native and Debian roots.
 - [`env.pekit.toml`](env.pekit.toml) is the default environment: every target
   runs in a clean native root composed from the signed repository, and only
   `build:vendor` gets network access. `debian.env.pekit.toml` (`--env debian`)
@@ -269,10 +272,21 @@ rolling source policy does not eliminate patches: carry one when Peios needs a
 platform integration change, when the current release has a release-blocking
 defect, or while an upstream fix has not reached a release.
 
-Every local patch must be in `patches/series`, apply with a defined strip level,
-and begin with at least `Description:` and `Author:` headers. Its description
-must state why Peios needs it, its provenance or upstream status, and the
-postcondition being enforced. Prefer a patch that fails to apply after an
+Every local patch must be in `patches/series` and apply with a defined strip
+level. Its header follows [DEP-3](https://dep-team.pages.debian.net/deps/dep3/)
+(or is `git format-patch` output) and carries three things, which lint checks:
+
+- **What and why:** `Description:` or `Subject:`, saying why Peios needs the
+  patch and the postcondition it enforces.
+- **Provenance:** `Origin:`, `Author:` or `From:`. A patch Peios wrote says
+  exactly `Author: Peios maintainers <packaging@peios.org>`; an imported one
+  keeps its upstream author. Tools that helped write a patch are not authors.
+- **Upstream status:** `Forwarded:` (a URL, `no`, or `not-needed` for a
+  Peios-only platform change), `Applied-Upstream:` (the release or commit that
+  contains it), or `Origin: upstream, <commit>` / `Origin: backport, <url>`. This
+  is what tells an upgrade which patches it can drop.
+
+Prefer a patch that fails to apply after an
 upstream change over a permissive `sed` that silently stops doing the intended
 work. Drop backports as soon as the selected upstream release contains them.
 Authenticate and lock an upstream remote patch series just like its base
@@ -497,6 +511,15 @@ assuming `make install` did the right thing:
 - preserve required symlinks, but reject dangling or absolute payload symlinks;
 - compress manual pages consistently and install licences under
   `/usr/share/licenses/<qualified-package>/`;
+- ship man pages, never Info manuals: Peios has no Info reader or index. Where a
+  Texinfo manual is a library's only complete reference (glibc, GMP, MPFR,
+  MPC), build it as HTML with `texi2any --html` into that library's `-doc`
+  package under `/usr/share/doc/<package>/html/`;
+- name every installed script's interpreter through the runtime view
+  (`#!/bin/sh`, `#!/bin/bash`, `#!/bin/python3`, `#!/bin/perl`), never through
+  `/usr` package storage or `/usr/bin/env`. The one exception is a boot hook
+  that runs before the StrataFS views exist; it names `/usr/bin/sh`, says why,
+  and carries a narrow lint allowance;
 - exclude caches, test output, temporary files, empty accidental directories,
   duplicate ownership, and special files; and
 - declare and test modes, ownership, xattrs, security descriptors, service
@@ -512,6 +535,26 @@ the correct `license_class`; use a documented `LicenseRef-*` only when no SPDX
 identifier fits. Include all required licence/notices and corresponding source,
 including downstream patches and build inputs. Do not call generated binaries
 or caches “source”.
+
+Rust links its crates statically, so a Rust package's licence covers every
+crate it ships. Run `/usr/libexec/peios-packaging/collect-rust-licences`
+(`dev.peios.packaging-tools`) after vendoring: it copies each crate's notices to
+the package's `third-party/` licence directory and, with `--check`, fails unless
+the package's declared `license` equals the combined expression of the shipped
+crates.
+
+Programs that use TLS declare no trust dependency. The machine's trust store is
+provided by trustd and belongs to the image, not to each program; depending on
+`org.mozilla.ca-certificates` gives a program nothing it can read.
+
+### Target triplets
+
+Ordinary autotools packages configure as `x86_64-pc-linux-gnu` (explicitly, or
+through `config.guess`). That is the ABI they are built against: glibc and the
+System V x86-64 ABI. Only components that bake the triplet into what they ship
+use `x86_64-linux-peios`: GCC and binutils, through
+`_pkgtools_/config-sub-peios.sh`. Python carries the Peios name through its
+multiarch patch, not through configure.
 
 ## Validation gates
 
