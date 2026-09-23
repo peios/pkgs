@@ -466,8 +466,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 "org.gnu.tar" = "*"
 # makeinfo for upstream's documentation build. Its Info output is removed
 # after install; dropping texinfo from the build has not been qualified.
-# DejaGNU/Expect are not yet packaged for Peios; the recipe records that
-# native exception at the regression gate.
 "org.gnu.texinfo" = "*"
 "org.gnu.gzip" = "*"
 
@@ -522,17 +520,14 @@ cd "$PEKIT_OUT/build"
 # runtimes for the staged compiler and every child process it starts.
 export LD_LIBRARY_PATH="$PEKIT_OUT$LIBDIR:/usr/lib/$TRIPLET"
 
-# GCC's own DejaGNU suites are the regression gate on the Debian seed build.
-# Peios does not yet package DejaGNU/Expect (PEI-1164), so the native gate
-# skips these suites and relies on the identical locked source/patch set plus
-# the staged native consumers below. Run them natively once PEI-1164 lands.
-# The Debian build must never silently skip the suites: its dependency set
-# includes runtest, and its absence there is fatal.
-if [ "${PEKIT_NATIVE_ROOT:-}" != 1 ] && ! command -v runtest >/dev/null 2>&1; then
-  echo "gcc: runtest missing from the Debian build root" >&2
-  exit 1
-fi
-if command -v runtest >/dev/null 2>&1; then
+# GCC's own DejaGNU suites are the regression gate in both environments
+# (PEI-1172): a bounded, stated subset of the full suite, which takes hours.
+# It covers dg-torture and c-torture (compile and execute) for C, dg-torture
+# for C++, the complete libatomic, libitm and host libgomp suites, a
+# libstdc++ conformance slice plus its ABI baseline, and the float128 torture
+# cases for libquadmath. Both dependency sets include runtest; its absence is
+# fatal, never a silent skip.
+command -v runtest >/dev/null
   check_dejagnu_sum() {
     label=$1
     sum=$2
@@ -638,9 +633,6 @@ if command -v runtest >/dev/null 2>&1; then
     RUNTESTFLAGS="--target_board=unix gcc.dg/torture/dg-torture.exp=*float128*.c"
   check_dejagnu_sum "libquadmath-relevant gcc torture safety superset" \
     gcc/testsuite/gcc/gcc.sum
-else
-  echo "gcc: DejaGNU unavailable in the native Peios build root (PEI-1164); Debian regression results are authoritative" >&2
-fi
 
 test ! -e "$PEKIT_OUT/usr/share/info"
 
@@ -1066,6 +1058,8 @@ done
 '''
 
 [test.dependencies.peipkg]
+# The regression gate's upstream suites run under DejaGnu.
+"org.gnu.dejagnu" = "*"
 "org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
 "org.gnu.binutils" = "*"
