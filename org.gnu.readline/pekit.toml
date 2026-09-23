@@ -1,0 +1,285 @@
+# GNU Readline — line editing and history for interactive programs. bc, gawk
+# (the debugger) and Python's REPL link it (PEI-613). Bash keeps its bundled
+# copy, as Debian's does, so the seed shell does not depend on this package.
+#
+# In the minimal-bootstrap seed because gawk, a seed member, links it.
+#
+# GNU maintains each major.minor release through incremental signed patches.
+# Pekit's remote patch series maps base 8.3 plus patches 001..N to version
+# 8.3.N and discovers future patchlevels without recipe maintenance.
+#
+# The terminal interface is ncurses' libtinfo, linked into the shared library
+# (Fedora and Debian both do this), so consumers need no -ltinfo of their own
+# and readline.pc names tinfo only for static links.
+
+tags = ["bootstrap", "minimal-bootstrap"]
+out_dir = "out"
+
+# The release tree beyond the GPL-3.0-or-later libraries: the GFDL Texinfo
+# manuals, the bundled rlfe and rlwrap examples (GPL-2.0-or-later), Autoconf
+# and Texinfo build machinery, X11 install-sh, public-domain mkinstalldirs
+# and Markus Kuhn's wcwidth.c (a permissive notice, unused with glibc).
+[source_package]
+license = "GFDL-1.3-or-later AND GPL-2.0-or-later AND X11 AND FSFUL AND LicenseRef-Public-Domain AND LicenseRef-Kuhn-wcwidth AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND (GPL-3.0-or-later WITH Texinfo-exception)"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/readline/readline-{{major}}.{{minor}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/readline/"
+extract     = true
+root        = "readline-{{major}}.{{minor}}"
+file_regex  = 'readline-[0-9]+\.[0-9]+\.tar\.gz'
+# Soft maintenance floor: automatic sweeps follow newer stable base releases
+# and every upstream patchlevel.
+versions    = ">= 8.3.0"
+
+# Readline releases and patches are signed by maintainer Chet Ramey, the same
+# key org.gnu.bash pins.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/chet-ramey.asc"]
+fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
+
+[source.url.patch_series]
+url         = "https://ftp.gnu.org/gnu/readline/readline-{{major}}.{{minor}}-patches/readline{{major}}{{minor}}-{{patch}}"
+patch_width = 3
+strip       = 0
+
+[source.url.patch_series.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/chet-ramey.asc"]
+fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.readline"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR=/usr/lib/x86_64-linux-peios
+
+# Upstream's Linux shared-library flags hardcode the install libdir as a run
+# path. Peios' loader searches it by default: remove it at source, as Fedora
+# does, rather than unpick it afterwards.
+grep -F -- '-Wl,-rpath,$(libdir) ' "$SRC/support/shobj-conf"
+sed -i 's/-Wl,-rpath,$(libdir) //' "$SRC/support/shobj-conf"
+
+cd "$PEKIT_OUT"
+# Every feature switch is stated so the payload never depends on what the
+# build root happens to contain. Generate IBT PLT entries. The termcap probe
+# would take ncurses' libtermcap compatibility link first; name libtinfo, the
+# real terminfo library, as Fedora and Debian link it.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --libdir="$LIBDIR" \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --enable-shared \
+  --enable-static \
+  --enable-multibyte \
+  --with-curses \
+  --with-shared-termcap-library \
+  --disable-install-examples \
+  bash_cv_termcap_lib=libtinfo
+grep -Fx 'TERMCAP_LIB = -ltinfo' Makefile
+
+make -j"$(nproc)"
+# The examples are not installed, but they are built against the fresh
+# libraries so the test gate can drive a real Readline program.
+make -C examples -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# Keep the readline(3) and history(3) manuals; the Texinfo manuals duplicate
+# them and Peios ships no Info reader. Upstream installs the shared libraries
+# read-only (0555); give them the ordinary 0755.
+rm -rf "$PREFIX/share/info" "$PREFIX/share/doc"
+chmod 0755 "$PEKIT_OUT$LIBDIR"/lib*.so.*
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.readline "$PREFIX"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.gnu.ncurses-devel"        = ">= 6.6"
+"org.sourceware.debugedit"     = "*"
+
+[build.main.dependencies.apt]
+build-essential = "*"
+gzip            = "*"
+libncurses-dev  = "*"
+debugedit       = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+SMOKE="$PEKIT_OUT/smoke"
+mkdir -p "$SMOKE"
+export LD_LIBRARY_PATH="$LIBDIR"
+export TERM=xterm
+
+# Upstream ships no test suite (its check target is empty). Drive real
+# programs through a pseudo-terminal instead: line editing, history recall and
+# key bindings only exist when Readline owns a terminal.
+cc -O2 -o "$SMOKE/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+
+cat > "$SMOKE/consumer.c" <<'EOF'
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+
+int main(int argc, char **argv)
+{
+  char *line;
+  if (argc != 2) return 2;
+  using_history();
+  while ((line = readline("rl> ")) != NULL) {
+    if (*line) add_history(line);
+    printf("got<%s>\n", line);
+    free(line);
+  }
+  if (write_history(argv[1]) != 0) return 3;
+  printf("version<%s>\n", rl_library_version);
+  return 0;
+}
+EOF
+cat > "$SMOKE/session" <<'EOF'
+# A line, then Up-arrow recall, then Ctrl-A (beginning of line) editing,
+# then Ctrl-R reverse search, then EOF.
+expect rl>
+send alpha\r
+expect got<alpha>
+expect rl>
+send \e[A\r
+expect got<alpha>
+expect rl>
+send orld\x01w\r
+expect got<world>
+expect rl>
+send \x12alp\r
+expect got<alpha>
+expect rl>
+send \x04
+expect version<
+EOF
+
+# The staged modules first; tinfo.pc, which readline.pc requires privately,
+# comes from the root's ncurses.
+export PKG_CONFIG_PATH="$LIBDIR/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$STAGE"
+for module in readline history; do
+  pkgconf --validate "$module"
+  test "$(pkgconf --modversion "$module")" = "$(echo "$PEKIT_VERSION" | cut -d. -f1-2)"
+done
+pkgconf --print-requires-private readline | grep -Fx tinfo
+if grep -F "$STAGE" "$LIBDIR"/pkgconfig/*.pc; then exit 1; fi
+
+# Shared: the library carries its own libtinfo dependency.
+cc $(pkgconf --cflags readline) "$SMOKE/consumer.c" \
+  $(pkgconf --libs readline) -o "$SMOKE/shared-consumer"
+"$SMOKE/pty-drive" "$SMOKE/session" -- "$SMOKE/shared-consumer" "$SMOKE/hist" \
+  > "$SMOKE/shared.out"
+grep -F "version<$(echo "$PEKIT_VERSION" | cut -d. -f1-2)>" "$SMOKE/shared.out"
+printf '%s\n' alpha alpha world alpha > "$SMOKE/hist.expected"
+cmp "$SMOKE/hist.expected" "$SMOKE/hist"
+LD_TRACE_LOADED_OBJECTS=1 "$SMOKE/shared-consumer" |
+  grep -F "libreadline.so.8 => $LIBDIR/libreadline.so.8"
+
+# Static: the archives plus the terminal library pkg-config names.
+cc -I"$PREFIX/include" "$SMOKE/consumer.c" "$LIBDIR/libreadline.a" \
+  "$LIBDIR/libhistory.a" $(pkgconf --static --libs-only-l tinfo) \
+  -o "$SMOKE/static-consumer"
+if readelf -d "$SMOKE/static-consumer" | grep -F 'libreadline'; then exit 1; fi
+rm -f "$SMOKE/hist"
+"$SMOKE/pty-drive" "$SMOKE/session" -- "$SMOKE/static-consumer" "$SMOKE/hist" \
+  > "$SMOKE/static.out"
+cmp "$SMOKE/hist.expected" "$SMOKE/hist"
+
+# Upstream's own example program, built against the fresh library, with
+# vi-mode editing: ESC, 0 (start of line), i, insert, Enter.
+cat > "$SMOKE/vi-session" <<'EOF'
+expect readline$ 
+send tail\e0ihead-\r
+expect head-tail
+expect readline$ 
+send quit\r
+EOF
+cat > "$SMOKE/inputrc" <<'EOF'
+set editing-mode vi
+EOF
+INPUTRC="$SMOKE/inputrc" "$SMOKE/pty-drive" "$SMOKE/vi-session" -- \
+  "$STAGE/examples/rltest" > "$SMOKE/vi.out"
+
+# Installed layout, sonames and exported API.
+for lib in libreadline libhistory; do
+  test -L "$LIBDIR/$lib.so"
+  test -L "$LIBDIR/$lib.so.8"
+  test -s "$LIBDIR/$lib.a"
+  readelf -d "$LIBDIR/$lib.so.8" | grep -F "Library soname: [$lib.so.8]"
+done
+test -f "$PREFIX/include/readline/readline.h"
+test -f "$PREFIX/include/readline/history.h"
+readelf --dyn-syms -W "$LIBDIR/libreadline.so.8" | grep -E ' readline$'
+readelf --dyn-syms -W "$LIBDIR/libhistory.so.8" | grep -E ' add_history$'
+test -f "$PREFIX/share/man/man3/readline.3.gz"
+test -f "$PREFIX/share/man/man3/history.3.gz"
+test ! -e "$PREFIX/share/info"
+test ! -e "$PREFIX/share/readline"
+
+# Debug split and hardening of every shipped object.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/org.gnu.readline" -type f -name 'readline.c' -print -quit)"
+needed() {
+  readelf -d "$1" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | LC_ALL=C sort | tr '\n' ' '
+}
+test "$(needed "$LIBDIR/libreadline.so.8")" = 'libc.so.6 libtinfo.so.6 '
+test "$(needed "$LIBDIR/libhistory.so.8")" = 'libc.so.6 '
+for elf in "$LIBDIR/libreadline.so.8" "$LIBDIR/libhistory.so.8"; do
+  test "$(stat -c %a "$(readlink -f "$elf")")" = 755
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  # Debian's startup objects carry no CET notes (see debian.env.pekit.toml).
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.ncurses-devel"        = ">= 6.6"
+"org.pkgconf.pkgconf"          = "*"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.diffutils"            = "*"
+"org.gnu.sed"                  = "*"
+
+[test.dependencies.apt]
+build-essential = "*"
+libncurses-dev  = "*"
+ncurses-base    = "*"
+pkgconf         = "*"
+binutils        = "*"
+findutils       = "*"
+grep            = "*"
+diffutils       = "*"
+sed             = "*"

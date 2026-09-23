@@ -1,0 +1,20 @@
+# Headers, linker names, pkg-config modules and the readline(3)/history(3)
+# manuals. Static linkage stays opt-in through the static sibling.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.readline-devel"
+description = "GNU Readline development files"
+
+[dependencies]
+"org.gnu.readline"      = "= {{release}}"
+"org.gnu.ncurses-devel" = ">= 6.6"
+
+[files]
+"@source:COPYING"                           = "usr/share/licenses/org.gnu.readline-devel/"
+":usr/include/readline/**"                  = "usr/include/readline"
+":usr/lib/x86_64-linux-peios/libreadline.so" = "usr/lib/x86_64-linux-peios/libreadline.so"
+":usr/lib/x86_64-linux-peios/libhistory.so"  = "usr/lib/x86_64-linux-peios/libhistory.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/*.pc" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/man3/**"                    = "usr/share/man/man3"

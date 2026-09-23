@@ -1,0 +1,14 @@
+# Static Readline libraries for consumers that deliberately need a
+# self-contained link.
+
+[package]
+name        = "org.gnu.readline-static"
+description = "GNU Readline static libraries"
+
+[dependencies]
+"org.gnu.readline-devel" = "= {{release}}"
+
+[files]
+"@source:COPYING"                           = "usr/share/licenses/org.gnu.readline-static/"
+":usr/lib/x86_64-linux-peios/libreadline.a" = "usr/lib/x86_64-linux-peios/libreadline.a"
+":usr/lib/x86_64-linux-peios/libhistory.a"  = "usr/lib/x86_64-linux-peios/libhistory.a"

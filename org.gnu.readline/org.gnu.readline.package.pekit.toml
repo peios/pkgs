@@ -1,0 +1,18 @@
+# The line-editing and history runtime libraries. libreadline carries its own
+# dependency on ncurses' libtinfo.
+
+[package]
+name        = "org.gnu.readline"
+description = "GNU Readline line-editing and history libraries"
+
+[dependencies]
+"org.gnu.glibc"        = ">= 2.43"
+"org.gnu.ncurses-libs" = ">= 6.6"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/org.gnu.readline/"
+"@source:README"   = "usr/share/doc/org.gnu.readline/"
+"@source:NEWS"     = "usr/share/doc/org.gnu.readline/"
+"@source:USAGE"    = "usr/share/doc/org.gnu.readline/"
+":usr/lib/x86_64-linux-peios/libreadline.so.8*" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libhistory.so.8*"  = "usr/lib/x86_64-linux-peios"

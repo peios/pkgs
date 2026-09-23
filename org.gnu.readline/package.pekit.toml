@@ -1,0 +1,12 @@
+# Metadata shared by the GNU Readline package family. The built libraries,
+# headers and manuals are GPL-3.0-or-later; the release tree's other licences
+# are declared for the corresponding-source package in pekit.toml.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-3.0-or-later"
+license_class = "free"
+homepage      = "https://tiswww.case.edu/php/chet/readline/rltop.html"

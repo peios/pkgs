@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnu.readline-debugsource"
+description = "GNU Readline debug sources"
+
+[dependencies]
+"org.gnu.readline-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING"   = "usr/share/licenses/org.gnu.readline-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"
