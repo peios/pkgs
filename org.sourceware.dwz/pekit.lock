@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "0.17"
+  url = "https://sourceware.org/pub/dwz/releases/dwz-0.17.tar.xz"
+  sha256 = "db10030528f3365c03755969619dd6789147d34fc588db8107364351085aebad"
+  signature_key = "28ff4b30a88d5523a7e2cba20376a15c6ffc11cd"
+  locked_at = "2026-09-23T19:03:00Z"

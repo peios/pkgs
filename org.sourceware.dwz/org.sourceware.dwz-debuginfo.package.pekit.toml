@@ -1,0 +1,10 @@
+[package]
+name        = "org.sourceware.dwz-debuginfo"
+description = "DWZ debugging symbols"
+
+[dependencies]
+"org.sourceware.dwz" = "= {{release}}"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.sourceware.dwz-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

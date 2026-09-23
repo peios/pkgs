@@ -1,0 +1,16 @@
+side_effects = ["man-db"]
+
+[package]
+name        = "org.sourceware.dwz"
+description = "DWARF optimisation and duplicate removal tool"
+
+[dependencies]
+"org.gnu.glibc"                  = ">= 2.43"
+"org.sourceware.elfutils-libelf" = ">= 0.196"
+
+[files]
+"@source:COPYING"                = "usr/share/licenses/org.sourceware.dwz/COPYING"
+"@source:COPYING3"               = "usr/share/licenses/org.sourceware.dwz/COPYING3"
+"@source:COPYING.RUNTIME"        = "usr/share/licenses/org.sourceware.dwz/COPYING.RUNTIME"
+":usr/bin/dwz"                   = "usr/bin/dwz"
+":usr/share/man/man1/dwz.1.gz"   = "usr/share/man/man1/dwz.1.gz"

@@ -1,0 +1,13 @@
+# Metadata shared by the DWZ package family and its corresponding-source
+# package. dwz.c and most units are GPLv2+; sha1.h is GPLv3+ and the DWARF
+# tables (dwarf2.h, dwarf2.def) are GPLv3+ with the GCC Runtime Library
+# Exception. The test inputs taken from GDB's suite are GPLv3+.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+license       = "GPL-2.0-or-later AND GPL-3.0-or-later AND (GPL-3.0-or-later WITH GCC-exception-3.1)"
+license_class = "free"
+homepage      = "https://sourceware.org/dwz/"
