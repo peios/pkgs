@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 # peios-install — install the running live system onto a disk.
 #
 # Two forms. Given two partitions it writes a bootable Peios onto them; given a

@@ -49,18 +49,19 @@ CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/org.gnu.gawk -f
 
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# Drop the gawkbug reporter and its manual (as bash drops bashbug): it mails
+# reports through sendmail, which Peios doesn't ship.
+rm -f "$PEKIT_OUT/usr/bin/gawkbug" "$PEKIT_OUT/usr/share/man/man1/gawkbug.1"
 find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
   -exec gzip -n -9 -- {} +
 ln -sf gawk.1.gz "$PEKIT_OUT/usr/share/man/man1/awk.1.gz"
 ln -sf gawk.1.gz \
   "$PEKIT_OUT/usr/share/man/man1/gawk-$PEKIT_VERSION.1.gz"
 
-# Peios has no Info reader. Avoid libtool archives, and normalize the bug
-# reporter's shell path for the /usr-native filesystem contract.
+# Peios has no Info reader. Avoid libtool archives.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc" \
        "$PEKIT_OUT/usr/etc"
 find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" -name '*.la' -delete
-sed -i '1s|^#!/bin/sh|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/gawkbug"
 
 # Produce conventional build-ID debuginfo and exact DWARF-referenced source
 # for the interpreter, its helpers and every installed extension module.
@@ -116,6 +117,8 @@ LIBDIR="$STAGE/usr/lib/x86_64-linux-peios/gawk"
 SMOKE="$PEKIT_OUT/gawk-smoke"
 mkdir -p "$SMOKE"
 test -x "$GAWK"
+test ! -e "$STAGE/usr/bin/gawkbug"
+test ! -e "$STAGE/usr/share/man/man1/gawkbug.1.gz"
 test "$(readlink "$STAGE/usr/bin/awk")" = gawk
 test "$STAGE/usr/bin/gawk-$PEKIT_VERSION" -ef "$GAWK"
 test -f "$STAGE/usr/include/gawkapi.h"

@@ -62,9 +62,9 @@ make
 make install-all DESTDIR="$PEKIT_OUT"
 
 # Installed utility scripts are directly executable resources. Bind them to
-# the packaged interpreter rather than relying on /usr/bin/env and PATH.
+# the interpreter through the runtime view rather than /usr/bin/env and PATH.
 for script in "$PREFIX/share/slsh/scripts"/*; do
-  sed -i '1s|^#! */usr/bin/env slsh$|#!/usr/bin/slsh|' "$script"
+  sed -i '1s|^#! */usr/bin/env slsh$|#!/bin/slsh|' "$script"
 done
 
 # Retain upstream's ABI-major documentation path because SLang_Doc_Dir is
@@ -131,7 +131,7 @@ printf '%s\n' \
   zlib-module.so | LC_ALL=C sort > "$PEKIT_OUT/expected-modules"
 diff -u "$PEKIT_OUT/expected-modules" "$PEKIT_OUT/installed-modules"
 for script in "$PREFIX/share/slsh/scripts"/*; do
-  test "$(head -n 1 "$script")" = '#!/usr/bin/slsh'
+  test "$(head -n 1 "$script")" = '#!/bin/slsh'
 done
 
 test -f "$SLANG_SO"

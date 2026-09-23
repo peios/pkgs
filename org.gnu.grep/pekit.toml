@@ -53,14 +53,14 @@ ln -sf grep.1.gz "$PEKIT_OUT/usr/share/man/man1/egrep.1.gz"
 ln -sf grep.1.gz "$PEKIT_OUT/usr/share/man/man1/fgrep.1.gz"
 
 # Peios currently has no Info reader. The corresponding-source package keeps
-# the complete Texinfo manual. Normalize compatibility wrappers to usr-merge.
+# the complete Texinfo manual.
 rm -rf "$PEKIT_OUT/usr/share/info"
 for wrapper in "$PEKIT_OUT/usr/bin/egrep" "$PEKIT_OUT/usr/bin/fgrep"; do
   test -f "$wrapper"
-  # Upstream currently emits a Bash shebang even though these wrappers only
-  # use POSIX shell syntax.  Normalize it unconditionally to Peios' packaged
-  # /usr/bin/sh provider rather than retaining a needless Bash dependency.
-  sed -i '1c#!/usr/bin/sh' "$wrapper"
+  # Upstream emits configure's $SHELL (Bash here) even though these wrappers
+  # only use POSIX shell syntax.  Normalize it unconditionally to the
+  # runtime-view /bin/sh rather than retaining a needless Bash dependency.
+  sed -i '1c#!/bin/sh' "$wrapper"
 done
 
 # Produce build-ID debuginfo and exact DWARF-referenced source.
@@ -109,7 +109,7 @@ export PATH
 mkdir -p "$SMOKE/tree/keep" "$SMOKE/tree/skip"
 test -x "$GREP"
 for wrapper in "$BIN/egrep" "$BIN/fgrep"; do
-  test "$(sed -n '1p' "$wrapper")" = '#!/usr/bin/sh'
+  test "$(sed -n '1p' "$wrapper")" = '#!/bin/sh'
 done
 
 printf '%s\n' alpha beta-42 'gamma[1]' > "$SMOKE/input"

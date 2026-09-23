@@ -39,7 +39,8 @@ BIN="$PEKIT_OUT/usr/bin/openssl"
 
 mkdir -p "$BUILD"
 cd "$BUILD"
-export HASHBANGPERL=/usr/bin/perl
+# CA.pl and tsget.pl name Perl through the runtime view.
+export HASHBANGPERL=/bin/perl
 CFLAGS="${CFLAGS:?} -Wa,--noexecstack" \
 LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
 perl "$SRC/Configure" linux-x86_64 \
@@ -131,7 +132,7 @@ printf '%s\n' CA.pl openssl tsget.pl | LC_ALL=C sort \
 diff -u "$PEKIT_OUT/expected-tools" "$PEKIT_OUT/installed-tools"
 test "$(readlink "$STAGE/usr/bin/tsget")" = tsget.pl
 for script in CA.pl tsget.pl; do
-  test "$(sed -n '1p' "$STAGE/usr/bin/$script")" = '#!/usr/bin/perl'
+  test "$(sed -n '1p' "$STAGE/usr/bin/$script")" = '#!/bin/perl'
 done
 test -f "$STAGE/usr/etc/ssl/openssl.cnf"
 test -f "$STAGE/usr/etc/ssl/ct_log_list.cnf"

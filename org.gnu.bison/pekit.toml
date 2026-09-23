@@ -51,11 +51,6 @@ make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 
-# Peios is /usr-native and deliberately has no legacy /bin alias. Upstream's
-# generated yacc frontend retains a /bin/sh shebang, so normalize it to the
-# shell path supplied by the declared dash runtime dependency.
-sed -i '1s|^#! /bin/sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/yacc"
-
 # Peios does not yet ship an Info reader. Keep the command manuals and Autoconf
 # macros, which are live developer interfaces, while dropping orphaned docs.
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
@@ -103,7 +98,8 @@ printf '%s\n' \
 "$BISON" --warnings=error -d -o "$SMOKE/parser.c" "$SMOKE/parser.y"
 cc -o "$SMOKE/parser" "$SMOKE/parser.c"
 "$SMOKE/parser"
-head -1 "$STAGE/usr/bin/yacc" | grep -Fx '#!/usr/bin/sh'
+# Upstream's yacc frontend names the shell through the runtime view.
+head -1 "$STAGE/usr/bin/yacc" | grep -Ex '#! ?/bin/sh'
 grep -F 'exec "$bindir/bison" -y' "$STAGE/usr/bin/yacc"
 "$BISON" -y -d -o "$SMOKE/yacc-parser.c" "$SMOKE/parser.y"
 cc -o "$SMOKE/yacc-parser" "$SMOKE/yacc-parser.c"

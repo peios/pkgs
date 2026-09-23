@@ -57,10 +57,9 @@ install -Dm644 "$PRIV"/meson-*.data/data/share/man/man1/meson.1 \
   "$PEKIT_OUT/usr/share/man/man1/meson.1"
 rm -rf "$PRIV"/meson-*.data
 
-# Canonicalise the public launcher to the usr-merge interpreter and remove
-# inert shebangs from private Python modules that Meson imports rather than
-# executes. Compress the installed manual reproducibly.
-sed -i '1s|^#!/bin/python3$|#!/usr/bin/python3|' "$BIN"
+# The public launcher keeps the installer's runtime-view #!/bin/python3.
+# Remove inert shebangs from private Python modules that Meson imports rather
+# than executes. Compress the installed manual reproducibly.
 for module in \
   "$PRIV/mesonbuild/scripts/cmake_run_ctgt.py" \
   "$PRIV/mesonbuild/scripts/python_info.py"; do
@@ -98,7 +97,7 @@ test -x "$BIN"
 gzip -t "$STAGE/usr/share/man/man1/meson.1.gz"
 test "$(find "$PRIV/mesonbuild" -type f -name '*.py' | wc -l)" -gt 100
 test "$(find "$PRIV/mesonbuild" -type f -name '*.pyc' | wc -l)" -gt 100
-test "$(head -n 1 "$BIN")" = '#!/usr/bin/python3'
+test "$(head -n 1 "$BIN")" = '#!/bin/python3'
 grep -F "sys.path.insert(0, '/lib/x86_64-linux-peios/meson')" "$BIN"
 test -z "$(find "$STAGE" -path '*/share/polkit-1/*' -type f -print -quit)"
 

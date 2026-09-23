@@ -78,10 +78,11 @@ find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r pag
   rm "$page"
 done
 
-# Installed scripts target Peios' canonical shell path. Their compatibility
-# aliases are symlinks to these two audited implementations.
+# Installed scripts name the shell through the runtime view, whatever shell
+# configure detected. Their compatibility aliases are symlinks to these two
+# audited implementations.
 for script in xzdiff xzgrep; do
-  sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
+  sed -i '1s|^#!.*sh$|#!/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
 done
 
 # libtool links the programs against the just-built liblzma with
@@ -106,7 +107,7 @@ SMOKE="$PEKIT_OUT/smoke"
 mkdir -p "$SMOKE"
 export PATH="$BIN:$PATH"
 for script in xzdiff xzgrep; do
-  test "$(sed -n '1p' "$BIN/$script")" = '#!/usr/bin/sh'
+  test "$(sed -n '1p' "$BIN/$script")" = '#!/bin/sh'
 done
 
 make -C "$STAGE" -j"$(nproc)" check

@@ -42,10 +42,6 @@ make install \
 
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
 
-# Peios places the POSIX shell at /usr/bin/sh.
-sed -i '1s|^#!/bin/sh -$|#!/usr/bin/sh -|' \
-  "$BIN/figlist" "$BIN/showfigfonts"
-
 # Conventional build-ID debuginfo plus the exact source files referenced by
 # DWARF, with the private build copy rewritten to the canonical namespace.
 sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --build-root "$BUILD" \

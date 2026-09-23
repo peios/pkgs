@@ -36,6 +36,12 @@ cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# configure writes the Perl it found under /usr/bin into each Perl program;
+# name Perl through the runtime view instead.
+for script in autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames; do
+  sed -i '1s|^#! */usr/bin/perl$|#!/bin/perl|' "$PEKIT_OUT/usr/bin/$script"
+  test "$(head -n 1 "$PEKIT_OUT/usr/bin/$script")" = '#!/bin/perl'
+done
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} \\;
 # Peios does not currently ship an Info reader; the manual remains available
 # online and in the corresponding-source package.
@@ -57,6 +63,9 @@ set -eu
 # The staged tools need their staged Perl and M4 data, before installation.
 export autom4te_perllibdir="$PEKIT_MAIN_OUT/usr/share/autoconf"
 case "$("$PEKIT_MAIN_OUT/usr/bin/autoconf" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
+for script in autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames; do
+  test "$(head -n 1 "$PEKIT_MAIN_OUT/usr/bin/$script")" = '#!/bin/perl'
+done
 
 unset autom4te_perllibdir
 # Run the upstream release suite from the explicit package gate.

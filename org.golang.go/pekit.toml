@@ -107,6 +107,17 @@ rm -f "$SOURCE_TREE/all.rc" "$SOURCE_TREE/clean.rc" \
   "$SOURCE_TREE/make.rc" "$SOURCE_TREE/run.rc" \
   "$SOURCE_TREE/cmd/vendor/golang.org/x/telemetry/npm" \
   "$SOURCE_TREE/cmd/vendor/golang.org/x/telemetry/npx"
+# Upstream's scripts name /usr/bin/env bash, /usr/bin/perl and the like. Name
+# the interpreter through the runtime view instead, keeping any arguments;
+# the gate rejects any /usr/bin interpreter left behind. (grep -l exits 1 for
+# a batch with no match; that is not an error under pipefail.)
+{ find "$SOURCE_TREE" "$GOROOT/lib" -type f -exec grep -lE \
+  '^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)' {} + || :; } |
+while IFS= read -r script; do
+  sed -i -E \
+    '1s@^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)@#!/bin/\2\3@' \
+    "$script"
+done
 
 # Upstream deliberately builds release toolchains with -ldflags=-w and
 # -gcflags=cmd/...=-dwarf=false. Preserve that release policy rather than
@@ -213,6 +224,12 @@ GOROOT="$PACKAGED_GOROOT"
 PATH="$GOROOT/bin:$PATH"
 export GOROOT PATH
 test "$(go env GOROOT)" = "$PACKAGED_GOROOT"
+# No shipped script names its interpreter under /usr/bin.
+if find "$PEKIT_MAIN_OUT/usr/share/go/src" "$PACKAGED_GOROOT/lib" -type f \
+    -exec sh -c 'for f do head -n 1 "$f" | grep -qE "^#! */usr/bin/" && echo "$f"; done; :' sh {} + |
+    grep .; then
+  exit 1
+fi
 
 CGO_SMOKE="$PEKIT_OUT/cgo-smoke"
 mkdir -p "$CGO_SMOKE"

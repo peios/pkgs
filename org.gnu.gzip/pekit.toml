@@ -30,7 +30,9 @@ ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gzip"
 cd "$PEKIT_OUT"
 
-CONFIG_SHELL=/usr/bin/sh SHELL=/usr/bin/sh "$SRC/configure" \
+# The Makefile substitutes $(SHELL) for every /bin/sh in the installed scripts
+# (including gzexe's generated header), so pin the runtime-view shell.
+CONFIG_SHELL=/bin/sh SHELL=/bin/sh "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \
   --mandir=/usr/share/man
@@ -56,12 +58,6 @@ MAN1="$PEKIT_OUT/usr/share/man/man1"
 ln -s gzip.1.gz "$MAN1/uncompress.1.gz"
 ln -s zgrep.1.gz "$MAN1/zegrep.1.gz"
 ln -s zgrep.1.gz "$MAN1/zfgrep.1.gz"
-
-# Every installed script targets Peios' canonical shell path. Keep this list
-# explicit so a newly added upstream command cannot silently escape review.
-for script in gunzip gzexe zcat zcmp zdiff zegrep zfgrep zforce zgrep znew uncompress; do
-  sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
-done
 
 # Emit build-ID debuginfo plus the exact source files referenced by the
 # binary's DWARF.
@@ -93,13 +89,15 @@ cd "$STAGE"
 # script itself must still pass upstream's test.  Supply a test-only pager
 # with the standard non-interactive `more FILE...` contract.
 mkdir -p "$SMOKE/test-bin"
-printf '%s\n' '#!/usr/bin/sh' 'exec cat "$@"' > "$SMOKE/test-bin/more"
+printf '%s\n' '#!/bin/sh' 'exec cat "$@"' > "$SMOKE/test-bin/more"
 chmod 0755 "$SMOKE/test-bin/more"
 export PATH="$SMOKE/test-bin:$BIN:$PATH"
 
 make -j"$(nproc)" check
+# Every installed script names the runtime-view shell. Keep this list
+# explicit so a newly added upstream command cannot silently escape review.
 for script in gunzip gzexe zcat zcmp zdiff zegrep zfgrep zforce zgrep znew uncompress; do
-  test "$(sed -n '1p' "$BIN/$script")" = '#!/usr/bin/sh'
+  test "$(sed -n '1p' "$BIN/$script")" = '#!/bin/sh'
 done
 
 mkdir -p "$SMOKE"
@@ -148,10 +146,10 @@ cp "$SMOKE/plain.gz" "$SMOKE/legacy.Z"
 "$BIN/znew" -t "$SMOKE/legacy.Z"
 test -f "$SMOKE/legacy.gz"
 "$BIN/gzip" -t "$SMOKE/legacy.gz"
-printf '%s\n' '#!/usr/bin/sh' 'printf "%s\n" gzexe-ok' > "$SMOKE/program"
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" gzexe-ok' > "$SMOKE/program"
 chmod 0755 "$SMOKE/program"
 "$BIN/gzexe" "$SMOKE/program"
-test "$(head -n 1 "$SMOKE/program")" = '#!/usr/bin/sh'
+test "$(head -n 1 "$SMOKE/program")" = '#!/bin/sh'
 test "$("$SMOKE/program")" = gzexe-ok
 
 for command in gzip gunzip zcat uncompress gzexe zcmp zdiff zegrep zfgrep zforce zgrep znew; do

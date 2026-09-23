@@ -12,9 +12,10 @@ if script.is_symlink() or not script.is_file():
     raise SystemExit(f"rust-src: expected regular Unicode generator: {script}")
 original = script.read_bytes()
 first, separator, body = original.partition(b"\n")
-if first not in (b"#!/usr/bin/env python", b"#!/usr/bin/python3") or not separator:
+if first not in (b"#!/usr/bin/env python", b"#!/usr/bin/python3", b"#!/bin/python3") or not separator:
     raise SystemExit(f"rust-src: unexpected Unicode generator interpreter: {first!r}")
-normalized = b"#!/usr/bin/python3\n" + body
+# Name the interpreter through the runtime view, as every installed script does.
+normalized = b"#!/bin/python3\n" + body
 if normalized != original:
     # Rust's installer may use hard links. Replace this installed entry atomically,
     # so normalizing its interpreter cannot mutate the original source capture.

@@ -40,6 +40,16 @@ cd "$PEKIT_OUT"
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --mandir=/usr/share/man
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# configure writes the Perl it found under /usr/bin into each Perl program;
+# name Perl through the runtime view instead. The unversioned command is a
+# hard link to the versioned one, so rewrite that and link again.
+for tool in aclocal automake; do
+  set -- "$PEKIT_OUT/usr/bin/$tool"-[0-9]*
+  test "$#" -eq 1
+  sed -i '1s|^#!/usr/bin/perl$|#!/bin/perl|' "$1"
+  ln -f "$1" "$PEKIT_OUT/usr/bin/$tool"
+  test "$(head -n 1 "$PEKIT_OUT/usr/bin/$tool")" = '#!/bin/perl'
+done
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
 # Peios does not currently ship an Info reader; the manual and other upstream
 # documentation remain available in the corresponding-source package.
@@ -69,6 +79,10 @@ case "$("$PEKIT_MAIN_OUT/usr/bin/automake" --version)" in *"$PEKIT_VERSION"*) ;;
 test -x "$PEKIT_MAIN_OUT/usr/bin/aclocal"
 case "$("$PEKIT_MAIN_OUT/usr/bin/aclocal" --version)" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 unset PERL5LIB AUTOMAKE_UNINSTALLED
+for tool in aclocal automake; do
+  test "$(head -n 1 "$PEKIT_MAIN_OUT/usr/bin/$tool")" = '#!/bin/perl'
+  test "$PEKIT_MAIN_OUT/usr/bin/$tool" -ef "$PEKIT_MAIN_OUT/usr/bin/$tool-"[0-9]*
+done
 
 # The core suite exercises generated C and C++ projects. Optional integrations
 # for tools such as Libtool, Gettext, DejaGnu and Vala skip cleanly when those

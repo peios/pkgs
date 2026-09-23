@@ -177,6 +177,17 @@ DESTDIR="$PEKIT_OUT" python3 x.py install \
 # This installed Unicode generator uses Python 3-only language features.
 python3 "$PEKIT_RECIPE_ROOT/normalize-rust-src.py" \
   "$PEKIT_OUT$TRIPLET_DIR/rustlib/src/rust"
+# The rest of rust-src's scripts name /usr/bin/env sh, bash, python3 and the
+# like. Name the interpreter through the runtime view instead, keeping any
+# arguments. (grep -l exits 1 for a batch with no match; not an error under
+# pipefail.)
+{ find "$PEKIT_OUT$TRIPLET_DIR/rustlib/src" -type f -exec grep -lE \
+  '^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)' {} + || :; } |
+while IFS= read -r script; do
+  sed -i -E \
+    '1s@^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)@#!/bin/\2\3@' \
+    "$script"
+done
 
 # All post-install tooling must use this newly built suite, including licence
 # inventories; do not accidentally run another compiler from the build root.

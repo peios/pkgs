@@ -105,7 +105,6 @@ if ! sed -n 1p "$PREFIX/share/man/man1/zstd.1" | grep -Fq "zstd $PEKIT_VERSION";
   echo "com.facebook.zstd: zstd.1 header does not name $PEKIT_VERSION" >&2
   exit 1
 fi
-sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PREFIX/bin/zstdgrep"
 
 # Ship each command's manual with its owning binary package. Upstream does not
 # provide a pzstd manual or a zstdmt alias, so supply those here and normalize
@@ -166,7 +165,7 @@ mkdir -p "$SMOKE"
 test "$(ctest --test-dir "$BUILD" -N | sed -n 's/^Total Tests: //p')" -eq 4
 ctest --test-dir "$BUILD" --parallel 2 --output-on-failure
 
-test "$(sed -n '1p' "$BIN/zstdgrep")" = '#!/usr/bin/sh'
+test "$(sed -n '1p' "$BIN/zstdgrep")" = '#!/bin/sh'
 test "$(readlink "$LIBDIR/libzstd.so")" = libzstd.so.1
 test "$(readlink "$LIBDIR/libzstd.so.1")" = "libzstd.so.$PEKIT_VERSION"
 test -f "$LIBDIR/libzstd.so.$PEKIT_VERSION"

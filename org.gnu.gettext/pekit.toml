@@ -92,15 +92,6 @@ find "$PEKIT_OUT/usr/lib/x86_64-linux-peios" \
 rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libgettextlib.so" \
       "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libgettextsrc.so"
 
-# Normalize upstream's installed shell entry points to Peios's usr-merge view.
-# Keep this list explicit so binary tools are never rewritten as text.
-for script in \
-  "$PEKIT_OUT/usr/bin/autopoint" \
-  "$PEKIT_OUT/usr/bin/gettextize" \
-  "$PEKIT_OUT/usr/libexec/gettext/user-email"; do
-  [ ! -f "$script" ] || sed -i '1s|^#! */bin/sh|#!/usr/bin/sh|' "$script"
-done
-
 # Despite --disable-rpath, libtool links the tools and libraries that use
 # gettext's private libgettextlib/libgettextsrc with
 # RUNPATH=/usr/lib/x86_64-linux-peios: the build root has no ld.so.conf naming

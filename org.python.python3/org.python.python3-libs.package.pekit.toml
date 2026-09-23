@@ -5,9 +5,9 @@ description = "Python 3 standard library and shared runtime"
 [provides]
 "python(abi)" = "3.14"
 
+# No trust-store dependency: trust is a machine property provided by trustd.
 [dependencies]
 "org.gnu.glibc"                = ">= 2.43"
-"org.mozilla.ca-certificates"      = "*"
 "org.debian.netbase" = "*"
 
 [files]

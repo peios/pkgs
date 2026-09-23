@@ -2,6 +2,7 @@
 # /// hook
 # contributes = ["initramfs-ready"]
 # ///
+# /usr/bin/sh, not /bin/sh: this hook creates the /bin view, so none exists yet.
 #
 # Assemble the base StrataFS views inside the INITRAMFS root — /bin, /sbin,
 # /lib and the rest — so that everything after this point can use ordinary

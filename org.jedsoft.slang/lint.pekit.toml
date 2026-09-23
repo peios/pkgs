@@ -2,3 +2,9 @@
 # Runtime splits share the family symbol archive.
 [elf]
 debuginfo = "org.jedsoft.slang-debuginfo"
+
+# The slsh utility scripts name this recipe's own interpreter through the
+# runtime view. Lint recognises shipped interpreters only by their /usr/bin
+# path, so /bin/slsh needs naming here; the gate asserts the exact line.
+[allow_files."payload.scripts"]
+"usr/share/slsh/scripts/*" = "Runs under #!/bin/slsh, the runtime-view path of the slsh this recipe ships at /usr/bin/slsh; the gate requires that exact line"

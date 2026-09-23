@@ -119,6 +119,11 @@ cd "$PEKIT_OUT"
   --with-system-zlib --without-debuginfod --disable-nls --disable-werror
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# gprofng-display-html is a Perl program upstream starts with /usr/bin/env;
+# name Perl through the runtime view instead.
+sed -i '1s|^#! */usr/bin/env perl$|#!/bin/perl|' \
+  "$PEKIT_OUT/usr/bin/gprofng-display-html"
+test "$(head -n 1 "$PEKIT_OUT/usr/bin/gprofng-display-html")" = '#!/bin/perl'
 # The top-level install omits gprofng's doc subdirectory. Its signed release
 # already contains the generated manuals; stage those exact upstream pages.
 install -m 0644 "$SRC"/gprofng/doc/*.1 "$PEKIT_OUT/usr/share/man/man1/"
@@ -217,6 +222,7 @@ SEARCH_DIRS=$("$BIN/ld" --verbose | sed -n '/^SEARCH_DIR/p' | head -1)
   printf 'unexpected native ld search path: %s\n' "$SEARCH_DIRS" >&2
   exit 1
 }
+test "$(head -n 1 "$BIN/gprofng-display-html")" = '#!/bin/perl'
 for name in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-text; do
   [ -L "$BIN/$name" ] || {
     echo "missing gprofng compatibility symlink: $name" >&2

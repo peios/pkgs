@@ -48,7 +48,7 @@ test -s "$SRC/README"
 # farm's hardening policy is not imposed on every future consumer. A second,
 # isolated build below applies the inherited flags to the shipped C library.
 cd "$TOOLS_BUILD"
-env CONFIG_SHELL=/usr/bin/sh SHELL=/usr/bin/sh CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" CPPFLAGS="" LDFLAGS="" \
+env CONFIG_SHELL=/bin/sh SHELL=/bin/sh CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" CPPFLAGS="" LDFLAGS="" \
   "$SRC/configure" \
     --prefix=/usr \
     --bindir=/usr/bin \
@@ -84,16 +84,19 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 LTDL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libltdl.so.7.*' | LC_ALL=C sort)
 test "$(printf '%s\n' "$LTDL_SO" | grep -c .)" -eq 1
 
-# Peios's canonical shell entry point is /usr/bin/sh. Keep the command list
-# explicit so newly installed programs cannot escape packaging review.
+# Installed scripts name the shell through the runtime view. Keep the command
+# list explicit so newly installed programs cannot escape packaging review.
 for script in libtool libtoolize libtool-next-version; do
   test -f "$BIN/$script"
-  sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$BIN/$script"
+  sed -i '1s|^#!.*sh$|#!/bin/sh|' "$BIN/$script"
 done
 
 # The copied build helper has a shell entry point and is directly runnable by
-# generated projects. Preserve that contract, and compress manuals without
-# timestamps so identical inputs produce identical package bytes.
+# generated projects. Preserve that contract, naming the shell through the
+# runtime view rather than upstream's /usr/bin/env, and compress manuals
+# without timestamps so identical inputs produce identical package bytes.
+sed -i '1s|^#! */usr/bin/env sh$|#!/bin/sh|' \
+  "$PEKIT_OUT/usr/share/libtool/build-aux/ltmain.sh"
 chmod 0755 "$PEKIT_OUT/usr/share/libtool/build-aux/ltmain.sh"
 find "$PEKIT_OUT/usr/share/man/man1" -type f -name '*.1' -exec gzip -9n {} +
 
@@ -125,9 +128,10 @@ make -C "$LTDL_BUILD" -j"$(nproc)" check
 
 # Gate the complete, deliberate install surface before package selection.
 for script in libtool libtoolize libtool-next-version; do
-  test "$(sed -n '1p' "$BIN/$script")" = '#!/usr/bin/sh'
+  test "$(sed -n '1p' "$BIN/$script")" = '#!/bin/sh'
   "$BIN/$script" --version | grep -F "$PEKIT_VERSION"
 done
+test "$(sed -n '1p' "$STAGE/usr/share/libtool/build-aux/ltmain.sh")" = '#!/bin/sh'
 test "$(find "$BIN" -maxdepth 1 -type f | wc -l)" -eq 3
 test -s "$STAGE/usr/share/aclocal/libtool.m4"
 test -s "$STAGE/usr/share/aclocal/ltdl.m4"

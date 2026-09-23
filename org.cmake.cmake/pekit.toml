@@ -51,6 +51,13 @@ make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 rm -rf "$PEKIT_OUT/usr/doc" "$PEKIT_OUT/usr/share/doc"
 
+# The XL Fortran preprocessor wrapper starts with /usr/bin/env bash; name
+# Bash through the runtime view instead.
+set -- "$PEKIT_OUT"/usr/share/cmake-*/Modules/Compiler/XL-Fortran/cpp
+test "$#" -eq 1 && test -f "$1"
+sed -i '1s|^#!/usr/bin/env bash$|#!/bin/bash|' "$1"
+test "$(head -n 1 "$1")" = '#!/bin/bash'
+
 # The complete upstream reference is installed in share/cmake-*/Help and
 # accessible with --help-manual. Also provide ordinary man(1) CLI references
 # from the exact staged tools, without a bootstrap dependency on Sphinx.
@@ -107,6 +114,7 @@ cd "$BUILD"
 
 # Exercise and audit the exact installed toolchain after staging.
 PEKIT_OUT="$PEKIT_MAIN_OUT"
+test "$(head -n 1 "$PEKIT_OUT"/usr/share/cmake-*/Modules/Compiler/XL-Fortran/cpp)" = '#!/bin/bash'
 BUILD="$PEKIT_OUT/build"
 # Exercise the installed cmake/ctest/cpack triplet against a real C project.
 SMOKE="$PEKIT_OUT/.cmake-smoke"

@@ -3,6 +3,7 @@
 # contributes = ["rootfs-strata-ready"]
 # after = ["rootfs-ready"]
 # ///
+# /usr/bin/sh, not /bin/sh: a base-view hook, it names package storage only.
 #
 # Establish the base StrataFS views inside the MOUNTED ROOT, after a hook has
 # mounted it and before prelude pivots into it. The mirror of this package's

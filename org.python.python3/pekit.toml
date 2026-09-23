@@ -183,9 +183,14 @@ find "$MAN" -type l | while IFS= read -r page; do
   ln -s "$target.gz" "$page.gz"
 done
 
-# The optional executable codec entry point must use our concrete interpreter,
-# not an unqualified PATH-dependent python command absent from the package.
-sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/python3|' "$STDLIB/encodings/rot_13.py"
+# Installed scripts name the interpreter through the runtime view: the
+# optional executable codec entry point, not an unqualified PATH-dependent
+# python command absent from the package, and pydoc, not the /usr/bin path
+# CPython's Makefile writes.
+sed -i '1s|^#!/usr/bin/env python$|#!/bin/python3|' "$STDLIB/encodings/rot_13.py"
+sed -i '1s|^#!/usr/bin/python3\\.[0-9]*$|#!/bin/python3|' "$PEKIT_OUT/usr/bin/pydoc$PYVER"
+test "$(head -n 1 "$STDLIB/encodings/rot_13.py")" = '#!/bin/python3'
+test "$(head -n 1 "$PEKIT_OUT/usr/bin/pydoc$PYVER")" = '#!/bin/python3'
 
 # CPython installs its build/source directory into sysconfig and the developer
 # Makefile. Those paths make extension builds host-specific and disclose the

@@ -66,11 +66,11 @@ DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
 # Manuals, compressed reproducibly.
 find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
 
-# The Python tools name the usr-merge interpreter directly, as the rest of
-# the catalogue's Python programs do, rather than going through env.
+# Upstream's Python tools go through /usr/bin/env; name the interpreter
+# through the runtime view instead, as every installed script does.
 for tool in gdbus-codegen glib-genmarshal glib-mkenums gtester-report; do
-  sed -i '1s|^#!/usr/bin/env python3$|#!/usr/bin/python3|' "$PREFIX/bin/$tool"
-  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/usr/bin/python3'
+  sed -i '1s|^#!/usr/bin/env python3$|#!/bin/python3|' "$PREFIX/bin/$tool"
+  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/bin/python3'
 done
 
 # Build-ID debug data for every ELF program and shared object and the exact
@@ -163,7 +163,7 @@ answer=$(GSETTINGS_BACKEND=memory "$PREFIX/bin/gsettings" \
   { ls -la "$SMOKE/schemas" >&2; exit 1; }
 test "$answer" = 42
 for tool in glib-mkenums glib-genmarshal gdbus-codegen gtester-report; do
-  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/usr/bin/python3'
+  test "$(head -n 1 "$PREFIX/bin/$tool")" = '#!/bin/python3'
 done
 "$PREFIX/bin/glib-mkenums" --version | grep -F "$PEKIT_VERSION"
 

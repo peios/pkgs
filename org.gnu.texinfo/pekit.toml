@@ -61,6 +61,14 @@ make -C util install-data DESTDIR="$PEKIT_OUT"
 make -C po install-data DESTDIR="$PEKIT_OUT"
 make -C po_document install-data DESTDIR="$PEKIT_OUT"
 
+# configure writes the Perl it found under /usr/bin into each script; name
+# Perl through the runtime view instead.
+for script in "$PEKIT_OUT/usr/bin/texi2any" "$PEKIT_OUT/usr/bin/pod2texi" \
+  "$PEKIT_OUT/usr/share/texi2any/load_txi_modules"; do
+  sed -i '1s|^#! */usr/bin/perl$|#!/bin/perl|' "$script"
+  test "$(head -n 1 "$script")" = '#!/bin/perl'
+done
+
 install -d "$PEKIT_OUT/usr/share/man/man1" \
   "$PEKIT_OUT/usr/share/man/man5"
 install -m 0644 "$SRC/man/makeinfo.1" \
@@ -175,6 +183,10 @@ test -n "$(find "$STAGE/usr/share/locale" -type f \
   -name 'texinfo_document.mo' -print -quit)"
 find "$STAGE/usr/bin" -type f | while IFS= read -r script; do
   perl -c "$script"
+done
+for script in "$BIN/texi2any" "$BIN/pod2texi" \
+  "$STAGE/usr/share/texi2any/load_txi_modules"; do
+  test "$(head -n 1 "$script")" = '#!/bin/perl'
 done
 
 # libintl-perl's modules are imported, never command entry points. Preserve

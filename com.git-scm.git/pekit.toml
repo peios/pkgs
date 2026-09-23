@@ -81,6 +81,11 @@ EOF
 
 make -j"$(nproc)" all
 make install DESTDIR="$PEKIT_OUT"
+# The watchman hook sample hardcodes /usr/bin/perl; name Perl through the
+# runtime view like every other installed script.
+WATCHMAN="$PREFIX/share/git-core/templates/hooks/fsmonitor-watchman.sample"
+sed -i '1s|^#!/usr/bin/perl$|#!/bin/perl|' "$WATCHMAN"
+test "$(head -n 1 "$WATCHMAN")" = '#!/bin/perl'
 
 # Manual pages. asciidoc renders DocBook; the DocBook XSL manpage transform
 # is applied with xsltproc through the narrow `xmlto -m ... man FILE`
@@ -197,6 +202,7 @@ done
 test -n "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
 test -n "$(find "$PREFIX/src/debug/com.git-scm.git" -type f -print -quit)"
 test -f "$PREFIX/share/man/man1/git.1.gz"
+test "$(head -n 1 "$PREFIX/share/git-core/templates/hooks/fsmonitor-watchman.sample")" = '#!/bin/perl'
 ROOT=$(dirname "$(dirname "$STAGE")")
 if strings "$GIT" | grep -F "$ROOT"; then exit 1; fi
 '''

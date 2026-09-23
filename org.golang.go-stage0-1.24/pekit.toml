@@ -58,6 +58,17 @@ rm -f "$PREFIX/src/all.rc" "$PREFIX/src/clean.rc" "$PREFIX/src/make.rc" "$PREFIX
 # workflow only (the source-built org.golang.go drops them too).
 rm -f "$PREFIX/src/cmd/vendor/golang.org/x/telemetry/npm" \
   "$PREFIX/src/cmd/vendor/golang.org/x/telemetry/npx"
+# Upstream's scripts name /usr/bin/env bash, /usr/bin/perl and the like. Name
+# the interpreter through the runtime view instead, keeping any arguments;
+# the gate rejects any /usr/bin interpreter left behind. (grep -l exits 1 for
+# a batch with no match; that is not an error under pipefail.)
+{ find "$PREFIX/src" "$PREFIX/lib" -type f -exec grep -lE \
+  '^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)' {} + || :; } |
+while IFS= read -r script; do
+  sed -i -E \
+    '1s@^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)@#!/bin/\2\3@' \
+    "$script"
+done
 
 
 '''
@@ -68,6 +79,8 @@ rm -f "$PREFIX/src/cmd/vendor/golang.org/x/telemetry/npm" \
 "dev.peios.peiosutils"   = "*"
 "org.gnu.binutils"    = "*"
 "org.gnu.findutils"   = "*"
+"org.gnu.grep"        = "*"
+"org.gnu.sed"         = "*"
 
 [test]
 needs = ["main"]
@@ -84,6 +97,12 @@ test "$($PREFIX/bin/go env GOARCH)" = amd64
 test -d "$PREFIX/src/cmd/compile"
 test -d "$PREFIX/pkg/tool/linux_amd64"
 python3 "$PEKIT_RECIPE_ROOT/verify-seed.py" "$(pwd)" "$PREFIX"
+# No shipped script names its interpreter under /usr/bin.
+if find "$PREFIX/src" "$PREFIX/lib" -type f \
+    -exec sh -c 'for f do head -n 1 "$f" | grep -qE "^#! */usr/bin/" && echo "$f"; done; :' sh {} + |
+    grep .; then
+  exit 1
+fi
 mkdir -p "$PEKIT_OUT/smoke"
 printf '%s\n' 'package main' 'func main() { var n int; for i := 1; i <= 10; i++ { n += i }; if n != 55 { panic(n) } }' > "$PEKIT_OUT/smoke/main.go"
 GOROOT="$PREFIX" GOCACHE="$PEKIT_OUT/cache" GOENV=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local CGO_ENABLED=0 \
@@ -96,3 +115,5 @@ GOROOT="$PREFIX" GOCACHE="$PEKIT_OUT/cache" GOENV=off GOPROXY=off GOSUMDB=off GO
 "org.python.python3" = "*"
 "org.git.kernel.dash"   = "*"
 "dev.peios.peiosutils" = "*"
+"org.gnu.findutils"   = "*"
+"org.gnu.grep"        = "*"

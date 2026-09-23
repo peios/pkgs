@@ -70,7 +70,6 @@ ln -s bzip2 "$BINDIR/bzcat"
 # Keep the wrappers whose dependency closure Peios can satisfy today. bzmore
 # and bzless remain omitted until a packaged pager exists.
 install -m 0755 bzgrep bzdiff "$BINDIR/"
-sed -i '1s|^#!/bin/sh$|#!/usr/bin/sh|' "$BINDIR/bzgrep" "$BINDIR/bzdiff"
 sed -i 's|/usr/bin:/bin:|/usr/bin:|' "$BINDIR/bzdiff"
 sed -i 's|/bin/rm|/usr/bin/rm|' "$BINDIR/bzdiff"
 ln -s bzgrep "$BINDIR/bzegrep"
@@ -165,8 +164,8 @@ cc -I"$STAGE/usr/include" -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" \
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/libbz2"
 cc -I"$STAGE/usr/include" "$SMOKE/libbz2.c" "$LIBDIR/libbz2.a" -o "$SMOKE/libbz2-static"
 "$SMOKE/libbz2-static"
-head -1 "$BINDIR/bzgrep" | grep -Fx '#!/usr/bin/sh'
-head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
+head -1 "$BINDIR/bzgrep" | grep -Fx '#!/bin/sh'
+head -1 "$BINDIR/bzdiff" | grep -Fx '#!/bin/sh'
 
 test -n "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
 test -n "$(find "$STAGE/usr/src/debug/org.sourceware.bzip2" -type f -print -quit)"

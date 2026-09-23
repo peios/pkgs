@@ -1,0 +1,5 @@
+# The two base-view hooks run before the StrataFS views they mount, so they
+# name the shell by its package-storage path rather than through /bin.
+[allow_files."payload.scripts"]
+"usr/libexec/prelude/hooks.d/mount-initramfs-stratafs-base.sh" = "Contributes initramfs-ready: it creates the initramfs /bin view, so /bin/sh does not exist when it runs"
+"usr/libexec/prelude/hooks.d/mount-rootfs-stratafs-base.sh" = "Base-view hook that creates the root's /bin view; like its initramfs sibling it names only package-storage paths"

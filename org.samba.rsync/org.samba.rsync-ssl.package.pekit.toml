@@ -8,8 +8,8 @@ name         = "org.samba.rsync-ssl"
 description  = "rsync - TLS transport wrapper"
 architecture = "noarch"
 
+# No trust-store dependency: trust is a machine property provided by trustd.
 [dependencies]
-"org.mozilla.ca-certificates"       = "*"
 "org.gnu.bash"        = "*"
 "org.openssl.openssl" = "*"
 "org.samba.rsync"     = "= {{release}}"

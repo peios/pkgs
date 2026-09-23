@@ -256,6 +256,19 @@ rm -f "$PEKIT_OUT$TRIPLET_DIR/rustlib/uninstall.sh" \
   "$PEKIT_OUT$TRIPLET_DIR/rustlib/install.log" \
   "$PREFIX/bin/rust-gdb" "$PREFIX/bin/rust-gdbgui" "$PREFIX/bin/rust-lldb"
 
+# rust-src's library and vendored-crate scripts name /usr/bin/env sh, bash,
+# python3 and the like. Name the interpreter through the runtime view
+# instead, keeping any arguments; the gate rejects any of these left behind.
+# (grep -l exits 1 for a batch with no match; not an error under pipefail.)
+RUST_SRC_TREE="$PEKIT_OUT$TRIPLET_DIR/rustlib/src"
+{ find "$RUST_SRC_TREE" -type f -exec grep -lE \
+  '^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)' {} + || :; } |
+while IFS= read -r script; do
+  sed -i -E \
+    '1s@^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|$)@#!/bin/\2\3@' \
+    "$script"
+done
+
 # Upstream does not install rustfmt or cargo-fmt manuals.
 # Python is already a declared build tool; native Peios does not provide install.
 python3 - "$PEKIT_RECIPE_ROOT/man" "$PREFIX/share/man/man1" <<'PYMAN'
@@ -599,6 +612,16 @@ export LD_LIBRARY_PATH="$LIBDIR:/usr/lib/x86_64-linux-peios${LD_LIBRARY_PATH:+:$
 test "$(rustc --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test "$(cargo --version | cut -d' ' -f2)" = "$PEKIT_VERSION"
 test "$(rustc --version --verbose | sed -n 's/^host: //p')" = "$TRIPLET"
+
+# rust-src names sh, bash, perl and python3 through the runtime view only.
+LEFT=$(find "$LIBDIR/rustlib/src" -type f -exec sh -c '
+  for f do
+    head -n 1 "$f" | grep -qE "^#! */usr/bin/(env +)?(sh|bash|perl|python3)([[:space:]]|\$)" && echo "$f"
+  done; :' sh {} +)
+if [ -n "$LEFT" ]; then
+  printf 'rust-src script still names /usr/bin: %s\n' $LEFT >&2
+  exit 1
+fi
 
 # Verify the installed outputs against the workspace ELF contract. The
 # target's Rust-specific CET flag emits protected landing pads. Compatibility

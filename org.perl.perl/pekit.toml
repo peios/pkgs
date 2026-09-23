@@ -138,7 +138,7 @@ EOF
   -Dcf_email=root@localhost \\
   -Dperladmin=root@localhost \\
   -Dpager=/usr/bin/cat \\
-  -Dstartperl='#!/usr/bin/perl'
+  -Dstartperl='#!/bin/perl'
 
 # Configure deliberately gives Linux libperl no SONAME because upstream puts
 # it in CORE. Peios installs it in the normal triplet directory, so stamp the
@@ -178,7 +178,7 @@ for script in "$ARCHROOT/File/DosGlob.pm" \\
   "$PEKIT_OUT/usr/share/perl5/$API/ExtUtils/xsubpp" \\
   "$PEKIT_OUT/usr/share/perl5/$API/Getopt/Long.pm" \\
   "$PEKIT_OUT/usr/share/perl5/$API/Getopt/Long/Parser.pm"; do
-  sed -i '1s|^#!.*perl|#!/usr/bin/perl|' "$script"
+  sed -i '1s|^#!.*perl|#!/bin/perl|' "$script"
 done
 find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -f -n -9 {} +
 ln -s perl.1.gz "$PEKIT_OUT/usr/share/man/man1/perl$V.1.gz"
@@ -297,10 +297,17 @@ LD_LIBRARY_PATH="$STAGE$LIBDIR" PERL5LIB="$STAGED_PERL5LIB" \
   "$STAGE/usr/bin/perl" -MConfig -Mthreads \
   -MCompress::Raw::Zlib -MCompress::Raw::Bzip2 -e '
     die "wrong API path" unless $Config::Config{privlib} eq "/usr/share/perl5/'"$API"'";
+    die "wrong startperl" unless $Config::Config{startperl} eq "#!/bin/perl";
     die "threads disabled" unless $Config::Config{useithreads} eq "define";
     my $t = threads->create(sub { 42 });
     die "thread failed" unless $t->join == 42;
   '
+
+# Every installed Perl program names the interpreter through the runtime view.
+for script in "$STAGE"/usr/bin/*; do
+  [ "$(head -c 2 "$script")" = '#!' ] || continue
+  head -n 1 "$script" | grep -Ex '#!/bin/perl( .*)?'
+done
 
 SMOKE="$PEKIT_OUT/smoke"
 mkdir -p "$SMOKE"
