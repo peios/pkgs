@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name          = "dev.peios.packaging-tools"
-version       = "1.0.0-1"
+version       = "1.0.1-1"
 architecture  = "noarch"
 description   = "Peios packaging helpers: debug-info split and Rust licence closure"
 license       = "MIT"

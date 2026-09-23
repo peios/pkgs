@@ -66,6 +66,16 @@ class Collect(unittest.TestCase):
         crl.collect(data, {"app"}, self.out, {"git+https://github.com/peios/peios-rs.git": notice})
         self.assertTrue((self.out / "peios-0.1.0" / "peios-rs-LICENSE").is_file())
 
+    def test_exact_crate_notice_beats_source_prefix(self):
+        registry = "registry+https://github.com/rust-lang/crates.io-index"
+        app = package(self.vendor, "app", "1.0.0", "MIT", None, [("vsimd 0.8.0", None)])
+        vsimd = package(self.vendor, "vsimd", "0.8.0", "MIT", registry)
+        data = metadata([app, vsimd])
+        notice = self.tmp / "vsimd-LICENSE"
+        notice.write_text("MIT")
+        crl.collect(data, {"app"}, self.out, {"vsimd@0.8.0": notice})
+        self.assertTrue((self.out / "vsimd-0.8.0" / "vsimd-LICENSE").is_file())
+
     def test_check_rejects_a_stale_declared_licence(self):
         app = package(self.vendor, "app", "1.0.0", "MIT", None)
         meta = self.tmp / "meta.json"

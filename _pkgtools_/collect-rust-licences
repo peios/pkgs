@@ -18,9 +18,11 @@ resolved for the target and:
 
 Run it from the Cargo workspace, after vendoring, like any offline cargo
 command. Workspace and path crates are Peios code covered by the release's own
-LICENSE and are listed but not copied. A git crate without package-local
-notices needs --notice SOURCE-PREFIX=FILE naming the reviewed notice to ship;
-anything else without notices fails.
+LICENSE and are listed but not copied. A crate without package-local notices
+needs --notice naming the reviewed notice to ship, either for one crate
+(CRATE@VERSION=FILE) or for every crate from a git source (SOURCE-PREFIX=FILE);
+anything else without notices fails. Pass the build's own --features,
+--all-features or --no-default-features so the closure is what is built.
 """
 from __future__ import annotations
 
@@ -35,15 +37,39 @@ import tomllib
 NOTICE_PREFIXES = ("LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE")
 
 
-def cargo_metadata(target: str, manifest: str | None) -> dict:
+def cargo_metadata(target: str, manifest: str | None, feature_args: list[str]) -> dict:
+    # The same feature selection as the build: cargo's resolve then contains
+    # exactly the optional dependencies that build actually enables.
     cmd = ["cargo", "metadata", "--locked", "--offline", "--format-version", "1",
-           "--filter-platform", target]
+           "--filter-platform", target, *feature_args]
     if manifest:
         cmd += ["--manifest-path", manifest]
     return json.loads(subprocess.check_output(cmd))
 
 
-def reachable(data: dict, roots: set[str]) -> list[dict]:
+def built_crates(roots: set[str], target: str, manifest: str | None,
+                 feature_args: list[str]) -> set[tuple[str, str]]:
+    """The crates cargo actually compiles for the roots, as (name, version).
+
+    cargo metadata's resolve is not feature-precise: it can list optional
+    dependencies no selected feature enables. cargo tree over normal and build
+    edges, for the target and the build's features, is exactly what links.
+    """
+    cmd = ["cargo", "tree", "--locked", "--offline", "--edges", "normal,build",
+           "--prefix", "none", "--format", "{p}", "--target", target, *feature_args]
+    if manifest:
+        cmd += ["--manifest-path", manifest]
+    for root in sorted(roots):
+        cmd += ["-p", root]
+    crates = set()
+    for line in subprocess.check_output(cmd, text=True).splitlines():
+        fields = line.split()
+        if len(fields) >= 2 and fields[1].startswith("v"):
+            crates.add((fields[0], fields[1][1:]))
+    return crates
+
+
+def reachable(data: dict, roots: set[str], built: set[tuple[str, str]] | None = None) -> list[dict]:
     packages = {p["id"]: p for p in data["packages"]}
     nodes = {n["id"]: n for n in data["resolve"]["nodes"]}
     start = {p["id"] for p in data["packages"] if p["source"] is None and p["name"] in roots}
@@ -60,6 +86,8 @@ def reachable(data: dict, roots: set[str]) -> list[dict]:
         for dep in nodes[pid]["deps"]:
             if any(k["kind"] in (None, "normal", "build") for k in dep["dep_kinds"]):
                 pending.append(dep["pkg"])
+    if built is not None:
+        seen = {i for i in seen if (packages[i]["name"], packages[i]["version"]) in built}
     return sorted((packages[i] for i in seen), key=lambda p: (p["name"], p["version"]))
 
 
@@ -84,11 +112,12 @@ def combined(expressions: set[str]) -> str:
 
 
 def collect(data: dict, roots: set[str], licence_root: pathlib.Path,
-            notices: dict[str, pathlib.Path]) -> str:
+            notices: dict[str, pathlib.Path],
+            built: set[tuple[str, str]] | None = None) -> str:
     licence_root.mkdir(parents=True, exist_ok=True)
     rows = ["crate\tversion\tdeclared-license\tsource\n"]
     expressions: set[str] = set()
-    for package in reachable(data, roots):
+    for package in reachable(data, roots, built):
         declared = package.get("license")
         if not declared:
             raise SystemExit(f"collect-rust-licences: {package['name']} {package['version']} declares no licence")
@@ -102,7 +131,12 @@ def collect(data: dict, roots: set[str], licence_root: pathlib.Path,
         found = sorted(p for p in crate_root.iterdir()
                        if p.is_file() and p.name.upper().startswith(NOTICE_PREFIXES))
         if not found:
-            found = [path for prefix, path in notices.items() if source.startswith(prefix)][:1]
+            # An exact crate (name@version) wins over a source prefix, so one
+            # registry crate that ships no notice can be given its reviewed one.
+            exact = notices.get(f"{package['name']}@{package['version']}")
+            found = [exact] if exact else [
+                path for prefix, path in notices.items()
+                if "@" not in prefix and source.startswith(prefix)][:1]
         if not found:
             raise SystemExit(f"collect-rust-licences: {package['name']} {package['version']} "
                              f"({source}) has no distributable licence notice; pass --notice")
@@ -122,7 +156,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--target", default="x86_64-unknown-linux-gnu")
     parser.add_argument("--manifest-path")
     parser.add_argument("--notice", action="append", default=[],
-                        help="SOURCE-PREFIX=FILE: reviewed notice for git crates without one")
+                        help="SOURCE-PREFIX=FILE or CRATE@VERSION=FILE: reviewed notice for "
+                             "crates that ship none of their own")
+    parser.add_argument("--features", action="append", default=[],
+                        help="cargo --features value the build uses (repeatable)")
+    parser.add_argument("--all-features", action="store_true")
+    parser.add_argument("--no-default-features", action="store_true")
     parser.add_argument("--metadata-json", type=pathlib.Path,
                         help="read cargo metadata from a file instead of running cargo")
     parser.add_argument("--expression-out", type=pathlib.Path)
@@ -139,9 +178,16 @@ def main(argv: list[str] | None = None) -> None:
             parser.error(f"--notice file {path} does not exist")
         notices[prefix] = pathlib.Path(path)
 
+    feature_args = [f"--features={f}" for f in args.features]
+    if args.all_features:
+        feature_args.append("--all-features")
+    if args.no_default_features:
+        feature_args.append("--no-default-features")
     data = (json.loads(args.metadata_json.read_text()) if args.metadata_json
-            else cargo_metadata(args.target, args.manifest_path))
-    expression = collect(data, set(args.root), args.licence_root, notices)
+            else cargo_metadata(args.target, args.manifest_path, feature_args))
+    built = (None if args.metadata_json
+             else built_crates(set(args.root), args.target, args.manifest_path, feature_args))
+    expression = collect(data, set(args.root), args.licence_root, notices, built)
     if args.expression_out:
         args.expression_out.write_text(expression + "\n", encoding="utf-8")
     print(expression)
