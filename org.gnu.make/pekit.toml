@@ -5,6 +5,11 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# The installed command is GPL-3.0-or-later; the corresponding source also
+# carries bundled Gnulib helpers, generated build infrastructure and the manual.
+[source_package]
+license = "GPL-3.0-or-later AND LGPL-2.1-or-later AND GFDL-1.3-or-later AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND FSFAP AND FSFULLR"
+
 [source]
 patches = "patches"
 

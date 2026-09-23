@@ -9,6 +9,11 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# The corresponding source carries the complete util-linux tree. Individual
+# binary packages narrow this to the files they actually ship.
+[source_package]
+license = "GPL-1.0-or-later AND GPL-2.0-only AND GPL-2.0-or-later AND GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT AND BSD-2-Clause AND BSD-3-Clause AND BSD-4-Clause-UC AND EUPL-1.2 AND LicenseRef-Public-Domain"
+
 [source.url]
 url         = "https://cdn.kernel.org/pub/linux/utils/util-linux/v{{major}}.{{minor}}/util-linux-{{version}}.tar.xz"
 listing_url = "https://api.github.com/repos/util-linux/util-linux/tags?per_page=100"

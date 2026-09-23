@@ -7,6 +7,5 @@ format = "peipkg"
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "BSD-2-Clause AND GPL-2.0-or-later AND GPL-2.0-only"
 license_class = "free"
 homepage      = "https://xxhash.com/"

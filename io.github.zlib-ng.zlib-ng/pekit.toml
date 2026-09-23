@@ -8,6 +8,11 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# Binary members are Zlib; the corresponding source also redistributes test
+# vectors under CC-BY-3.0, CC-BY-4.0 and public-domain terms.
+[source_package]
+license = "Zlib AND CC-BY-3.0 AND CC-BY-4.0 AND LicenseRef-Public-Domain"
+
 [source.git]
 url       = "https://github.com/zlib-ng/zlib-ng.git"
 ref       = "{{version}}"

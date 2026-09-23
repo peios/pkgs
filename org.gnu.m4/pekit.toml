@@ -5,6 +5,11 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
+# The installed program is GPL-3.0-or-later; the corresponding source also
+# carries the bundled Gnulib, build helpers and manual.
+[source_package]
+license = "GPL-3.0-or-later AND GPL-2.0-or-later AND LGPL-2.1-or-later AND GFDL-1.3-or-later AND MIT AND FSFULLR"
+
 [source]
 patches = "patches"
 

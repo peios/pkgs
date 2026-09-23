@@ -7,6 +7,5 @@ format = "peipkg"
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "BSD-3-Clause AND GPL-2.0-or-later"
 license_class = "free"
 homepage      = "https://git.kernel.org/pub/scm/utils/dash/dash.git"

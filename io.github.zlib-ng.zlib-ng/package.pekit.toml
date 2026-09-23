@@ -1,15 +1,11 @@
-# Shared metadata for the zlib-ng source family.  Binary members narrow this
-# source-wide expression to Zlib; the additional terms cover test vectors that
-# are redistributed only in the generated corresponding-source package.
-# PEI-741 tracks Pekit's current inability to carry those source-only terms
-# into the synthesized source manifest; binary members remain narrowly and
-# accurately licensed rather than being widened as a metadata workaround.
+# Metadata shared by the zlib-ng package family. Every member declares its
+# own licence; the licence of the complete source tree is [source_package]
+# license in pekit.toml.
 
 format = "peipkg"
 
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "Zlib AND CC-BY-3.0 AND CC-BY-4.0 AND LicenseRef-Public-Domain"
 license_class = "free"
 homepage      = "https://github.com/zlib-ng/zlib-ng"

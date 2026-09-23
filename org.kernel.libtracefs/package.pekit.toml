@@ -1,12 +1,11 @@
-# Base metadata shared by the libtracefs package family. The generated source
-# package carries the complete locked Git tree, including GPL build helpers;
-# shipped library, headers, documentation and completion are LGPL-2.1-only.
+# Metadata shared by the libtracefs package family. Every member declares its
+# own licence; the licence of the complete source tree is [source_package]
+# license in pekit.toml.
 
 format = "peipkg"
 
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "LGPL-2.1-only AND GPL-2.0-only"
 license_class = "free"
 homepage      = "https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git"

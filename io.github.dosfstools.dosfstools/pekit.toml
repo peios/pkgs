@@ -10,6 +10,12 @@
 
 out_dir = "out"
 
+# The corresponding source carries the complete tree: the GPL-3.0-or-later
+# project, public-domain blkdev/boot-code material and the standard
+# Autoconf/Automake helper grants. Binary members narrow this to their payloads.
+[source_package]
+license = "GPL-3.0-or-later AND LicenseRef-Public-Domain AND GPL-2.0-or-later WITH Autoconf-exception-generic AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND FSFUL AND FSFULLR AND X11"
+
 [source.url]
 url         = "https://github.com/dosfstools/dosfstools/releases/download/v{{version}}/dosfstools-{{version}}.tar.gz"
 listing_url = "https://api.github.com/repos/dosfstools/dosfstools/releases?per_page=100"
