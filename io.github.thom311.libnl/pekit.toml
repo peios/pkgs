@@ -113,6 +113,8 @@ mv usr/lib/debug usr/lib/debug-libnl
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
+# configure enables the check-all/check-direct suites when Check is present.
+"io.github.libcheck.check-devel" = "*"
 "com.darwinsys.file"   = "*"
 "org.sourceware.debugedit"               = "*"
 "io.github.westes.flex"                    = "*"
@@ -126,24 +128,23 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
-# Run every test enabled by the environment: check-all and check-direct run
-# in addition to the public C/C++ header and bundled c-list checks whenever
-# Check is present. Otherwise, upstream's dependency-free checks run until
-# Check is packaged; PEI-678 tracks that remaining self-hosted dependency gap.
+# Upstream's suite: the Check-based check-all and check-direct, alongside the
+# public C/C++ header and bundled c-list checks. Check is a declared build and
+# test dependency, so configure always enables them.
 cd "$PEKIT_MAIN_OUT"
+grep -Fx "WITH_CHECK_TRUE=''" config.log
 make -j"$(nproc)" check
 # Surface upstream's internal namespace skips, which Check counts as passing.
 # Kernel roundtrips still require the separate namespace-capable acceptance runner.
 if test -f tests/check-all.log; then
   grep 'skip test due to having no private netns' tests/check-all.log || :
 fi
-if pkg-config --exists check; then
-  test -x tests/check-all
-  test -x tests/check-direct
-  grep -Eq '^# PASS: +2$' test-suite.log
-else
-  test ! -e tests/check-all
-fi
+test -x tests/check-all
+test -x tests/check-direct
+grep -Eq '^# PASS: +2$' test-suite.log
+grep -Eq '^# FAIL: +0$' test-suite.log
+grep -Eq '^:test-result: PASS' tests/check-all.trs
+grep -Eq '^:test-result: PASS' tests/check-direct.trs
 STAGE="$PEKIT_MAIN_OUT"
 LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
 INCLUDEDIR="$STAGE/usr/include/libnl3"
@@ -249,6 +250,7 @@ rm -rf "$SMOKE"
 
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
+"io.github.libcheck.check-devel" = "*"
 "com.darwinsys.file" = "*"
 "io.github.westes.flex" = "*"
 "org.gnu.bison" = "*"
