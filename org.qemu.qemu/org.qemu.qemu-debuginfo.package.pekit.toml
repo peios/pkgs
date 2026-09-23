@@ -3,7 +3,7 @@ name        = "org.qemu.qemu-debuginfo"
 description = "QEMU debugging symbols"
 
 [dependencies]
-"org.qemu.qemu-system-x86" = "{{version}}-1"
+"org.qemu.qemu-system-x86" = "= {{release}}"
 
 [files]
 ":usr/share/licenses/org.qemu.qemu-debuginfo/COPYING" = "usr/share/licenses/org.qemu.qemu-debuginfo/COPYING"

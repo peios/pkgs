@@ -1,5 +1,5 @@
 [allow]
-"source.signature.required" = "Upstream signs only the .sha512 checksum sidecar (an inline OpenPGP message), not the archive, so Pekit's detached-signature verification cannot apply; HTTPS plus the immutable lock, checked on acceptance against the sidecar signed by release key 3BB639E56F861FA2E86505690FDD682D974CA72A, is the provenance boundary"
+"source.signature.required" = "Upstream signs only the .sha512 checksum sidecar (an inline OpenPGP message), not the archive, so Pekit's detached-signature verification cannot apply; HTTPS plus the immutable lock is the provenance boundary; each lock entry is checked by hand, not by the build, against the sidecar signed by release key 3BB639E56F861FA2E86505690FDD682D974CA72A"
 
 # The static split shares the family symbol archive.
 [elf]

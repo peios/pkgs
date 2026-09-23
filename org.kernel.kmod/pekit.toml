@@ -55,9 +55,6 @@ meson setup "$PEKIT_OUT/build" "$SRC" --prefix=/usr --bindir=bin --sbindir=bin \
   -Dzshcompletiondir=no -Dopenssl=enabled -Dzlib=enabled -Dxz=enabled \
   -Dzstd=enabled -Dbuild-tests=true
 meson compile -C "$PEKIT_OUT/build"
-# One kernel-devel is in the root; take its build tree whatever its release.
-KDIR="$(echo /usr/lib/modules/*/build)"
-test -d "$KDIR"
 
 DESTDIR="$PEKIT_OUT" meson install -C "$PEKIT_OUT/build" --no-rebuild
 
@@ -86,45 +83,12 @@ rm -f "$PEKIT_OUT/usr/bin/depmod"
 ln -s ../bin/kmod "$PEKIT_OUT/usr/libexec/depmod"
 rm -rf "$PEKIT_OUT/etc"
 
-python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man8"
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/install-manpages.py" "$PEKIT_OUT" \
+  "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man8" "$PEKIT_RECIPE_ROOT/tools/manpages.json"
 
-# Produce conventional build-ID-indexed debuginfo and the exact source files
-# referenced by DWARF. Archives retain code but do not carry duplicate debug.
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
-  -not -path 'usr/src/debug/*' | while IFS= read -r file; do
-  case "$file" in
-    *.a) strip --strip-debug "$file"; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$file" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$file"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.kmod \
-    -l "$PEKIT_OUT/.debug-list" -n "$file"
-  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
-  build_id=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
-  test -n "$build_id"
-  prefix=$(printf %s "$build_id" | cut -c1-2)
-  suffix=$(printf %s "$build_id" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$prefix"
-  objcopy --only-keep-debug "$file" \
-    "usr/lib/debug/.build-id/$prefix/$suffix.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
-  strip "$file"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r source; do
-      test -n "$source" || continue
-      case "$source" in */) continue;; esac
-      test -f "$ROOT/$source" || continue
-      mkdir -p "usr/src/debug/org.kernel.kmod/$(dirname "$source")"
-      cp "$ROOT/$source" "usr/src/debug/org.kernel.kmod/$source"
-    done
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.kmod "$PEKIT_OUT/usr"
 # Preserve the relative build-directory chain used by rewritten comp_dir data.
 install -d "$PEKIT_OUT/usr/src/debug/org.kernel.kmod/build/main/build"
-rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist"
 """
 
 [test]
@@ -238,7 +202,8 @@ for elf in "$BIN/kmod" "$LIBKMOD_SO"; do
   readelf -n "$elf" | grep -F 'x86 feature: IBT, SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
-python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$STAGE" "$PEKIT_VERSION" "$PEKIT_OUT/manuals"
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/install-manpages.py" "$STAGE" \
+  "$PEKIT_VERSION" "$PEKIT_OUT/manuals" "$PEKIT_RECIPE_ROOT/tools/manpages.json"
 for page in "$PEKIT_OUT/manuals/"*.gz; do
   cmp "$page" "$STAGE/usr/share/man/man8/$(basename "$page")"
 done
@@ -256,9 +221,11 @@ done
 "org.tukaani.xz" = "*"
 "com.facebook.zstd" = "*"
 "dev.peios.kernel-devel" = ">= 0.20.1-rc12-1"
-"org.llvm.clang" = "*"
-"org.llvm.llvm" = "*"
-"org.llvm.lld" = "*"
+# The dummy modules are built against kernel-devel with LLVM=1, so they need
+# the same toolchain lane the kernel is built with.
+"org.llvm.clang" = ">= 18.1.8, < 19"
+"org.llvm.llvm" = ">= 18.1.8, < 19"
+"org.llvm.lld" = ">= 18.1.8, < 19"
 "org.gnu.make" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.pkgconf.pkgconf" = "*"
@@ -290,24 +257,9 @@ done
 "org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
-# The testsuite's harness is bash, and its module playground is an out-of-tree
-# kbuild against our own clang-built kernel.
+# -Dbuild-tests=true makes meson setup find_program('bash') for the harness
+# scripts. The harness itself (kernel-devel, LLVM, xz, zstd) is test-only.
 "org.gnu.bash" = "*"
-# The harness is a set of shell scripts: it rewrites fixture paths with sed,
-# walks the rootfs with find, and the bounded failure check uses grep.
-# find worked without being declared, which means it arrived transitively --
-# state it rather than rely on that.
-"org.gnu.sed" = "*"
-"org.gnu.grep" = "*"
-"org.gnu.findutils" = "*"
-# The harness compresses its dummy modules with all three algorithms to
-# exercise libkmod's decompressors.
-"org.tukaani.xz" = "*"
-"com.facebook.zstd" = "*"
-"dev.peios.kernel-devel" = ">= 0.20.1-rc12-1"
-"org.llvm.clang" = "*"
-"org.llvm.llvm" = "*"
-"org.llvm.lld" = "*"
 "org.gnu.make" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.pkgconf.pkgconf" = "*"

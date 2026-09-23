@@ -1,0 +1,14 @@
+{
+  "family": "org.kernel.kmod",
+  "section": "8",
+  "extra": "Configuration syntax and detailed upstream documentation are installed in\n/usr/share/doc/org.kernel.kmod/upstream-manuals.\n.SH SEE ALSO\n.BR modprobe (8),\n.BR depmod (8)",
+  "commands": {
+    "kmod": {"description": "manage kernel modules"},
+    "depmod": {"description": "generate kernel module dependency indexes", "path": "usr/libexec/depmod"},
+    "insmod": {"description": "insert a kernel module"},
+    "lsmod": {"description": "list loaded kernel modules"},
+    "modinfo": {"description": "display kernel module metadata"},
+    "modprobe": {"description": "load and remove modules with dependencies"},
+    "rmmod": {"description": "remove kernel modules"}
+  }
+}

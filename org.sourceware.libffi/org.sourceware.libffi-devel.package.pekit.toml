@@ -10,7 +10,7 @@ description = "Portable foreign function interface development files"
 license     = "MIT"
 
 [dependencies]
-"org.sourceware.libffi" = "{{version}}-1"
+"org.sourceware.libffi" = "= {{release}}"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi-devel/"

@@ -5,7 +5,7 @@ description = "OpenSSL static cryptography and TLS libraries"
 [provides]
 
 [dependencies]
-"org.openssl.openssl-devel" = "{{version}}-2"
+"org.openssl.openssl-devel" = "= {{release}}"
 
 [files]
 "@source:LICENSE.txt"                            = "usr/share/licenses/org.openssl.openssl-static/"

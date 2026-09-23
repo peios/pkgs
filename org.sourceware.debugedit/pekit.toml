@@ -2,7 +2,7 @@
 # debug-archive classification used by Peios package split pipelines.
 #
 # The optional RPM-oriented find-debuginfo driver is deliberately not shipped
-# until native GDB and DWZ packages exist. Debian reference builds run all 58
+# until native GDB and DWZ packages exist. The Debian seed build runs all 58
 # upstream tests; native builds run the 44 tests for every shipped C tool.
 
 tags = ["bootstrap", "minimal-bootstrap"]
@@ -44,7 +44,8 @@ mkdir -p "$BUILD_SRC" "$OBJ" "$SMOKE" "$CONFIG_TOOLS"
 cp -a "$LOCKED_SRC/." "$BUILD_SRC/"
 
 # Release tarballs contain generated manuals. Keep them newer than their
-# source inputs so neither build rung needs help2man merely to reproduce them.
+# source inputs so neither the Debian nor the native build needs help2man
+# merely to reproduce them.
 touch "$BUILD_SRC"/*.1
 
 # Upstream currently makes GDB and DWZ unconditional configure requirements
@@ -122,45 +123,14 @@ make install DESTDIR="$PEKIT_OUT"
 rm -f "$PEKIT_OUT/usr/bin/find-debuginfo" \\
   "$PEKIT_OUT/usr/share/man/man1/find-debuginfo.1"
 
-BINDIR="$PEKIT_OUT/usr/bin"
-
-# Normalize loader metadata before splitting debug data.
-for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
-  elf="$BINDIR/$tool"
-  patchelf --remove-rpath "$elf" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
-done
-
-# Conventional build-ID symbols plus exact DWARF-referenced source files.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-for file in usr/bin/debugedit usr/bin/debugedit-classify-ar \\
-            usr/bin/sepdebugcrcfix; do
-  "$OBJ/debugedit" -b "$ROOT" \\
-    -d /usr/src/debug/org.sourceware.debugedit \\
-    -l "$PEKIT_OUT/.dl" -n "$file"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$file" \\
-    | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$file" \\
-    "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$file"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \\
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.sourceware.debugedit/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.sourceware.debugedit/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Split with the debugedit just built: the Debian seed root does not install
+# one, and the build should exercise the tool it ships.
+SPLIT_TOOLS="$PEKIT_OUT/split-tools"
+mkdir -p "$SPLIT_TOOLS"
+ln -sfn "$OBJ/debugedit" "$SPLIT_TOOLS/debugedit"
+PATH="$SPLIT_TOOLS:$PATH" \\
+  sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.debugedit \\
+  "$PEKIT_OUT/usr"
 
 # Deterministic manuals, including relative alias targets.
 find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' | while IFS= read -r page; do
@@ -312,7 +282,6 @@ libxxhash-dev   = "*"
 binutils        = "*"
 elfutils        = "*"
 file            = "*"
-patchelf        = "*"
 cpio            = "*"
 xz-utils        = "*"
 gdb             = "*"

@@ -8,7 +8,7 @@ license     = "LGPL-2.1-or-later"
 [replaces]
 
 [dependencies]
-"org.kernel.libblkid-devel" = "{{version}}-1"
+"org.kernel.libblkid-devel" = "= {{release}}"
 
 [files]
 "@source:libblkid/COPYING"                    = "usr/share/licenses/org.kernel.libblkid-static/"

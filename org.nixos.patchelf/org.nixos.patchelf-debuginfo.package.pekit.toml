@@ -3,7 +3,7 @@ name        = "org.nixos.patchelf-debuginfo"
 description = "patchelf debugging symbols"
 
 [dependencies]
-"org.nixos.patchelf" = "{{version}}-1"
+"org.nixos.patchelf" = "= {{release}}"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/org.nixos.patchelf-debuginfo/"

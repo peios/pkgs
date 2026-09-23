@@ -4,7 +4,7 @@ description = "curl command-line client debugging symbols"
 license     = "curl AND ISC"
 
 [dependencies]
-"se.curl.curl" = "{{version}}-1"
+"se.curl.curl" = "= {{release}}"
 
 [files]
 "@source:COPYING"             = "usr/share/licenses/se.curl.curl-debuginfo/"

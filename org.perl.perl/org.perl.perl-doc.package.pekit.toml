@@ -6,7 +6,7 @@ architecture = "noarch"
 description  = "Perl 5 language, utility and module manuals"
 
 [dependencies]
-"org.perl.perl" = "{{version}}-1"
+"org.perl.perl" = "= {{release}}"
 
 [files]
 "@source:Copying"   = "usr/share/licenses/org.perl.perl-doc/Copying"

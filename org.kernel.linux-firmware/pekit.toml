@@ -1,5 +1,5 @@
-# linux-firmware — device firmware blobs, split into firmware-<family>
-# packages (PEI-466).
+# linux-firmware — device firmware blobs, split into
+# org.kernel.linux-firmware-<family> packages (PEI-466).
 #
 # Peios shipped no device firmware before this recipe: invisible under QEMU,
 # but on real hardware most Wi-Fi, modern GPUs, many NICs and laptop audio

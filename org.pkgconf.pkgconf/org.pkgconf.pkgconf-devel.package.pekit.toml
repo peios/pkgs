@@ -3,7 +3,7 @@ name = "org.pkgconf.pkgconf-devel"
 description = "Autoconf macros for the pkgconf command"
 
 [dependencies]
-"org.pkgconf.pkgconf" = "{{version}}-1"
+"org.pkgconf.pkgconf" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pkgconf.pkgconf-devel/COPYING"

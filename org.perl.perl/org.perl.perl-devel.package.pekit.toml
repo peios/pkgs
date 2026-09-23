@@ -5,8 +5,8 @@ name        = "org.perl.perl-devel"
 description = "Perl 5 XS and embedding development files"
 
 [dependencies]
-"org.perl.perl"    = "{{version}}-1"
-"org.perl.libperl" = "{{version}}-1"
+"org.perl.perl"    = "= {{release}}"
+"org.perl.libperl" = "= {{release}}"
 
 [provides]
 

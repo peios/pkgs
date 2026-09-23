@@ -62,11 +62,11 @@ LINK_JOBS=$((MEM_KIB / 6000000))
 [ "$LINK_JOBS" -gt 3 ] && LINK_JOBS=3
 [ "$LINK_JOBS" -lt 1 ] && LINK_JOBS=1
 
-# Preserve the workspace policy while supplying a safe production fallback.
-# Keep the inherited distribution flags intact while adding source remapping.
-export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt"
+# Append source remapping and IBT PLTs to the workspace policy, which always
+# sets these flags.
+export CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Keep a valid CMake tree across interrupted or failed checks. Pekit preserves
 # this target stage and CMake refreshes it from the declared configuration
@@ -168,13 +168,23 @@ find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec strip --strip-debug {} +
 if find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec readelf -SW {} + 2>/dev/null \
   | grep -Eq '\.debug_(info|line)'; then exit 1; fi
 
+# This split stays hand-written rather than using _pkgtools_/split-debug:
+# each debug file goes to the per-component tree (.debuginfo/<component>)
+# that the clang, clang-libs, lld, llvm-devel, llvm-libs and llvm debuginfo
+# packages each own.
 cd "$PEKIT_OUT"
 : > "$PEKIT_OUT/.source-list"
 : > "$PEKIT_OUT/.build-ids"
 find usr/bin "usr/lib/$TRIPLET" -type f ! -type l \
   -not -name '*.a' -not -path 'usr/lib/debug/*' | LC_ALL=C sort | while IFS= read -r elf; do
     readelf -h "$elf" >/dev/null 2>&1 || continue
-    patchelf --remove-rpath "$elf" 2>/dev/null || true
+    # CMAKE_SKIP_INSTALL_RPATH drops LLVM's $ORIGIN/../lib/$TRIPLET RUNPATH
+    # from everything `cmake --install` writes, but llvm-config is copied
+    # from the build tree above and can keep its build RUNPATH. Remove any
+    # that remains; a patchelf failure stops the build.
+    if readelf -d "$elf" | grep -Eq '\((RPATH|RUNPATH)\)'; then
+      patchelf --remove-rpath "$elf"
+    fi
     debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
       -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
     cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
@@ -209,7 +219,7 @@ find usr/bin "usr/lib/$TRIPLET" -type f ! -type l \
 LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" -o "$PEKIT_OUT/.build-ids"
 # The shared-dylib build intentionally consolidates most LLVM code into a
 # compact ELF surface. Keep a generous floor that catches a truncated install
-# while allowing signed 18.x point releases to add or remove auxiliary tools.
+# while allowing signed releases to add or remove auxiliary tools.
 test "$(wc -l < "$PEKIT_OUT/.build-ids")" -ge 80
 tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
   | while IFS= read -r rel; do

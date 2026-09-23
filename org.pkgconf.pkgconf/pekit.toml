@@ -61,40 +61,9 @@ done
 
 rm -rf "$PREFIX/share/doc/pkgconf"
 
-# Produce build-ID-indexed symbols and the exact source tree referenced after
-# DWARF path rewriting. Static-library code is retained but debug sections are
-# deliberately left to the shared object's debuginfo.
-strip --strip-debug "$LIBDIR/libpkgconf.a"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-for elf in \
-  "$PREFIX/bin/pkgconf" \
-  "$PREFIX/bin/bomtool" \
-  "$PREFIX/bin/spdxtool" \
-  "$PREFIX/bin/pccritic" \
-  "$LIBDIR/libpkgconf.so.8.0.0"; do
-  debugedit -b "$ROOT" -d /usr/src/debug/org.pkgconf.pkgconf \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" \
-    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.pkgconf.pkgconf/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.pkgconf.pkgconf/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Static-library code is retained but its debug sections are deliberately
+# left to the shared object's debuginfo.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.pkgconf.pkgconf "$PREFIX"
 '''
 
 [build.main.dependencies.peipkg]

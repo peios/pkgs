@@ -3,7 +3,7 @@ name        = "org.kernel.pahole-debugsource"
 description = "pahole and libdwarves debug sources"
 
 [dependencies]
-"org.kernel.pahole-debuginfo" = "{{version}}-1"
+"org.kernel.pahole-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/org.kernel.pahole-debugsource/"

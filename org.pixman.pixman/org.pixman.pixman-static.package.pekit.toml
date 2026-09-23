@@ -6,7 +6,7 @@ name        = "org.pixman.pixman-static"
 description = "pixman - static library"
 
 [dependencies]
-"org.pixman.pixman-devel" = "{{version}}-1"
+"org.pixman.pixman-devel" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pixman.pixman-static/"

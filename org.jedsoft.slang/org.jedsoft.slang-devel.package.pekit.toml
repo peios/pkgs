@@ -7,7 +7,7 @@ description = "S-Lang headers, linker input, and pkg-config metadata"
 [replaces]
 
 [dependencies]
-"org.jedsoft.slang-libs" = "{{version}}-1"
+"org.jedsoft.slang-libs" = "= {{release}}"
 
 [files]
 "@source:COPYING"                                 = "usr/share/licenses/org.jedsoft.slang-devel/"

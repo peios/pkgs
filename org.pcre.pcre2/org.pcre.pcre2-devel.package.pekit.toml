@@ -11,9 +11,9 @@ license     = "BSD-3-Clause WITH PCRE2-exception"
 
 [dependencies]
 "org.git.kernel.dash" = "*"
-"org.pcre.pcre2"      = "{{version}}-1"
-"org.pcre.pcre2-16"   = "{{version}}-1"
-"org.pcre.pcre2-32"   = "{{version}}-1"
+"org.pcre.pcre2"      = "= {{release}}"
+"org.pcre.pcre2-16"   = "= {{release}}"
+"org.pcre.pcre2-32"   = "= {{release}}"
 
 [files]
 "@source:LICENCE.md"                     = "usr/share/licenses/org.pcre.pcre2-devel/"

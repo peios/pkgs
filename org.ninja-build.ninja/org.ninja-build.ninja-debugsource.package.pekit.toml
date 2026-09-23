@@ -3,7 +3,7 @@ name        = "org.ninja-build.ninja-debugsource"
 description = "Ninja debug sources"
 
 [dependencies]
-"org.ninja-build.ninja-debuginfo" = "{{version}}-1"
+"org.ninja-build.ninja-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.ninja-build.ninja-debugsource/COPYING"

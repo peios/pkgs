@@ -14,7 +14,7 @@ license     = "GPL-2.0-or-later"
 
 [dependencies]
 "org.gnu.glibc"                  = ">= 2.43"
-"org.kernel.kmod-libs" = "{{version}}-1"
+"org.kernel.kmod-libs" = "= {{release}}"
 
 [files]
 "@source:tools/COPYING" = "usr/share/licenses/org.kernel.kmod/COPYING"

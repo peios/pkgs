@@ -8,7 +8,7 @@ description = "S-Lang interpreter, standard library, and loadable modules"
 
 [dependencies]
 "org.gnu.glibc"                     = ">= 2.43"
-"org.jedsoft.slang-libs" = "{{version}}-1"
+"org.jedsoft.slang-libs" = "= {{release}}"
 "io.github.zlib-ng.zlib-ng-compat"                      = ">= 2.3.3"
 
 [files]

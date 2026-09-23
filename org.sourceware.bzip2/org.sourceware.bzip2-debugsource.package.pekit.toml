@@ -3,7 +3,7 @@ name        = "org.sourceware.bzip2-debugsource"
 description = "bzip2 - debug sources"
 
 [dependencies]
-"org.sourceware.bzip2-debuginfo" = "{{version}}-1"
+"org.sourceware.bzip2-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.sourceware.bzip2-debugsource/LICENSE"

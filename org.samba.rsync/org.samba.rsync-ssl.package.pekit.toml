@@ -12,7 +12,7 @@ architecture = "noarch"
 "org.mozilla.ca-certificates"       = "*"
 "org.gnu.bash"        = "*"
 "org.openssl.openssl" = "*"
-"org.samba.rsync"     = "{{version}}-1"
+"org.samba.rsync"     = "= {{release}}"
 
 [files]
 "@source:COPYING"                 = "usr/share/licenses/org.samba.rsync-ssl/"

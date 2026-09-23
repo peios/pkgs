@@ -15,7 +15,7 @@ license     = "curl AND ISC"
 
 [dependencies]
 "org.gnu.glibc"   = ">= 2.43"
-"se.curl.libcurl" = "{{version}}-1"
+"se.curl.libcurl" = "= {{release}}"
 # wcurl is a POSIX shell script.
 "sh"              = "*"
 

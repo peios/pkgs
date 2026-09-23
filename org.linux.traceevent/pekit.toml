@@ -35,8 +35,8 @@ mkdir -p "$BUILD"
 # it so every recursive Makefile, including plugins and tests, receives the
 # workspace distro flags. Generate IBT PLT entries without manufacturing CET
 # compatibility notes for plugins or their inputs.
-export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$(nproc)" \
   prefix=/usr libdir=/usr/lib/x86_64-linux-peios \
@@ -63,10 +63,10 @@ find "$DOCSRC/Documentation" -type f -name '*.txt' -exec \
   sed -i 's/^\[source,c\]$/[listing]/' '{}' +
 
 # Upstream invokes xmlto only as a thin wrapper around this xsltproc
-# transformation. The packaged XMLTO runtime pulls Peiosutils, whose applet
-# links intentionally overlap the GNU Coreutils bootstrap implementation in
-# build-essentials. Keep the upstream stylesheet layer but perform this single
-# transformation directly using xsltproc, which AsciiDoc already requires.
+# transformation. Keep the upstream stylesheet layer but perform this single
+# transformation directly with xsltproc (org.gnome.libxslt-utils) and the
+# DocBook XSL manpage stylesheets (org.docbook.docbook-xsl), both declared
+# below, rather than adding xmlto and its runtime to the build.
 cat > "$DOCSRC/Documentation/peios-manpage.xsl" <<'EOF'
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -119,47 +119,27 @@ cp "$LIBDIR/libtraceevent.a" \
   "$LIBDIR/libtraceevent.so.$PEKIT_VERSION" "$PEKIT_OUT/.repro/"
 cp "$PLUGIN_DIR"/*.so "$PEKIT_OUT/.repro/plugins/"
 
-# Produce build-ID-indexed debug packages for the library and every plugin;
-# static code remains available without duplicating debug sections.
-strip --strip-debug "$LIBDIR/libtraceevent.a"
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-for elf in "usr/lib/x86_64-linux-peios/libtraceevent.so.$PEKIT_VERSION" \
-  usr/lib/x86_64-linux-peios/traceevent/plugins/*.so; do
-  patchelf --remove-rpath "$elf"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.linux.traceevent \
-    -l "$PEKIT_OUT/.debug-list" -n "$elf"
-  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
-  build_id=$(readelf -n "$elf" | \
-    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$build_id"
-  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
-  first=$(printf %s "$build_id" | cut -c1-2)
-  rest=$(printf %s "$build_id" | cut -c3-)
-  case "$elf" in
-    usr/lib/x86_64-linux-peios/libtraceevent.so.*)
-      debug_root=usr/lib/debug-traceevent-libs
-      ;;
-    *)
-      debug_root=usr/lib/debug-traceevent
-      ;;
-  esac
-  mkdir -p "$debug_root/.build-id/$first"
-  objcopy --only-keep-debug "$elf" \
-    "$debug_root/.build-id/$first/$rest.debug"
-  chmod 0644 "$debug_root/.build-id/$first/$rest.debug"
-  strip "$elf"
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r source; do
-      test -n "$source" || continue
-      case "$source" in */) continue;; esac
-      test -f "$ROOT/$source" || continue
-      mkdir -p "usr/src/debug/org.linux.traceevent/$(dirname "$source")"
-      cp "$ROOT/$source" "usr/src/debug/org.linux.traceevent/$source"
-    done
-rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
+# Build-ID debug data goes to one tree per debuginfo package: the library to
+# usr/lib/debug-traceevent-libs, the plugins to usr/lib/debug-traceevent.
+# Referenced sources are gathered once under usr/src/debug. The static archive
+# keeps its code and loses only its debug sections.
+# upstream's scripts/utils.mk links the shared library with -rpath=$ORIGIN;
+# the library needs no run path, so remove it.
+patchelf --remove-rpath "$LIBDIR/libtraceevent.so.$PEKIT_VERSION"
+
+SPLIT="$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug"
+split_into() {
+  tree=$1; shift
+  mkdir -p "$PEKIT_OUT/.split"
+  sh "$SPLIT" --stage "$PEKIT_OUT/.split" org.linux.traceevent "$@"
+  mv "$PEKIT_OUT/.split/usr/lib/debug" "$PREFIX/lib/$tree"
+  cp -R "$PEKIT_OUT/.split/usr/src/." "$PREFIX/src/"
+  rm -rf "$PEKIT_OUT/.split"
+}
+mkdir -p "$PREFIX/src"
+split_into debug-traceevent-libs "$LIBDIR/libtraceevent.so.$PEKIT_VERSION" \
+  "$LIBDIR/libtraceevent.a"
+split_into debug-traceevent "$PLUGIN_DIR"
 '''
 
 [test]
@@ -175,8 +155,8 @@ PREFIX="$STAGE/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 PLUGIN_DIR="$LIBDIR/traceevent/plugins"
 SMOKE="$PEKIT_OUT/smoke"
-export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
 # which the catalogue does not package yet (PEI-1164). The staged-library
@@ -307,6 +287,9 @@ done
 
 [build.main.dependencies.peipkg]
 "org.oasis-open.docbook-xml" = "*"
+# xsltproc and the DocBook manpage stylesheets for the xmlto-free man build.
+"org.gnome.libxslt-utils" = "*"
+"org.docbook.docbook-xsl" = "*"
 "dev.peios.build-essentials-c"               = "*"
 "org.sourceware.debugedit"                          = "*"
 "org.gnu.findutils"                          = "*"

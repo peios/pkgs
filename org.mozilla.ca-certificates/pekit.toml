@@ -56,15 +56,13 @@ rm -rf "$TMP"
 '''
 
 [build.main.dependencies.peipkg]
-"org.git.kernel.dash" = "*"
-"org.gnu.findutils"     = "*"
+"org.git.kernel.dash"   = "*"
 "org.python.python3"    = "*"
-"dev.peios.peiosutils"               = "*"
+"dev.peios.peiosutils"  = "*"
 
 [build.main.dependencies.apt]
 coreutils = "*"
 dash      = "*"
-findutils = "*"
 python3   = "*"
 
 [test]

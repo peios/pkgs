@@ -4,7 +4,7 @@ description = "util-linux hexdump debugging symbols"
 license     = "BSD-4-Clause-UC AND GPL-2.0-or-later"
 
 [dependencies]
-"org.kernel.util-linux-hexdump" = "{{version}}-1"
+"org.kernel.util-linux-hexdump" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.kernel.util-linux-hexdump-debuginfo/COPYING"

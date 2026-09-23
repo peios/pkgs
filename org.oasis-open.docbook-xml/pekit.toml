@@ -3,6 +3,12 @@
 # DocBook 4.5 is intentionally fixed rather than merely a maintenance floor:
 # it is the final DocBook 4 DTD. DocBook 5 is a distinct, namespace-aware
 # RELAX NG schema line and cannot replace this package for DocBook 4 consumers.
+#
+# This package installs only its own catalog.xml and registers it nowhere.
+# The system catalog that resolves the DTD offline is /usr/etc/xml/catalog,
+# owned by org.docbook.docbook-xsl, which chains to this catalog with
+# nextCatalog. Without docbook-xsl, consumers must name
+# /usr/share/xml/docbook/schema/dtd/4.5/catalog.xml in XML_CATALOG_FILES.
 
 tags = ["bootstrap"]
 out_dir = "out"
@@ -86,7 +92,6 @@ done
 "org.gnu.findutils"                 = "*"
 "org.gnu.coreutils-build-compat"    = "*"
 "org.python.python3"                   = "*"
-"org.gnome.libxml2-utils" = "*"
 
 [test]
 needs = ["main"]

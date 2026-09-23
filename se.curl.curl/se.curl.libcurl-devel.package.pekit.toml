@@ -10,7 +10,7 @@ license     = "curl"
 [replaces]
 
 [dependencies]
-"se.curl.libcurl" = "{{version}}-1"
+"se.curl.libcurl" = "= {{release}}"
 # curl-config is a POSIX shell script.
 "sh"              = "*"
 

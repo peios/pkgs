@@ -10,7 +10,7 @@
 # root cannot silently widen the package.
 #
 # Python. configure runs its tooling from a venv that upstream fills with pip;
-# Peios ships no pip. peios-patches/0001 lets that venv use the system meson
+# Peios ships no pip. patches/0001 lets that venv use the system meson
 # and distlib (io.pypa.distlib) without pip, and leaves out the pip-installed
 # tooling group and pycotap, which only QEMU's own test scripts use.
 #
@@ -61,11 +61,16 @@ LICENSES="$PREFIX/share/licenses/org.qemu.qemu-system-x86"
 mkdir -p "$WORK"
 tar -C "$WORK" -xf "qemu-$PEKIT_VERSION.tar.xz" \
   --exclude="qemu-$PEKIT_VERSION/roms/edk2"
-# Pekit's [source] patches apply to an extracted tree, and this one is
-# unpacked here, so the recipe's own patches are applied here too.
-for p in "$PEKIT_RECIPE_ROOT"/peios-patches/*.patch; do
-  patch -d "$SRC" -p1 --no-backup-if-mismatch < "$p"
-done
+# The recipe's patches/series is applied here, in series order, rather than
+# through [source] patches: pekit applies that series to the materialised
+# source, which with extract = false holds only the tarball. Like pekit's
+# own application, this is strict (no fuzz) and any failure stops the build.
+sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$PEKIT_RECIPE_ROOT/patches/series" \
+  | while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      patch -d "$SRC" -p1 --fuzz=0 --no-backup-if-mismatch \
+        < "$PEKIT_RECIPE_ROOT/patches/$p"
+    done
 
 # configure hands its own flags to meson; pass the distribution's through it
 # once rather than also through the environment meson reads.
@@ -142,29 +147,11 @@ for blob in \
   install -m 0644 "$SRC/pc-bios/$blob" "$DATA/$blob"
 done
 
-# Build-ID debug data and the source tree it references, then strip.
-: > "$PEKIT_OUT/.srclist"
-for elf in "$PREFIX/bin/qemu-system-x86_64"; do
-  debugedit -b "$WORK" -d /usr/src/debug/org.qemu.qemu \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$WORK/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.qemu.qemu/$(dirname "$rel")"
-  cp "$WORK/$rel" "$PREFIX/src/debug/org.qemu.qemu/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Build-ID debug data and the source tree it references, then strip. The
+# emulator is the one ELF; the firmware under share/qemu is not split. The
+# source and build trees live under $WORK, the prefix mapped above.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --build-root "$WORK" \
+  org.qemu.qemu "$PREFIX/bin/qemu-system-x86_64"
 # The unpacked tree and build directory are scratch, not payload.
 rm -rf "$WORK"
 '''

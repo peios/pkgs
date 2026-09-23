@@ -1,0 +1,17 @@
+{
+  "family": "org.kernel.pahole",
+  "section": "1",
+  "extra": "Additional upstream documentation is installed in /usr/share/doc/org.kernel.pahole.\n.SH SEE ALSO\n.BR pahole (1),\n.BR pfunct (1)",
+  "commands": {
+    "codiff": {"description": "compare type and function information in object files"},
+    "ctracer": {"description": "generate tracing support from debugging information"},
+    "dtagnames": {"description": "print DWARF tag names", "synopsis": "dtagnames FILE ..."},
+    "pdwtags": {"description": "print DWARF tags"},
+    "pglobal": {"description": "display global symbols and their debugging information"},
+    "prefcnt": {"description": "display type reference information", "synopsis": "prefcnt FILE ..."},
+    "scncopy": {"description": "copy selected ELF sections"},
+    "syscse": {"description": "inspect debugging information for system call structures"},
+    "btfdiff": {"description": "compare DWARF and BTF type layouts", "synopsis": "btfdiff DWARF_FILE [BTF_FILE]\nPAHOLE selects the pahole executable."},
+    "fullcircle": {"description": "compare original and regenerated type information", "synopsis": "fullcircle FILE\nPFUNCT and CODIFF select the helper executables.\nThe helper compiles regenerated C with gcc."}
+  }
+}

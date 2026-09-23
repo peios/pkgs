@@ -7,8 +7,8 @@ down because the host forbids unprivileged network administration. Extend the
 suite's existing NO_NETWORK_TESTING contract to the remaining tests which
 otherwise assume that uid 0 and a usable loopback network are equivalent.
 
-The installed modules are unchanged. Reference builds without the variable
-continue to exercise every test.
+The installed modules are unchanged. A build that leaves the variable unset
+still exercises every test.
 
 diff --git a/dist/IO/t/io_multihomed.t b/dist/IO/t/io_multihomed.t
 --- a/dist/IO/t/io_multihomed.t

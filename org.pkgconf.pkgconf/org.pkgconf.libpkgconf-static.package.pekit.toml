@@ -8,7 +8,7 @@ description = "pkgconf - static libpkgconf library"
 [provides]
 
 [dependencies]
-"org.pkgconf.libpkgconf-devel" = "{{version}}-1"
+"org.pkgconf.libpkgconf-devel" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf-static/"

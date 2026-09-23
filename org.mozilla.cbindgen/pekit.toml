@@ -57,6 +57,9 @@ cp "$PEKIT_OUT/target/release/cbindgen" "$BIN"
 mkdir -p "$PEKIT_OUT/usr/share/man/man1"
 gzip -n -9 -c "$PEKIT_RECIPE_ROOT/man/cbindgen.1" > "$PEKIT_OUT/usr/share/man/man1/cbindgen.1.gz"
 
+# Hand-written rather than _pkgtools_/split-debug: DWARF references both the
+# crate tree and the vendored crates, which live outside any one build root
+# (vendor/* resolves into the vendor target's output).
 LIST="$PEKIT_OUT/.debug-sources"
 debugedit -b "$SRC" -d /usr/src/debug/org.mozilla.cbindgen -l "$LIST" -n "$BIN"
 BUILD_ID=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
@@ -136,14 +139,20 @@ test "$#" -eq 1
 DEBUG="$1"
 BUILD_ID=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
 test -n "$BUILD_ID"
-readelf -h "$BIN" | grep -Eq 'Type:[[:space:]]+DYN'
-readelf -lW "$BIN" | grep -q 'GNU_RELRO'
-readelf -lW "$BIN" | grep -Eq 'GNU_STACK[[:space:]].*RW[[:space:]]'
-readelf -dW "$BIN" | grep -q 'BIND_NOW'
-readelf -dW "$BIN" | grep -Eq 'FLAGS_1.*PIE'
-! readelf -dW "$BIN" | grep -Eq '(RPATH|RUNPATH)'
-! readelf -SW "$BIN" | grep -q '\.debug_info'
-readelf -SW "$DEBUG" 2>/dev/null | grep -q '\.debug_info'
+# Under pipefail, `grep -q` can exit before readelf finishes writing and turn
+# a match into SIGPIPE (141); let grep read everything instead.
+readelf -h "$BIN" | grep -E 'Type:[[:space:]]+DYN' >/dev/null
+readelf -lW "$BIN" | grep 'GNU_RELRO' >/dev/null
+readelf -lW "$BIN" | grep -E 'GNU_STACK[[:space:]].*RW[[:space:]]' >/dev/null
+readelf -dW "$BIN" | grep 'BIND_NOW' >/dev/null
+readelf -dW "$BIN" | grep -E 'FLAGS_1.*PIE' >/dev/null
+if readelf -dW "$BIN" | grep -E '(RPATH|RUNPATH)' >/dev/null; then
+  echo "cbindgen: $BIN carries an RPATH/RUNPATH" >&2; exit 1
+fi
+if readelf -SW "$BIN" | grep '\.debug_info' >/dev/null; then
+  echo "cbindgen: $BIN is not stripped" >&2; exit 1
+fi
+readelf -SW "$DEBUG" | grep '\.debug_info' >/dev/null
 test "$(readelf -n "$DEBUG" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)" = "$BUILD_ID"
 '''
 

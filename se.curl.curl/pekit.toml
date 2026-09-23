@@ -44,7 +44,7 @@ PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Preserve physical DWARF paths until debugedit collects the source files.
-export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/se.curl.curl"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/se.curl.curl"
 mkdir -p "$BUILD"
 cd "$BUILD"
 
@@ -84,33 +84,25 @@ find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} +
 
 LIBCURL_SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libcurl.so.4.*' | LC_ALL=C sort)
 test -n "$LIBCURL_SO"
-: > "$PEKIT_OUT/.srclist"
-for elf in "$LIBCURL_SO" "$PREFIX/bin/curl"; do
-  patchelf --remove-rpath "$elf"
-  debugedit -b "$ROOT" -d /usr/src/debug/se.curl.curl \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  case "$elf" in
-    "$LIBCURL_SO") DEBUGROOT="$PREFIX/lib/debug-libcurl" ;;
-    *) DEBUGROOT="$PREFIX/lib/debug-curl" ;;
-  esac
-  mkdir -p "$DEBUGROOT/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "$DEBUGROOT/.build-id/$p2/$rest.debug"
-  chmod 0644 "$DEBUGROOT/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/se.curl.curl/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/se.curl.curl/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# libtool links curl against the just-built libcurl with
+# -rpath /usr/lib/x86_64-linux-peios, a directory missing from its built-in
+# search path. The loader already searches it; drop the RUNPATH.
+patchelf --remove-rpath "$PREFIX/bin/curl"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" se.curl.curl \
+  "$LIBCURL_SO" "$PREFIX/bin/curl"
+
+# The client and the library have separate debuginfo packages: move each
+# build-ID file into the tree its package takes.
+bid=$(readelf -n "$PREFIX/bin/curl" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+test -n "$bid"
+p2=$(printf %s "$bid" | cut -c1-2)
+mkdir -p "$PREFIX/lib/debug-curl/.build-id/$p2"
+mv "$PREFIX/lib/debug/.build-id/$p2/$(printf %s "$bid" | cut -c3-).debug" \
+  "$PREFIX/lib/debug-curl/.build-id/$p2/"
+if [ -z "$(ls -A "$PREFIX/lib/debug/.build-id/$p2")" ]; then
+  rmdir "$PREFIX/lib/debug/.build-id/$p2"
+fi
+mv "$PREFIX/lib/debug" "$PREFIX/lib/debug-libcurl"
 '''
 
 [build.main.dependencies.peipkg]

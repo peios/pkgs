@@ -15,7 +15,7 @@
 #   sof-tplg, sof-ipc4-tplg, sof-ace-tplg   topologies
 # all of it under /usr/lib/firmware/intel/. Same rules as linux-firmware: zstd
 # on disk (the kernel decompresses on load), the licence text shipped, and
-# firmware loaded unsigned in this release (PEI-493).
+# every blob and topology PIP-signed with a TCB sidecar (PEI-493).
 #
 # Dropped: sof/community (public-key-signed dev builds), non-x86 NXP i.MX8 and
 # MediaTek topologies, and tools/ (sof-ctl, sof-logger: prebuilt host binaries,

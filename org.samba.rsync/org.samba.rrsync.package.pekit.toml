@@ -10,7 +10,7 @@ architecture = "noarch"
 
 [dependencies]
 "org.python.python3" = "*"
-"org.samba.rsync"    = "{{version}}-1"
+"org.samba.rsync"    = "= {{release}}"
 
 [files]
 "@source:COPYING"              = "usr/share/licenses/org.samba.rrsync/"

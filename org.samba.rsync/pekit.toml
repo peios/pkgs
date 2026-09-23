@@ -32,6 +32,7 @@ fingerprints = ["9FEF112DCE19A0DC7E882CB81BB24997A8535F6F"]
 command = '''
 set -eu
 SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 RSYNC="$PREFIX/bin/rsync"
@@ -41,9 +42,10 @@ cd "$BUILD"
 # Bundled popt is the only popt implementation currently in the catalogue.
 # Use the system compression and cryptography libraries, retain generic xattrs,
 # and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead. IDN host
-# names (3.5.1+) stay off until libidn2 is packaged.
-CFLAGS="$CFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
-CXXFLAGS="$CXXFLAGS -fmacro-prefix-map=$SRC=/usr/src/debug/org.samba.rsync" \
+# names (3.5.1+) stay off until libidn2 is packaged. __FILE__ is mapped with
+# the same prefix split-debug gives DWARF.
+CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.samba.rsync" \
+CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.samba.rsync" \
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
   "$SRC/configure" \
     --prefix=/usr \
@@ -67,31 +69,8 @@ find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -n -9 {} +
 sed -i '1s|^#!/usr/bin/env bash$|#!/bin/bash|' "$PREFIX/bin/rsync-ssl"
 sed -i '1s|^#!/usr/bin/env python3$|#!/bin/python3|' "$PREFIX/bin/rrsync"
 
-# Build-ID-indexed debuginfo and exactly the rewritten source paths referenced
-# by DWARF. This covers rsync's C and rolling-checksum C++ compilation units.
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-debugedit -b "$ROOT" -d /usr/src/debug/org.samba.rsync \
-  -l "$PEKIT_OUT/.dl" -n "$RSYNC"
-tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-bid=$(readelf -n "$RSYNC" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$RSYNC" \
-  "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-strip "$RSYNC"
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.samba.rsync/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.samba.rsync/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# This covers rsync's C and rolling-checksum C++ compilation units.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.samba.rsync "$RSYNC"
 '''
 
 [test]

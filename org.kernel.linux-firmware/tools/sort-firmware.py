@@ -9,7 +9,8 @@ anything is unclaimed or a family's blobs cite a licence text the family
 does not declare. Then runs upstream's copy-firmware.sh --zstd into a
 staging tree and moves each family's files into
 <out>/family/<name>/usr/lib/firmware/, with the family's licence texts under
-usr/share/licenses/firmware-<name>/. --check stops after the assignment.
+usr/share/licenses/org.kernel.linux-firmware-<name>/. --check stops after
+the assignment.
 """
 import argparse, fnmatch, os, re, shutil, subprocess, sys, tomllib
 from collections import defaultdict
@@ -81,6 +82,7 @@ def load_families(path):
             "drivers": [re.compile(p) for p in f.get("drivers", [])],
             "paths": f.get("paths", []),
             "licenses": set(f.get("licenses", [])),
+            "extra_licenses": set(f.get("extra_licenses", [])),
             "cfg": f,
         }
     ignore = doc.get("ignore", {})
@@ -88,6 +90,7 @@ def load_families(path):
         "drivers": [re.compile(p) for p in ignore.get("drivers", [])],
         "paths": ignore.get("paths", []),
         "licenses": set(),
+        "extra_licenses": set(),
         "cfg": {},
     }
     return fams
@@ -164,7 +167,7 @@ def main():
             problems.append(f"family {fam}: blobs cite {lic}, which the family does not declare")
         for lic in sorted(declared - got["licenses"]):
             problems.append(f"family {fam}: declares {lic}, which none of its blobs cite")
-        for lic in sorted(declared):
+        for lic in sorted(declared | fams[fam]["extra_licenses"]):
             if not os.path.exists(os.path.join(args.source, "LICENSES", lic)):
                 problems.append(f"family {fam}: licence text {lic} does not exist upstream")
     # Links must not cross families: a relative symlink whose target lands in
@@ -223,7 +226,7 @@ def main():
         licdir = os.path.join(root, "usr", "share", "licenses",
                               f"org.kernel.linux-firmware-{fam}")
         os.makedirs(licdir, exist_ok=True)
-        for lic in sorted(fams[fam]["licenses"]):
+        for lic in sorted(fams[fam]["licenses"] | fams[fam]["extra_licenses"]):
             shutil.copy2(os.path.join(args.source, "LICENSES", lic), os.path.join(licdir, lic))
 
     # Everything copy-firmware produced must now have been claimed.

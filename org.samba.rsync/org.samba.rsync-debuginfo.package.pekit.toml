@@ -3,7 +3,7 @@ name        = "org.samba.rsync-debuginfo"
 description = "rsync - debugging symbols"
 
 [dependencies]
-"org.samba.rsync" = "{{version}}-1"
+"org.samba.rsync" = "= {{release}}"
 
 [files]
 "@source:COPYING"      = "usr/share/licenses/org.samba.rsync-debuginfo/"

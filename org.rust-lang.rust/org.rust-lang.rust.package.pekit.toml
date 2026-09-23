@@ -4,17 +4,15 @@ architecture = "noarch"
 description  = "Programming-language compiler, package manager, formatter and source suite"
 
 [provides]
-# Include the package revision so this canonical suite outranks the retained
-# monolithic rust 1.83.0-1 artifact in mixed local pools.
 
 [replaces]
 
 [dependencies]
-"org.rust-lang.rustc"       = "= {{version}}-1"
-"org.rust-lang.cargo"       = "= {{version}}-1"
-"org.rust-lang.rustfmt"     = "= {{version}}-1"
-"org.rust-lang.rust-src"    = "= {{version}}-1"
-"org.rust-lang.rust-common" = "= {{version}}-1"
+"org.rust-lang.rustc"       = "= {{release}}"
+"org.rust-lang.cargo"       = "= {{release}}"
+"org.rust-lang.rustfmt"     = "= {{release}}"
+"org.rust-lang.rust-src"    = "= {{release}}"
+"org.rust-lang.rust-common" = "= {{release}}"
 
 [files]
 # Keep the component's upstream notices beside its installed payload.

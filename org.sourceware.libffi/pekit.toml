@@ -80,33 +80,10 @@ find "$PREFIX/share/man" -type l -name '*.[1-9]' | while IFS= read -r page; do
   rm "$page"
 done
 
-# Produce build-ID-indexed symbols and the exact source tree referenced after
-# DWARF path rewriting. Static-archive members have no stable build ID, so the
-# archive keeps its link symbols but its debug sections are left to the shared
-# object's debuginfo.
-SO=$(find "$LIBDIR" -maxdepth 1 -type f -name 'libffi.so.*')
-test "$(printf '%s\n' "$SO" | grep -c .)" -eq 1
-strip --strip-debug "$LIBDIR/libffi.a"
-debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.libffi \
-  -l "$PEKIT_OUT/.dl" -n "$SO"
-tr '\0' '\n' < "$PEKIT_OUT/.dl" > "$PEKIT_OUT/.srclist"
-bid=$(readelf -n "$SO" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug "$SO" "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-strip "$SO"
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.sourceware.libffi/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.sourceware.libffi/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Static-archive members have no stable build ID, so the archive keeps its
+# link symbols but its debug sections are left to the shared object's
+# debuginfo.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.libffi "$PREFIX"
 '''
 
 [build.main.dependencies.peipkg]

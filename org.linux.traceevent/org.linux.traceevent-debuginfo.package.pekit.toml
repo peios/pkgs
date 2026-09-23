@@ -3,7 +3,7 @@ name        = "org.linux.traceevent-debuginfo"
 description = "libtraceevent plugin debugging symbols"
 
 [dependencies]
-"org.linux.traceevent" = "{{version}}-1"
+"org.linux.traceevent" = "= {{release}}"
 
 [files]
 "@source:LICENSES/LGPL-2.1"       = "usr/share/licenses/org.linux.traceevent-debuginfo/LGPL-2.1"

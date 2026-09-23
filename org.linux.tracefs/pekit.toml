@@ -36,8 +36,8 @@ mkdir -p "$BUILD"
 # Upstream honours environment CFLAGS directly. Append reproducible debug
 # paths and CET while retaining the workspace profile's optimisation and
 # linker policy. Generate IBT PLT entries while preserving input-note merging.
-export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$JOBS" \
   prefix=/usr \
@@ -59,10 +59,11 @@ make -C "$SRC" O="$BUILD" -j1 \
   completion_dir=/usr/share/bash-completion/completions install
 
 # Upstream uses xmlto only as a wrapper around this DocBook XSL transform.
-# XMLTO's packaged runtime pulls Peiosutils, whose applet links overlap the
-# intentionally separate GNU Coreutils build baseline. Build documentation
-# from a private copy and invoke xsltproc directly through the exact narrow
-# interface expected by upstream's maintained Makefile.
+# Build documentation from a private copy and invoke xsltproc
+# (org.gnome.libxslt-utils) with the DocBook manpage stylesheets
+# (org.docbook.docbook-xsl) directly, through the exact narrow interface
+# expected by upstream's maintained Makefile, rather than adding xmlto and its
+# runtime to the build.
 export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 DOCSRC="$PEKIT_OUT/doc-src"
 mkdir -p "$DOCSRC"
@@ -119,36 +120,11 @@ mkdir -p "$PEKIT_OUT/.repro"
 cp "$LIBDIR/libtracefs.a" \
   "$LIBDIR/libtracefs.so.$PEKIT_VERSION" "$PEKIT_OUT/.repro/"
 
-# Split build-ID debug data and corresponding sources without duplicating
-# debug sections in the runtime package.
-strip --strip-debug "$LIBDIR/libtracefs.a"
-cd "$PEKIT_OUT"
-patchelf --remove-rpath "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION"
-debugedit -b "$ROOT" -d /usr/src/debug/org.linux.tracefs \
-  -l "$PEKIT_OUT/.debug-list" -n \
-  "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION"
-build_id=$(readelf -n \
-  "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" | \
-  sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$build_id"
-first=$(printf %s "$build_id" | cut -c1-2)
-rest=$(printf %s "$build_id" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$first"
-objcopy --only-keep-debug \
-  "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION" \
-  "usr/lib/debug/.build-id/$first/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
-strip "usr/lib/x86_64-linux-peios/libtracefs.so.$PEKIT_VERSION"
-
-tr '\0' '\n' < "$PEKIT_OUT/.debug-list" | LC_ALL=C sort -u | \
-  while IFS= read -r source; do
-    test -n "$source" || continue
-    case "$source" in */) continue;; esac
-    test -f "$ROOT/$source" || continue
-    mkdir -p "usr/src/debug/org.linux.tracefs/$(dirname "$source")"
-    cp "$ROOT/$source" "usr/src/debug/org.linux.tracefs/$source"
-  done
-rm -f "$PEKIT_OUT/.debug-list"
+# upstream's scripts/utils.mk links the shared library with -rpath=$ORIGIN;
+# the library needs no run path, so remove it.
+patchelf --remove-rpath "$LIBDIR/libtracefs.so.$PEKIT_VERSION"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.linux.tracefs \
+  "$LIBDIR/libtracefs.so.$PEKIT_VERSION" "$LIBDIR/libtracefs.a"
 
 # DocBook XSL versions disagree on whether aliases include their section.
 # Use the section-qualified form expected when man/groff resolves .so paths.
@@ -182,8 +158,8 @@ LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 COMPLETION="$PREFIX/share/bash-completion/completions/tracefs_sql.bash"
 SMOKE="$PEKIT_OUT/smoke"
 JOBS=2
-export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
 # which the catalogue does not package yet (PEI-1164). The hermetic tests below
@@ -325,9 +301,12 @@ if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
 "org.gnu.grep"                    = "*"
 "io.github.asciidoc-py.asciidoc" = "*"
 "org.gnu.make"                                = "*"
+"org.nixos.patchelf"              = "*"
 "org.gnu.bash"                    = "*"
 "org.linux.traceevent-devel"      = ">= 1.9.0-1, < 2"
 "org.gnu.which"                   = "*"
-"org.nixos.patchelf"                            = "*"
+# xsltproc and the DocBook manpage stylesheets for the xmlto-free man build.
+"org.gnome.libxslt-utils"         = "*"
+"org.docbook.docbook-xsl"         = "*"
 "org.pkgconf.pkgconf"                             = "*"
 "org.gnu.sed"                                 = "*"

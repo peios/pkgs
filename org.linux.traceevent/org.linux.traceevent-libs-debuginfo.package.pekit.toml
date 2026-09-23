@@ -4,7 +4,7 @@ description = "libtraceevent library debugging symbols"
 license     = "LGPL-2.1-only"
 
 [dependencies]
-"org.linux.traceevent-libs" = "{{version}}-1"
+"org.linux.traceevent-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSES/LGPL-2.1"          = "usr/share/licenses/org.linux.traceevent-libs-debuginfo/LGPL-2.1"

@@ -3,7 +3,7 @@ name        = "org.sourceware.debugedit-debugsource"
 description = "Debugedit debug sources"
 
 [dependencies]
-"org.sourceware.debugedit-debuginfo" = "{{version}}-1"
+"org.sourceware.debugedit-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.sourceware.debugedit-debugsource/"

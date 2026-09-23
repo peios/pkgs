@@ -3,8 +3,8 @@ name        = "org.kernel.pahole-debuginfo"
 description = "pahole and libdwarves debugging symbols"
 
 [dependencies]
-"org.kernel.pahole"     = "{{version}}-1"
-"org.kernel.libdwarves" = "{{version}}-1"
+"org.kernel.pahole"     = "= {{release}}"
+"org.kernel.libdwarves" = "= {{release}}"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/org.kernel.pahole-debuginfo/"

@@ -3,7 +3,7 @@ name        = "org.sourceware.elfutils-debuginfo"
 description = "elfutils - debugging symbols"
 
 [dependencies]
-"org.sourceware.elfutils" = "{{version}}-1"
+"org.sourceware.elfutils" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.sourceware.elfutils-debuginfo/"

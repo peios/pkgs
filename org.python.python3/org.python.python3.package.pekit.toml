@@ -9,7 +9,7 @@ description = "Python 3 interpreter and command-line tools"
 [replaces]
 
 [dependencies]
-"org.python.python3-libs" = "{{version}}-5"
+"org.python.python3-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSE"        = "usr/share/licenses/org.python.python3/LICENSE"

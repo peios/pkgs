@@ -3,7 +3,7 @@ name        = "org.perl.perl-debugsource"
 description = "Perl 5 source files for debugging"
 
 [dependencies]
-"org.perl.perl-debuginfo" = "{{version}}-1"
+"org.perl.perl-debuginfo" = "= {{release}}"
 
 [files]
 "@source:Copying"   = "usr/share/licenses/org.perl.perl-debugsource/Copying"

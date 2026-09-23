@@ -3,9 +3,9 @@ name        = "org.openssl.openssl-debuginfo"
 description = "OpenSSL debugging symbols"
 
 [dependencies]
-"org.openssl.libcrypto" = "{{version}}-2"
-"org.openssl.libssl"    = "{{version}}-2"
-"org.openssl.openssl"   = "{{version}}-2"
+"org.openssl.libcrypto" = "= {{release}}"
+"org.openssl.libssl"    = "= {{release}}"
+"org.openssl.openssl"   = "= {{release}}"
 
 [files]
 "@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl-debuginfo/"

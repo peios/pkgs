@@ -6,7 +6,7 @@ license     = "LGPL-2.1-only"
 [provides]
 
 [dependencies]
-"org.linux.tracefs-devel" = "{{version}}-1"
+"org.linux.tracefs-devel" = "= {{release}}"
 "org.linux.traceevent-static" = ">= 1.9.0-1, < 2"
 
 [files]

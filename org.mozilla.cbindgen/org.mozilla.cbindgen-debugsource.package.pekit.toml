@@ -4,7 +4,7 @@ architecture = "noarch"
 description  = "cbindgen debug sources"
 
 [dependencies]
-"org.mozilla.cbindgen-debuginfo" = "= {{version}}-1"
+"org.mozilla.cbindgen-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE"         = "usr/share/licenses/org.mozilla.cbindgen-debugsource/LICENSE"

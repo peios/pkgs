@@ -56,13 +56,18 @@ LINK_JOBS=$((MEM_KIB / 6000000))
 [ "$LINK_JOBS" -gt 3 ] && LINK_JOBS=3
 [ "$LINK_JOBS" -lt 1 ] && LINK_JOBS=1
 
-# Preserve the workspace policy while supplying a safe production fallback.
-# The forced cstdint include is the narrow LLVM-18/GCC-16 compatibility bridge;
-# unlike the old recipe it is appended and cannot discard inherited flags.
-export CFLAGS="${CFLAGS:--O2 -g -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=3} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -include cstdint -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt"
+# Append to the workspace policy; it always sets these flags. The forced
+# cstdint include is the narrow LLVM-18/GCC-16 compatibility bridge.
+export CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export CXXFLAGS="${CXXFLAGS:?} -include cstdint -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
+# The host triple differs from the current lane on purpose. LLVM 18's triple
+# parser accepts an unrecognised environment component, so the bare Peios
+# triplet works here without a source patch. LLVM 22 and later validate the
+# environment, so org.llvm.llvm-current carries target-environment.patch and
+# spells the full x86_64-unknown-linux-peios. Aligning this lane would change
+# the kernel compiler's default triple; do it only with an LLVM 18 build.
 rm -rf "$BUILD"
 cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -163,13 +168,23 @@ find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec strip --strip-debug {} +
 if find "$LIBDIR" -maxdepth 1 -type f -name '*.a' -exec readelf -SW {} + 2>/dev/null \
   | grep -Eq '\.debug_(info|line)'; then exit 1; fi
 
+# This split stays hand-written rather than using _pkgtools_/split-debug:
+# each debug file goes to the per-component tree (.debuginfo/<component>)
+# that the clang, clang-libs, lld, llvm-devel, llvm-libs and llvm debuginfo
+# packages each own.
 cd "$PEKIT_OUT"
 : > "$PEKIT_OUT/.source-list"
 : > "$PEKIT_OUT/.build-ids"
 find usr/bin "usr/lib/$TRIPLET" -type f ! -type l \
   -not -name '*.a' -not -path 'usr/lib/debug/*' | LC_ALL=C sort | while IFS= read -r elf; do
     readelf -h "$elf" >/dev/null 2>&1 || continue
-    patchelf --remove-rpath "$elf" 2>/dev/null || true
+    # CMAKE_SKIP_INSTALL_RPATH drops LLVM's $ORIGIN/../lib/$TRIPLET RUNPATH
+    # from everything `cmake --install` writes, but llvm-config is copied
+    # from the build tree above and can keep its build RUNPATH. Remove any
+    # that remains; a patchelf failure stops the build.
+    if readelf -d "$elf" | grep -Eq '\((RPATH|RUNPATH)\)'; then
+      patchelf --remove-rpath "$elf"
+    fi
     debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
       -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
     cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"

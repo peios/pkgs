@@ -115,45 +115,11 @@ find "$PEKIT_OUT/usr/share/man" -type l -name '*.[1-9]' | while IFS= read -r pag
 done
 
 
-# Distribution debug split: scrub build paths, index detached symbols by GNU
-# build ID, strip installed ELF payloads, and retain referenced source files.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f" 2>/dev/null || true; continue;;
-    *.o) continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$f" 2>/dev/null || true
-  debugedit -b "$ROOT" -d /usr/src/debug/org.sourceware.bzip2 -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$ROOT/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.sourceware.bzip2/$(dirname "$rel")"
-  cp "$ROOT/$rel" "usr/src/debug/org.sourceware.bzip2/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.bzip2 "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
 "org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 
@@ -161,7 +127,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 gzip = "*"
 build-essential = "*"
 debugedit      = "*"
-patchelf       = "*"
 
 [test]
 needs = ["main"]
@@ -206,8 +171,15 @@ head -1 "$BINDIR/bzdiff" | grep -Fx '#!/usr/bin/sh'
 test -n "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' -print -quit)"
 test -n "$(find "$STAGE/usr/src/debug/org.sourceware.bzip2" -type f -print -quit)"
 for elf in "$BINDIR/bzip2" "$BINDIR/bzip2recover" "$LIBDIR/libbz2.so.$PEKIT_VERSION"; do
+  readelf -h "$elf" | grep -E 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  # Debian's startup objects carry no CET notes (see debian.env.pekit.toml).
+  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  fi
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 '''

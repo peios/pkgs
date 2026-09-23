@@ -3,7 +3,7 @@ name        = "org.pcre.pcre2-debugsource"
 description = "PCRE2 debug sources"
 
 [dependencies]
-"org.pcre.pcre2-debuginfo" = "{{version}}-1"
+"org.pcre.pcre2-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-debugsource/"

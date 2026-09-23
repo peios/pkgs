@@ -6,7 +6,7 @@ architecture = "noarch"
 [provides]
 
 [dependencies]
-"org.openssl.openssl" = "{{version}}-2"
+"org.openssl.openssl" = "= {{release}}"
 "org.perl.perl"                    = "*"
 
 [files]

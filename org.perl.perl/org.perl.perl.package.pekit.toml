@@ -3,7 +3,7 @@ name        = "org.perl.perl"
 description = "Dynamic-language interpreter and core command-line utilities"
 
 [dependencies]
-"org.perl.libperl" = "{{version}}-1"
+"org.perl.libperl" = "= {{release}}"
 
 [provides]
 

@@ -26,6 +26,10 @@
 # `licenses` is the closed list of upstream LICEN[CS]E.* texts a family's
 # blobs may cite; they are shipped under the canonical package's directory in
 # /usr/share/licenses/.
+# `extra_licenses` are further texts under upstream's LICENSES/ that the
+# family's SPDX expression needs but that WHENCE does not cite by a
+# LICEN[CS]E.* name (GPL-2.0 is cited as "See GPL-2.0", or not at all, as for
+# starfire). They are checked to exist and shipped beside `licenses`.
 # `license` is the SPDX expression the package declares; Peios follows SPDX's
 # LicenseRef- convention for vendor terms with no SPDX id, and `license_class`
 # is "firmware" (PSPU §18) unless a family is genuinely free software.
@@ -135,6 +139,7 @@ drivers  = ["cxgb3", "cxgb4", "qed", "myri10ge", "tehuti", "typhoon", "vxge", "s
 licenses = ["LICENCE.cxgb3", "LICENCE.chelsio_firmware", "LICENSE.qed", "LICENCE.myri10ge_firmware",
             "LICENSE.tehuti", "LICENCE.typhoon", "LICENSE.vxge", "LICENCE.alacritech", "LICENCE.phanfw",
             "LICENCE.kaweth", "LICENSE.aeonsemi"]
+extra_licenses = ["GPL-2.0"]
 license  = "LicenseRef-Chelsio-Firmware AND LicenseRef-QLogic-Firmware AND LicenseRef-Myricom-Firmware AND LicenseRef-Tehuti-Firmware AND LicenseRef-3Com-Firmware AND LicenseRef-Exar-Firmware AND LicenseRef-Alacritech-Firmware AND LicenseRef-Kaweth-Firmware AND LicenseRef-Aeonsemi-Firmware AND GPL-2.0-or-later"
 # starfire's firmware is GPL-2.0-or-later (upstream "LICENSED" marker).
 
@@ -160,6 +165,7 @@ licenses = ["LICENCE.keyspan", "LICENCE.emi26", "LICENCE.multitech", "LICENCE.mo
             "LICENCE.go7007", "LICENCE.sensoray", "LICENSE.tlg2300",
             "LICENCE.agere", "LICENCE.via_vt6656", "LICENCE.cw1200", "LICENCE.cw1200-sdd", "LICENSE.rsi",
             "LICENCE.wf200", "LICENSE.atmel", "LICENCE.morsemicro", "LICENSE.bmi260", "LICENSE.montage"]
+extra_licenses = ["GPL-2.0"]
 license  = "LicenseRef-Miscellaneous-Vendor-Firmware AND GPL-2.0-or-later"
 
 # Not shipped. Non-x86 SoC firmware, datacentre switch and accelerator blobs,

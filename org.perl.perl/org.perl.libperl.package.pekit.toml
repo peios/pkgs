@@ -8,7 +8,7 @@ description = "Perl 5 shared embedding library and architecture modules"
 [dependencies]
 "org.gnu.glibc"                        = ">= 2.43"
 "org.debian.netbase"        = ">= 6.6"
-"org.perl.perl-modules"      = "{{version}}-1"
+"org.perl.perl-modules"      = "= {{release}}"
 "io.github.zlib-ng.zlib-ng-compat"                         = ">= 2.3.3"
 "org.sourceware.bzip2-libs" = ">= 1.0.8"
 

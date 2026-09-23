@@ -5,6 +5,6 @@ format = "peipkg"
 [package]
 version       = "{{version}}-1"
 architecture  = "x86_64"
-license       = "BSD-4-Clause"
+license       = "bzip2-1.0.6"
 license_class = "free"
 homepage      = "https://sourceware.org/bzip2/"

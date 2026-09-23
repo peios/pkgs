@@ -1,7 +1,7 @@
-# clang — the C/C++ compiler (the kernel's CC under LLVM=1), the
-# libclang-cpp dylib, libclang (bindgen's entry point, unversioned
-# link included — clang-sys dlopens "libclang.so"), and the resource
-# headers (stdarg.h & co) the driver hands every compile.
+# clang — the C/C++ compiler (the kernel's CC under LLVM=1), its tools,
+# and the resource headers (stdarg.h & co) the driver hands every compile.
+# The libclang-cpp and libclang shared libraries are in clang-libs; their
+# unversioned links (clang-sys dlopens "libclang.so") are in clang-devel.
 
 [package]
 name        = "org.llvm.clang"
@@ -15,8 +15,8 @@ description = "C, C++, and Objective-C compiler"
 # Hosted C/C++ defaults need startup objects, libc SDK, and libstdc++ headers.
 "org.gnu.gcc" = ">= 16"
 "org.gnu.gcc-libstdc++-devel" = ">= 16"
-"org.llvm.llvm"       = "{{version}}-1"
-"org.llvm.clang-libs" = "{{version}}-1"
+"org.llvm.llvm"       = "= {{release}}"
+"org.llvm.clang-libs" = "= {{release}}"
 
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang/LICENSE.TXT"

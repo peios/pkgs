@@ -8,7 +8,7 @@ description = "Portable foreign function interface static library"
 license     = "MIT AND CC0-1.0"
 
 [dependencies]
-"org.sourceware.libffi-devel" = "{{version}}-1"
+"org.sourceware.libffi-devel" = "= {{release}}"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/org.sourceware.libffi-static/"

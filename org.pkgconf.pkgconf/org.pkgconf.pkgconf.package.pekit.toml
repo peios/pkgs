@@ -13,7 +13,7 @@ description = "Compiler and linker metadata toolkit"
 
 [dependencies]
 "org.gnu.glibc"                    = ">= 2.43"
-"org.pkgconf.libpkgconf" = "{{version}}-1"
+"org.pkgconf.libpkgconf" = "= {{release}}"
 
 [files]
 "@source:COPYING"       = "usr/share/licenses/org.pkgconf.pkgconf/"

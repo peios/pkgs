@@ -52,41 +52,11 @@ rm -rf "$PEKIT_OUT/usr/share/dwarves/runtime/python"
 
 BIN="$PEKIT_OUT/usr/bin"
 
-python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man1"
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/install-manpages.py" "$PEKIT_OUT" \
+  "$PEKIT_VERSION" "$PEKIT_OUT/usr/share/man/man1" "$PEKIT_RECIPE_ROOT/tools/manpages.json"
 find "$PEKIT_OUT/usr/share/man" -type f ! -name "*.gz" -exec gzip -9n {} +
 
-# Produce conventional build-ID-indexed debuginfo and exact debug sources.
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
-  -not -path 'usr/src/debug/*' | while IFS= read -r file; do
-  readelf -h "$file" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$file"
-  debugedit -b "$ROOT" -d /usr/src/debug/org.kernel.pahole \
-    -l "$PEKIT_OUT/.debug-list" -n "$file"
-  cat "$PEKIT_OUT/.debug-list" >> "$PEKIT_OUT/.srclist"
-  build_id=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
-  test -n "$build_id"
-  prefix=$(printf %s "$build_id" | cut -c1-2)
-  suffix=$(printf %s "$build_id" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$prefix"
-  objcopy --only-keep-debug "$file" \
-    "usr/lib/debug/.build-id/$prefix/$suffix.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$prefix/$suffix.debug"
-  strip "$file"
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
-  while IFS= read -r source; do
-    test -n "$source" || continue
-    case "$source" in */) continue;; esac
-    test -f "$ROOT/$source" || continue
-    mkdir -p "usr/src/debug/org.kernel.pahole/$(dirname "$source")"
-    cp "$ROOT/$source" "usr/src/debug/org.kernel.pahole/$source"
-  done
-rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.elf-list" \
-  "$PEKIT_OUT/.expected-tools" "$PEKIT_OUT/.installed-tools" \
-  "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.pahole "$PEKIT_OUT/usr"
 '''
 
 [test]
@@ -171,7 +141,8 @@ find "$BIN" "$STAGED_LIBDIR" -type f | LC_ALL=C sort | while IFS= read -r file; 
   if readelf -d "$file" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 test "$(wc -l < "$PEKIT_OUT/elf-list")" -eq 13
-python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$STAGE" "$PEKIT_VERSION" "$PEKIT_OUT/manuals"
+python3 "$PEKIT_WORKSPACE_ROOT/_pkgtools_/install-manpages.py" "$STAGE" \
+  "$PEKIT_VERSION" "$PEKIT_OUT/manuals" "$PEKIT_RECIPE_ROOT/tools/manpages.json"
 for page in "$PEKIT_OUT/manuals/"*.gz; do
   cmp "$page" "$STAGE/usr/share/man/man1/$(basename "$page")"
 done

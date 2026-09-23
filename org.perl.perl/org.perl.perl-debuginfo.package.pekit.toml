@@ -3,7 +3,7 @@ name        = "org.perl.perl-debuginfo"
 description = "Perl 5 detached debugging symbols"
 
 [dependencies]
-"org.perl.perl" = "{{version}}-1"
+"org.perl.perl" = "= {{release}}"
 
 [files]
 "@source:Copying"   = "usr/share/licenses/org.perl.perl-debuginfo/Copying"

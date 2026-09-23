@@ -83,10 +83,10 @@ libsdirs=''
 libsfound=''
 libspath='$LIBDIR /usr/lib'
 timeincl='/usr/include/sys/time.h '
-ccflags='${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
-cppflags='${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
-ldflags='${LDFLAGS:-}'
-lddlflags='-shared ${LDFLAGS:-}'
+ccflags='${CFLAGS:?} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
+cppflags='${CFLAGS:?} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
+ldflags='${LDFLAGS:?}'
+lddlflags='-shared ${LDFLAGS:?}'
 EOF
 
 # Stable major.minor library paths allow locally installed modules to survive
@@ -113,10 +113,10 @@ EOF
   -Dcc=gcc \\
   -Dld=gcc \\
   -Doptimize=none \\
-  -Dccflags="${CFLAGS:-} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing" \\
+  -Dccflags="${CFLAGS:?} -D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing" \\
   -Dcccdlflags=-fPIC \\
-  -Dldflags="${LDFLAGS:-}" \\
-  -Dlddlflags="-shared ${LDFLAGS:-}" \\
+  -Dldflags="${LDFLAGS:?}" \\
+  -Dlddlflags="-shared ${LDFLAGS:?}" \\
   -DDEBUGGING=-g \\
   -Duseshrplib \\
   -Dusedl \\
@@ -212,44 +212,14 @@ find "$PEKIT_OUT/usr" -type f ! -type l | while IFS= read -r f; do
   fi
 done
 
-# Conventional build-ID debug packages. Rewrite source paths to the canonical
-# package namespace, split symbols, then stage exactly the referenced sources.
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in *.a|*.o) continue ;; esac
+# debugedit, objcopy and strip rewrite their input; installed XS modules may
+# be 0555. Perl builds in-tree, so DWARF paths are relative to $BUILD.
+find "$PEKIT_OUT/usr" -type f | while IFS= read -r f; do
   readelf -h "$f" >/dev/null 2>&1 || continue
-  # objcopy and strip replace their input; installed XS modules may be 0555.
   chmod u+w "$f"
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  [ -n "$bid" ] || { echo "ELF without build ID: $f" >&2; exit 1; }
-  # /usr/bin/perl and its full-version spelling are hardlinks. Preserve one
-  # complete debug object for a shared build ID, while still stripping a
-  # later distinct file should upstream ever install identical copies.
-  if grep -Fxq "$bid" "$PEKIT_OUT/.buildids"; then
-    strip "$f"
-    continue
-  fi
-  printf '%s\\n' "$bid" >> "$PEKIT_OUT/.buildids"
-  debugedit -b "$BUILD" -d /usr/src/debug/org.perl.perl \\
-    -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null \\
-    && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$f"
 done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue ;; esac
-  [ -f "$BUILD/$rel" ] || continue
-  mkdir -p "usr/src/debug/org.perl.perl/$(dirname "$rel")"
-  cp "$BUILD/$rel" "usr/src/debug/org.perl.perl/$rel"
-done
-rm -f "$PEKIT_OUT/.buildids" "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" --build-root "$BUILD" \\
+  org.perl.perl "$PEKIT_OUT/usr"
 """
 
 [test]
@@ -312,6 +282,7 @@ trap - EXIT HUP INT TERM
 
 ARCHROOT="$STAGE$LIBDIR/perl5/$API"
 CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"
+for f in $CONFIG_FILES; do test -f "$f"; done
 if grep -E -- 'x86_64-linux-gnu|/usr/local/include|-L/usr/local/lib' $CONFIG_FILES; then
   echo "host search path leaked into installed Perl Config" >&2
   exit 1
@@ -346,8 +317,8 @@ int main(int argc, char **argv, char **env) {
     return 0;
 }
 EOF
-gcc ${CFLAGS:-} -I"$STAGE/devel$LIBDIR/perl5/$API/CORE" \
-  ${LDFLAGS:-} -L"$STAGE$LIBDIR" -Wl,-rpath-link,"$STAGE$LIBDIR" \
+gcc ${CFLAGS:?} -I"$STAGE/devel$LIBDIR/perl5/$API/CORE" \
+  ${LDFLAGS:?} -L"$STAGE$LIBDIR" -Wl,-rpath-link,"$STAGE$LIBDIR" \
   -o "$SMOKE/embed" "$SMOKE/embed.c" -l:libperl.so.$API -ldl -lm -lpthread
 LD_LIBRARY_PATH="$STAGE$LIBDIR" "$SMOKE/embed"
 

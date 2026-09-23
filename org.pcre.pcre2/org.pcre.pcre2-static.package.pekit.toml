@@ -6,7 +6,7 @@ name        = "org.pcre.pcre2-static"
 description = "PCRE2 static libraries"
 
 [dependencies]
-"org.pcre.pcre2-devel" = "{{version}}-1"
+"org.pcre.pcre2-devel" = "= {{release}}"
 
 [files]
 "@source:LICENCE.md"         = "usr/share/licenses/org.pcre.pcre2-static/"

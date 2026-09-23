@@ -45,30 +45,7 @@ install -Dm0644 "$SRC/misc/ninja.vim" \
   "$PEKIT_OUT/usr/share/vim/vimfiles/syntax/ninja.vim"
 
 # Conventional build-ID debuginfo and the exact DWARF-referenced sources.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-debugedit -b "$ROOT" -d /usr/src/debug/org.ninja-build.ninja \
-  -l "$PEKIT_OUT/.srclist" -n usr/bin/ninja
-bid=$(readelf -n usr/bin/ninja | \
-  sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-test -n "$bid"
-p2=$(printf %s "$bid" | cut -c1-2)
-rest=$(printf %s "$bid" | cut -c3-)
-mkdir -p "usr/lib/debug/.build-id/$p2"
-objcopy --only-keep-debug usr/bin/ninja \
-  "usr/lib/debug/.build-id/$p2/$rest.debug"
-chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-strip usr/bin/ninja
-
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
-  while IFS= read -r rel; do
-    [ -n "$rel" ] || continue
-    case "$rel" in */) continue;; esac
-    [ -f "$ROOT/$rel" ] || continue
-    mkdir -p "usr/src/debug/org.ninja-build.ninja/$(dirname "$rel")"
-    cp "$ROOT/$rel" "usr/src/debug/org.ninja-build.ninja/$rel"
-done
-rm -f "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.ninja-build.ninja "$PEKIT_OUT/usr"
 '''
 
 [test]

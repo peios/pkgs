@@ -8,10 +8,10 @@ license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
 [replaces]
 
 [dependencies]
-"org.llvm.llvm" = "{{version}}-1"
+"org.llvm.llvm" = "= {{release}}"
 "io.github.zlib-ng.zlib-ng-compat-devel" = ">= 2.3.3"
 "com.facebook.zstd-devel" = ">= 1.5.7"
-"org.llvm.llvm-libs" = "{{version}}-1"
+"org.llvm.llvm-libs" = "= {{release}}"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-devel/LICENSE.TXT"

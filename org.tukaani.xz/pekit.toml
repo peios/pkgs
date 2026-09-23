@@ -84,42 +84,14 @@ for script in xzdiff xzgrep; do
   sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PEKIT_OUT/usr/bin/$script"
 done
 
-BIN="$PEKIT_OUT/usr/bin"
-LIB="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-ELFS="usr/bin/xz usr/bin/xzdec usr/bin/lzmadec usr/bin/lzmainfo \
-$(find usr/lib/x86_64-linux-peios -type f -name 'liblzma.so.5.*' -print)"
-for elf in $ELFS; do
-  test -f "$elf"
-  patchelf --remove-rpath "$elf" 2>/dev/null || true
-  patchelf --remove-needed ld-linux-x86-64.so.2 "$elf" 2>/dev/null || true
-
-  debugedit -b "$ROOT" -d /usr/src/debug/org.tukaani.xz \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" \
-    | sed -n 's/^[[:space:]]*Build ID: //p' | head -n 1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" \
-    "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
+# libtool links the programs against the just-built liblzma with
+# -rpath /usr/lib/x86_64-linux-peios, because that directory is not in its
+# built-in library search path, and --disable-rpath does not stop it. The
+# loader already searches it; drop the RUNPATH.
+for elf in xz xzdec lzmadec lzmainfo; do
+  patchelf --remove-rpath "$PEKIT_OUT/usr/bin/$elf"
 done
-strip --strip-debug usr/lib/x86_64-linux-peios/liblzma.a
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/org.tukaani.xz/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/org.tukaani.xz/$rel"
-    done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.tukaani.xz "$PEKIT_OUT/usr"
 """
 
 [test]

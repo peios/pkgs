@@ -3,7 +3,7 @@ name        = "org.pixman.pixman-debuginfo"
 description = "pixman - debugging symbols"
 
 [dependencies]
-"org.pixman.pixman" = "{{version}}-1"
+"org.pixman.pixman" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pixman.pixman-debuginfo/"

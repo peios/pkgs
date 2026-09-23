@@ -3,7 +3,7 @@ name        = "org.jedsoft.slang-debugsource"
 description = "S-Lang debug sources"
 
 [dependencies]
-"org.jedsoft.slang-debuginfo" = "{{version}}-1"
+"org.jedsoft.slang-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.jedsoft.slang-debugsource/"

@@ -6,7 +6,7 @@ name        = "org.pixman.pixman-devel"
 description = "pixman - development files"
 
 [dependencies]
-"org.pixman.pixman" = "{{version}}-1"
+"org.pixman.pixman" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pixman.pixman-devel/"

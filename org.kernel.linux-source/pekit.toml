@@ -29,10 +29,13 @@ command = '''
 set -eu
 ARCHIVE="$(pwd)/linux-$PEKIT_VERSION.tar.xz"
 DEST="$PEKIT_OUT/usr/src/dist/linux-$PEKIT_VERSION.tar.xz"
-LICENSE="$PEKIT_OUT/usr/share/licenses/org.kernel.linux-source/COPYING"
-mkdir -p "$(dirname "$DEST")" "$(dirname "$LICENSE")"
+LICDIR="$PEKIT_OUT/usr/share/licenses/org.kernel.linux-source"
+mkdir -p "$(dirname "$DEST")" "$LICDIR"
 cp "$ARCHIVE" "$DEST"
-tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$LICENSE"
+# COPYING names GPL-2.0 WITH Linux-syscall-note and defers the other terms
+# files in the tree carry to LICENSES/; ship both.
+tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$LICDIR/COPYING"
+tar -xf "$ARCHIVE" -C "$LICDIR" --strip-components=1 "linux-$PEKIT_VERSION/LICENSES"
 '''
 
 [build.main.dependencies.peipkg]
@@ -61,12 +64,22 @@ fi
 tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$PEKIT_OUT/COPYING"
 cmp "$PEKIT_MAIN_OUT/usr/share/licenses/org.kernel.linux-source/COPYING" \
   "$PEKIT_OUT/COPYING"
+LICDIR="$PEKIT_MAIN_OUT/usr/share/licenses/org.kernel.linux-source/LICENSES"
+for text in preferred/GPL-2.0 exceptions/Linux-syscall-note; do
+  test -s "$LICDIR/$text"
+done
+grep "^linux-$PEKIT_VERSION/LICENSES/.*[^/]$" "$LIST" \
+  | sed "s|^linux-$PEKIT_VERSION/LICENSES/||" | LC_ALL=C sort > "$PEKIT_OUT/licenses.expected"
+(cd "$LICDIR" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) > "$PEKIT_OUT/licenses.shipped"
+cmp "$PEKIT_OUT/licenses.expected" "$PEKIT_OUT/licenses.shipped"
 '''
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash"  = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.diffutils"    = "*"
+"org.gnu.findutils"    = "*"
 "org.gnu.grep"         = "*"
+"org.gnu.sed"          = "*"
 "org.gnu.tar"          = "*"
 "org.tukaani.xz"       = "*"

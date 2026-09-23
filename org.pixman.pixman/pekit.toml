@@ -30,11 +30,11 @@ versions    = ">= 0.46.4"
 # inline OpenPGP message wrapping the .sha512 file, not a detached signature
 # over the archive, so [source.url.signature] (artifact or decompressed) cannot
 # verify it. The archive is therefore accepted over HTTPS and pinned by the
-# immutable lock; every accepted lock entry must match the SHA-512 in a
-# sidecar whose signature verifies against Matt Turner's release key,
+# immutable lock. Nothing in the build checks the sidecar: 0.46.4 was checked
+# by hand when first locked, against Matt Turner's release key
 # 3BB639E56F861FA2E86505690FDD682D974CA72A (signing subkey
-# 16238A7D92448B02B7B10344B6B1CEAE5103DB07). 0.46.4 was checked this way when
-# first locked.
+# 16238A7D92448B02B7B10344B6B1CEAE5103DB07), and a new lock entry needs the
+# same manual check until Pekit can verify a signed checksum file.
 
 [build.main]
 command = '''
@@ -75,34 +75,9 @@ meson setup "$BUILD" "$SRC" \
 meson compile -C "$BUILD"
 DESTDIR="$PEKIT_OUT" meson install -C "$BUILD" --no-rebuild
 
-# Produce build-ID-indexed symbols and the exact source tree referenced after
-# DWARF path rewriting. Static-library code is retained but debug sections are
-# deliberately left to the shared object's debuginfo.
-strip --strip-debug "$LIBDIR/libpixman-1.a"
-: > "$PEKIT_OUT/.srclist"
-for elf in "$LIBDIR/libpixman-1.so.$PEKIT_VERSION"; do
-  debugedit -b "$ROOT" -d /usr/src/debug/org.pixman.pixman \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  tr '\0' '\n' < "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "$PREFIX/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" \
-    "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "$PREFIX/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-
-LC_ALL=C sort -u "$PEKIT_OUT/.srclist" | while IFS= read -r rel; do
-  test -n "$rel" || continue
-  case "$rel" in */) continue;; esac
-  test -f "$ROOT/$rel" || continue
-  mkdir -p "$PREFIX/src/debug/org.pixman.pixman/$(dirname "$rel")"
-  cp "$ROOT/$rel" "$PREFIX/src/debug/org.pixman.pixman/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+# Static-library code is retained but its debug sections are deliberately
+# left to the shared object's debuginfo.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.pixman.pixman "$PREFIX"
 '''
 
 [build.main.dependencies.peipkg]

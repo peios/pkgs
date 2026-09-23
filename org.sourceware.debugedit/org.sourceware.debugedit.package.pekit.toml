@@ -11,7 +11,7 @@ description = "DWARF source-path, build-ID, and debug-link tools"
 "org.sourceware.elfutils-libelf"   = ">= 0.196"
 "org.sourceware.elfutils-libs"     = ">= 0.196"
 "com.xxhash.xxhash-libs"           = ">= 0.8.3"
-"org.sourceware.debugedit-common"  = "{{version}}-1"
+"org.sourceware.debugedit-common"  = "= {{release}}"
 
 [files]
 "@source:COPYING"                    = "usr/share/licenses/org.sourceware.debugedit/COPYING"

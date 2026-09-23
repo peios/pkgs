@@ -5,7 +5,7 @@ description = "libdwarves headers and shared-library development links"
 [provides]
 
 [dependencies]
-"org.kernel.libdwarves"         = "{{version}}-1"
+"org.kernel.libdwarves"         = "= {{release}}"
 "org.sourceware.elfutils-devel" = ">= 0.196"
 
 [files]

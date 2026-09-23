@@ -6,7 +6,7 @@ name        = "org.pkgconf.libpkgconf-devel"
 description = "pkgconf - libpkgconf development files"
 
 [dependencies]
-"org.pkgconf.libpkgconf" = "{{version}}-1"
+"org.pkgconf.libpkgconf" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pkgconf.libpkgconf-devel/"

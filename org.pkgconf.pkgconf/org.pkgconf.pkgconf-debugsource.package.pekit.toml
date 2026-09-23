@@ -3,7 +3,7 @@ name        = "org.pkgconf.pkgconf-debugsource"
 description = "pkgconf - debug sources"
 
 [dependencies]
-"org.pkgconf.pkgconf-debuginfo" = "{{version}}-1"
+"org.pkgconf.pkgconf-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/org.pkgconf.pkgconf-debugsource/"

@@ -3,8 +3,8 @@ name        = "org.jedsoft.slang-debuginfo"
 description = "S-Lang debugging symbols"
 
 [dependencies]
-"org.jedsoft.slang"      = "{{version}}-1"
-"org.jedsoft.slang-libs" = "{{version}}-1"
+"org.jedsoft.slang"      = "= {{release}}"
+"org.jedsoft.slang-libs" = "= {{release}}"
 
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.jedsoft.slang-debuginfo/"
