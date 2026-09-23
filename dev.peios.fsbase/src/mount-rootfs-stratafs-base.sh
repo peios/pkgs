@@ -1,9 +1,10 @@
-#!/usr/bin/sh
+#!/bin/sh
 # /// hook
 # contributes = ["rootfs-strata-ready"]
 # after = ["rootfs-ready"]
 # ///
-# /usr/bin/sh, not /bin/sh: a base-view hook, it names package storage only.
+# Runs in the initramfs after initramfs-ready, so the initramfs's own /bin view
+# exists; it builds the mounted root's views, not the ones it runs under.
 #
 # Establish the base StrataFS views inside the MOUNTED ROOT, after a hook has
 # mounted it and before prelude pivots into it. The mirror of this package's
