@@ -5,9 +5,6 @@
 out_dir = "out"
 delegate = true
 
-[source]
-patches = "patches"
-
 [source.git]
 url       = "https://github.com/peios/trustd.git"
 ref       = "v{{version}}"
