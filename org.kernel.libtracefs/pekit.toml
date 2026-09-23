@@ -70,7 +70,6 @@ make -C "$SRC" O="$BUILD" -j1 \
 # (org.docbook.docbook-xsl) directly, through the exact narrow interface
 # expected by upstream's maintained Makefile, rather than adding xmlto and its
 # runtime to the build.
-export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 DOCSRC="$PEKIT_OUT/doc-src"
 mkdir -p "$DOCSRC"
 cp -a "$SRC/Documentation" "$SRC/scripts" "$DOCSRC/"

@@ -44,7 +44,6 @@ set -eu
 SRC="$(pwd)"
 PREFIX="$PEKIT_OUT/usr"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 # Git's Rust core has no dependencies; never let Cargo reach the network.
 export CARGO_HOME="$PEKIT_OUT/cargo-home" CARGO_NET_OFFLINE=true
 # gitcore is a static library linked into git and git-shell. The linker keeps

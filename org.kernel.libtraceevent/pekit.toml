@@ -57,7 +57,6 @@ make -C "$SRC" O="$BUILD" -j1 \
 # its optional GNU source-highlight helper is unavailable. Build documentation
 # from a private copy and render those source blocks as ordinary, complete code
 # listings instead, avoiding that test-only formatter dependency on Peios.
-export SOURCE_DATE_EPOCH="$PEKIT_SOURCE_TIMESTAMP"
 DOCSRC="$PEKIT_OUT/doc-src"
 mkdir -p "$DOCSRC" "$BUILD/Documentation"
 cp -a "$SRC/Documentation" "$SRC/scripts" "$DOCSRC/"
