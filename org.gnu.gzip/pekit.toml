@@ -71,6 +71,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gzip "$PEKIT_OUT/usr"
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 perl            = "*"
 
 [test]

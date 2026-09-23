@@ -81,6 +81,7 @@ build-essential = "*"
 autoconf        = "*"
 automake        = "*"
 debugedit       = "*"
+dwz             = "*"
 gzip            = "*"
 
 [test]

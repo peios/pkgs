@@ -95,6 +95,7 @@ build-essential = "*"
 libgmp-dev      = "*"
 pkgconf         = "*"
 debugedit       = "*"
+dwz             = "*"
 
 [test]
 gate = true

@@ -14,6 +14,9 @@
 # (usr/lib/debug and usr/src/debug are never scanned). For each ELF:
 #   * debugedit rewrites the build-root prefix to /usr/src/debug/PACKAGE and
 #     lists the referenced sources;
+#   * dwz removes duplicate DWARF (types repeated across compilation units)
+#     from it, in place (executables and shared objects; dwz does not
+#     handle relocatable objects);
 #   * its build ID must exist; the debug sections go to
 #     STAGE/usr/lib/debug/.build-id/xx/rest.debug;
 #   * executables are stripped with --strip-all, shared objects with
@@ -21,6 +24,17 @@
 # Static archives keep their code and lose only their debug sections.
 # Referenced sources that exist under the build root are copied to
 # STAGE/usr/src/debug/PACKAGE, in a locale-independent order.
+#
+# dwz runs per file, never in multifile (-m) mode. A multifile would share
+# DWARF across a package's ELFs through a separate .dwz file and
+# .gnu_debugaltlink references, which ties every debug file to the whole set
+# the split happened to see; per-file results depend only on the file itself.
+# dwz outcomes that leave the file correct but unoptimised are accepted: its
+# "not beneficial" and "no .debug_info" cases exit 0, and an ELF above its DIE
+# limit ("Too many DIEs ..., not optimizing", exit 1, file untouched) is noted
+# and kept as it is. Any other dwz failure fails the split. dwz replaces the
+# file it rewrites, so it works on a copy whose bytes are written back,
+# keeping the inode, its hard links and its mode.
 #
 # Options:
 #   --stage DIR        payload root (default: $PEKIT_OUT)
@@ -30,8 +44,8 @@
 #   --allow-stripped   accept an ELF that has no .debug_info (a prebuilt
 #                      blob); it is stripped but gets no debug file
 #
-# Needs: debugedit, binutils (readelf, objcopy, strip), and the POSIX tools
-# every root already has.
+# Needs: debugedit, dwz, binutils (readelf, objcopy, strip), and the POSIX
+# tools every root already has.
 set -eu
 
 die() { echo "split-debug: $*" >&2; exit 1; }
@@ -59,6 +73,8 @@ if [ -z "$root" ]; then
 fi
 root=$(cd "$root" && pwd)
 dest=/usr/src/debug/$package
+
+command -v dwz >/dev/null 2>&1 || die "dwz not found (dev.peios.build-essentials-c provides it)"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/split-debug.XXXXXX")
 trap 'rm -rf "$work"' EXIT INT TERM
@@ -105,6 +121,20 @@ while IFS= read -r file; do
   fi
   debugedit -b "$root" -d "$dest" -l "$work/list" -n "$file"
   cat "$work/list" >> "$work/sources"
+  cp "$file" "$work/dwz.elf"
+  if readelf -h "$file" | grep -Eq 'Type:[[:space:]]+REL '; then
+    : # dwz handles only executables and shared objects
+  elif dwz "$work/dwz.elf" 2> "$work/dwz.err"; then
+    mode=$(stat -c %a "$file")
+    chmod u+w "$file"
+    cat "$work/dwz.elf" > "$file"
+    chmod "$mode" "$file"
+  elif grep -q 'Too many DIEs' "$work/dwz.err"; then
+    echo "split-debug: $file: dwz skipped it (too many DIEs); DWARF kept unoptimised" >&2
+  else
+    cat "$work/dwz.err" >&2
+    die "dwz failed on $file"
+  fi
   bid=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   [ -n "$bid" ] || die "$file has no build ID"
   dir=$stage/usr/lib/debug/.build-id/$(printf %s "$bid" | cut -c1-2)

@@ -90,6 +90,7 @@ build-essential = "*"
 gettext         = "*"
 perl            = "*"
 debugedit       = "*"
+dwz             = "*"
 
 [test]
 needs = ["main"]

@@ -124,6 +124,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.bzip2 "$PEKIT_O
 gzip = "*"
 build-essential = "*"
 debugedit      = "*"
+dwz            = "*"
 
 [test]
 needs = ["main"]

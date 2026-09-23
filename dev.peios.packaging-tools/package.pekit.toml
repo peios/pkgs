@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name          = "dev.peios.packaging-tools"
-version       = "1.0.1-1"
+version       = "1.0.2-1"
 architecture  = "noarch"
 description   = "Peios packaging helpers: debug-info split and Rust licence closure"
 license       = "MIT"
@@ -18,6 +18,7 @@ homepage      = "https://github.com/peios/pkgs"
 "org.gnu.sed"              = "*"
 "org.gnu.binutils"         = "*"
 "org.sourceware.debugedit" = "*"
+"org.sourceware.dwz"       = "*"
 # collect-rust-licences
 "org.python.python3"       = ">= 3.11"
 

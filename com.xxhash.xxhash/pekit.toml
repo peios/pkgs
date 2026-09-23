@@ -85,6 +85,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.xxhash.xxhash \
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 gzip            = "*"
 
 [test]

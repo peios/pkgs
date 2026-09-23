@@ -67,6 +67,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.westes.flex \
 build-essential = "*"
 bison = "*"
 debugedit = "*"
+dwz       = "*"
 m4 = "*"
 gzip = "*"
 

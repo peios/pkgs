@@ -78,6 +78,7 @@ build-essential = "*"
 libgmp-dev      = "*"
 libmpfr-dev     = "*"
 debugedit       = "*"
+dwz             = "*"
 pkgconf         = "*"
 texinfo         = "*"
 

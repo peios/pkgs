@@ -126,6 +126,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.pcre.pcre2 "$PREFIX"
 build-essential = "*"
 gzip            = "*"
 debugedit       = "*"
+dwz             = "*"
 
 [test]
 needs = ["main"]

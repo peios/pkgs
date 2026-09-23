@@ -58,19 +58,33 @@ cp -R "$PEKIT_WORKSPACE_ROOT/_pkgtools_/tests" "$WORK/tests"
 cp "$TOOLS/collect-rust-licences" "$WORK/collect-rust-licences"
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$WORK/tests" -v
 
-# split-debug: a real ELF with DWARF, a hard link and a static archive.
+# split-debug: a real ELF with DWARF, a hard link and a static archive. The
+# program's two compilation units share a header, so dwz has duplicate type
+# DWARF to remove.
 JOB="$WORK/job"
 mkdir -p "$JOB/source" "$JOB/out/stage"
 cd "$JOB/source"
-printf 'int main(void){return 0;}\n' > m.c
+printf 'struct big { int a, b; double d[4]; const char *n[8]; struct big *next; };\n' > t.h
+printf '#include "t.h"\nint g(struct big *);\nint main(void){struct big b = {0}; return g(&b);}\n' > m.c
+printf '#include "t.h"\nint g(struct big *b){return b->a;}\n' > g.c
 printf 'int f(void){return 1;}\n' > f.c
-cc -g -O1 -Wl,--build-id=sha1 -o "$JOB/out/stage/prog" m.c
+cc -g -O1 -Wl,--build-id=sha1 -o "$JOB/out/stage/prog" m.c g.c
+cp "$JOB/out/stage/prog" "$WORK/prog.unsplit"
 cc -g -c f.c -o f.o
 ar rcs "$JOB/out/stage/libf.a" f.o
 ln "$JOB/out/stage/prog" "$JOB/out/stage/prog2"
 PEKIT_OUT="$JOB/out/stage" "$TOOLS/split-debug" org.example.test "$JOB/out/stage"
 test "$(find "$JOB/out/stage/usr/lib/debug/.build-id" -name '*.debug' | wc -l)" -eq 1
 test -f "$JOB/out/stage/usr/src/debug/org.example.test/source/m.c"
+# dwz rewrote the DWARF without breaking the hard link.
+test "$(stat -c %i "$JOB/out/stage/prog")" = "$(stat -c %i "$JOB/out/stage/prog2")"
+debug_info_size() {
+  printf '%d' "0x$(readelf -S -W "$1" \
+    | sed -n 's/.* \.debug_info  *[A-Z]*  *[0-9a-f]*  *[0-9a-f]*  *\([0-9a-f]*\) .*/\1/p')"
+}
+DEBUG=$(find "$JOB/out/stage/usr/lib/debug/.build-id" -name '*.debug')
+test "$(debug_info_size "$DEBUG")" -lt "$(debug_info_size "$WORK/prog.unsplit")"
+readelf --debug-dump=info "$DEBUG" | grep -F DW_TAG_partial_unit
 if readelf -S "$JOB/out/stage/prog" | grep -q '\.debug_info'; then
   echo "packaging-tools: split-debug left DWARF in the executable" >&2; exit 1
 fi
@@ -78,7 +92,7 @@ if readelf -S "$JOB/out/stage/libf.a" | grep -q '\.debug_info'; then
   echo "packaging-tools: split-debug left DWARF in the archive" >&2; exit 1
 fi
 # Fails closed: an ELF without debug info is refused.
-cc -O1 -o "$JOB/out/stage/nodebug" m.c
+cc -O1 -o "$JOB/out/stage/nodebug" m.c g.c
 if PEKIT_OUT="$JOB/out/stage" "$TOOLS/split-debug" org.example.test "$JOB/out/stage/nodebug" 2>/dev/null; then
   echo "packaging-tools: split-debug accepted an ELF with no debug info" >&2; exit 1
 fi
@@ -88,9 +102,11 @@ rm -rf "$WORK"
 [test.dependencies.peipkg]
 "org.git.kernel.dash"          = "*"
 "dev.peios.build-essentials-c" = "*"
+"org.sourceware.dwz"           = "*"
 "org.python.python3"           = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 python3         = "*"

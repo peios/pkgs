@@ -79,6 +79,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.make "$PEKIT_OUT/usr"
 gzip = "*"
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 gettext         = "*"
 perl            = "*"
 

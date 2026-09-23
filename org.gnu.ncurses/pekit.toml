@@ -209,5 +209,6 @@ pkgconf         = "*"
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 gzip            = "*"
 pkgconf         = "*"

@@ -135,6 +135,7 @@ file = "*"
 m4 = "*"
 bison = "*"
 debugedit = "*"
+dwz       = "*"
 texinfo = "*"
 
 [test]

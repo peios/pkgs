@@ -142,6 +142,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.facebook.zstd \
 build-essential = "*"
 cmake           = "*"
 debugedit       = "*"
+dwz             = "*"
 gzip            = "*"
 liblzma-dev     = "*"
 pkgconf         = "*"

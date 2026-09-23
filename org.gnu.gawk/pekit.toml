@@ -86,6 +86,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gawk \
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 locales-all     = "*"
 libmpfr-dev     = "*"
 gzip            = "*"

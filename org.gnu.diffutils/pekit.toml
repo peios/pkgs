@@ -55,6 +55,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.diffutils "$PEKIT_OUT/
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
+dwz             = "*"
 gzip            = "*"
 
 [test]

@@ -72,6 +72,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.mpfr "$PEKIT_OUT/usr"
 build-essential = "*"
 libgmp-dev      = "*"
 debugedit       = "*"
+dwz             = "*"
 pkgconf         = "*"
 texinfo         = "*"
 

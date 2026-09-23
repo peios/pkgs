@@ -1459,6 +1459,7 @@ perl = "*"
 texinfo = "*"
 gettext = "*"
 debugedit = "*"
+dwz       = "*"
 linux-libc-dev = "*"
 gzip = "*"
 

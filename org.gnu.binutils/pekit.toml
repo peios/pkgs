@@ -182,6 +182,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.binutils "$PEKIT_OUT/u
 gzip = "*"
 build-essential = "*"
 debugedit = "*"
+dwz       = "*"
 file = "*"
 patchelf = "*"
 perl = "*"

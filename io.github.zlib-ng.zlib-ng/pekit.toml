@@ -108,6 +108,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.zlib-ng.zlib-ng \
 build-essential = "*"
 cmake           = "*"
 debugedit       = "*"
+dwz             = "*"
 pkgconf         = "*"
 
 [test]
