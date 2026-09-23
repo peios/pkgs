@@ -4,7 +4,8 @@ Peios ships no pip, so every Python recipe would otherwise hand-roll the same
 four steps: call a PEP 517 backend, extract the wheel, generate the console
 scripts, compile the bytecode. `install-wheel` is those steps, so that the
 *policy* — one site-packages, checked-hash bytecode, `#!/bin/python3`
-launchers, private modules for applications — lives here rather than in each
+launchers (and module shebangs rewritten to match, before compiling), private
+modules for applications — lives here rather than in each
 recipe, and a new recipe cannot quietly get one of them wrong.
 
 It is a workspace helper, not a package, for the same reason `_peiroot_/` is:

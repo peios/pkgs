@@ -118,18 +118,13 @@ exec xsltproc --nonet $params "$xsl" "$1"
 XMLTO
 chmod 0755 "$PEKIT_OUT/xmlto-manpage"
 mkdir -p "$DOCXSL"
-# AsciiDoc-style table cells are rendered by a nested `python3 -m asciidoc`
-# filter, which cannot see the package's private module directory: only the
-# /usr/bin/asciidoc launcher puts it on sys.path (PEI-1158). Give the nested
-# processes the same view. asciidoc reports such failures only as warnings
-# and still exits 0, so any warning fails this build rather than shipping a
-# page with a silently empty section.
-export PYTHONPATH=/usr/lib/x86_64-linux-peios/asciidoc
+# asciidoc reports filter and markup failures only as warnings and still
+# exits 0, so any warning fails this build rather than shipping a page with a
+# silently empty section (PEI-1158).
 PEIOS_MANPAGE_DIR="$DOCXSL" make -C Documentation -j"$(nproc)" \
   XMLTO="$PEKIT_OUT/xmlto-manpage" man > "$PEKIT_OUT/doc.log" 2>&1 || {
   cat "$PEKIT_OUT/doc.log"; exit 1; }
 if grep -E 'asciidoc: (WARNING|ERROR)' "$PEKIT_OUT/doc.log"; then exit 1; fi
-unset PYTHONPATH
 PEIOS_MANPAGE_DIR="$DOCXSL" make -C Documentation \
   XMLTO="$PEKIT_OUT/xmlto-manpage" install-man DESTDIR="$PEKIT_OUT"
 find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -n -9 {} +

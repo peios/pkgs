@@ -1,0 +1,1 @@
+peios/nested-filter-module-path.patch  # filter children import the running asciidoc (PEI-1158)

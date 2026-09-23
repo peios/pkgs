@@ -8,7 +8,8 @@ Replaces pip in a pekit recipe. Four steps, each of which is policy:
      importlib.metadata reads at run time.
   3. Generate the console scripts the wheel declares, with #!/bin/python3:
      /bin is the runtime view every program is reached through, and a payload
-     never names /usr directly.
+     never names /usr directly. Installed modules that carry their own
+     #!/usr/bin/env python3 or #!/usr/bin/python3 line get the same.
   4. Compile bytecode checked-hash and leave it in the payload. /usr is
      verified against the package manifest and never written after install,
      so neither import-time nor install-time pycache generation is available;
@@ -167,6 +168,12 @@ def main():
     if not args.no_scripts:
         write_launchers(console_scripts(dest), os.path.join(out, "usr/bin"), syspath)
 
+    # Before compiling: checked-hash bytecode records the source's hash, so a
+    # shebang rewritten afterwards would leave every such .pyc stale.
+    rewritten = rewrite_python_shebangs(dest)
+    if rewritten:
+        print("install-wheel: %d shebang(s) now name /bin/python3" % rewritten)
+
     # A SEPARATE interpreter, deliberately, rather than compileall in-process:
     # marshal shares references to objects it has already written, and which
     # strings are interned depends on what the compiling process imported. Run
@@ -185,6 +192,34 @@ def main():
     if rc != 0:
         die("bytecode compilation failed")
     print("install-wheel: bytecode compiled checked-hash")
+
+
+PYTHON_SHEBANGS = (b"#!/usr/bin/env python3\n", b"#!/usr/bin/env python\n",
+                   b"#!/usr/bin/python3\n", b"#!/usr/bin/python\n")
+
+
+def rewrite_python_shebangs(root):
+    """Point installed files' Python shebangs at the /bin runtime view.
+
+    Upstream modules often keep a #! line for running them directly; in a
+    payload it must name the interpreter the way every installed script does.
+    Returns the number of files rewritten.
+    """
+    count = 0
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            if os.path.islink(path) or not os.path.isfile(path):
+                continue
+            with open(path, "rb") as f:
+                first = f.readline()
+                if first not in PYTHON_SHEBANGS:
+                    continue
+                rest = f.read()
+            with open(path, "wb") as f:
+                f.write(b"#!/bin/python3\n" + rest)
+            count += 1
+    return count
 
 
 if __name__ == "__main__":

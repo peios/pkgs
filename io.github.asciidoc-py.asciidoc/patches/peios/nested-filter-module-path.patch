@@ -1,0 +1,33 @@
+Description: Let asciidoc's filter children import the running asciidoc package
+ AsciiDoc-style table cells (a|) are rendered by a filter that re-runs the
+ processor as "python -m asciidoc". When asciidoc is installed outside the
+ interpreter's default module path -- Peios keeps it private under
+ /usr/lib/<triplet>/asciidoc, reachable only through its launchers -- that
+ child fails with "No module named asciidoc". asciidoc reports this only as a
+ warning, exits 0, and emits the cell empty, so man pages silently lose
+ content. Filters now get the directory the running package was imported
+ from prepended to PYTHONPATH.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: no
+
+--- a/asciidoc/asciidoc.py
++++ b/asciidoc/asciidoc.py
+@@ -455,8 +455,16 @@
+         # cosmetic, unnecessary quoting appears to cause
+         # command line truncation.
+         filter_cmd = re.sub(r'"([^ ]+?)"', r'\1', filter_cmd)
++    # The asciidoc-style table filter re-runs this processor as
++    # "python -m asciidoc". Give filters the directory this copy was imported
++    # from, so the child finds the same package even when it is installed
++    # outside the interpreter's default path.
++    env = dict(os.environ)
++    package_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++    env['PYTHONPATH'] = os.pathsep.join(
++        path for path in (package_parent, env.get("PYTHONPATH")) if path)
+     try:
+-        p = subprocess.Popen(filter_cmd, shell=True,
++        p = subprocess.Popen(filter_cmd, shell=True, env=env,
+                              stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+         output = p.communicate(os.linesep.join(lines).encode("utf-8"))[0].decode('utf-8')
+     except Exception:

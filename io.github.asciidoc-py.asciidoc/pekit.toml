@@ -26,6 +26,11 @@
 tags = ["bootstrap"]
 out_dir = "out"
 
+# One patch, so the a| table filter's nested "python -m asciidoc" can import
+# the private package (PEI-1158); see patches/series.
+[source]
+patches = "patches"
+
 [source.pypi]
 project  = "asciidoc"
 artifact = "sdist"
@@ -109,6 +114,21 @@ PYTHONPATH="$PRIV" PYTHONNOUSERSITE=1 python3 -m asciidoc.asciidoc --doctest
 # /lib runtime view; PYTHONPATH points them at the staged equivalent.
 test "$(PYTHONPATH="$PRIV" "$STAGE/usr/bin/asciidoc" --version)" = "asciidoc $PEKIT_VERSION"
 test "$(PYTHONPATH="$PRIV" "$STAGE/usr/bin/a2x" --version)" = "a2x $PEKIT_VERSION"
+
+# AsciiDoc-style table cells (a|) are rendered by a filter that re-runs the
+# processor as "python -m asciidoc". Import the staged package through
+# sys.path alone, as the private launcher does, so nothing hands the child a
+# PYTHONPATH, and require the cell's content in the output (PEI-1158).
+printf '%s\n' '= Nested' '' '[cols="1a"]' '|===' '|' '* nested-cell-marker' '|===' > nested.txt
+env -u PYTHONPATH PYTHONNOUSERSITE=1 python3 -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+sys.argv = ["asciidoc", "-o", "nested.html", "nested.txt"]
+from asciidoc.asciidoc import cli
+cli()
+' "$PRIV" 2> nested.err
+if [ -s nested.err ]; then cat nested.err >&2; exit 1; fi
+grep -q 'nested-cell-marker' nested.html
 '''
 
 [test.dependencies.peipkg]
@@ -121,3 +141,4 @@ test "$(PYTHONPATH="$PRIV" "$STAGE/usr/bin/a2x" --version)" = "a2x $PEKIT_VERSIO
 "org.docbook.docbook-xsl"    = "*"
 "org.oasis-open.docbook-xml" = "*"
 "org.gnu.gzip" = "*"
+"org.gnu.grep" = "*"

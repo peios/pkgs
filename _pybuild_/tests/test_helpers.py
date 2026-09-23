@@ -20,6 +20,9 @@ loader = importlib.machinery.SourceFileLoader('test_tools', str(HELPERS / 'test-
 spec = importlib.util.spec_from_loader(loader.name, loader)
 tools = importlib.util.module_from_spec(spec)
 loader.exec_module(tools)
+wheel_loader = importlib.machinery.SourceFileLoader('install_wheel', str(HELPERS / 'install-wheel'))
+install_wheel = importlib.util.module_from_spec(importlib.util.spec_from_loader(wheel_loader.name, wheel_loader))
+wheel_loader.exec_module(install_wheel)
 
 
 class Paths(unittest.TestCase):
@@ -32,6 +35,26 @@ class Paths(unittest.TestCase):
         for path in ['/usr/lib/python3/dist-packages', 'relative', '/usr/../escape', '/usr/lib']:
             with self.subTest(path=path), patch.object(python_paths.sysconfig, 'get_path', return_value=path):
                 with self.assertRaises(ValueError):python_paths.staged_site('/stage')
+
+
+class Shebangs(unittest.TestCase):
+    def test_python_shebangs_name_the_runtime_view(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'pkg').mkdir()
+            cases = {
+                'pkg/env.py': (b'#!/usr/bin/env python3\nprint(1)\n', b'#!/bin/python3\nprint(1)\n'),
+                'pkg/usr.py': (b'#!/usr/bin/python3\nprint(2)\n', b'#!/bin/python3\nprint(2)\n'),
+                'pkg/plain.py': (b'print(3)\n', b'print(3)\n'),
+                'pkg/shell.sh': (b'#!/bin/sh\necho 4\n', b'#!/bin/sh\necho 4\n'),
+                'pkg/options.py': (b'#!/usr/bin/env python3 -u\n', b'#!/usr/bin/env python3 -u\n'),
+            }
+            for name, (data, _) in cases.items():
+                (root / name).write_bytes(data)
+            self.assertEqual(install_wheel.rewrite_python_shebangs(root), 2)
+            for name, (_, want) in cases.items():
+                with self.subTest(name=name):
+                    self.assertEqual((root / name).read_bytes(), want)
 
 
 class Wheels(unittest.TestCase):
