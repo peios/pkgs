@@ -48,7 +48,13 @@ make -j"$(nproc)" dwz \\
 make install DESTDIR="$PEKIT_OUT" prefix=/usr
 gzip -9n "$PEKIT_OUT/usr/share/man/man1/dwz.1"
 
-sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.dwz "$PEKIT_OUT/usr"
+# Split with the dwz just built, as debugedit splits with its own debugedit:
+# the root need not carry a dwz yet, and the build exercises the tool it ships.
+SPLIT_TOOLS="$PEKIT_OUT/split-tools"
+mkdir -p "$SPLIT_TOOLS"
+ln -sfn "$PEKIT_OUT/dwz" "$SPLIT_TOOLS/dwz"
+PATH="$SPLIT_TOOLS:$PATH" \\
+  sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.sourceware.dwz "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
@@ -96,10 +102,10 @@ ln -s "$BUILD/dwz" testsuite-bin/dwz
 sh "$SRC/testsuite/scripts/xunzip-dir.sh" \
   "$SRC/testsuite/dwz.tests/execs.xz" "$BUILD/testsuite/dwz.tests/execs"
 
-# verify-dwarf.sh loads each result into GDB. Where no GDB is installed those
-# cases cannot run; say so rather than failing them.
-HAVE_GDB=0
-if command -v gdb >/dev/null 2>&1; then HAVE_GDB=1; fi
+# verify-dwarf.sh loads each result into GDB, and gdb-add-index.sh runs GDB's
+# index tool; both environments provide the real GDB.
+command -v gdb >/dev/null
+command -v gdb-add-index >/dev/null
 
 usable() { [ -s "$BUILD/$1" ]; }
 pass=0; fail=0; unsupported=
@@ -124,10 +130,6 @@ for test in "$SRC"/testsuite/dwz.tests/*.sh; do
      && [ "$(readelf -wi min | grep DW_AT_name | grep -c /)" != 2 ]; then
     skip=1
   fi
-  if [ "$name" = gdb-add-index.sh ] && ! command -v gdb-add-index >/dev/null 2>&1; then
-    skip=1
-  fi
-  if [ "$HAVE_GDB" = 0 ] && grep -q verify-dwarf.sh "$test"; then skip=1; fi
   if [ "$skip" = 1 ]; then unsupported="$unsupported $name"; continue; fi
 
   dir="$BUILD/tmp.$name"
@@ -146,9 +148,11 @@ for test in "$SRC"/testsuite/dwz.tests/*.sh; do
 done
 echo "dwz suite: $pass passed, $fail failed, unsupported:$unsupported"
 test "$fail" -eq 0
-# 68 cases: without GDB (natively, for now) 51 run; the nine GDB-verified ODR
-# cases add to that. Guard against a harness change silently skipping more.
-test "$pass" -ge 51
+# 68 cases: 61 run natively and 63 under Debian. The remainder need inputs
+# the toolchain does not produce (gold, zstd-compressed sections from a
+# binutils built without zstd). Guard against a harness change silently
+# skipping more.
+test "$pass" -ge 61
 
 # Installed command: optimise a -g program in place, keep valid DWARF, and
 # build a multifile shared between two executables.
@@ -215,6 +219,7 @@ test -f "$STAGE/usr/share/man/man1/dwz.1.gz"
 "org.gnu.grep"                   = "*"
 "org.gnu.sed"                    = "*"
 "org.tukaani.xz"                 = "*"
+"org.gnu.gdb"                    = "*"
 
 [test.dependencies.apt]
 build-essential = "*"
