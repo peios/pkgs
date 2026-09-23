@@ -10,7 +10,7 @@ description = "Modern password-hashing library debug sources"
 [replaces]
 
 [dependencies]
-"io.github.besser82.libxcrypt-debuginfo" = "{{version}}-1"
+"io.github.besser82.libxcrypt-debuginfo" = "= {{release}}"
 
 [files]
 "@source:AUTHORS"      = "usr/share/licenses/io.github.besser82.libxcrypt-debugsource/"

@@ -28,8 +28,7 @@ command = "tests/test-mount-root-disk.sh"
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
-# The harness mocks the Peios-specific lsblk/mount/sleep surface and needs only
-# ordinary file utilities. Keep it independent of the runtime peiosutils
-# binary: that dependency is exercised by image closure, while these tests are
-# deliberately about the hook's own decisions and arguments.
+# The harness mocks the Peios-specific lsblk/mount/sleep surface, so these tests
+# are about the hook's own decisions and arguments; peiosutils supplies only the
+# ordinary file utilities the harness itself runs.
 "dev.peios.peiosutils"    = ">= 0.8.6-1"

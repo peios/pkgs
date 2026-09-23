@@ -3,7 +3,7 @@ name        = "com.git-scm.git-debugsource"
 description = "git debug sources"
 
 [dependencies]
-"com.git-scm.git-debuginfo" = "{{version}}-1"
+"com.git-scm.git-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING"       = "usr/share/licenses/com.git-scm.git-debugsource/"

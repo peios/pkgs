@@ -34,13 +34,12 @@ PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/$TRIPLET"
 COMPAT_BUILD="$PEKIT_OUT/build-compat"
 NATIVE_BUILD="$PEKIT_OUT/build-native"
-DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 DEBUG_DEST=/usr/src/debug/io.github.zlib-ng.zlib-ng
 
 # Preserve workspace policy explicitly through CMake's cache. Generate IBT
 # PLT entries; architecture-specific objects must supply their own CET markings.
-export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Leaving BUILD_SHARED_LIBS unset is intentional: zlib-ng then emits both the
 # shared and PIC static libraries.  Runtime CPU detection keeps a baseline
@@ -90,42 +89,9 @@ test -f "$LIBDIR/$NATIVE_REAL"
 # Static objects retain link symbols but not duplicate DWARF.  Shared-library
 # debug info is rewritten, indexed by build ID, and paired with exactly the
 # source files named by that DWARF.
-strip --strip-debug "$LIBDIR/libz.a" "$LIBDIR/libz-ng.a"
-
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.source-list"
-: > "$PEKIT_OUT/.build-ids"
-for elf in "usr/lib/$TRIPLET/$COMPAT_REAL" "usr/lib/$TRIPLET/$NATIVE_REAL"; do
-  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
-    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
-  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
-  build_id=$(readelf -n "$elf" | \
-    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$build_id"
-  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
-  first=$(printf %s "$build_id" | cut -c1-2)
-  rest=$(printf %s "$build_id" | cut -c3-)
-  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
-  test ! -e "$debug_file"
-  mkdir -p "$(dirname "$debug_file")"
-  objcopy --only-keep-debug "$elf" "$debug_file"
-  chmod 0644 "$debug_file"
-  strip "$elf"
-done
-
-: > "$PEKIT_OUT/.expected-debugsource"
-tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$DEBUG_ROOT/$rel" || continue
-      destination="usr/src/debug/io.github.zlib-ng.zlib-ng/$rel"
-      mkdir -p "$(dirname "$destination")"
-      cp "$DEBUG_ROOT/$rel" "$destination"
-      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
-    done
-LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
-  -o "$PEKIT_OUT/.expected-debugsource"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.zlib-ng.zlib-ng \
+  "$LIBDIR/$COMPAT_REAL" "$LIBDIR/$NATIVE_REAL" \
+  "$LIBDIR/libz.a" "$LIBDIR/libz-ng.a"
 '''
 
 [build.main.dependencies.peipkg]
@@ -333,22 +299,32 @@ done
 
 if readelf -SW "$LIBDIR/libz.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
 if readelf -SW "$LIBDIR/libz-ng.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
+# The debugsource payload must be exactly the rewritten DWARF's referenced
+# sources that exist in the build root: list them from each shipped .debug
+# file (on a copy, since debugedit opens it for writing).
+test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
+: > "$SMOKE/referenced"
+for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
+  readelf -S "$debug_file" | grep -F '.debug_info'
+  cp "$debug_file" "$SMOKE/probe.debug"
+  debugedit -b /usr/src/debug/io.github.zlib-ng.zlib-ng -l "$SMOKE/probe.list" "$SMOKE/probe.debug"
+  tr '\0' '\n' < "$SMOKE/probe.list" >> "$SMOKE/referenced"
+done
+LC_ALL=C sort -u "$SMOKE/referenced" | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  [ -f "$DEBUG_ROOT/$rel" ] || continue
+  printf '%s\n' "usr/src/debug/io.github.zlib-ng.zlib-ng/$rel"
+done > "$PEKIT_OUT/.expected-debugsource"
+test -s "$PEKIT_OUT/.expected-debugsource"
 find usr/src/debug/io.github.zlib-ng.zlib-ng -type f -printf '%p\n' \
   | LC_ALL=C sort > "$PEKIT_OUT/.actual-debugsource"
 diff -u "$PEKIT_OUT/.expected-debugsource" "$PEKIT_OUT/.actual-debugsource"
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.build-ids" | wc -l)" -eq 2
-test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
-test -n "$(find usr/src/debug/io.github.zlib-ng.zlib-ng -type f -print -quit)"
-for debug_file in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
-  readelf -S "$debug_file" | grep -F '.debug_info'
-done
 
 python3 "$PEKIT_RECIPE_ROOT/test-sdk-closure.py" "$PEKIT_MAIN_OUT" "$PEKIT_OUT/sdk-closure" "$SMOKE"
 
 rm -f "$PEKIT_OUT/.actual-install" "$PEKIT_OUT/.expected-install" \
-  "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
-  "$PEKIT_OUT/.debugedit-list" "$PEKIT_OUT/.expected-debugsource" \
-  "$PEKIT_OUT/.actual-debugsource"
+  "$PEKIT_OUT/.expected-debugsource" "$PEKIT_OUT/.actual-debugsource"
 rm -rf "$PEKIT_MAIN_OUT/build-compat" "$PEKIT_MAIN_OUT/build-native" "$PEKIT_MAIN_OUT/.zlib-ng-smoke"
 '''
 

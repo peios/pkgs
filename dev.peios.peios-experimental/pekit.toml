@@ -124,8 +124,8 @@ install_autoapply = [
 EOF
 """
 
-# The build is small, but it is still hermetic: every command it executes is
-# present in both reference environments rather than inherited from the host.
+# The build is small, but it is still hermetic: every command it executes comes
+# from its declared native root rather than from the host.
 [build.dependencies.peipkg]
 "org.git.kernel.dash"    = ">= 0.5.13.5-1"
 "dev.peios.peiosutils"   = ">= 0.8.8-1"

@@ -11,7 +11,7 @@ license      = "BSD-2-Clause"
 [dependencies]
 "org.git.kernel.dash"                 = "*"
 "org.gnu.grep"       = "*"
-"com.facebook.zstd" = "{{version}}-1"
+"com.facebook.zstd" = "= {{release}}"
 
 [files]
 "@source:programs/zstdgrep" = "usr/share/licenses/com.facebook.zstd-utils/LICENSE.zstdgrep"

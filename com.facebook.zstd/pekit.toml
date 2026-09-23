@@ -1,6 +1,5 @@
 # Zstandard reference implementation. The canonical identity follows the
-# upstream repository owner; revision-exact legacy provides keep existing
-# Peios consumers and installed packages on a safe rename path.
+# upstream repository owner.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -32,14 +31,13 @@ BUILD="$PEKIT_OUT/build"
 PREFIX="$PEKIT_OUT/usr"
 TRIPLET=x86_64-linux-peios
 LIBDIR="$PREFIX/lib/$TRIPLET"
-DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 DEBUG_DEST=/usr/src/debug/com.facebook.zstd
 
 # Feed the inherited Peios compiler policy through CMake's cache. Generate IBT
 # PLT entries while preserving the linker's compatibility-note merge.
-export CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$SRC=$DEBUG_DEST/source"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Resolve optional compression backends through the active compiler so this
 # works with Debian multiarch and Peios' native triplet without host guessing.
@@ -97,10 +95,16 @@ DESTDIR="$PEKIT_OUT" cmake --install "$BUILD"
 
 # zstdless advertises a pager which Peios cannot yet provide. zstdgrep is kept
 # as a separate, dependency-complete shell utility. The signed 1.5.7 archive's
-# generated man page has a stale version header; repair that derivable field.
+# generated man page has a stale version header; repair that derivable field,
+# then require the header to name this release so a later stale header fails
+# here instead of the edit silently doing nothing.
 rm -f "$PREFIX/bin/zstdless" "$PREFIX/share/man/man1/zstdless.1"
 sed -i "1s/zstd 1\.5\.6/zstd $PEKIT_VERSION/" \
   "$PREFIX/share/man/man1/zstd.1"
+if ! sed -n 1p "$PREFIX/share/man/man1/zstd.1" | grep -Fq "zstd $PEKIT_VERSION"; then
+  echo "com.facebook.zstd: zstd.1 header does not name $PEKIT_VERSION" >&2
+  exit 1
+fi
 sed -i '1s|^#!.*sh$|#!/usr/bin/sh|' "$PREFIX/bin/zstdgrep"
 
 # Ship each command's manual with its owning binary package. Upstream does not
@@ -114,48 +118,11 @@ ln -s zstd.1.gz "$MANDIR/unzstd.1.gz"
 ln -s zstd.1.gz "$MANDIR/zstdcat.1.gz"
 ln -s zstd.1.gz "$MANDIR/zstdmt.1.gz"
 
-# Static archives retain symbols but not duplicate DWARF. Split every shipped
-# ELF by build ID and retain exactly the source files referenced by its DWARF.
-strip --strip-debug "$LIBDIR/libzstd.a"
-
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.source-list"
-: > "$PEKIT_OUT/.build-ids"
-ELFS="usr/bin/zstd usr/bin/pzstd usr/lib/$TRIPLET/libzstd.so.$PEKIT_VERSION"
-for elf in $ELFS; do
-  test -f "$elf"
-  debugedit -b "$DEBUG_ROOT" -d "$DEBUG_DEST" \
-    -l "$PEKIT_OUT/.debugedit-list" -n "$elf"
-  cat "$PEKIT_OUT/.debugedit-list" >> "$PEKIT_OUT/.source-list"
-  build_id=$(readelf -n "$elf" | \
-    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$build_id"
-  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.build-ids"
-  first=$(printf %s "$build_id" | cut -c1-2)
-  rest=$(printf %s "$build_id" | cut -c3-)
-  debug_file="usr/lib/debug/.build-id/$first/$rest.debug"
-  test ! -e "$debug_file"
-  mkdir -p "$(dirname "$debug_file")"
-  objcopy --only-keep-debug "$elf" "$debug_file"
-  chmod 0644 "$debug_file"
-  strip "$elf"
-done
-
-: > "$PEKIT_OUT/.expected-debugsource"
-tr '\0' '\n' < "$PEKIT_OUT/.source-list" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$DEBUG_ROOT/$rel" || continue
-      destination="usr/src/debug/com.facebook.zstd/$rel"
-      mkdir -p "$(dirname "$destination")"
-      cp "$DEBUG_ROOT/$rel" "$destination"
-      printf '%s\n' "$destination" >> "$PEKIT_OUT/.expected-debugsource"
-    done
-LC_ALL=C sort -u "$PEKIT_OUT/.expected-debugsource" \
-  -o "$PEKIT_OUT/.expected-debugsource"
-rm -f "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" \
-  "$PEKIT_OUT/.debugedit-list"
+# Split every shipped ELF by build ID, retain exactly the source files its
+# DWARF references, and strip the static archive's duplicate DWARF.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.facebook.zstd \
+  "$PREFIX/bin/zstd" "$PREFIX/bin/pzstd" \
+  "$LIBDIR/libzstd.so.$PEKIT_VERSION" "$LIBDIR/libzstd.a"
 '''
 
 [build.main.dependencies.peipkg]
@@ -302,15 +269,28 @@ if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
 fi
 
 # Verify debug/source extraction and static archive stripping.
+# The debugsource payload must be exactly the rewritten DWARF's referenced
+# sources that exist in the build root: list them from each shipped .debug
+# file (on a copy, since debugedit opens it for writing).
 if readelf -SW "$LIBDIR/libzstd.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
-(cd "$STAGE" && find usr/src/debug/com.facebook.zstd -type f -printf '%p\n' \
-  | LC_ALL=C sort) > "$SMOKE/actual-debugsource"
-diff -u "$STAGE/.expected-debugsource" "$SMOKE/actual-debugsource"
 test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 3
-test -n "$(find "$STAGE/usr/src/debug/com.facebook.zstd" -type f -print -quit)"
+: > "$SMOKE/referenced"
 for debug_file in $(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug'); do
-  readelf -S "$debug_file" 2>/dev/null | grep -F '.debug_info'
+  readelf -S "$debug_file" | grep -F '.debug_info'
+  cp "$debug_file" "$SMOKE/probe.debug"
+  debugedit -b /usr/src/debug/com.facebook.zstd -l "$SMOKE/probe.list" "$SMOKE/probe.debug"
+  tr '\0' '\n' < "$SMOKE/probe.list" >> "$SMOKE/referenced"
 done
+LC_ALL=C sort -u "$SMOKE/referenced" | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  [ -f "$DEBUG_ROOT/$rel" ] || continue
+  printf '%s\n' "usr/src/debug/com.facebook.zstd/$rel"
+done > "$SMOKE/expected-debugsource"
+test -s "$SMOKE/expected-debugsource"
+(cd "$STAGE" && find usr/src/debug/com.facebook.zstd -type f -print \
+  | LC_ALL=C sort) > "$SMOKE/actual-debugsource"
+diff -u "$SMOKE/expected-debugsource" "$SMOKE/actual-debugsource"
 
 # Enforce ABI and hardening policy after the final strip operation. The CLI's
 # external formats are intentional; every other DT_NEEDED entry is rejected.
@@ -356,6 +336,7 @@ sh "$PEKIT_RECIPE_ROOT/sdk-consumer/test.sh"
 python3 = "*"
 build-essential = "*"
 cmake           = "*"
+debugedit       = "*"
 liblzma-dev     = "*"
 pkgconf         = "*"
 zlib1g-dev      = "*"

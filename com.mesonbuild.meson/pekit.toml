@@ -36,9 +36,8 @@ file_regex  = 'meson-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 # payload changes are enforced by the gates below.
 versions    = ">= 1.12.0"
 
-# Literal TOML string: the launcher text below carries backslash escapes.
 [build.main]
-command = """
+command = '''
 set -eu
 SRC="$(pwd)"
 PRIV="$PEKIT_OUT/usr/lib/x86_64-linux-peios/meson"
@@ -68,8 +67,7 @@ for module in \
   sed -i '1{/^#!/d;}' "$module"
 done
 gzip -n -9 "$PEKIT_OUT/usr/share/man/man1/meson.1"
-
-"""
+'''
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c"  = "*"

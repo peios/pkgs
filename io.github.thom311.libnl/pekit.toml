@@ -37,9 +37,9 @@ LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 INCLUDEDIR="$PEKIT_OUT/usr/include/libnl3"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 
-# Map macro strings now; debugedit maps DWARF after collecting physical sources.
-export CFLAGS="${CFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
-export CXXFLAGS="${CXXFLAGS-} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
+# Map macro strings now; split-debug maps DWARF after collecting physical sources.
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.thom311.libnl"
 
 cd "$PEKIT_OUT"
 # classid and pktloc are upstream-maintained lookup databases, not mutable
@@ -85,57 +85,30 @@ find "$PEKIT_OUT/usr/share/man/man8" -type f -name '*.8' -exec gzip -9n {} +
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 find "$LIBDIR/libnl/cli" -type f -name '*.a' -delete
 
-# Collect every shipped ELF: seven libraries, CLI modules and all tools. Remove
-# redundant rpaths, split build-ID-indexed debug data and copy the exact source
-# paths referenced by rewritten DWARF.
+# Split every shipped ELF (seven libraries, CLI modules and all tools) into
+# build-ID-indexed debug data, copy the exact source paths referenced by the
+# rewritten DWARF, and strip the static archives' DWARF.
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.thom311.libnl \
+  "$PEKIT_OUT/usr/bin" "$LIBDIR"
+
+# Two debuginfo packages follow the runtime/tools split: move the tools'
+# debug files (commands, the CLI support library and its modules) into their
+# own tree, and the rest become the library debuginfo.
 cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.elflist"
-: > "$PEKIT_OUT/.srclist"
-find usr/bin usr/lib/x86_64-linux-peios -type f | LC_ALL=C sort \
-  | while IFS= read -r f; do
-      case "$f" in *.a|*.la) continue;; esac
-      readelf -h "$f" >/dev/null 2>&1 || continue
-      printf '%s\n' "$f" >> "$PEKIT_OUT/.elflist"
-    done
+find usr/bin usr/lib/x86_64-linux-peios/libnl/cli -type f -print > "$PEKIT_OUT/.tools"
+find usr/lib/x86_64-linux-peios -maxdepth 1 -type f -name 'libnl-cli-3.so.*' \
+  -print >> "$PEKIT_OUT/.tools"
 while IFS= read -r f; do
-  patchelf --remove-rpath "$f" 2>/dev/null || true
-  if readelf -d "$f" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then
-    patchelf --remove-needed ld-linux-x86-64.so.2 "$f"
-  fi
-  debugedit -b "$ROOT" -d /usr/src/debug/io.github.thom311.libnl \
-    -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
+  [ "$(head -c 4 "$f" | tail -c 3)" = ELF ] || continue
   bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
   test -n "$bid"
   p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  case "$f" in
-    usr/bin/*|usr/lib/x86_64-linux-peios/libnl-cli-3.so.*|usr/lib/x86_64-linux-peios/libnl/cli/*)
-      debug_root=usr/lib/debug-libnl-tools
-      ;;
-    *)
-      debug_root=usr/lib/debug-libnl
-      ;;
-  esac
-  mkdir -p "$debug_root/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "$debug_root/.build-id/$p2/$rest.debug"
-  chmod 0644 "$debug_root/.build-id/$p2/$rest.debug"
-  strip "$f"
-done < "$PEKIT_OUT/.elflist"
-
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$ROOT/$rel" || continue
-      mkdir -p "usr/src/debug/io.github.thom311.libnl/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/io.github.thom311.libnl/$rel"
-    done
-# Static archives have no build ID; preserve code and discard only their DWARF.
-find usr/lib/x86_64-linux-peios -maxdepth 1 -type f -name 'libnl-*.a' \
-  -exec strip --strip-debug {} +
-
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
+  mkdir -p "usr/lib/debug-libnl-tools/.build-id/$p2"
+  mv "usr/lib/debug/.build-id/$p2/$(printf %s "$bid" | cut -c3-).debug" \
+    "usr/lib/debug-libnl-tools/.build-id/$p2/"
+done < "$PEKIT_OUT/.tools"
+rm -f "$PEKIT_OUT/.tools"
+mv usr/lib/debug usr/lib/debug-libnl
 """
 
 [build.main.dependencies.peipkg]
@@ -145,9 +118,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
 "io.github.westes.flex"                    = "*"
 "org.gnu.bison"         = "*"
 "org.gnu.bash"          = "*"
-"com.mesonbuild.meson"                   = "*"
-"org.ninja-build.ninja"                   = "*"
-"org.nixos.patchelf"                 = "*"
 "org.pkgconf.pkgconf"                 = "*"
 "org.gnu.gzip"                        = "*"
 
@@ -280,12 +250,8 @@ rm -rf "$SMOKE"
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file" = "*"
-"org.sourceware.debugedit" = "*"
 "io.github.westes.flex" = "*"
 "org.gnu.bison" = "*"
 "org.gnu.bash" = "*"
-"com.mesonbuild.meson" = "*"
-"org.ninja-build.ninja" = "*"
-"org.nixos.patchelf" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"

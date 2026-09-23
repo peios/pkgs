@@ -6,7 +6,7 @@ name        = "io.github.hyperrealm.libconfig-debugsource"
 description = "libconfig - debug sources"
 
 [dependencies]
-"io.github.hyperrealm.libconfig-debuginfo" = "{{version}}-1"
+"io.github.hyperrealm.libconfig-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING.LIB" = "usr/share/licenses/io.github.hyperrealm.libconfig-debugsource/"

@@ -8,8 +8,8 @@ description = "Netlink protocol libraries - development files"
 [provides]
 
 [dependencies]
-"io.github.thom311.libnl"       = "{{version}}-1"
-"io.github.thom311.libnl-tools" = "{{version}}-1"
+"io.github.thom311.libnl"       = "= {{release}}"
+"io.github.thom311.libnl-tools" = "= {{release}}"
 
 [files]
 "@source:COPYING"                              = "usr/share/licenses/io.github.thom311.libnl-devel/"

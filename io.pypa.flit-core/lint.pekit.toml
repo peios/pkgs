@@ -1,2 +1,0 @@
-[allow]
-"source.signature.required" = "PyPI publishes immutable release files and hashes but no detached source signatures"

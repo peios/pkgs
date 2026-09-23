@@ -3,8 +3,6 @@
 format = "peipkg"
 
 [package]
-# -4 republishes the qualified peiosutils dependency after retiring the
-# undeployed compatibility alias.
 version      = "{{version}}-1"
 architecture = "x86_64"
 license      = "GPL-2.0-or-later AND LGPL-2.1-or-later"

@@ -6,7 +6,7 @@ name        = "io.github.thom311.libnl-tools-debuginfo"
 description = "Netlink protocol command-line tools - debugging symbols"
 
 [dependencies]
-"io.github.thom311.libnl-tools" = "{{version}}-1"
+"io.github.thom311.libnl-tools" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.thom311.libnl-tools-debuginfo/"

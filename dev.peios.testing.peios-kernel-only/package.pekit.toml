@@ -9,8 +9,8 @@ license       = "MIT"
 license_class = "free"
 homepage      = "https://github.com/peios/pkgs"
 
-# Any edition satisfies `peios-release`; kernel integration profiles select
-# this qualified testing edition explicitly.
+# No provides: kernel integration profiles select this qualified testing
+# edition by name.
 [provides]
 
 # The newest kernel visible in the selected repository, and deliberately

@@ -3,8 +3,8 @@ name        = "com.darwinsys.file-debuginfo"
 description = "file and libmagic - debugging symbols"
 
 [dependencies]
-"com.darwinsys.file"          = "{{version}}-1"
-"com.darwinsys.file-libmagic" = "{{version}}-1"
+"com.darwinsys.file"          = "= {{release}}"
+"com.darwinsys.file-libmagic" = "= {{release}}"
 
 [files]
 "@source:COPYING"   = "usr/share/licenses/com.darwinsys.file-debuginfo/"

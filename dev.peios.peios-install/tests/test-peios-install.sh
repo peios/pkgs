@@ -26,12 +26,7 @@ cat > "$ROOT/bin/part" <<'EOF'
 printf '%s\n' "$*" > "$PART_ARGS"
 exit "$PART_STATUS"
 EOF
-# Debian supplies chmod; Peios supplies mkexec, as in the payload build.
-if command -v mkexec >/dev/null 2>&1; then
-    mkexec "$ROOT/bin/part"
-else
-    chmod 0755 "$ROOT/bin/part"
-fi
+mkexec "$ROOT/bin/part"
 
 PEIOS_INSTALL_LIBRARY_ONLY=1
 PEIOS_INSTALL_PROC_PARTITIONS="$ROOT/partitions"
@@ -41,12 +36,18 @@ export PEIOS_INSTALL_LIBRARY_ONLY PEIOS_INSTALL_PROC_PARTITIONS PEIOS_INSTALL_PR
 
 is_block_device /dev/vdb
 is_block_device /dev/nvme0n1p1
-! is_block_device /dev/missing
-! is_block_device /dev/
-! is_block_device /dev/disk/by-id/example
+for not_block in /dev/missing /dev/ /dev/disk/by-id/example; do
+    if is_block_device "$not_block"; then
+        echo "peios-install test: $not_block accepted as a block device" >&2
+        exit 1
+    fi
+done
 
 is_mounted_device /dev/vdb1
-! is_mounted_device /dev/vdb2
+if is_mounted_device /dev/vdb2; then
+    echo "peios-install test: /dev/vdb2 reported as mounted" >&2
+    exit 1
+fi
 
 PATH="$ROOT/bin:$PATH"
 PART_ARGS="$ROOT/part.args"

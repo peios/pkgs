@@ -12,11 +12,25 @@ description = "Live-medium boot support: kernel cmdline + initramfs root-mount h
 # (the table `root` field). Everything else about it — what it ships, what it
 # needs — the package itself declares.
 [dependencies]
-"dev.peios.live-boot-irf" = { constraint = "1.0.0-1", root = "initramfs" }
+"dev.peios.live-boot-irf" = { constraint = "= {{release}}", root = "initramfs" }
 
 # The kernel cmdline, owned here. mkuki bakes it into the UKI's .cmdline at build
 # time, so it lives under usr/share as package data the builder reads, not a
 # runtime file.
+#
+# loglevel=4, not `loglevel=7 ignore_loglevel`: ignore_loglevel makes printk
+# emit every message regardless of console_loglevel, and 4 keeps
+# EMERG/ALERT/CRIT/ERR and drops WARNING down. Harnesses that need the full log
+# set their own cmdline, and the UKI stub's SMBIOS channel appends after this
+# line, which printk resolves last-wins, so a debugging boot can re-add the pair
+# without a rebuild. Cost, accepted: a kernel WARNING no longer reaches the
+# console; `loglevel=5` buys it back if that trade proves wrong (PEI-782).
+#
+# No console=: the kernel picks tty0 on a machine with a display and the serial
+# port otherwise; development boots that want serial add console=ttyS0
+# themselves (PEI-716). No panic=-1: it rebooted the instant the kernel
+# panicked, turning a reproducible failure into a reboot loop; the default
+# halts with the panic on screen.
 [files]
 "src/cmdline" = "usr/share/live-boot/cmdline"
 "docs/LICENSE" = "usr/share/licenses/dev.peios.live-boot/LICENSE"

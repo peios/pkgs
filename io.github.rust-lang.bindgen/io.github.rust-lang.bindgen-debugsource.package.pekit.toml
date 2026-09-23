@@ -5,7 +5,7 @@ description  = "Bindgen debug sources"
 license      = "BSD-3-Clause"
 
 [dependencies]
-"io.github.rust-lang.bindgen-debuginfo" = "= {{version}}-1"
+"io.github.rust-lang.bindgen-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE"     = "usr/share/licenses/io.github.rust-lang.bindgen-debugsource/LICENSE"

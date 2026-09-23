@@ -3,7 +3,7 @@ name        = "io.pagure.xmlto-debuginfo"
 description = "xmlto debugging symbols"
 
 [dependencies]
-"io.pagure.xmlto" = "{{version}}-1"
+"io.pagure.xmlto" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.pagure.xmlto-debuginfo/"

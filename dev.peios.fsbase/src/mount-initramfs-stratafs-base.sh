@@ -7,8 +7,8 @@
 # /lib and the rest — so that everything after this point can use ordinary
 # paths instead of reaching into package storage.
 #
-# This is the mirror of stratafs-base-topo's hook, which does the same job for
-# the real root after it has been mounted. The initramfs is an independently
+# This is the mirror of mount-rootfs-stratafs-base.sh, which does the same job
+# for the real root after it has been mounted. The initramfs is an independently
 # executing root and needs its own views for the same reason it needs its own
 # mountpoints and its own loader link: nothing it runs can borrow from a root
 # that does not exist yet.

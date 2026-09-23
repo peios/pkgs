@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import os
+import re
 import shlex
 import tomllib
 
@@ -78,7 +79,8 @@ assert recipe["package"]["name"] == "dev.peios.peios-experimental"
 # The edition ships portable release/policy data; dependencies resolve for
 # the target architecture independently of this metadata package.
 assert recipe["package"]["architecture"] == "noarch"
-assert recipe["package"]["version"] == "2026.8-1"
+# The package version is the OS release plus any packaging revision.
+assert re.fullmatch(re.escape(version) + r"-[1-9][0-9]*", recipe["package"]["version"]), recipe["package"]["version"]
 assert "provides" not in recipe
 assert "replaces" not in recipe
 assert "conflicts" not in recipe

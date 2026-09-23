@@ -5,7 +5,7 @@ name        = "cz.ucw.libpci-static"
 description = "pciutils - static libpci library"
 
 [dependencies]
-"cz.ucw.libpci-devel"                   = "{{version}}-1"
+"cz.ucw.libpci-devel"                   = "= {{release}}"
 "io.github.eudev-project.eudev-devel" = ">= 3.2.14"
 "io.github.zlib-ng.zlib-ng-compat-devel"                            = ">= 2.3.3"
 

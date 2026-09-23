@@ -2,21 +2,6 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-# -9: move the ca-certificates floor onto the successor's version scheme (see
-# the trust block below).
-# -10: production qualification. The edition moves to its reverse-DNS name,
-# follows every package by its canonical identity, owns its licence text, and
-# remains portable metadata; native dependencies resolve for the target.
-# -11: Prelude, Peinit, Netd, Resolvd, Trustd, Timed, Installer and OOBE move to
-# their production reverse-DNS identities and floors.
-# -12: require the qualified concrete edition name through the upgrader.
-# -13: follow PNPd's qualified source and package identity at 0.5.1-1.
-# -14: follow Peipkg's qualified 0.1.3 release. Every first-party dependency
-# in the edition now uses its production reverse-DNS identity.
-# -15: replace the provenance-tainted -14 publication from a clean catalogue
-# commit.
-# -16: consume the qualified-only upgrade path in peiosutils 0.8.8 and the
-# production-tested installer/OOBE 0.1.5 package set.
 version      = "2026.8-1"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
@@ -53,7 +38,8 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # module subset, its base tree — is therefore placed there explicitly.
 #
 # Things listed here that the dependency graph would not otherwise reach:
-# nss-peios (dlopened by name, nothing depends on it), the firmware packages
+# the NSS modules authd-nss and resolvd-nss (glibc dlopens them by name, so
+# nothing depends on them), the firmware packages
 # (a policy choice — the target CPU and devices are unknown at compose time,
 # so every vendor ships), and fsbase-irf (each independently executing root
 # needs its own mountpoints, and this is the only edge that puts them in the
@@ -120,7 +106,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 
 # Networking: netd owns links, addresses, routes and DHCP; resolvd owns
 # name resolution; net and resolv are their operator commands;
-# nss-peios-net is dlopened by glibc for host lookups, so like nss-peios
+# resolvd-nss is dlopened by glibc for host lookups, so like authd-nss
 # nothing depends on it and it must be listed.
 "dev.peios.netd"        = ">= 0.1.1-1"
 "dev.peios.net"         = ">= 0.1.1-1"

@@ -2,59 +2,11 @@
 # fragment inherits these fields and adds its own identity, description,
 # dependencies, and files. Both are buildless: their payloads come from src/.
 #
-# x86_64, not noarch, for the same reason live-boot is: the payloads are a
-# script and a cmdline, but disk-boot-irf depends on the x86_64 userspace
-# (peiosutils), and §4.1.3 makes arch-dependence transitive through deps.
+# noarch: the payloads are a shell script and a cmdline template. Their
+# peiosutils dependency resolves for the target machine.
 format = "peipkg"
 
 [package]
-# -3: cmdline template gains peios.login=1 (an installed system needs a login
-# prompt) and drops panic=-1 (a reboot loop on any reproducible boot failure).
-# -2: the device-resolution retry loop tolerates "not found yet" instead of
-# failing the boot on the first miss (`|| true` under set -e), and an
-# unsupported root= form is rejected before the retry rather than from inside
-# a command substitution, where the exit reached only the subshell.
-#
-# -4: the hook stands aside by DECLINING (exit 69) rather than exiting 0, so a
-# hook that did nothing no longer reports the same outcome as one that did the
-# job. Requires a prelude honouring the hook-outcomes contract, which the irf
-# package's dependency enforces.
-#
-# -5: the hook moves to /usr/libexec/prelude/hooks.d, mounts at /mnt/rootfs
-# rather than /sysroot, and contributes to `rootfs-ready` instead of providing
-# `root-mounted`.
-#
-# -6: a missing `root=` is an error rather than a decline. `root=` is read for
-# the device it names, not to decide whether this hook is wanted — package
-# presence answers that, and live-boot-irf's conflict keeps it to one hook — so
-# there is no other hook to stand aside for, and a UKI without one is broken.
-#
-# -7: the cmdline template drops `peios.login=1`. peinit retired the token when
-# the authd/lpsd/login service definitions stopped being compiled in and became
-# registry data, and its parser ignores unknown tokens, so this changes no
-# behaviour — the point is the recipe comment, which described the token as
-# load-bearing and would have sent anyone debugging a missing login prompt to
-# the wrong place.
-# -8: the shipped cmdline names no console. The kernel picks one the way
-# it does on any distribution: tty0 on a machine with a display, the serial
-# port otherwise. Development boots that want serial add console=ttyS0
-# themselves (dist/release/Makefile, drive.py, provium). PEI-716.
-#
-# 1.0.0-1: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, matching
-# live-boot -16 — see that recipe for the full reasoning. The short version:
-# `ignore_loglevel` made printk ignore the loglevel filter entirely, so an
-# installed system booted at maximum kernel verbosity and peinit's own boot
-# narrative was buried under it. An installed system has more reason to want
-# this than a live medium does, since it is the one someone boots every day.
-# Debugging boots re-add the old pair through the UKI stub's SMBIOS channel,
-# which printk resolves last-wins. PEI-782.
-#
-# 1.0.0-1 is the production-qualified baseline. The package family moves to
-# dev.peios.* and couples its two halves at the exact release, declares the
-# initramfs root and shell
-# contract explicitly, ships its licence, and tests the root-resolution,
-# filesystem-check, and mount outcomes. The hook also adopts the shared
-# prelude ABI-3 console format. The optional-fsck policy is unchanged.
 version      = "1.0.0-1"
 architecture = "noarch"
 license      = "MIT"

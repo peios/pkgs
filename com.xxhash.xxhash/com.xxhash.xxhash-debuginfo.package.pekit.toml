@@ -4,8 +4,8 @@ description = "xxHash debugging symbols"
 license     = "BSD-2-Clause AND GPL-2.0-or-later"
 
 [dependencies]
-"com.xxhash.xxhash"      = "{{version}}-1"
-"com.xxhash.xxhash-libs" = "{{version}}-1"
+"com.xxhash.xxhash"      = "= {{release}}"
+"com.xxhash.xxhash-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSE"     = "usr/share/licenses/com.xxhash.xxhash-debuginfo/"

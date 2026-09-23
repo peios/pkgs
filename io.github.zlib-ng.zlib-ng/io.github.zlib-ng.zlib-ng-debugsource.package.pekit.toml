@@ -8,7 +8,7 @@ license     = "Zlib"
 [replaces]
 
 [dependencies]
-"io.github.zlib-ng.zlib-ng-debuginfo" = "{{version}}-1"
+"io.github.zlib-ng.zlib-ng-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE.md" = "usr/share/licenses/io.github.zlib-ng.zlib-ng-debugsource/"

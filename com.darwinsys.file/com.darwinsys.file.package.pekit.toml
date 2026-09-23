@@ -8,7 +8,7 @@ description = "Identify file formats from their content"
 
 [dependencies]
 "org.gnu.glibc"                         = ">= 2.43"
-"com.darwinsys.file-libmagic" = "{{version}}-1"
+"com.darwinsys.file-libmagic" = "= {{release}}"
 
 [files]
 "@source:COPYING"        = "usr/share/licenses/com.darwinsys.file/"

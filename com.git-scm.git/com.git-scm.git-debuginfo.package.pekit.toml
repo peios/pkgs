@@ -3,7 +3,7 @@ name        = "com.git-scm.git-debuginfo"
 description = "git debugging symbols"
 
 [dependencies]
-"com.git-scm.git" = "{{version}}-1"
+"com.git-scm.git" = "= {{release}}"
 
 [files]
 "@source:COPYING"       = "usr/share/licenses/com.git-scm.git-debuginfo/"

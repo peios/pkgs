@@ -9,7 +9,7 @@ description = "Peios installed-system boot support"
 # disk-boot-irf's home is the initramfs root, so this edge carries IN initramfs
 # (the table `root` field).
 [dependencies]
-"dev.peios.disk-boot-irf" = { constraint = "1.0.0-1", root = "initramfs" }
+"dev.peios.disk-boot-irf" = { constraint = "= {{release}}", root = "initramfs" }
 
 # The cmdline TEMPLATE — deliberately not the finished article. It carries
 # everything an installed system needs except `root=`, which cannot be package
@@ -39,6 +39,13 @@ description = "Peios installed-system boot support"
 #                  loop with the message scrolling past. Halting and leaving
 #                  the panic on screen is the more useful behaviour for
 #                  something you have to actually recover.
+#
+# loglevel=4 rather than `loglevel=7 ignore_loglevel`, which made printk ignore
+# its filter and buried peinit's boot narrative under kernel output. Debugging
+# boots re-add that pair through the UKI stub's SMBIOS channel, which printk
+# resolves last-wins (PEI-782). No console= either: the kernel picks tty0 on a
+# machine with a display and the serial port otherwise; development boots that
+# want serial add console=ttyS0 themselves (PEI-716).
 [files]
 "src/cmdline"   = "usr/share/disk-boot/cmdline"
 "docs/LICENSE"  = "usr/share/licenses/dev.peios.disk-boot/LICENSE"

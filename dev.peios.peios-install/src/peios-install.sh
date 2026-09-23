@@ -153,7 +153,7 @@ ROOT_SDDL='O:SYG:SYD:(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)(A;OICIIO
 
 # The repository on the installation medium, and the package swap it exists
 # for. A live image cannot carry disk-boot: live-boot-irf conflicts with
-# disk-boot-irf, and PSD-009 §4.2.5(2) scopes conflicts to a root, so no single
+# disk-boot-irf, and the peipkg specification scopes conflicts to a root, so no single
 # initramfs root can hold both hooks. The packages the target needs therefore
 # ride on the medium instead of in the image, and this is where they come from.
 MEDIUM_REPO=peios-medium
@@ -476,7 +476,7 @@ peipkg --root "$ROOT_MNT/boot/initramfs" uninstall dev.peios.live-boot-irf --yes
 
 # --allow-stale: a medium is a read-only artifact whose indexes are fixed at
 # manufacture, so re-fetching them returns the same index_version and the same
-# generated_at — which PSD-009 §6.2.3 defines as a refresh that made no
+# generated_at — which the peipkg specification defines as a refresh that made no
 # progress. An image older than the 30-day trusted age is therefore genuinely
 # stale and cannot become fresh. Saying so here, at the one operation that
 # knows the staleness is expected, beats disabling the check permanently in the

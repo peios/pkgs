@@ -7,7 +7,7 @@ description = "Fast lexical analyser generator"
 [dependencies]
 "org.gnu.glibc"                              = ">= 2.43"
 "org.gnu.m4"                                 = "*"
-"io.github.westes.flex-common"    = "{{version}}-1"
+"io.github.westes.flex-common"    = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.westes.flex/"

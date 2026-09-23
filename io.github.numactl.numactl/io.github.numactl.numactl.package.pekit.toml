@@ -9,7 +9,7 @@ license     = "GPL-2.0-only AND LicenseRef-Linux-man-pages-copyleft"
 
 [dependencies]
 "org.gnu.glibc"                        = ">= 2.43"
-"io.github.numactl.libnuma" = "{{version}}-1"
+"io.github.numactl.libnuma" = "= {{release}}"
 
 [files]
 "@source:LICENSE.GPL2"   = "usr/share/licenses/io.github.numactl.numactl/"

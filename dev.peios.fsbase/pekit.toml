@@ -68,6 +68,7 @@ out_dir = "out"
 
 [build]
 command = """
+set -eu
 # Directories both skeletons ship. One list applied to both stage trees, so the
 # shared half of fsbase and fsbase-irf cannot drift apart.
 common="dev proc sys run/lock tmp var/state/secrets var/cache var/log var/crash var/tmp mnt lcl/bin lcl/sbin lcl/libexec lcl/include lcl/share lcl/lib lcl/etc lcl/conf usr/bin usr/sbin usr/libexec usr/lib/x86_64-linux-peios usr/lib/modules usr/lib/firmware usr/include/x86_64-linux-peios usr/share usr/src usr/etc usr/conf"

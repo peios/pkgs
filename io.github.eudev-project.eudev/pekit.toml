@@ -40,8 +40,8 @@ out_dir = "out"
 
 [source.url]
 url         = "https://github.com/eudev-project/eudev/releases/download/v{{version}}/eudev-{{version}}.tar.gz"
-listing_url = "https://github.com/eudev-project/eudev/releases"
-file_regex  = 'v[0-9]+\.[0-9]+\.[0-9]+[^0-9A-Za-z.+-]'
+listing_url = "https://api.github.com/repos/eudev-project/eudev/releases?per_page=100"
+file_regex  = 'eudev-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 extract     = true
 root        = "eudev-{{version}}"
 # Soft maintenance floor: follow every newer authenticated stable release.
@@ -58,13 +58,18 @@ command = """
 set -eu
 SRC="$PEKIT_SOURCE_ROOT"
 LIBDIR=/usr/lib/x86_64-linux-peios
+# The build tree is a subdirectory, not the stage itself, so the generated
+# sources DWARF names are captured in debugsource like the pristine ones.
+BUILD="$PEKIT_OUT/build"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+DEBUG_PREFIX=/usr/src/debug/io.github.eudev-project.eudev
 
-cd "$PEKIT_OUT"
+mkdir -p "$BUILD"
+cd "$BUILD"
 # Helpers and rules.d land in $libdir/udev, upstream's default. That is the
 # triplet directory rather than /usr/lib/udev because PSPU §3.4.2 permits
 # nothing else under /usr/lib — pack rejects the payload otherwise.
-CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev" \
-CXXFLAGS="${CXXFLAGS:-${CFLAGS:--O2 -g}} -fmacro-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$SRC=/usr/src/debug/io.github.eudev-project.eudev -fmacro-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev -ffile-prefix-map=$PEKIT_OUT=/usr/src/debug/io.github.eudev-project.eudev" \
+CFLAGS="${CFLAGS:?} -ffile-prefix-map=$ROOT=$DEBUG_PREFIX" \
 "$SRC/configure" --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin \
   --libdir="$LIBDIR" --sysconfdir=/etc \
   --disable-manpages --enable-hwdb --enable-blkid --enable-kmod \
@@ -141,32 +146,7 @@ rm -f \
 
 # Conventional build-id debug packages. Rewrite source paths to the canonical
 # package namespace before producing detached symbols and stripping payloads.
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in *.a|*.o) continue;; esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  debugedit -b "$SRC" -d /usr/src/debug/io.github.eudev-project.eudev \
-    -l "$PEKIT_OUT/.dl" -n "$f" 2>/dev/null \
-    && cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist" || true
-  bid=$(readelf -n "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  if [ -n "$bid" ]; then
-    p2=$(printf %s "$bid" | cut -c1-2)
-    rest=$(printf %s "$bid" | cut -c3-)
-    mkdir -p "usr/lib/debug/.build-id/$p2"
-    objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-    chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  fi
-  strip "$f"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
-  case "$rel" in */) continue;; esac
-  [ -f "$SRC/$rel" ] || continue
-  mkdir -p "usr/src/debug/io.github.eudev-project.eudev/$(dirname "$rel")"
-  cp "$SRC/$rel" "usr/src/debug/io.github.eudev-project.eudev/$rel"
-done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.eudev-project.eudev "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
@@ -199,7 +179,7 @@ set -eu
 # staged command, hwdb and ABI probes below cover executable behavior there.
 sed -i '1s|^#!/usr/bin/python$|#!/usr/bin/python3|' \
   "$PEKIT_SOURCE_ROOT/test/rule-syntax-check.py"
-cd "$PEKIT_MAIN_OUT"
+cd "$PEKIT_MAIN_OUT/build"
 TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check TESTS=rules-test.sh
 STAGE="$PEKIT_MAIN_OUT"
 BINDIR="$STAGE/usr/bin"
@@ -220,7 +200,7 @@ for name in $keep; do
     exit 1
   }
 done
-if grep -l 'MODE=\\|GROUP=\\|OWNER=' "$RULES"/*.rules; then
+if grep -lE 'MODE=|GROUP=|OWNER=' "$RULES"/*.rules; then
   echo "rules carrying MODE=/GROUP=/OWNER= — not shipped on Peios" >&2
   exit 1
 fi
@@ -242,8 +222,8 @@ int main(void) {
   return 0;
 }
 EOF
-cc ${CFLAGS:-} -I"$STAGE/usr/include" -L"$STAGED_LIBDIR" \
-  -Wl,-rpath-link,"$STAGED_LIBDIR" ${LDFLAGS:-} \
+cc ${CFLAGS:?} -I"$STAGE/usr/include" -L"$STAGED_LIBDIR" \
+  -Wl,-rpath-link,"$STAGED_LIBDIR" ${LDFLAGS:?} \
   -o "$SMOKE/libudev" "$SMOKE/libudev.c" -ludev
 LD_LIBRARY_PATH="$STAGED_LIBDIR" "$SMOKE/libudev"
 

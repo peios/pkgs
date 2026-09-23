@@ -3,8 +3,8 @@ name        = "io.github.westes.flex-devel"
 description = "Flex C++ header and libfl development interface"
 
 [dependencies]
-"io.github.westes.flex"      = "{{version}}-1"
-"io.github.westes.flex-libs" = "{{version}}-1"
+"io.github.westes.flex"      = "= {{release}}"
+"io.github.westes.flex-libs" = "= {{release}}"
 
 [files]
 "@source:COPYING"                       = "usr/share/licenses/io.github.westes.flex-devel/"

@@ -3,7 +3,7 @@ name        = "cz.ucw.pciutils-debugsource"
 description = "pciutils and libpci debug sources"
 
 [dependencies]
-"cz.ucw.pciutils-debuginfo" = "{{version}}-1"
+"cz.ucw.pciutils-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/cz.ucw.pciutils-debugsource/"

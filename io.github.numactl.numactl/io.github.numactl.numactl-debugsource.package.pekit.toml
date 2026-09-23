@@ -3,7 +3,7 @@ name        = "io.github.numactl.numactl-debugsource"
 description = "numactl and libnuma debug sources"
 
 [dependencies]
-"io.github.numactl.numactl-debuginfo" = "{{version}}-1"
+"io.github.numactl.numactl-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE.GPL2"    = "usr/share/licenses/io.github.numactl.numactl-debugsource/"

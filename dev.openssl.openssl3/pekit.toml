@@ -2,6 +2,9 @@
 
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://github.com/openssl/openssl/releases/download/openssl-{{version}}/openssl-{{version}}.tar.gz"
 listing_url = "https://openssl-library.org/source/"
@@ -42,8 +45,8 @@ perl -0777 -i -pe '
 ' "$SRC/include/internal/common.h"
 cd "$BUILD"
 export HASHBANGPERL=/usr/bin/perl
-CFLAGS="${CFLAGS-} -Wa,--noexecstack" \
-LDFLAGS="${LDFLAGS-} -Wl,-z,ibtplt" \
+CFLAGS="${CFLAGS:?} -Wa,--noexecstack" \
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
 perl "$SRC/Configure" linux-x86_64 --prefix=/usr \
   --libdir=lib/x86_64-linux-peios --openssldir=/etc/ssl \
   enable-ec_nistp_64_gcc_128 shared
@@ -61,41 +64,7 @@ cp "$PEKIT_OUT/sdk$LIBDIR/ossl-modules-3/"*.so "$PEKIT_OUT$LIBDIR/ossl-modules-3
 cp "$SRC/apps/openssl.cnf" "$PEKIT_OUT/usr/etc/ssl/openssl3.cnf"
 cp "$SRC/apps/ct_log_list.cnf" "$PEKIT_OUT/usr/etc/ssl/ct_log_list-openssl3.cnf"
 # Split build-ID-indexed symbols and stage all DWARF-referenced sources.
-# Static archives retain code while dropping their debug sections.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
-  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f"; continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f"
-  debugedit -b "$ROOT" -d /usr/src/debug/dev.openssl.openssl3 \
-    -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  printf '%s\n' "$bid" >> "$PEKIT_OUT/.buildids"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$f"
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
-  while IFS= read -r rel; do
-    [ -n "$rel" ] || continue
-    case "$rel" in */) continue;; esac
-    [ -f "$ROOT/$rel" ] || continue
-    mkdir -p "usr/src/debug/dev.openssl.openssl3/$(dirname "$rel")"
-    cp "$ROOT/$rel" "usr/src/debug/dev.openssl.openssl3/$rel"
-  done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
-  "$PEKIT_OUT/.buildids"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" dev.openssl.openssl3 "$PEKIT_OUT/usr"
 '''
 
 [test]
@@ -103,7 +72,6 @@ needs = ["main"]
 gate = true
 command = '''
 set -eu
-SRC="$(pwd)"
 STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE/build"
 LIBDIR=/usr/lib/x86_64-linux-peios
@@ -112,20 +80,9 @@ CONF="$STAGE/usr/etc/ssl/openssl3.cnf"
 BIN="$STAGE/sdk/usr/bin/openssl"
 SMOKE="$PEKIT_OUT/smoke"
 test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
-# Peios host lookup is resolvd-only; the offline worker runs no resolver
-# service. This one OCSP fixture needs two local connections, not a name-service
-# integration test. Use numeric loopback, retaining all three upstream
-# assertions.
-OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
-OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
-cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
-restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
-trap restore_ocsp_recipe EXIT HUP INT TERM
-grep -q 'localhost:' "$OCSP_ORIG"
-sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
+# The OCSP certificate-chain fixture uses numeric loopback (patches/0001),
+# because the offline root runs no resolver service.
 make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
-restore_ocsp_recipe
-trap - EXIT HUP INT TERM
 # The public payload contains runtime files only. The SDK and command here are
 # private test/build fixtures; no file mapping can publish them.
 test ! -e "$STAGE/usr/bin"
@@ -217,7 +174,6 @@ done
 "org.gnu.diffutils" = "*"
 "org.gnu.grep"      = "*"
 "org.gnu.make"      = "*"
-"org.nixos.patchelf"             = "*"
 "org.perl.perl"                 = "*"
 "org.pkgconf.pkgconf"              = "*"
 "org.gnu.sed"                  = "*"

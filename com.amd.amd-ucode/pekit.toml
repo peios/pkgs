@@ -27,7 +27,7 @@ tag_regex = '^(?P<major>\d{4})(?P<minor>\d{2})(?P<patch>\d{2})$'
 # Soft history floor for routine selection: keep the published catalogue
 # focused on 2026 onward. This is not an upstream compatibility boundary;
 # older releases remain pinned in pekit.lock and can be re-enabled by lowering
-# or removing this cap.
+# or removing this floor.
 versions  = ">=2026.0.0"
 
 # Concatenate the per-family AMD containers into the one blob the early loader

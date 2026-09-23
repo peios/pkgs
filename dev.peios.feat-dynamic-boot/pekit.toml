@@ -11,10 +11,9 @@ out_dir = "out"
 
 [test]
 gate = true
-command = "PATH=/usr/libexec/coreutils-build:$PATH tests/test-dynamic-boot.sh"
+command = "tests/test-dynamic-boot.sh"
 
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5"
 "dev.peios.peiosutils"          = "*"
-"org.gnu.coreutils-build-compat" = "*"
 "org.gnu.grep"                   = "*"

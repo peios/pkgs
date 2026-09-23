@@ -3,5 +3,5 @@ dev.peios.build-essentials-c — the Peios C build floor.
 It stacks the baseline userland with the GCC C compiler, GNU Binutils, the
 glibc development surface, Linux UAPI headers, Debugedit, and Patchelf.
 
-The dev.peios.kernel-headers dependency is versioned on the Linux UAPI it
+The dev.peios.linux-kernel-headers dependency is versioned on the Linux UAPI it
 contains rather than the independent PKM source release.

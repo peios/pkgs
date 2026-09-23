@@ -2,98 +2,11 @@
 # fragment adds its own identity, dependencies, and
 # files. Both are buildless — their payloads come from src/.
 #
-# x86_64, not noarch: although the payloads (a script, a cmdline) are arch-
-# independent, these packages depend on the x86_64 userspace (live-boot-irf ->
-# peiosutils). §4.1.3 only permits `any`-arch deps, which require the satisfier
-# to match the depender's arch (or be noarch) — so a package that pulls x86_64
-# deps must itself be x86_64. Arch-dependence is transitive through deps.
+# noarch: the payloads are a shell script and a cmdline. Their peiosutils
+# dependency resolves for the target machine.
 format = "peipkg"
 
 [package]
-# -7: the root-mount hook stands aside when `root=` is on the kernel cmdline,
-# so disk-boot's hook can take the boot instead. Both ship in the same
-# initramfs and both provide `root-mounted`.
-#
-# -8: standing aside is now DECLINING (exit 69) rather than exiting 0, so a
-# hook that did nothing no longer reports the same outcome as one that did the
-# job. Requires a prelude honouring the hook-outcomes contract, which the irf
-# package's dependency enforces.
-#
-# -9: the hook moves to /usr/libexec/prelude/hooks.d, mounts at /mnt/rootfs
-# rather than /sysroot, and contributes to `rootfs-ready` instead of providing
-# `root-mounted`.
-#
-# -10: the medium's rootfs image is `rootfs.squashfs`, not `sysroot.squashfs`.
-# The mount path became /mnt/rootfs in -9 and the file name was the last place
-# the old word survived — a hook mounting /mnt/rootfs.lower from a file called
-# sysroot is the kind of half-rename that misleads a year later.
-#
-# -11: the hook no longer reads `root=` to decide whether it is wanted. Package
-# presence is the selector — the installer swaps live-boot for disk-boot — so
-# the check had nothing left to decide. live-boot-irf now conflicts with
-# disk-boot-irf, which is where the "exactly one root-mount hook" invariant
-# went when the runtime check came out.
-#
-# -12: the hook carries the medium into the new root at /media/peios. prelude
-# mount-moves only /proc, /sys and /dev and then chroots, so everything else
-# the initramfs mounted is unreachable afterwards — a live system could not
-# read the medium it booted from. This hook has already identified the right
-# device by the only reliable test, so relocating that mount is strictly
-# better than any later rescan. Non-fatal: a boot that reaches a prompt with
-# an unreachable medium beats no boot.
-#
-# -13: the tmpfs upper is seeded with an explicit descriptor granting Everyone
-# read+execute, rather than with seed-sd's built-in default. That default is a
-# *bootstrap* descriptor (SYSTEM and Administrators only) and it is also what
-# stamps /dev, where every ACE is inherited by the next hot-plugged block
-# device — so it must stay narrow and could not be widened in place. But it
-# was, in effect, the access policy of the entire system: KACS's missing-SD
-# synthesis prefers inheritance from the parent over the mount template, and
-# the whole SD-less squashfs inherits up a chain that terminates at this
-# descriptor. The result was that no service running as anything but SYSTEM
-# could chdir to its own working directory, because execute is the traverse
-# bit and an explicit chdir gets no SeChangeNotifyPrivilege bypass (PEI-546).
-#
-# -14: and a CREATOR OWNER ACE, inherit-only, so whoever creates an object gets
-# full control of it. Without it a non-SYSTEM service can create a file it
-# cannot read back: the inherited SYSTEM and Administrators ACEs are a
-# non-empty DACL, and a token's default DACL is only consulted when inheritance
-# yields nothing at all.
-# 1.0.0-1: the shipped cmdline names no console. The kernel picks one the way
-# it does on any distribution: tty0 on a machine with a display, the serial
-# port otherwise. Development boots that want serial add console=ttyS0
-# themselves (dist/release/Makefile, drive.py, provium). PEI-716.
-#
-# 1.0.0-1: `loglevel=7 ignore_loglevel` becomes `loglevel=4`, so a shipped
-# image boots at the verbosity every other distribution ships rather than at
-# maximum with the filter switched off. `ignore_loglevel` was the load-bearing
-# half: printk emits every message regardless of console_loglevel while it is
-# set, so lowering the number alone would have changed nothing. printk prints
-# a message whose level is strictly below console_loglevel, so 4 keeps
-# EMERG/ALERT/CRIT/ERR and drops WARNING down. Nothing that needs the full log
-# takes it from here: pkm's harnesses, provium's profiles, drive.py and netd's
-# VM tests all set their own cmdline, and the UKI stub's SMBIOS channel appends
-# after this line, which printk resolves last-wins. A debugging boot can
-# therefore re-add `loglevel=7 ignore_loglevel` without a rebuild. Cost,
-# accepted: the image ships no dmesg, so a kernel WARNING no longer reaches the
-# console. `loglevel=5` buys warnings back if that trade proves wrong. PEI-782.
-#
-# 1.0.0-1: the root-mount hook reports through hook-log.sh for the shared tag
-# column. The "could not carry the medium into the new root" case becomes
-# [ WARN ] rather than an undifferentiated stderr line, which is what it has
-# always been: non-fatal. Requires prelude-hook-abi >= 3. PEI-783.
-#
-# 1.0.0-1: `panic=-1` comes off the line. It rebooted the machine the instant
-# the kernel panicked, so a reproducible boot failure on a live medium was a
-# reboot loop with the panic text never on screen long enough to read. Without
-# it the kernel default (panic=0) applies: halt with the panic visible, the
-# only useful outcome on a medium somebody is sitting in front of.
-#
-# 1.0.0-1 is the production-qualified baseline. The family moves to
-# dev.peios.* and couples its two halves at the exact release, declares the
-# initramfs root and shell
-# contract explicitly, ships its licence, and tests the medium-discovery and
-# mount outcomes.
 version      = "1.0.0-1"
 architecture = "noarch"
 license      = "MIT"

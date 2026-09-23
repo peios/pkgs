@@ -17,7 +17,7 @@ def visit(name,stack=()):
  selected.add(name)
  for dep,constraint in packages[name].get('dependencies',{}).items():
   if dep in packages:
-   if constraint not in ('{{version}}-1','= {{version}}-1'):raise ValueError('SDK family dependency must select exact matching revision')
+   if constraint!='= {{release}}':raise ValueError('SDK family dependency must select exact matching revision')
    visit(dep,stack+(name,))
   else:external.add(dep)
 visit(a.sdk)

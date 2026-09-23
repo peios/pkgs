@@ -18,11 +18,7 @@ set -eu
 mkdir -p "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/man/man1"
 gzip -n -9 -c man/peios-install.1 > "$PEKIT_OUT/usr/share/man/man1/peios-install.1.gz"
 cp src/peios-install.sh "$PEKIT_OUT/usr/bin/peios-install"
-if command -v mkexec >/dev/null 2>&1; then
-  mkexec "$PEKIT_OUT/usr/bin/peios-install"
-else
-  chmod 0755 "$PEKIT_OUT/usr/bin/peios-install"
-fi
+mkexec "$PEKIT_OUT/usr/bin/peios-install"
 '''
 
 [build.main.dependencies.peipkg]

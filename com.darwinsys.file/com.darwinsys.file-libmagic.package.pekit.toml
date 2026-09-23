@@ -6,7 +6,7 @@ description = "file - libmagic runtime library"
 
 [dependencies]
 "org.gnu.glibc"                         = ">= 2.43"
-"com.darwinsys.file-magic"   = "{{version}}-1"
+"com.darwinsys.file-magic"   = "= {{release}}"
 "io.github.zlib-ng.zlib-ng-compat"                          = "*"
 "org.sourceware.bzip2-libs"  = "*"
 "org.tukaani.xz-libs"                       = "*"

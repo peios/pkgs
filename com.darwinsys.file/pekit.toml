@@ -30,8 +30,8 @@ LIBDIR="$PEKIT_OUT/usr/lib/x86_64-linux-peios"
 BIN="$PEKIT_OUT/usr/bin/file"
 
 # Upstream uses __FILE__ in diagnostics. Make those strings independent of
-# Pekit's per-source build root; debugedit below handles the DWARF paths.
-export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$ROOT=$DEBUG_PREFIX"
+# Pekit's per-source build root; split-debug below handles the DWARF paths.
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=$DEBUG_PREFIX"
 
 cd "$PEKIT_OUT"
 "$SRC/configure" \
@@ -65,30 +65,7 @@ done
 patchelf --remove-rpath "$BIN"
 
 # Conventional build-ID debuginfo and the exact DWARF-referenced sources.
-cd "$PEKIT_OUT"
-: > "$PEKIT_OUT/.srclist"
-for elf in usr/bin/file usr/lib/x86_64-linux-peios/libmagic.so.1.0.0; do
-  debugedit -b "$ROOT" -d "$DEBUG_PREFIX" \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$elf" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$elf" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$elf"
-done
-tr '\\0' '\\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      [ -n "$rel" ] || continue
-      case "$rel" in */) continue;; esac
-      [ -f "$ROOT/$rel" ] || continue
-      mkdir -p "usr/src/debug/com.darwinsys.file/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/com.darwinsys.file/$rel"
-    done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.darwinsys.file "$PEKIT_OUT/usr"
 """
 
 [build.main.dependencies.peipkg]
@@ -182,7 +159,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 EOF
-cc ${CFLAGS:-} "$SMOKE/compress.c" ${LDFLAGS:-} \
+cc ${CFLAGS:?} "$SMOKE/compress.c" ${LDFLAGS:?} \
   -o "$SMOKE/compress" -lz -lbz2 -llzma -lzstd
 "$SMOKE/compress" "$SMOKE/plain.gz" "$SMOKE/plain.bz2" \
   "$SMOKE/plain.xz" "$SMOKE/plain.zst"
@@ -208,8 +185,8 @@ int main(int argc, char **argv) {
   return 0;
 }
 EOF
-cc ${CFLAGS:-} -I"$STAGE/usr/include" -L"$LIBDIR" \
-  -Wl,-rpath-link,"$LIBDIR" ${LDFLAGS:-} \
+cc ${CFLAGS:?} -I"$STAGE/usr/include" -L"$LIBDIR" \
+  -Wl,-rpath-link,"$LIBDIR" ${LDFLAGS:?} \
   -o "$SMOKE/libmagic" "$SMOKE/libmagic.c" -lmagic
 "$SMOKE/libmagic" "$DB"
 

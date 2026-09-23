@@ -9,8 +9,8 @@ description = "libconfig - C and C++ development files"
 [provides]
 
 [dependencies]
-"io.github.hyperrealm.libconfig"     = "{{version}}-1"
-"io.github.hyperrealm.libconfig-c++" = "{{version}}-1"
+"io.github.hyperrealm.libconfig"     = "= {{release}}"
+"io.github.hyperrealm.libconfig-c++" = "= {{release}}"
 
 [files]
 "@source:COPYING.LIB"                                = "usr/share/licenses/io.github.hyperrealm.libconfig-devel/"

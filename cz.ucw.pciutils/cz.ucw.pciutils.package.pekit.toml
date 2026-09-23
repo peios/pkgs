@@ -12,7 +12,7 @@ description = "PCI bus inspection and configuration utilities"
 
 [dependencies]
 "org.gnu.glibc"                         = ">= 2.43"
-"cz.ucw.libpci"             = "{{version}}-1"
+"cz.ucw.libpci"             = "= {{release}}"
 "org.kernel.kmod-libs"      = ">= 34.2"
 
 [files]

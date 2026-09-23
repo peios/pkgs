@@ -3,7 +3,7 @@ name        = "io.github.westes.flex-debugsource"
 description = "Flex and libfl debug sources"
 
 [dependencies]
-"io.github.westes.flex-debuginfo" = "{{version}}-1"
+"io.github.westes.flex-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING" = "usr/share/licenses/io.github.westes.flex-debugsource/"

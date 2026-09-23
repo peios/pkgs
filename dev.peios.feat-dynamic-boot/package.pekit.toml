@@ -5,9 +5,8 @@
 # in sync: mkirf repacks /boot/initramfs into the cpio on change, and mkuki
 # rebuilds the UKI when the kernel, cpio, or cmdline changes.
 #
-# x86_64, not noarch: although the scripts are arch-independent shell, they
-# depend on the x86_64 peiosutils (feat runs them; they call reg/mkuki/mkirf).
-# Arch-dependence is transitive through deps (cf. live-boot).
+# noarch: the payload is shell. Its peiosutils dependency (feat runs the
+# scripts; they call reg/mkuki/mkirf) resolves for the target machine.
 format = "peipkg"
 
 [package]

@@ -6,7 +6,7 @@ description = "libudev - headers and link library (eudev)"
 license     = "LGPL-2.1-or-later"
 
 [dependencies]
-"io.github.eudev-project.eudev-libudev" = "{{version}}-1"
+"io.github.eudev-project.eudev-libudev" = "= {{release}}"
 
 [files]
 "@source:COPYING"                         = "usr/share/licenses/io.github.eudev-project.eudev-devel/"

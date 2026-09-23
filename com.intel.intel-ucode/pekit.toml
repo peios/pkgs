@@ -2,8 +2,9 @@
 # container the kernel's early loader scans in the initramfs early-cpio region.
 #
 # Upstream ships one or more update records in each intel-ucode/ signature file.
-# This build validates every record before concatenation; mkirf remains
-# responsible for cpio framing and the loader's 16-byte alignment.
+# The build concatenates the files tools/list-intel-ucode.sh selects; the gate
+# re-derives that list, validates every record and the assembled blob. mkirf
+# remains responsible for cpio framing and the loader's 16-byte alignment.
 
 out_dir = "out"
 
@@ -35,54 +36,16 @@ LICENSE_DIR="$PEKIT_OUT/usr/share/licenses/com.intel.intel-ucode"
 DOC_DIR="$PEKIT_OUT/usr/share/doc/com.intel.intel-ucode"
 FILE_LIST="$PEKIT_OUT/.intel-ucode-files"
 BLOB="$DEST/GenuineIntel.bin"
-BLOB_CHECK="$PEKIT_OUT/.GenuineIntel.bin.check"
-VALIDATOR="$PEKIT_RECIPE_ROOT/tools/validate-intel-ucode.sh"
-
-fail_microcode() {
-  printf '%s\n' "intel microcode validation failed: $*" >&2
-  exit 1
-}
 
 mkdir -p "$DEST" "$LICENSE_DIR" "$DOC_DIR"
-find "$SRC/intel-ucode" -maxdepth 1 -type f \
-  -name '[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]' \
-  -print | LC_ALL=C sort > "$FILE_LIST"
-test -s "$FILE_LIST" || fail_microcode "no production microcode files found"
-test "$(wc -l < "$FILE_LIST")" -eq \
-     "$(find "$SRC/intel-ucode" -maxdepth 1 -type f -print | wc -l)" \
-  || fail_microcode "a production microcode file has an unexpected name"
-
-while IFS= read -r file; do
-  case "$file" in
-    "$SRC/intel-ucode/"*) ;;
-    "$SRC/intel-ucode-with-caveats/"*)
-      fail_microcode "$file from intel-ucode-with-caveats was selected"
-      ;;
-    *) fail_microcode "$file is outside the production microcode directory" ;;
-  esac
-  sh "$VALIDATOR" "$file"
-done < "$FILE_LIST"
-
-# Build twice from the sorted manifest and compare their SHA-256 digests. This
-# makes ordering explicit and guards the final blob against accidental inputs.
+sh "$PEKIT_RECIPE_ROOT/tools/list-intel-ucode.sh" "$SRC" > "$FILE_LIST"
 : > "$BLOB"
-: > "$BLOB_CHECK"
 while IFS= read -r file; do cat "$file" >> "$BLOB"; done < "$FILE_LIST"
-while IFS= read -r file; do cat "$file" >> "$BLOB_CHECK"; done < "$FILE_LIST"
-test -s "$BLOB"
-test "$(sha256sum "$BLOB" | awk '{ print $1 }')" = \
-     "$(sha256sum "$BLOB_CHECK" | awk '{ print $1 }')" \
-  || fail_microcode "independent deterministic concatenations differ"
-sh "$VALIDATOR" "$BLOB"
+rm -f "$FILE_LIST"
 
-test -f "$SRC/license" || fail_microcode "upstream license is missing"
-test -f "$SRC/README.md" || fail_microcode "upstream README.md is missing"
-test -f "$SRC/releasenote.md" || fail_microcode "upstream releasenote.md is missing"
-test -f "$SRC/security.md" || fail_microcode "upstream security.md is missing"
+# cp fails on a missing upstream licence or document.
 cp "$SRC/license" "$LICENSE_DIR/LICENSE"
 cp "$SRC/README.md" "$SRC/releasenote.md" "$SRC/security.md" "$DOC_DIR/"
-
-rm -f "$FILE_LIST" "$BLOB_CHECK"
 """
 
 # The peipkg build root contains only declared tools.
@@ -90,7 +53,6 @@ rm -f "$FILE_LIST" "$BLOB_CHECK"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils" = "*"
-"org.gnu.gawk" = "*"
 
 [test]
 gate = true
@@ -104,14 +66,10 @@ WORK="$PEKIT_OUT/intel-ucode-gate"
 FILE_LIST="$WORK/files"
 EXPECTED="$WORK/GenuineIntel.bin"
 
+# Validate every selected record, then require the staged blob to be exactly
+# their concatenation in the shared selection order, and valid as a whole.
 mkdir -p "$WORK"
-find "$SRC/intel-ucode" -maxdepth 1 -type f \
-  -name '[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]-[0123456789abcdefABCDEF][0123456789abcdefABCDEF]' \
-  -print | LC_ALL=C sort > "$FILE_LIST"
-test -s "$FILE_LIST"
-test "$(wc -l < "$FILE_LIST")" -eq \
-     "$(find "$SRC/intel-ucode" -maxdepth 1 -type f -print | wc -l)"
-
+sh "$PEKIT_RECIPE_ROOT/tools/list-intel-ucode.sh" "$SRC" > "$FILE_LIST"
 : > "$EXPECTED"
 while IFS= read -r file; do
   sh "$VALIDATOR" "$file"

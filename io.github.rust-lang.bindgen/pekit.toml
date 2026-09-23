@@ -73,7 +73,10 @@ BIN="$PEKIT_OUT/usr/bin/bindgen"
 cp "$PEKIT_OUT/target/release/bindgen" "$BIN"
 
 # Preserve build-ID-indexed symbols and exactly the source files referenced by
-# the binary's DWARF, including its locked vendored Rust dependencies.
+# the binary's DWARF, including its locked vendored Rust dependencies. This
+# stays hand-written rather than using _pkgtools_/split-debug: the vendored
+# sources live in the vendor target's output, outside this build's root, and
+# are mapped back from their remapped vendor/ prefix.
 LIST="$PEKIT_OUT/.debug-sources"
 debugedit -b "$SRC" -d "$DEBUG_ROOT" -l "$LIST" -n "$BIN"
 BUILD_ID=$(readelf -n "$BIN" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)

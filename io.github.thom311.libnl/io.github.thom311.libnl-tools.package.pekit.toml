@@ -11,7 +11,7 @@ description = "Netlink protocol command-line tools"
 [provides]
 
 [dependencies]
-"io.github.thom311.libnl" = "{{version}}-1"
+"io.github.thom311.libnl" = "= {{release}}"
 "org.gnu.glibc"                      = ">= 2.43"
 
 [files]

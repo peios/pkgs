@@ -4,7 +4,7 @@ description = "xxHash static library"
 license     = "BSD-2-Clause"
 
 [dependencies]
-"com.xxhash.xxhash-devel" = "{{version}}-1"
+"com.xxhash.xxhash-devel" = "= {{release}}"
 
 [files]
 "@source:LICENSE"                            = "usr/share/licenses/com.xxhash.xxhash-static/"

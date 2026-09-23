@@ -4,9 +4,9 @@ format = "peipkg"
 
 [package]
 version      = "1.0.0-1"
-# The packages contain architecture-neutral documentation, but their dependency
-# contract selects the primary-architecture toolchain. Keeping the metas on the
-# primary architecture makes that choice explicit.
+# The packages contain only architecture-neutral documentation and licence
+# text. Their dependencies are resolved for the target machine, which selects
+# that architecture's toolchain, so the metas themselves are noarch.
 architecture = "noarch"
 license      = "MIT"
 license_class = "free"

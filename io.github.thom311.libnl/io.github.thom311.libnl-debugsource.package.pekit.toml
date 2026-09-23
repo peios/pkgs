@@ -6,8 +6,8 @@ name        = "io.github.thom311.libnl-debugsource"
 description = "Netlink protocol libraries and tools - debug sources"
 
 [dependencies]
-"io.github.thom311.libnl-debuginfo" = "{{version}}-1"
-"io.github.thom311.libnl-tools-debuginfo" = "{{version}}-1"
+"io.github.thom311.libnl-debuginfo" = "= {{release}}"
+"io.github.thom311.libnl-tools-debuginfo" = "= {{release}}"
 
 [files]
 "@source:COPYING"       = "usr/share/licenses/io.github.thom311.libnl-debugsource/"

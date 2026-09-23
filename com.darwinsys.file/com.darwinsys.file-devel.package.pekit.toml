@@ -7,7 +7,7 @@ description = "file - libmagic header, linker input and pkg-config metadata"
 [provides]
 
 [dependencies]
-"com.darwinsys.file-libmagic" = "{{version}}-1"
+"com.darwinsys.file-libmagic" = "= {{release}}"
 
 [files]
 "@source:COPYING"                                  = "usr/share/licenses/com.darwinsys.file-devel/"

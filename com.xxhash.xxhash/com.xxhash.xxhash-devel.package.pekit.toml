@@ -4,7 +4,7 @@ description = "xxHash headers, linker input, and pkg-config metadata"
 license     = "BSD-2-Clause"
 
 [dependencies]
-"com.xxhash.xxhash-libs" = "{{version}}-1"
+"com.xxhash.xxhash-libs" = "= {{release}}"
 
 [files]
 "@source:LICENSE"                                 = "usr/share/licenses/com.xxhash.xxhash-devel/"

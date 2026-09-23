@@ -3,7 +3,7 @@
 #
 # BUILDLESS package: nothing is compiled or fetched. The payload is the
 # files shipped in this recipe's own src/ dir, mapped literally by
-# package.pekit.toml. There is no [build] and no [source] — outDir is kept
+# package.pekit.toml. There is no [build] and no [source] — out_dir is kept
 # only because packaging writes the .peipkg under it.
 
 out_dir = "out"

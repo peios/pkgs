@@ -30,8 +30,7 @@ cd "$BUILD"
 # Keep DWARF paths physical until debugedit collects their actual source files.
 # Only macro-expanded strings need remapping at compile time.
 DEBUG_ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-CFLAGS="${CFLAGS:--O2 -g} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/io.github.numactl.numactl" \
-LDFLAGS="${LDFLAGS:-}" \
+CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$DEBUG_ROOT=/usr/src/debug/io.github.numactl.numactl" \
 "$BOOTSTRAP/configure" \
   --build=x86_64-pc-linux-gnu \
   --host=x86_64-pc-linux-gnu \
@@ -50,42 +49,18 @@ find "$STAGED_LIBDIR" -maxdepth 1 -name '*.la' -delete
 find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' \
   -exec gzip -n -9 -- {} +
 
+# libtool links the commands against the just-built libnuma with
+# `-rpath /usr/lib/x86_64-linux-peios`, because it does not know Peios' loader
+# already searches that directory, so every command carries it as RUNPATH.
+# Remove it; the gate and lint reject any run path that remains.
+for f in "$PEKIT_OUT"/usr/bin/*; do
+  [ "$(head -c 4 "$f" | tail -c 3)" = ELF ] || continue
+  patchelf --remove-rpath "$f"
+done
+
 # Split build-ID-indexed debug data and stage every DWARF-referenced source.
 # Static archives retain code while dropping their debug sections.
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-find usr -type f ! -type l -not -path 'usr/lib/debug/*' \
-  -not -path 'usr/src/debug/*' | while IFS= read -r f; do
-  case "$f" in
-    *.a) strip --strip-debug "$f"; continue;;
-  esac
-  readelf -h "$f" >/dev/null 2>&1 || continue
-  patchelf --remove-rpath "$f"
-  debugedit -b "$ROOT" -d /usr/src/debug/io.github.numactl.numactl \
-    -l "$PEKIT_OUT/.dl" -n "$f"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  bid=$(readelf -n "$f" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$bid"
-  printf '%s\n' "$bid" >> "$PEKIT_OUT/.buildids"
-  p2=$(printf %s "$bid" | cut -c1-2)
-  rest=$(printf %s "$bid" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$p2"
-  objcopy --only-keep-debug "$f" "usr/lib/debug/.build-id/$p2/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$p2/$rest.debug"
-  strip "$f"
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u | \
-  while IFS= read -r rel; do
-    [ -n "$rel" ] || continue
-    case "$rel" in */) continue;; esac
-    [ -f "$ROOT/$rel" ] || continue
-    mkdir -p "usr/src/debug/io.github.numactl.numactl/$(dirname "$rel")"
-    cp "$ROOT/$rel" "usr/src/debug/io.github.numactl.numactl/$rel"
-  done
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
-  "$PEKIT_OUT/.buildids"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.numactl.numactl "$PEKIT_OUT/usr"
 '''
 
 [build.main.dependencies.peipkg]
@@ -174,9 +149,7 @@ find "$STAGE/usr/bin" "$STAGED_LIBDIR" -type f ! -type l ! -name '*.a' | while I
   readelf -d "$elf" | grep -F 'RELR'
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-  if cc --version | head -1 | grep -Fq 'Peios'; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
 done
 rm -rf "$SMOKE"
 rm -rf "$PEKIT_MAIN_OUT/build" "$PEKIT_MAIN_OUT/bootstrap-source"
@@ -195,6 +168,5 @@ rm -rf "$PEKIT_MAIN_OUT/build" "$PEKIT_MAIN_OUT/bootstrap-source"
 "org.gnu.grep" = "*"
 "org.gnu.libtool" = "*"
 "org.gnu.sed" = "*"
-"org.nixos.patchelf" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"

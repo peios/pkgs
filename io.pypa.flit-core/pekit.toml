@@ -21,18 +21,12 @@
 tags = ["bootstrap"]
 out_dir = "out"
 
-# PyPI's stable per-project source URL (no content hash in the path) and Simple
-# API discover every stable point release. PyPI publishes no detached source
-# signatures, so the immutable pekit.lock is an explicit TOFU trust boundary.
-[source.url]
-url         = "https://files.pythonhosted.org/packages/source/f/flit_core/flit_core-{{version}}.tar.gz"
-listing_url = "https://pypi.org/simple/flit-core/"
-extract     = true
-root        = "flit_core-{{version}}"
-file_regex  = 'flit_core-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+[source.pypi]
+project  = "flit-core"
+artifact = "sdist"
 # Soft maintenance floor. Stable releases are selected and locked
 # automatically; backend compatibility is enforced by the gates below.
-versions    = ">= 4.0.2"
+versions = ">= 4.0.2"
 
 # Test tools are acquired separately from the minimal bootstrap build.
 # Only vendor has network.
@@ -97,7 +91,8 @@ SRC="$(pwd -P)"
 PEKIT_OUT="$PEKIT_MAIN_OUT"
 test -d "$SITE"
 test -f "$SITE/flit_core/buildapi.py"
-test -f "$SITE/flit_core/vendor/tomli-1.2.3.dist-info/LICENSE"
+set -- "$SITE"/flit_core/vendor/tomli-*.dist-info/LICENSE
+test -f "$1"
 test -f "$SITE/flit_core-"*.dist-info/METADATA
 
 # Exercise the installed package as the backend it exists to provide: import

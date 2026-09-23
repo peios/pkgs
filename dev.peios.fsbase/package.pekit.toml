@@ -8,45 +8,13 @@
 # licence text. The hooks package ships scripts from src/ and lives here
 # because what it mounts has to agree with what fsbase-irf mints.
 #
-# x86_64, not noarch: both carry the tuple-named directories
-# usr/lib/x86_64-linux-peios and usr/include/x86_64-linux-peios, and the
-# psABI-fixed /lib64 link into the first of them.
+# noarch: the payload is empty directories, a symlink, licence text and shell
+# hooks, none of it machine code. The skeletons name the x86_64 tuple
+# directories and the psABI /lib64 link as layout, not as architecture-specific
+# content.
 format = "peipkg"
 
 [package]
-# -4: adds the /usr vendor shape to the skeleton, and splits fsbase-irf out as
-# a second package built from the same mkdir loop. One version across all of
-# them, because one recipe produces them all — bumping any bumps the set.
-#
-# -5: adds fsbase-stratafs-mount-hooks, the initramfs hook that mounts the base
-# StrataFS views over the skeleton fsbase-irf lays down.
-#
-# -6: fsbase-stratafs-mount-hooks gains the mounted-root half,
-# mount-rootfs-stratafs-base.sh, superseding the stratafs-base-topo package.
-#
-# -7: both mount hooks view /lib over /usr/lib rather than the triplet
-# directory. The triplet mapping resolved no library anything used — the loader
-# finds them by absolute path and the ELF interpreter comes from /lib64 — while
-# breaking the two consumers that do read /lib: kmod has /lib/modules compiled
-# in, and the kernel's firmware loader searches /lib/firmware.
-#
-# -8: fsbase declares the first per-subtree security descriptors on Peios —
-# sd_overrides for /home and /tmp. Until now one inheritable ACL on / was the
-# whole filesystem's access policy, which cannot express "readable system tree,
-# private home directories". Needs a consumer that applies sd_overrides:
-# peipkg 0.x with PEI-557 (install) and PEI-558 (compose).
-# -9: both stratafs-base hooks report through hook-log.sh, so their
-# lines carry the shared tag column instead of a bare `echo`. The mount
-# message also moved to AFTER the mount and into the past tense: it claimed
-# "mounting" before the mount had happened, which under the new format would
-# have been an [  OK  ] printed for work not yet done. Needs
-# prelude-hook-abi >= 3. PEI-783.
-#
-# 1.0.0-1 is the production-qualified baseline. The three package identities
-# move under dev.peios; every binary package ships its MIT licence. The build
-# and hook test suite fixes the
-# directory contract, exact StrataFS mount graph, test-root isolation, and the
-# rule that a failed mount must never emit an OK line.
 version      = "1.0.0-1"
 architecture = "noarch"
 license      = "MIT"

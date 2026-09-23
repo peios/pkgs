@@ -23,7 +23,7 @@ cat > "$tools/reg" <<'EOF'
 printf '%s\n' "$*" >> "$PEIOS_DYNAMIC_BOOT_REG_LOG"
 cat >> "$PEIOS_DYNAMIC_BOOT_REG_LOG"
 EOF
-chmod 0755 "$tools/reg"
+mkexec "$tools/reg"
 
 reg_log=$scratch/registry.log
 PEIOS_DYNAMIC_BOOT_REG_LOG=$reg_log PATH="$tools:$PATH" \
@@ -119,7 +119,7 @@ cat > "$root/usr/bin/mkuki" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$@" > "$PEIOS_DYNAMIC_BOOT_MKUKI_LOG"
 EOF
-chmod 0755 "$root/usr/bin/mkuki"
+mkexec "$root/usr/bin/mkuki"
 printf '%s\n' 'installed command line' > "$root/lcl/etc/boot/cmdline"
 printf '%s\n' 'vendor command line' > "$root/usr/share/live-boot/cmdline"
 

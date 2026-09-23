@@ -4,7 +4,7 @@ description = "xxHash debug sources"
 license     = "BSD-2-Clause AND GPL-2.0-or-later"
 
 [dependencies]
-"com.xxhash.xxhash-debuginfo" = "{{version}}-1"
+"com.xxhash.xxhash-debuginfo" = "= {{release}}"
 
 [files]
 "@source:LICENSE"     = "usr/share/licenses/com.xxhash.xxhash-debugsource/"

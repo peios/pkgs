@@ -3,7 +3,7 @@ name = "dev.openssl.openssl3-debuginfo"
 description = "OpenSSL 3 compatibility debuginfo"
 
 [dependencies]
-"dev.openssl.openssl3" = "{{version}}-1"
+"dev.openssl.openssl3" = "= {{release}}"
 
 [files]
 "@source:LICENSE.txt" = "usr/share/licenses/dev.openssl.openssl3-debuginfo/"

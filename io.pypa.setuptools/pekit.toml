@@ -20,15 +20,12 @@
 tags = ["bootstrap"]
 out_dir = "out"
 
-[source.url]
-url         = "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-{{version}}.tar.gz"
-listing_url = "https://pypi.org/simple/setuptools/"
-extract     = true
-root        = "setuptools-{{version}}"
-file_regex  = 'setuptools-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
+[source.pypi]
+project  = "setuptools"
+artifact = "sdist"
 # Soft maintenance floor. Stable releases are selected and locked
 # automatically; backend compatibility is enforced by the gates below.
-versions    = ">= 84.0.0"
+versions = ">= 84.0.0"
 
 # Test tools are acquired separately from the minimal bootstrap build.
 # Only vendor has network.

@@ -35,6 +35,7 @@ versions = ">= 10.2.1"
 
 [build.main]
 command = """
+set -eu
 SRC="$(pwd)"
 python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
   --backend setuptools.build_meta --copy-tree --private asciidoc \
@@ -84,14 +85,30 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
-test -x "$PEKIT_MAIN_OUT/usr/bin/asciidoc"
-test -x "$PEKIT_MAIN_OUT/usr/bin/a2x"
+STAGE="$PEKIT_MAIN_OUT"
+PRIV="$STAGE/usr/lib/x86_64-linux-peios/asciidoc"
+test -x "$STAGE/usr/bin/asciidoc"
+test -x "$STAGE/usr/bin/a2x"
 for page in asciidoc a2x; do
-  gzip -t "$PEKIT_MAIN_OUT/usr/share/man/man1/$page.1.gz"
+  gzip -t "$STAGE/usr/share/man/man1/$page.1.gz"
 done
 
-# Run the upstream release suite from the explicit package gate.
-python3 -m asciidoc.asciidoc --doctest
+# Run upstream's doctests against the staged package, not the source tree:
+# leave the source directory so it is not on sys.path, point the import at the
+# private module directory, and prove that is what was imported.
+cd "$PEKIT_OUT"
+PYTHONPATH="$PRIV" PYTHONNOUSERSITE=1 python3 - "$PRIV" <<'PY'
+import sys
+from pathlib import Path
+import asciidoc.asciidoc
+assert Path(asciidoc.asciidoc.__file__).resolve().is_relative_to(Path(sys.argv[1]).resolve()), asciidoc.asciidoc.__file__
+PY
+PYTHONPATH="$PRIV" PYTHONNOUSERSITE=1 python3 -m asciidoc.asciidoc --doctest
+
+# The installed launchers put the private directory on sys.path through the
+# /lib runtime view; PYTHONPATH points them at the staged equivalent.
+test "$(PYTHONPATH="$PRIV" "$STAGE/usr/bin/asciidoc" --version)" = "asciidoc $PEKIT_VERSION"
+test "$(PYTHONPATH="$PRIV" "$STAGE/usr/bin/a2x" --version)" = "a2x $PEKIT_VERSION"
 '''
 
 [test.dependencies.peipkg]

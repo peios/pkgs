@@ -8,7 +8,7 @@ license     = "LGPL-2.1-only AND GPL-2.0-only AND LicenseRef-Linux-man-pages-cop
 [provides]
 
 [dependencies]
-"io.github.numactl.libnuma" = "{{version}}-1"
+"io.github.numactl.libnuma" = "= {{release}}"
 
 [files]
 "@source:LICENSE.GPL2"                          = "usr/share/licenses/io.github.numactl.libnuma-devel/"

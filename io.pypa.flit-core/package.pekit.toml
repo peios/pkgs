@@ -23,5 +23,7 @@ homepage     = "https://flit.pypa.io/"
 
 [files]
 "@source:LICENSE" = "usr/share/licenses/io.pypa.flit-core/LICENSE"
-"@source:flit_core/vendor/tomli-1.2.3.dist-info/LICENSE" = "usr/share/licenses/io.pypa.flit-core/TOMLI-LICENSE"
+# The vendored Tomli's dist-info directory carries its version; the glob keeps
+# following it, and packaging fails if no licence matches.
+"@source:flit_core/vendor/tomli-*.dist-info/LICENSE" = "usr/share/licenses/io.pypa.flit-core/vendor"
 ":usr/lib/x86_64-linux-peios/python3*/**" = "usr/lib/x86_64-linux-peios"

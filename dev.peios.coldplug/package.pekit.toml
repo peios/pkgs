@@ -1,11 +1,6 @@
 format = "peipkg"
 
 [package]
-# 1.0.0-1 productionizes the hook: reverse-DNS identity, exact runtime
-# contracts, shared boot-console logging, secure temporary files, consistent
-# declined outcomes, literal modalias forwarding, and behavioural tests.
-# 1.0.0-1 republishes the qualified peiosutils dependency after retiring the
-# undeployed compatibility alias.
 version      = "1.0.0-1"
 architecture = "noarch"
 license      = "MIT"

@@ -37,9 +37,8 @@ cd "$BUILD"
 # Preserve the workspace distro flags and generate IBT PLT entries. The CET
 # note must come from the linked objects. DISPATCH enables runtime CPU selection
 # for the CLI and shared library without tying them to the build CPU.
-export CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/com.xxhash.xxhash"
-export CXXFLAGS="${CXXFLAGS:-$CFLAGS}"
-export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
+export CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$SRC=/usr/src/debug/com.xxhash.xxhash"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Build the production payload once. The gated upstream suite may rebuild its
 # retained build tree under compatibility flag sets after installation; those
@@ -68,49 +67,19 @@ install -m 0644 "$SRC/cli/README.md" "$DOCDIR/cli/"
 
 # Build-ID-indexed symbols and the exact source files named by rewritten DWARF.
 # Static code remains available but does not duplicate debug sections.
-strip --strip-debug "$STAGED_LIBDIR/libxxhash.a"
-cd "$PEKIT_OUT"
-ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
-: > "$PEKIT_OUT/.srclist"
-: > "$PEKIT_OUT/.buildids"
-for elf in usr/bin/xxhsum \
-  "usr/lib/x86_64-linux-peios/libxxhash.so.$PEKIT_VERSION"; do
-  patchelf --remove-rpath "$elf"
-  debugedit -b "$ROOT" -d /usr/src/debug/com.xxhash.xxhash \
-    -l "$PEKIT_OUT/.dl" -n "$elf"
-  cat "$PEKIT_OUT/.dl" >> "$PEKIT_OUT/.srclist"
-  build_id=$(readelf -n "$elf" | \
-    sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
-  test -n "$build_id"
-  printf '%s\n' "$build_id" >> "$PEKIT_OUT/.buildids"
-  first=$(printf %s "$build_id" | cut -c1-2)
-  rest=$(printf %s "$build_id" | cut -c3-)
-  mkdir -p "usr/lib/debug/.build-id/$first"
-  objcopy --only-keep-debug "$elf" \
-    "usr/lib/debug/.build-id/$first/$rest.debug"
-  chmod 0644 "usr/lib/debug/.build-id/$first/$rest.debug"
-  strip "$elf"
-done
-tr '\0' '\n' < "$PEKIT_OUT/.srclist" | LC_ALL=C sort -u \
-  | while IFS= read -r rel; do
-      test -n "$rel" || continue
-      case "$rel" in */) continue;; esac
-      test -f "$ROOT/$rel" || continue
-      mkdir -p "usr/src/debug/com.xxhash.xxhash/$(dirname "$rel")"
-      cp "$ROOT/$rel" "usr/src/debug/com.xxhash.xxhash/$rel"
-    done
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" com.xxhash.xxhash \
+  "$PREFIX/bin/xxhsum" "$STAGED_LIBDIR/libxxhash.so.$PEKIT_VERSION" \
+  "$STAGED_LIBDIR/libxxhash.a"
 '''
 
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.sourceware.debugedit" = "*"
-"org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 debugedit       = "*"
-patchelf        = "*"
 gzip            = "*"
 
 [test]
@@ -195,8 +164,10 @@ test "$(readlink "$PREFIX/bin/xxh128sum")" = xxhsum
 test "$(readlink "$PREFIX/bin/xxh3sum")" = xxhsum
 test "$(readlink "$STAGED_LIBDIR/libxxhash.so.0")" = \
   "libxxhash.so.$PEKIT_VERSION"
-test "$(readlink "$STAGED_LIBDIR/libxxhash.so")" = \
-  "libxxhash.so.$PEKIT_VERSION"
+# 0.8.3 linked the development name straight to the real file; 0.8.4 links it
+# through the SONAME. Either chain must end at this release's library.
+test "$(readlink -f "$STAGED_LIBDIR/libxxhash.so")" = \
+  "$STAGED_LIBDIR/libxxhash.so.$PEKIT_VERSION"
 
 XXHASH_SO="$STAGED_LIBDIR/libxxhash.so.$PEKIT_VERSION"
 readelf -d "$XXHASH_SO" | grep -F 'Library soname: [libxxhash.so.0]'
@@ -272,8 +243,8 @@ for elf in usr/bin/xxhsum \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  # Debian's reference runtime objects do not promise Peios CET properties.
-  # The native rung must still prove the final note without forced properties.
+  # Debian's startup objects carry no CET notes, so only the native build of
+  # this seed can prove the final note without forced properties.
   if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
     readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   fi
@@ -284,14 +255,13 @@ for elf in usr/bin/xxhsum \
 done
 if readelf -d usr/bin/xxhsum | grep -Fq 'libxxhash.so'; then exit 1; fi
 
-test "$(LC_ALL=C sort -u "$PEKIT_OUT/.buildids" | wc -l)" -eq 2
 test "$(find usr/lib/debug/.build-id -type f -name '*.debug' | wc -l)" -eq 2
 test -n "$(find usr/src/debug/com.xxhash.xxhash -type f -print -quit)"
 for dbg in $(find usr/lib/debug/.build-id -type f -name '*.debug'); do
   readelf -S "$dbg" | grep -F '.debug_info'
 done
+if readelf -SW "$STAGED_LIBDIR/libxxhash.a" | grep -Eq '\.debug_(info|line)'; then exit 1; fi
 
-rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.buildids"
 rm -rf "$WORK" "$PEKIT_MAIN_OUT/build"
 '''
 

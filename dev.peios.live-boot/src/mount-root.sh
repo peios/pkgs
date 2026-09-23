@@ -39,16 +39,21 @@ hook_log_init live-boot
 # exactly one root-mount hook exists moved from a runtime check into the
 # package manager, which can enforce it before a boot rather than during one.
 
-# prelude runs hooks with PATH=/usr/bin, so peiosutils resolves without the
-# hook setting PATH itself. Check the specialist tools here so a damaged
-# initramfs reports its actual package-integrity failure.
+# prelude runs hooks with PATH=/usr/bin, so the tools resolve without the hook
+# setting PATH itself. mount and umount come from peiosutils; seed-sd comes
+# from prelude, through the prelude-hook-abi dependency. Check them here so a
+# damaged initramfs reports its actual package-integrity failure.
 for required_tool in mount umount seed-sd; do
+    case "$required_tool" in
+        seed-sd) provider=prelude-hook-abi ;;
+        *) provider=dev.peios.peiosutils ;;
+    esac
     command -v "$required_tool" >/dev/null 2>&1 || {
-        log_fail "no $required_tool in the initramfs; dev.peios.live-boot-irf depends on dev.peios.peiosutils"
+        log_fail "no $required_tool in the initramfs; dev.peios.live-boot-irf depends on $provider"
         exit 1
     }
 done
-unset required_tool
+unset required_tool provider
 
 medium=$(root_path /mnt/medium)
 root_lower=$(root_path /mnt/rootfs.lower)
