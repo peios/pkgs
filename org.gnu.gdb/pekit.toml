@@ -1,0 +1,331 @@
+# GDB — the GNU debugger. Native x86-64 debugging with Python scripting, the
+# TUI, XML target descriptions (Expat), compressed debug sections (zlib, zstd,
+# and LZMA MiniDebugInfo) and gdbserver for remote debugging.
+#
+# Built from the signed GDB release tarball, whose tree also carries the BFD,
+# opcodes, libctf, libsframe and libiberty sources GDB links statically; only
+# gdb and gdbserver are installed, so the binutils libraries are not
+# duplicated. Readline is the packaged system library, not the bundled copy.
+#
+# Deliberately not built: Guile scripting, babeltrace (CTF trace files), Intel
+# Processor Trace, debuginfod (org.sourceware.elfutils builds without it),
+# source-highlight, the simulators, the in-process tracepoint agent and NLS
+# (GDB itself has no translations; only the bundled BFD catalogue would ship).
+#
+# Upstream's DejaGnu testsuite needs DejaGnu, Expect and Tcl, none of which are
+# packaged. The gate runs GDB's built-in unit tests (`maint selftest`) and
+# exercises the installed debugger end to end instead.
+
+out_dir = "out"
+
+# The release tree also carries the documentation, the simulators, bundled
+# zlib and Readline, and the Autotools build machinery.
+[source_package]
+license = "GFDL-1.3-or-later AND GPL-2.0-or-later AND LGPL-3.0-or-later AND Zlib AND FSFAP AND FSFUL AND FSFULLR AND X11"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/gdb/gdb-{{version}}.tar.xz"
+listing_url = "https://ftp.gnu.org/gnu/gdb/"
+extract     = true
+root        = "gdb-{{version}}"
+file_regex  = 'gdb-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+# Soft production floor. Follow every newer stable release; behaviour changes
+# stop at the unit tests and the end-to-end gates below.
+versions    = ">= 17.2"
+
+# GDB releases are signed by release manager Joel Brobecker. His key is in
+# the GNU keyring (not on the keyservers); pin its complete fingerprint.
+[source.url.signature]
+url          = "{{source_url}}.sig"
+of           = "artifact"
+key_files    = ["keys/joel-brobecker.asc"]
+fingerprints = ["F40ADB902B24264AA42E50BF92EDB04BFF325CF3"]
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gdb"
+export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.gdb"
+PREFIX="$PEKIT_OUT/usr"
+unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF
+cd "$PEKIT_OUT"
+
+# Every optional integration is stated so the payload never depends on what
+# the build root happens to contain; GMP and MPFR are mandatory, and the
+# top-level --with-gmp/--with-mpfr take a prefix, so they are not passed.
+# --disable-shared keeps the BFD family static inside gdb and gdbserver rather
+# than installing a second copy of binutils' libraries. The unit tests are
+# compiled in so the gate can run them against the shipped binary.
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --datadir=/usr/share \
+  --sysconfdir=/etc \
+  --with-gdb-datadir=/usr/share/gdb \
+  --with-separate-debug-dir=/usr/lib/debug \
+  --with-system-gdbinit-dir=/etc/gdbinit.d \
+  --disable-shared \
+  --enable-static \
+  --enable-tui \
+  --enable-unit-tests \
+  --enable-64-bit-bfd \
+  --with-system-readline \
+  --with-curses \
+  --with-expat \
+  --with-python=/usr/bin/python3 \
+  --with-system-zlib \
+  --with-zstd \
+  --with-lzma \
+  --with-xxhash \
+  --without-guile \
+  --without-babeltrace \
+  --without-intel-pt \
+  --without-debuginfod \
+  --without-amd-dbgapi \
+  --without-x \
+  --without-tcl \
+  --without-tk \
+  --disable-source-highlight \
+  --disable-sim \
+  --disable-gdbtk \
+  --disable-inprocess-agent \
+  --disable-nls \
+  --disable-werror \
+  --disable-rpath
+
+make -j"$(nproc)" all-gdb all-gdbserver
+make install-gdb install-gdbserver DESTDIR="$PEKIT_OUT"
+
+# Peios ships no Info reader; the corresponding-source package keeps the
+# complete Texinfo manual. Compress the manuals.
+rm -rf "$PREFIX/share/info"
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
+
+# gcore and gstack are Bash scripts that upstream starts through env; name
+# Bash through the runtime view instead.
+for script in gcore gstack; do
+  sed -i '1s|^#!/usr/bin/env bash$|#!/bin/bash|' "$PREFIX/bin/$script"
+  test "$(sed -n 1p "$PREFIX/bin/$script")" = '#!/bin/bash'
+done
+sed -i '1s|^#! */bin/sh$|#!/bin/sh|' "$PREFIX/bin/gdb-add-index"
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gdb \
+  "$PREFIX/bin/gdb" "$PREFIX/bin/gdbserver"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++"     = "*"
+"org.gnu.gzip"                       = "*"
+"org.gnu.texinfo"                    = "*"
+"org.gnu.readline-devel"             = ">= 8.3"
+"org.gnu.ncurses-devel"              = "*"
+"org.gnu.gmp-devel"                  = ">= 6.3.0"
+"org.gnu.mpfr-devel"                 = ">= 4.2"
+"org.python.python3-devel"           = ">= 3.14"
+"org.python.python3"                 = ">= 3.14"
+# GDB's charset support needs iconv modules beyond glibc's built-in ones;
+# without them configure's working-iconv probe fails and GDB is ASCII-only.
+"org.gnu.glibc-gconv-extra"          = ">= 2.43"
+"io.github.libexpat.expat-devel"     = ">= 2.8.5"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel"            = "*"
+"org.tukaani.xz-devel"               = "*"
+"com.xxhash.xxhash-devel"            = "*"
+"org.pkgconf.pkgconf"                = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+BIN="$PREFIX/bin"
+GDB="$BIN/gdb"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+# The staged debugger must use the staged data directory (Python modules,
+# syscall tables), and never read a user or system gdbinit.
+run_gdb() {
+  "$GDB" -nx -nh -batch -data-directory "$PREFIX/share/gdb" \
+    -ex 'set disable-randomization off' "$@"
+}
+
+# GDB's built-in unit tests, run by the shipped binary. gdb_tilde_expand
+# checks ~$USER only when USER is set; the build sandbox's user is not in any
+# account database, so leave that one environmental case out.
+env -u USER "$GDB" -nx -nh -batch -data-directory "$PREFIX/share/gdb" \
+  -ex 'maintenance selftest' > "$SMOKE/selftest" 2>&1 || {
+  cat "$SMOKE/selftest"; exit 1; }
+grep -E '^Ran [0-9]+ unit tests, 0 failed$' "$SMOKE/selftest"
+
+# Every intended integration is compiled in, and none of the omitted ones.
+run_gdb -ex 'show configuration' > "$SMOKE/configuration"
+for option in --with-python=/usr --with-expat --with-lzma --with-xxhash --enable-tui \
+    '--with-system-readline' '--with-separate-debug-dir=/usr/lib/debug'; do
+  grep -F -- "$option" "$SMOKE/configuration"
+done
+for option in --with-guile --with-babeltrace --with-intel-pt --with-debuginfod; do
+  if grep -F -- "$option" "$SMOKE/configuration"; then exit 1; fi
+done
+"$GDB" --version | head -1 | grep -F "$PEKIT_VERSION"
+# Real iconv charset support, not the ASCII-only fallback.
+run_gdb -ex 'set target-charset ISO-8859-1' -ex 'print "\xe9"' -ex 'set host-charset UTF-8' \
+  -ex 'show target-charset' > "$SMOKE/charset" 2>&1
+grep -F 'The target character set is "ISO-8859-1".' "$SMOKE/charset"
+
+# A threaded program with a debug build: breakpoints, backtraces, locals,
+# thread listing through glibc's libthread_db, Python, and finish.
+cat > "$SMOKE/prog.c" <<'EOF'
+#include <pthread.h>
+#include <stdio.h>
+struct point { int x, y; };
+static volatile int sink;
+__attribute__((noinline)) int area(struct point p, int scale)
+{
+  int result = p.x * p.y * scale;
+  sink = result;
+  return result;
+}
+static void *worker(void *arg) { (void)arg; for (;;) sink++; return NULL; }
+int main(void)
+{
+  pthread_t t;
+  struct point p = { 6, 7 };
+  pthread_create(&t, NULL, worker, NULL);
+  printf("%d\n", area(p, 2));
+  return 0;
+}
+EOF
+cc -g -O0 -pthread "$SMOKE/prog.c" -o "$SMOKE/prog"
+run_gdb -ex 'break area' -ex run -ex bt -ex 'print p' -ex 'print p.x * p.y' \
+  -ex 'info threads' -ex 'python print("py", gdb.selected_frame().name())' \
+  -ex 'finish' -ex kill "$SMOKE/prog" > "$SMOKE/session" 2>&1 || {
+  cat "$SMOKE/session"; exit 1; }
+cat "$SMOKE/session"
+grep -E 'Breakpoint 1, area \(p=\.\.\., scale=2\) at .*prog\.c:7' "$SMOKE/session"
+grep -E '#1 +0x[0-9a-f]+ in main \(\) at .*prog\.c:17' "$SMOKE/session"
+grep -F '$1 = {x = 6, y = 7}' "$SMOKE/session"
+grep -F '$2 = 42' "$SMOKE/session"
+grep -F 'Thread debugging using libthread_db enabled' "$SMOKE/session"
+test "$(grep -cE '^[* ] +[0-9]+ +Thread 0x' "$SMOKE/session")" -eq 2
+grep -Fx 'py area' "$SMOKE/session"
+grep -F 'Value returned is $3 = 84' "$SMOKE/session"
+
+# Core files: gcore writes one, and GDB reads it back.
+run_gdb -ex 'break area' -ex run -ex "gcore $SMOKE/prog.core" -ex kill \
+  "$SMOKE/prog" > "$SMOKE/gcore" 2>&1
+test -s "$SMOKE/prog.core"
+run_gdb -ex bt "$SMOKE/prog" "$SMOKE/prog.core" > "$SMOKE/core" 2>&1
+grep -E '#0 +area \(p=\.\.\., scale=2\) at .*prog\.c:7' "$SMOKE/core"
+
+# Separate debuginfo found by build ID, as Peios' -debuginfo packages lay it
+# out, with the debug file compressed the way distribution builds may ship it.
+cp "$SMOKE/prog" "$SMOKE/stripped"
+BID=$(readelf -n "$SMOKE/prog" | sed -n 's/^[[:space:]]*Build ID: //p')
+mkdir -p "$SMOKE/debug/.build-id/$(printf %s "$BID" | cut -c1-2)"
+objcopy --only-keep-debug --compress-debug-sections=zlib "$SMOKE/prog" \
+  "$SMOKE/debug/.build-id/$(printf %s "$BID" | cut -c1-2)/$(printf %s "$BID" | cut -c3-).debug"
+strip --strip-all "$SMOKE/stripped"
+run_gdb -iex "set debug-file-directory $SMOKE/debug" -ex 'info line area' \
+  -ex 'ptype struct point' "$SMOKE/stripped" > "$SMOKE/separate" 2>&1
+grep -E 'Line 6 of ".*prog\.c"' "$SMOKE/separate"
+grep -F 'int x;' "$SMOKE/separate"
+
+# Remote debugging through gdbserver: the stub sends an XML target
+# description, which GDB parses with Expat.
+run_gdb -iex 'set sysroot /' -ex "target remote | $BIN/gdbserver - $SMOKE/prog" -ex 'break area' \
+  -ex continue -ex bt -ex 'info registers rip' -ex kill \
+  > "$SMOKE/remote" 2>&1 || { cat "$SMOKE/remote"; exit 1; }
+grep -F 'Remote debugging using stdio' "$SMOKE/remote"
+grep -E 'Breakpoint 1, area \(p=\.\.\., scale=2\)' "$SMOKE/remote"
+grep -E '^rip +0x[0-9a-f]+ +0x[0-9a-f]+ <area\+[0-9]+>' "$SMOKE/remote"
+
+# gstack prints a live process's stack; gdb-add-index adds a .gdb_index.
+"$SMOKE/prog" > /dev/null &
+pid=$!
+PATH="$BIN:$PATH" GDB="$GDB -data-directory $PREFIX/share/gdb" \
+  "$BIN/gstack" "$pid" > "$SMOKE/gstack" 2>&1 || true
+kill "$pid" 2>/dev/null || true
+wait "$pid" 2>/dev/null || true
+grep -E '(worker|main|clone)' "$SMOKE/gstack"
+cp "$SMOKE/prog" "$SMOKE/indexed"
+PATH="$BIN:$PATH" GDB="$GDB -data-directory $PREFIX/share/gdb" \
+  "$BIN/gdb-add-index" "$SMOKE/indexed"
+readelf -S "$SMOKE/indexed" | grep -F '.gdb_index'
+
+# Interactive line editing on a terminal: Readline history recall (Up-arrow)
+# re-runs the previous command. It is the system Readline's.
+cc -O2 -o "$SMOKE/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+cat > "$SMOKE/tty-session" <<'EOF'
+expect (gdb)
+send print 6*7\r
+expect $1 = 42
+expect (gdb)
+send \e[A\r
+expect $2 = 42
+expect (gdb)
+send quit\r
+EOF
+TERM=xterm "$SMOKE/pty-drive" "$SMOKE/tty-session" -- \
+  "$GDB" -nx -nh -q -iex 'set style enabled off' -data-directory "$PREFIX/share/gdb" \
+  > "$SMOKE/tty.out"
+needed() {
+  readelf -d "$1" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | LC_ALL=C sort | tr '\n' ' '
+}
+needed "$GDB" > "$SMOKE/needed"
+for lib in libreadline.so.8 libexpat.so.1 libpython3 libmpfr.so.6 libgmp.so.10 \
+    libzstd.so.1 liblzma.so.5 libz.so.1 libxxhash.so.0; do
+  grep -F "$lib" "$SMOKE/needed"
+done
+if needed "$GDB" | grep -E 'libbfd|libopcodes|libctf|libsframe'; then exit 1; fi
+
+# Scripts name their interpreters through the runtime view.
+test "$(sed -n 1p "$BIN/gcore")" = '#!/bin/bash'
+test "$(sed -n 1p "$BIN/gstack")" = '#!/bin/bash'
+test "$(sed -n 1p "$BIN/gdb-add-index")" = '#!/bin/sh'
+
+# Debug split and hardening of both shipped executables.
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/org.gnu.gdb" -type f -name 'infrun.c' -print -quit)"
+for elf in "$GDB" "$BIN/gdbserver"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+test -f "$PREFIX/share/gdb/python/gdb/__init__.py"
+test -f "$PREFIX/share/gdb/syscalls/amd64-linux.xml"
+test -f "$PREFIX/include/gdb/jit-reader.h"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c"   = "*"
+"org.gnu.glibc-gconv-extra"      = ">= 2.43"
+"org.gnu.readline"               = ">= 8.3"
+"org.gnu.ncurses-libs"           = "*"
+"org.gnu.gmp"                    = ">= 6.3.0"
+"org.gnu.mpfr"                   = ">= 4.2"
+"org.python.python3"             = ">= 3.14"
+"io.github.libexpat.expat"       = ">= 2.8.5"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
+"com.facebook.zstd-libs"         = "*"
+"org.tukaani.xz-libs"            = "*"
+"com.xxhash.xxhash-libs"         = "*"
+"org.gnu.bash"                   = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.findutils"              = "*"
+"org.gnu.grep"                   = "*"
+"org.gnu.sed"                    = "*"

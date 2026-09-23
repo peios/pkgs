@@ -1,0 +1,11 @@
+[package]
+name        = "org.gnu.gdb-debuginfo"
+description = "GDB debugging symbols"
+
+[dependencies]
+"org.gnu.gdb"           = "= {{release}}"
+"org.gnu.gdb-gdbserver" = "= {{release}}"
+
+[files]
+"@source:COPYING3"  = "usr/share/licenses/org.gnu.gdb-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

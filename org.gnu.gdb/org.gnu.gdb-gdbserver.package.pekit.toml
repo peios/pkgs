@@ -1,0 +1,19 @@
+# gdbserver, the remote debugging stub, for debugging a program on this system
+# from a GDB running elsewhere.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.gdb-gdbserver"
+description = "Remote debugging stub for GDB"
+license     = "GPL-3.0-or-later AND LGPL-2.0-or-later AND LGPL-2.1-or-later"
+
+[dependencies]
+"org.gnu.glibc" = ">= 2.43"
+
+[files]
+"@source:COPYING"     = "usr/share/licenses/org.gnu.gdb-gdbserver/"
+"@source:COPYING3"    = "usr/share/licenses/org.gnu.gdb-gdbserver/"
+"@source:COPYING.LIB" = "usr/share/licenses/org.gnu.gdb-gdbserver/"
+":usr/bin/gdbserver"             = "usr/bin/gdbserver"
+":usr/share/man/man1/gdbserver.1.gz" = "usr/share/man/man1/gdbserver.1.gz"

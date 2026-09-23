@@ -1,0 +1,43 @@
+# The debugger, its Python and syscall data directory, and the gcore, gstack
+# and gdb-add-index helpers.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.gdb"
+description = "GNU source-level debugger for C, C++, Rust and other languages"
+
+[dependencies]
+"org.gnu.glibc"                  = ">= 2.43"
+"org.gnu.glibc-gconv-extra"      = ">= 2.43"
+"org.gnu.bash"                   = "*"
+"org.git.kernel.dash"            = "*"
+"org.gnu.binutils"               = "*"
+"org.gnu.readline"               = ">= 8.3"
+"org.gnu.ncurses-libs"           = "*"
+"org.gnu.gmp"                    = ">= 6.3.0"
+"org.gnu.mpfr"                   = ">= 4.2"
+"org.python.python3-libs"        = ">= 3.14"
+"org.python.python3"             = ">= 3.14"
+"io.github.libexpat.expat"       = ">= 2.8.5"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
+"com.facebook.zstd-libs"         = "*"
+"org.tukaani.xz-libs"            = "*"
+"com.xxhash.xxhash-libs"         = "*"
+
+[files]
+"@source:COPYING"  = "usr/share/licenses/org.gnu.gdb/"
+"@source:COPYING.LIB" = "usr/share/licenses/org.gnu.gdb/"
+"@source:COPYING3" = "usr/share/licenses/org.gnu.gdb/"
+"@source:COPYING3.LIB" = "usr/share/licenses/org.gnu.gdb/"
+"@source:gdb/NEWS" = "usr/share/doc/org.gnu.gdb/"
+":usr/bin/gdb"           = "usr/bin/gdb"
+":usr/bin/gcore"         = "usr/bin/gcore"
+":usr/bin/gstack"        = "usr/bin/gstack"
+":usr/bin/gdb-add-index" = "usr/bin/gdb-add-index"
+":usr/share/gdb/**"      = "usr/share/gdb"
+":usr/share/man/man1/gdb.1.gz"           = "usr/share/man/man1/gdb.1.gz"
+":usr/share/man/man1/gcore.1.gz"         = "usr/share/man/man1/gcore.1.gz"
+":usr/share/man/man1/gstack.1.gz"        = "usr/share/man/man1/gstack.1.gz"
+":usr/share/man/man1/gdb-add-index.1.gz" = "usr/share/man/man1/gdb-add-index.1.gz"
+":usr/share/man/man5/gdbinit.5.gz"       = "usr/share/man/man5/gdbinit.5.gz"

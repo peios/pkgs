@@ -1,0 +1,10 @@
+[package]
+name        = "org.gnu.gdb-debugsource"
+description = "GDB debug sources"
+
+[dependencies]
+"org.gnu.gdb-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING3"  = "usr/share/licenses/org.gnu.gdb-debugsource/"
+":usr/src/debug/**" = "usr/src/debug"

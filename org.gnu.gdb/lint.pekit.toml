@@ -1,0 +1,3 @@
+# The debugger and gdbserver share the family symbol archive.
+[elf]
+debuginfo = "org.gnu.gdb-debuginfo"

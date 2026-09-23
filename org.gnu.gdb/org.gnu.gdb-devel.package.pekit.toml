@@ -1,0 +1,14 @@
+# The JIT reader interface header, for JIT compilers that ship a GDB reader
+# plugin.
+
+[package]
+name        = "org.gnu.gdb-devel"
+description = "GDB JIT reader interface header"
+license     = "GPL-3.0-or-later"
+
+[dependencies]
+"org.gnu.gdb" = "= {{release}}"
+
+[files]
+"@source:COPYING3" = "usr/share/licenses/org.gnu.gdb-devel/"
+":usr/include/gdb/jit-reader.h" = "usr/include/gdb/jit-reader.h"
