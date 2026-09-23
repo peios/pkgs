@@ -484,9 +484,13 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.example.thing "$PEKIT_OUT/
 ```
 
 It rewrites DWARF paths to `/usr/src/debug/<package>`, requires a build ID and
-debug info on every ELF, writes the build-ID-indexed debug files, strips
-executables, shared objects and static archives appropriately, and copies
-exactly the referenced sources. It fails rather than skipping anything.
+debug info on every ELF, removes duplicate DWARF with `dwz` (per file, never
+multifile), writes the build-ID-indexed debug files, strips executables,
+shared objects and static archives appropriately, and copies exactly the
+referenced sources. It fails rather than skipping anything; the one dwz
+outcome it tolerates is an ELF over dwz's DIE limit, which keeps its DWARF
+unoptimised. Debugedit and DWZ come from `dev.peios.build-essentials-c`; a
+`minimal-bootstrap` recipe's Debian set names `debugedit` and `dwz` itself.
 Compile with `-ffile-prefix-map`/`-fmacro-prefix-map` pointing the build root
 at the same `/usr/src/debug/<package>` prefix. Toolchain recipes whose splits
 need per-component debug trees (GCC, glibc, LLVM, Rust, Python, the kernel)
