@@ -1,0 +1,29 @@
+# find-debuginfo, upstream's all-in-one debuginfo splitter (the driver RPM
+# builds use). Kept out of the main package so the debugedit tools every build
+# root installs do not pull in GDB. Peios' own recipes use
+# _pkgtools_/split-debug instead; this is for third-party packaging.
+
+[package]
+name         = "org.sourceware.debugedit-find-debuginfo"
+architecture = "noarch"
+description  = "RPM-style debuginfo extraction driver built on debugedit"
+
+[dependencies]
+"org.sourceware.debugedit"        = "= {{release}}"
+"org.sourceware.debugedit-common" = "= {{release}}"
+"org.gnu.bash"                    = "*"
+"org.gnu.gdb"                     = "*"
+"org.sourceware.dwz"              = "*"
+"org.sourceware.elfutils"         = ">= 0.196"
+"org.gnu.binutils"                = "*"
+"org.gnu.cpio"                    = "*"
+"org.tukaani.xz"                  = "*"
+"com.darwinsys.file"              = "*"
+"org.gnu.findutils"               = "*"
+"org.gnu.gawk"                    = "*"
+"org.gnu.sed"                     = "*"
+"dev.peios.peiosutils"            = "*"
+
+[files]
+"@source:COPYING3"         = "usr/share/licenses/org.sourceware.debugedit-find-debuginfo/COPYING3"
+":usr/bin/find-debuginfo"  = "usr/bin/find-debuginfo"

@@ -1,9 +1,11 @@
 # Debugedit — DWARF source-path rewriting, build-ID maintenance, and
 # debug-archive classification used by Peios package split pipelines.
 #
-# The optional RPM-oriented find-debuginfo driver is deliberately not shipped
-# until native GDB and DWZ packages exist. The Debian seed build runs all 58
-# upstream tests; native builds run the 44 tests for every shipped C tool.
+# The RPM-oriented find-debuginfo driver ships in its own package, so the
+# debugedit tools in every build root do not pull in GDB. Upstream makes GDB
+# and DWZ configure requirements for that script; both environments use the
+# real tools. Natively all 58 upstream tests run; Debian skips four gdb-index
+# cases upstream's own version check rules out.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -48,39 +50,11 @@ cp -a "$LOCKED_SRC/." "$BUILD_SRC/"
 # merely to reproduce them.
 touch "$BUILD_SRC"/*.1
 
-# Upstream currently makes GDB and DWZ unconditional configure requirements
-# for the optional find-debuginfo script. Use the real tools, and therefore the
-# full suite, on Debian. On native Peios satisfy only those configure probes
-# with inert version stubs, omit the script, and run every test for the three
-# C tools that are actually shipped.
-TEST_LAST=58
-if ! command -v gdb >/dev/null 2>&1 \\
-   || ! command -v gdb-add-index >/dev/null 2>&1 \\
-   || ! command -v dwz >/dev/null 2>&1; then
-  TEST_LAST=44
-  cat > "$CONFIG_TOOLS/gdb" <<'EOF'
-#!/bin/sh
-case "$1" in
-  --version) printf '%s\\n' 'GNU gdb (GDB) 14.0'; exit 0 ;;
-esac
-exit 127
-EOF
-  cat > "$CONFIG_TOOLS/gdb-add-index" <<'EOF'
-#!/bin/sh
-exit 127
-EOF
-  cat > "$CONFIG_TOOLS/dwz" <<'EOF'
-#!/bin/sh
-case "$1" in
-  --version) printf '%s\\n' 'dwz version 0.16'; exit 0 ;;
-esac
-exit 127
-EOF
-  chmod 0755 "$CONFIG_TOOLS/gdb" "$CONFIG_TOOLS/gdb-add-index" \\
-    "$CONFIG_TOOLS/dwz"
-  PATH="$CONFIG_TOOLS:$PATH"
-  export PATH
-fi
+# Upstream makes GDB and DWZ configure requirements for find-debuginfo, and
+# its integration tests drive them. Both environments provide the real tools.
+for tool in gdb gdb-add-index dwz; do
+  command -v "$tool" >/dev/null
+done
 
 # The native package set intentionally has no util-linux `rev` command yet.
 # Upstream uses it only to reverse readelf output while asserting rewritten
@@ -106,7 +80,6 @@ LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \\
   --mandir=/usr/share/man \\
   --disable-inlined-xxhash \\
   --disable-silent-rules
-printf '%s\n' "$TEST_LAST" > "$PEKIT_OUT/.test-last"
 
 # A clean rebuild in the identical object path must reproduce every shipped
 # executable byte-for-byte before the upstream regression suite is run.
@@ -118,10 +91,7 @@ make clean
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 
-# find-debuginfo requires GDB/DWZ features unavailable in the native package
-# set. Do not ship a partially functional script or advertise its manual.
-rm -f "$PEKIT_OUT/usr/bin/find-debuginfo" \\
-  "$PEKIT_OUT/usr/share/man/man1/find-debuginfo.1"
+test "$(sed -n 1p "$PEKIT_OUT/usr/bin/find-debuginfo")" = '#!/bin/bash'
 
 # Split with the debugedit just built: the Debian seed root does not install
 # one, and the build should exercise the tool it ships.
@@ -155,14 +125,19 @@ CONFIG_TOOLS="$STAGE/config-tools"
 BINDIR="$STAGE/usr/bin"
 REPRO="$STAGE/.debugedit-smoke"
 SMOKE="$PEKIT_OUT/smoke"
-TEST_LAST=$(cat "$STAGE/.test-last")
 PATH="$CONFIG_TOOLS:$PATH"
 export PATH
 
 for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
   cmp "$REPRO/$tool.first" "$OBJ/$tool"
 done
-make -C "$OBJ" check TESTSUITEFLAGS="1-$TEST_LAST"
+make -C "$OBJ" check
+# Natively every upstream test runs. Debian's gdb-add-index is out of step
+# with its GDB, which upstream detects and skips four gdb-index cases for.
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ] \
+   && grep -E '^[0-9]+ tests? (was|were) skipped' "$OBJ/tests/testsuite.log"; then
+  exit 1
+fi
 
 for tool in debugedit debugedit-classify-ar sepdebugcrcfix; do
   test -x "$BINDIR/$tool"
@@ -244,6 +219,10 @@ test -n "$(find "$STAGE/usr/src/debug/org.sourceware.debugedit" -type f -print -
 "org.sourceware.elfutils"        = ">= 0.196"
 "org.gnu.cpio"                   = "*"
 "org.tukaani.xz"                 = "*"
+"org.gnu.gdb"                    = "*"
+"org.sourceware.dwz"             = "*"
+# find-debuginfo classifies its inputs with file(1).
+"com.darwinsys.file"             = "*"
 
 [test.dependencies.apt]
 "pkg-config" = "*"
@@ -270,6 +249,10 @@ dwz             = "*"
 "com.xxhash.xxhash-devel"       = ">= 0.8.3"
 "org.gnu.cpio"                  = "*"
 "org.tukaani.xz"                = "*"
+# find-debuginfo's configure probes (see the build command).
+"org.gnu.gdb"                   = "*"
+"org.sourceware.dwz"            = "*"
+"com.darwinsys.file"            = "*"
 
 [build.main.dependencies.apt]
 gzip = "*"
