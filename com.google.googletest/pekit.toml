@@ -5,7 +5,11 @@
 # Shared runtimes, as Fedora ships them, plus a separately built static set.
 # Upstream promises no ABI between releases, so the sonames carry the full
 # version and every consumer rebuilds with each GoogleTest update.
+#
+# In the bootstrap closure because Ninja's gate runs its C++ suite against it;
+# it therefore builds with CMake's Makefile generator, never with Ninja.
 
+tags = ["bootstrap"]
 out_dir = "out"
 
 [source.git]
@@ -35,7 +39,7 @@ export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 # Workspace policy goes through CMake's cache explicitly. Python drives
 # upstream's end-to-end tests, so it is named rather than discovered.
 set -- \
-  -G Ninja \
+  -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-DNDEBUG \
   -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
@@ -71,7 +75,6 @@ rm -rf "$PEKIT_OUT/static/usr/src" "$PEKIT_OUT/static/usr/lib/debug"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake"                = "*"
-"org.ninja-build.ninja"          = "*"
 "org.python.python3"             = "*"
 
 [test]
@@ -131,7 +134,7 @@ find_package(GTest REQUIRED CONFIG)
 add_executable(sample_test sample_test.cc)
 target_link_libraries(sample_test GTest::gmock_main)
 EOF
-cmake -S "$SMOKE" -B "$SMOKE/build" -G Ninja -DCMAKE_PREFIX_PATH="$PREFIX" \
+cmake -S "$SMOKE" -B "$SMOKE/build" -DCMAKE_PREFIX_PATH="$PREFIX" \
   -DCMAKE_FIND_ROOT_PATH="$STAGE" > "$SMOKE/cmake.out"
 cmake --build "$SMOKE/build"
 LD_LIBRARY_PATH="$LIBDIR" "$SMOKE/build/sample_test" | grep -F '[  PASSED  ] 2 tests.'
@@ -164,7 +167,6 @@ done
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake"                = "*"
-"org.ninja-build.ninja"          = "*"
 "org.python.python3"             = "*"
 "org.pkgconf.pkgconf"            = "*"
 "org.gnu.binutils"               = "*"
