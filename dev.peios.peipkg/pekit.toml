@@ -9,9 +9,9 @@ delegate = true
 url       = "https://github.com/peios/peipkg.git"
 ref       = "v{{version}}"
 tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
-# Soft production floor: v0.1.2 is the first release whose delegated recipe
-# emits the qualified, independently installable production package family.
-versions  = ">= 0.1.2"
+# Soft production floor: v0.1.6 is the first release that builds without
+# catalogue patches (PEI-1163).
+versions  = ">= 0.1.6"
 
 # Local working copy for explicit development builds only. Release builds
 # always materialize the immutable public tag selected above.

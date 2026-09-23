@@ -1,4 +1,0 @@
-[allow]
-"package.license" = "Package licence metadata is owned by the immutable delegated source and is checked by versioned lint"
-"package.homepage" = "Package homepage metadata is owned by the immutable delegated source and is checked by versioned lint"
-"package.description" = "Package descriptions are owned by the immutable delegated source and are checked by versioned lint"
