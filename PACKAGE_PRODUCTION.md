@@ -6,6 +6,40 @@
 
 ## Objective
 
+### Active release-validation checkpoint (2026-09-12)
+
+The completion totals below describe the earlier productionisation pass, not
+acceptance of the current revision-1 release set. The final fresh-build campaign
+is still open. GCC/libstdc++ and the kernel remain a critical build chain, but
+the fresh payload audit also found broader unresolved work. The static pass is
+122/122 clean. The baseline payload pass, excluding those two unfinished
+families, is only 16/120 clean: see `RELEASE_VALIDATION.md` for every outcome
+and the distinction between missing output, discovery failures, and actual
+payload findings. Do not infer current release acceptance from the historical
+completion totals below. Keep the bootstrap repository's temporary higher
+revisions out of the final revision-1 set.
+
+GCC's existing bootstrap `libstdc++.so.6` lacks GNU version definitions. Its
+configure log shows that strict CET reporting rejected the shared-libgcc probe:
+the probe substitutes its own CFLAGS, producing an object without IBT/SHSTK
+properties. Configure then silently disabled GNU symbol versioning. The recipe
+now explicitly requests GNU versioning and omits strict CET reporting from
+configure-time linker flags while retaining it for the shipped bootstrap
+compiler. Runtime ELF hardening gates remain required, and a new ABI gate
+requires `.gnu.version_d`, `GLIBCXX_3.4`, and `CXXABI_1.3` before packaging.
+
+The repaired GCC build and release gates have now passed. Its corrected signed
+16.2.0-1 family was regenerated at 17:42 on September 12 without recompiling;
+payload lint reports zero failures with ten narrow, documented file exceptions
+for required compiler objects and the GDB plugin. See `RELEASE_VALIDATION.md`.
+The corrected family was published to the private build repository as 16.2.0-3
+at 21:07 on September 12 (index 257); a fresh-root C++ compile/run and runtime
+ABI/hardening checks passed. Recipe versions are restored to revision 1 for the
+clean public set. Rerun the kernel family and complete the broader payload
+validation before claiming final release closure.
+
+### Earlier productionisation checkpoint
+
 Work through every recipe directory in this repository, bringing each public
 package to production standard, validating it on the Debian reference rung and
 the native Peios rung, and publishing signed packages to the local `peios`
