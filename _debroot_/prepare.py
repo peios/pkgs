@@ -145,10 +145,15 @@ printf 'peibuild:x:1000:\\n' >> /etc/group
 def policy_id():
     # reference.py carries every pinned prerequisite, so its bytes are part of
     # the policy; the repository snapshot a job composes from is recorded in
-    # each root's reference evidence.
+    # each root's reference evidence. The catalogue overlay also depends on the
+    # repository trust anchor and on how the repository is snapshotted, so a
+    # replay record from before a key rotation no longer matches.
     root = Path(__file__).resolve().parent
+    peiroot = root.parent / '_peiroot_'
     return hashlib.sha256((digest(root / 'enter.sh') + digest(root / 'prepare.py') +
-                           digest(root / 'reference.py') + IMAGE).encode()).hexdigest()
+                           digest(root / 'reference.py') +
+                           digest(peiroot / 'repository.anchor') +
+                           digest(peiroot / 'snapshot-repository.py') + IMAGE).encode()).hexdigest()
 
 
 def load_record(directory, deps, policy):

@@ -28,14 +28,8 @@ _dwePackages_
 # suffix slips past it while holding exactly the same key material.
 *.keyring.pekit.toml.*
 
-# Milestone-2 toolchain build scratch: the build-only nix->peios cross toolchain
-# (gcc/_cross/tools) + its build tree (gcc/_cross/build), and the peipkg-compose'd
-# sysroot (gcc/_sysroot). The driving scripts gcc/_cross/*.sh ARE tracked.
-gcc/_cross/tools/
-gcc/_cross/build/
-gcc/_sysroot/
-# peipkg-compose lock: regenerated per machine; pins absolute local out/ paths.
-sysroot.lock.toml
+# Bytecode left by running the workspace helpers' tests.
+__pycache__/
 
 # Local dev package-signing key material (PEI-154); never commit.
 /dev-signing.key

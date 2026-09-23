@@ -6,10 +6,10 @@
 # so `pekit workspace lint --json` lists every one. Rule reference:
 # learn.peios.org/pekit/running/linting.
 #
-# The rows here are the mechanical half of the production checklist that
-# PACKAGE_PRODUCTION.md used to carry in prose. What stays human: the
-# product role agreeing with learn/, ownership boundaries, whether a split
-# is sensible, and least-privilege identities.
+# The rows here are the mechanical half of the production checklist in
+# README.md. What stays human: the product role agreeing with learn/,
+# ownership boundaries, whether a split is sensible, and least-privilege
+# identities.
 
 [package]
 name.style    = "reverse-dns"

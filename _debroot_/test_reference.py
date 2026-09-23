@@ -134,20 +134,6 @@ class Safety(unittest.TestCase):
         self.assertEqual((self.dst / 'usr/a').stat().st_mode & 0o777, 0o755)
         self.assertRaises(ValueError, r.place, self.dst, source, 'usr/a')
 
-    def test_debian_collisions(self):
-        overlay = self.root / 'overlay'
-        debian = self.root / 'debian'
-        (overlay / 'usr').mkdir(parents=True)
-        (debian / 'usr').mkdir(parents=True)
-        (overlay / 'usr/a').write_text('x')
-        r.check_collisions(debian, overlay)
-        (debian / 'usr/a').write_text('x')
-        self.assertRaises(ValueError, r.check_collisions, debian, overlay)
-        (debian / 'usr/a').unlink()
-        (debian / 'usr').rmdir()
-        (debian / 'usr').symlink_to('/tmp')
-        self.assertRaises(ValueError, r.check_collisions, debian, overlay)
-
     def test_catalogue_copies_only_owned_files_and_subtrees(self):
         scratch = self.root / 'work' / 'scratch'
         for name in ['usr/include/pkm/psb.h', 'usr/include/linux/fs.h', 'usr/include/peios.h',

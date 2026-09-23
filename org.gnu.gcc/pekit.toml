@@ -1,9 +1,8 @@
 # gcc — the GCC compiler for Peios (milestone 3: the native self-build).
 #
-# Built NATIVELY on the rung-2 peipkg root (PEI-126/PEI-155 closure):
-# build=host=target=x86_64-linux-peios, compiled by the shipped Peios gcc
-# (itself born of the milestone-2 Canadian cross, preserved in _cross/ for
-# re-bootstrap). Full 3-stage bootstrap: the new gcc compiles itself twice
+# Built natively in the Peios root: build=host=target=x86_64-linux-peios,
+# compiled by the shipped Peios gcc (the minimal-bootstrap seed builds it first
+# under --env debian). Full 3-stage bootstrap: the new gcc compiles itself twice
 # and the build compares stage2 vs stage3 object files — a built-in
 # determinism check on the whole toolchain.
 #
@@ -225,9 +224,6 @@ else
   echo "gcc: Debian reference rung omits end-to-end CET reporting; native validation is authoritative" >&2
 fi
 
-# This recipe's dir is PEKIT_OUT up to "/out/" (for the config.sub script).
-GCC_DIR="${PEKIT_OUT%%/out/*}"
-
 # Defensive: exported tool vars would override configure's tool detection.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE \
       CC_FOR_TARGET CXX_FOR_TARGET GCC_FOR_TARGET CPP_FOR_TARGET GCJ_FOR_TARGET \
@@ -253,7 +249,7 @@ fi
 # several vintages across the toolchain and the script detects which, asserting
 # each edit landed. Everything else moved to patches/ (pekit's resolve resets
 # the tree, so a patch series re-applies cleanly on every run).
-sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/config.sub"
 
 mkdir -p "$PEKIT_OUT/build"
 cd "$PEKIT_OUT/build"
@@ -506,7 +502,7 @@ CET_LDFLAGS=
 if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
   CET_LDFLAGS="-Wl,-z,cet-report=error,-z,ibtplt"
 fi
-GCC_DIR="${PEKIT_OUT%%/out/*}"
+GCC_DIR="$PEKIT_RECIPE_ROOT"
 
 cd "$PEKIT_OUT/build"
 

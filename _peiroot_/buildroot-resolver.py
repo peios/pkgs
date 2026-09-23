@@ -165,7 +165,11 @@ def read_config(path='/etc/resolv.conf'):
             elif words[0] == 'options':
                 for option in words[1:]:
                     if option.startswith('ndots:'):
-                        ndots = min(int(option[6:] or 1), 15)
+                        # glibc ignores a malformed option; so does this.
+                        try:
+                            ndots = min(max(int(option[6:] or 1), 0), 15)
+                        except ValueError:
+                            pass
     if not servers:
         raise SystemExit('buildroot-resolver: resolv.conf names no nameserver')
     return servers, search, ndots
@@ -264,8 +268,11 @@ def query(servers, name, rtype):
 
 
 def candidates(name, search, ndots):
+    # A trailing dot makes the name absolute: never expand it with search
+    # domains, exactly as glibc does.
+    absolute = name.endswith('.')
     name = name.rstrip('.')
-    if name.endswith('.') or not search:
+    if absolute or not search:
         return [name]
     expanded = [f'{name}.{domain}' for domain in search]
     return [name] + expanded if name.count('.') >= ndots else expanded + [name]

@@ -111,7 +111,9 @@ symbol_capabilities = ["libstdc++.so.6"]
 # Worker inputs shared by the recipes; neither repository nor sibling packages are mounted.
 [isolation]
 enabled = true
-inputs = ["_pybuild_"]
+# _pybuild_: Python wheel installation policy. _pkgtools_: shell helpers every
+# native recipe may call (split-debug, config-sub-peios.sh).
+inputs = ["_pybuild_", "_pkgtools_"]
 
 # Coordinator-side root preparation sources accompany every source bundle.
 # Worker-visible shared helpers are captured from isolation.inputs as well.

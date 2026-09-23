@@ -30,6 +30,7 @@ import shutil
 import subprocess
 import sys
 from python_paths import library_path
+from wheel_checks import verify_wheel
 import tempfile
 import zipfile
 
@@ -150,6 +151,12 @@ def main():
     wheeldir = tempfile.mkdtemp(prefix="pybuild-whl-")
     try:
         wheel = build_wheel(src, args.backend, wheeldir, args.copy_tree)
+        # Extract only a wheel whose RECORD covers exactly its members, with
+        # matching digests and no absolute, parent or symlink members.
+        try:
+            verify_wheel(wheel)
+        except ValueError as e:
+            die("%s: %s" % (os.path.basename(wheel), e))
         os.makedirs(dest, exist_ok=True)
         with zipfile.ZipFile(wheel) as zf:
             zf.extractall(dest)

@@ -12,9 +12,6 @@
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
-[source_package]
-workspace_inputs = ["org.gnu.gcc/_cross/config-sub-peios.sh"]
-
 # gprofng/posix-sh-compat-symlinks: upstream writes gprofng's five gp-* legacy
 # symlinks with a bash brace expansion, which a POSIX sh leaves unexpanded.
 # Drop when a binutils release carries the fix upstream.
@@ -67,10 +64,6 @@ export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.binut
 export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.binutils"
 TRIPLET=x86_64-linux-peios
 
-# config.sub lives beside the gcc recipe (shared with it); PEKIT_OUT is
-# <recipe>/out/<ver>/build/main, so strip from "/out/" on to find the recipe
-# root, then hop to the qualified GCC recipe.
-GCC_DIR="${PEKIT_OUT%%/out/*}/../org.gnu.gcc"
 
 # Defensive: exported CC/CXX/AR/... would override configure's tool detection.
 unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS ADDR2LINE
@@ -82,7 +75,7 @@ unset CC CXX CPP AR AS LD NM RANLIB STRIP OBJCOPY OBJDUMP READELF SIZE STRINGS A
 # upstream regenerates would break on every release. Note the trap it exists to
 # avoid: the OS-normalisation `case` has a `pe*)` arm that captures "peios" and
 # mis-normalises it to obj=peios, os='' unless a peios arm precedes it.
-sh "$GCC_DIR/_cross/config-sub-peios.sh" "$SRC/config.sub"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/config.sub"
 
 cd "$PEKIT_OUT"
 #   --with-lib-path         : the SEARCH_DIR list ld compiles into its default

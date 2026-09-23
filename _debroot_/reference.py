@@ -355,24 +355,9 @@ def build_overlay(selected, directory, cache):
     return record
 
 
-def check_collisions(root, overlay):
-    # Inspect the exact Debian export before any copy. Existing ordinary
-    # directories may merge; no file/symlink replacement is authorized.
-    for p in sorted(overlay.rglob('*')):
-        rel = p.relative_to(overlay)
-        q = root / rel
-        prefix = root
-        for part in rel.parts[:-1]:
-            prefix = prefix / part
-            if prefix.is_symlink():
-                raise ValueError('Debian symlink parent: ' + str(rel))
-        if not q.exists() and not q.is_symlink():
-            continue
-        if p.is_dir() and not p.is_symlink() and q.is_dir() and not q.is_symlink():
-            continue
-        raise ValueError('Debian/reference collision: ' + str(rel))
-
-
+# Runs inside the Debian container against the exact overlay inventory before
+# any copy. Existing ordinary directories may merge; no file or symlink
+# replacement is authorized.
 COLLISION_CHECK = r'''
 import json,os,stat,sys
 from pathlib import Path

@@ -9,8 +9,8 @@ without relying on state from a developer's checkout.
 This document is the packaging policy and review checklist. The root
 [`lint.pekit.toml`](lint.pekit.toml) enforces the mechanical parts. A local
 `lint.pekit.toml` may explain a genuine exception, but it does not lower the
-quality bar. [`PACKAGE_PRODUCTION.md`](PACKAGE_PRODUCTION.md) is the historical
-production-pass ledger, not the policy source.
+quality bar. Work in progress and its history live in Acta (the production
+campaign is PEI-607), not in this repository.
 
 ## Repository layout and inheritance
 
@@ -37,8 +37,12 @@ The workspace files are intentional shared policy:
 - [`workspace.pekit.toml`](workspace.pekit.toml) defines membership,
   distribution compiler/linker flags, Rust release settings, and symbol-version
   derivation.
-- [`package.pekit.toml`](package.pekit.toml) supplies the local artifact pool
-  and signed Peipkg repository targets.
+- [`package.pekit.toml`](package.pekit.toml) supplies the signed Peipkg
+  repository publication target.
+- `_pybuild_/` (Python wheel installation) and `_pkgtools_/` (`split-debug`,
+  `config-sub-peios.sh`) are shared helpers every recipe reaches through
+  `$PEKIT_WORKSPACE_ROOT`. `_peiroot_/` and `_debroot_/` prepare the native and
+  Debian roots.
 - [`env.pekit.toml`](env.pekit.toml) is the default environment: every target
   runs in a clean native root composed from the signed repository, and only
   `build:vendor` gets network access. `debian.env.pekit.toml` (`--env debian`)
@@ -379,8 +383,9 @@ Cargo fetches Git dependencies with its built-in client unless the recipe sets
 should set `GOTOOLCHAIN=local`, so a `go.mod` bump fails instead of
 downloading another compiler.
 
-A vendor target must declare a non-empty native set; there is no Debian
-acquisition root. Python test tools are fetched by pip running from its own
+A vendor target must declare a non-empty native set. Only a
+`minimal-bootstrap` recipe's vendor target, run under `--env debian`, acquires
+in a Debian root instead, from its apt set. Python test tools are fetched by pip running from its own
 wheel, which `_pybuild_/test-tools` downloads by PyPI's published digest, so
 acquisition needs only the root's Python.
 
@@ -410,9 +415,11 @@ upstream controls where applicable.
 Declare a dependency where the installed payload needs it, not merely where the
 build happened to use it.
 
-- Same-source split packages use an exact package version such as
-  `"{{version}}-4"`. This prevents mixing family revisions whose files and
-  contracts were tested together.
+- Same-source split packages pin each other exactly with `"= {{release}}"`,
+  which pekit renders as the package's own version-revision. This prevents
+  mixing family revisions whose files and contracts were tested together, and
+  cannot go stale when the revision is bumped. Lint rejects the hand-written
+  `"{{version}}-N"` form.
 - External concrete dependencies use qualified names and the narrowest honest
   compatibility floor. Avoid `*` when a known API/format minimum exists; avoid
   exact external versions unless compatibility truly requires one.
@@ -454,6 +461,22 @@ the number of files. A mature library/application family commonly has:
   and
 - a complete corresponding-source package when redistribution obligations or
   rebuildability call for it.
+
+Produce `-debuginfo` and `-debugsource` with the shared helper rather than a
+hand-written copy of the steps:
+
+```sh
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.example.thing "$PEKIT_OUT/usr"
+```
+
+It rewrites DWARF paths to `/usr/src/debug/<package>`, requires a build ID and
+debug info on every ELF, writes the build-ID-indexed debug files, strips
+executables, shared objects and static archives appropriately, and copies
+exactly the referenced sources. It fails rather than skipping anything.
+Compile with `-ffile-prefix-map`/`-fmacro-prefix-map` pointing the build root
+at the same `/usr/src/debug/<package>` prefix. Toolchain recipes whose splits
+need per-component debug trees (GCC, glibc, LLVM, Rust, Python, the kernel)
+keep their own logic.
 
 Do not create tiny arbitrary splits that can never be used independently, and
 do not collapse optional development/static/debug payload into the runtime.
@@ -514,7 +537,8 @@ that make a transformation safe may remain beside that transformation, but
 upstream suites, installed behavior, ABI/API checks, payload policy, hardening,
 debug/source validation, and security regressions belong in gates.
 
-Test targets must declare their own dependencies for both providers. If a gate
+Test targets declare their own native dependencies, and a `minimal-bootstrap`
+recipe's test targets also declare an apt set; lint checks both. If a gate
 uses a retained build tree, do not delete that tree in `build`; clean it after
 the gate instead. When no runnable upstream suite exists (for example binary
 firmware), provide rigorous gated structural/semantic validation of the staged
@@ -727,20 +751,27 @@ empty repository needs a seed built elsewhere. Two recipe tags mark it:
   own native dependencies: everything the seed needs to rebuild itself natively.
 
 Only `minimal-bootstrap` recipes declare apt sets, so only they build in
-Debian. The native toolchain arrives only at the end, so rebuild the rest a
-second time:
+Debian. The seed is then rebuilt natively, and everything else a second time
+against the native seed. Those later rounds publish the same versions again,
+which the repository normally refuses (a published version never changes), so
+they pass `--replace` to overwrite the earlier builds:
 
 ```sh
 "$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env debian
 "$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap
-"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap
-"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap
+"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --replace
+"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --replace
 ```
 
+`--replace` breaks the retention promise for the versions it overwrites. Use
+it only on a repository nobody consumes yet, never on the public repository;
+`--strict` refuses it.
+
 A recipe joining `minimal-bootstrap` gains apt sets for every target; one
-leaving it drops them. The sets are derived from declared dependencies (PEI-1156). Recompute them when
-a recipe's native dependencies change which members form cycles, and keep the
-tags in the member recipes, never in a delegated source.
+leaving it drops them. The sets are derived from declared dependencies
+(PEI-1156). Recompute them when a recipe's native dependencies change which
+members form cycles, and keep the tags in the member recipes, never in a
+delegated source.
 
 ## Completion checklist
 

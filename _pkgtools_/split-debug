@@ -1,0 +1,129 @@
+#!/bin/sh
+# split-debug: the workspace's one debuginfo/debugsource split (PEI-1163).
+#
+#   split-debug [options] PACKAGE PATH...
+#
+# Every C/C++/Rust recipe used to carry its own copy of this: rewrite DWARF
+# source paths, split the debug sections into a build-ID-indexed file, strip
+# the payload and copy exactly the sources DWARF references. The copies had
+# drifted: some hid debugedit failures behind `|| true`, some skipped an ELF
+# with no build ID, some sorted in the caller's locale. This is the one
+# fail-closed version.
+#
+# PATH is an ELF file, a static archive, or a directory scanned for both
+# (usr/lib/debug and usr/src/debug are never scanned). For each ELF:
+#   * debugedit rewrites the build-root prefix to /usr/src/debug/PACKAGE and
+#     lists the referenced sources;
+#   * its build ID must exist; the debug sections go to
+#     STAGE/usr/lib/debug/.build-id/xx/rest.debug;
+#   * executables are stripped with --strip-all, shared objects with
+#     --strip-unneeded.
+# Static archives keep their code and lose only their debug sections.
+# Referenced sources that exist under the build root are copied to
+# STAGE/usr/src/debug/PACKAGE, in a locale-independent order.
+#
+# Options:
+#   --stage DIR        payload root (default: $PEKIT_OUT)
+#   --build-root DIR   prefix DWARF paths are relative to; the directory that
+#                      holds the job's source/ and build/ trees
+#                      (default: two levels above $PEKIT_OUT)
+#   --allow-stripped   accept an ELF that has no .debug_info (a prebuilt
+#                      blob); it is stripped but gets no debug file
+#
+# Needs: debugedit, binutils (readelf, objcopy, strip), and the POSIX tools
+# every root already has.
+set -eu
+
+die() { echo "split-debug: $*" >&2; exit 1; }
+
+stage=${PEKIT_OUT:-}
+root=
+allow_stripped=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --stage) stage=$2; shift 2 ;;
+    --build-root) root=$2; shift 2 ;;
+    --allow-stripped) allow_stripped=1; shift ;;
+    --) shift; break ;;
+    -*) die "unknown option $1" ;;
+    *) break ;;
+  esac
+done
+[ $# -ge 2 ] || die "usage: split-debug [options] PACKAGE PATH..."
+package=$1; shift
+[ -n "$stage" ] || die "no stage: set PEKIT_OUT or pass --stage"
+stage=$(cd "$stage" && pwd)
+if [ -z "$root" ]; then
+  [ -n "${PEKIT_OUT:-}" ] || die "no build root: pass --build-root"
+  root=$(dirname "$(dirname "$PEKIT_OUT")")
+fi
+root=$(cd "$root" && pwd)
+dest=/usr/src/debug/$package
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/split-debug.XXXXXX")
+trap 'rm -rf "$work"' EXIT INT TERM
+: > "$work/sources"
+: > "$work/seen"
+
+is_archive() { [ "$(head -c 8 "$1")" = '!<arch>' ]; }
+is_elf() { [ "$(head -c 4 "$1" | tail -c 3)" = ELF ]; }
+
+# Collect candidates: explicit files, or every regular file under a directory
+# except the debug trees this script writes.
+for path in "$@"; do
+  case "$path" in /*) ;; *) path=$stage/$path ;; esac
+  if [ -d "$path" ]; then
+    find "$path" -type f \
+      ! -path "$stage/usr/lib/debug/*" ! -path "$stage/usr/src/debug/*" -print
+  elif [ -f "$path" ]; then
+    printf '%s\n' "$path"
+  else
+    die "$path does not exist"
+  fi
+done | LC_ALL=C sort -u > "$work/candidates"
+
+count=0
+while IFS= read -r file; do
+  if is_archive "$file"; then
+    strip --strip-debug "$file"
+    count=$((count + 1))
+    continue
+  fi
+  is_elf "$file" || continue
+  count=$((count + 1))
+  # Hard links share one inode: split each file once.
+  inode=$(stat -c %i "$file")
+  if grep -qx "$inode" "$work/seen"; then
+    continue
+  fi
+  printf '%s\n' "$inode" >> "$work/seen"
+
+  if ! readelf -S "$file" | grep -q '\.debug_info'; then
+    [ "$allow_stripped" = 1 ] || die "$file has no debug info (build with -g, or pass --allow-stripped)"
+    strip --strip-unneeded "$file"
+    continue
+  fi
+  debugedit -b "$root" -d "$dest" -l "$work/list" -n "$file"
+  cat "$work/list" >> "$work/sources"
+  bid=$(readelf -n "$file" | sed -n 's/^[[:space:]]*Build ID: //p' | head -1)
+  [ -n "$bid" ] || die "$file has no build ID"
+  dir=$stage/usr/lib/debug/.build-id/$(printf %s "$bid" | cut -c1-2)
+  debug=$dir/$(printf %s "$bid" | cut -c3-).debug
+  mkdir -p "$dir"
+  objcopy --only-keep-debug "$file" "$debug"
+  chmod 0644 "$debug"
+  if readelf -lW "$file" | grep -q 'INTERP'; then
+    strip --strip-all "$file"
+  else
+    strip --strip-unneeded "$file"
+  fi
+done < "$work/candidates"
+[ "$count" -gt 0 ] || die "no ELF files or static archives in $*"
+
+tr '\0' '\n' < "$work/sources" | LC_ALL=C sort -u | while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in */) continue ;; esac
+  [ -f "$root/$rel" ] || continue
+  mkdir -p "$stage$dest/$(dirname "$rel")"
+  cp "$root/$rel" "$stage$dest/$rel"
+done

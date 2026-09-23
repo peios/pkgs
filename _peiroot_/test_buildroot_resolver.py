@@ -109,6 +109,14 @@ class ResolverTests(unittest.TestCase):
                          ['www.example.test', 'www'])
         self.assertEqual(r.candidates('a.b', ['example.test'], 1),
                          ['a.b', 'a.b.example.test'])
+        # A trailing dot is absolute: no search expansion at all.
+        self.assertEqual(r.candidates('www.', ['example.test'], 5), ['www'])
+
+    def test_malformed_ndots_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            conf = Path(tmp) / 'resolv.conf'
+            conf.write_text('nameserver 192.0.2.1\nsearch example.test\noptions ndots:x ndots\n')
+            self.assertEqual(r.read_config(str(conf)), (['192.0.2.1'], ['example.test'], 1))
 
     def test_reverse(self):
         outcome, records = r.reverse(self.config, '192.0.2.7')
