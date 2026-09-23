@@ -22,3 +22,9 @@ schema = 1
   ref = "v0.0.26"
   commit = "4a6c1654793bd12d66eb46cf11ede4a19815ce90"
   locked_at = "2026-09-11T16:13:05Z"
+
+[[source]]
+  version = "0.0.27"
+  ref = "v0.0.27"
+  commit = "cc7cf944aa5f8faa5a7a731ac3aead047b72ddea"
+  locked_at = "2026-09-11T21:36:58Z"

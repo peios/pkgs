@@ -16,3 +16,21 @@ schema = 1
   ref = "v0.0.15"
   commit = "9c0d68b565318f466b07e3af16a9b4159bc9f0ff"
   locked_at = "2026-09-11T18:35:12Z"
+
+[[source]]
+  version = "0.0.16"
+  ref = "v0.0.16"
+  commit = "5717e81f487491fa04c5bd195224801e3bd228ee"
+  locked_at = "2026-09-11T21:36:59Z"
+
+[[source]]
+  version = "0.0.17"
+  ref = "v0.0.17"
+  commit = "223a91b16586122bffcb355ba5fc57f266277c8e"
+  locked_at = "2026-09-11T22:52:25Z"
+
+[[source]]
+  version = "0.0.18"
+  ref = "v0.0.18"
+  commit = "e9eb688d075d9c8b9f302d963bb75f651beea489"
+  locked_at = "2026-09-11T22:54:20Z"
