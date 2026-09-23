@@ -5,9 +5,11 @@ out_dir = "out"
 
 # GNU tar 1.35 remains the newest stable release. The upstream fixes below
 # close CVE-2025-45582, CVE-2026-5704, CVE-2026-18508 and CVE-2026-18477.
-# Their small prerequisite fixes are upstream commits too. Carry this series
-# only until a signed stable release contains it: a failed application on the
-# next release is an intentional one-time review gate, not a silent fallback.
+# 0002 and 0004 are upstream commits the CVE fixes depend on; 0001 and 0003 are
+# Red Hat patches reported to bug-tar, which the later patches also apply over.
+# Each patch header records its upstream status. Carry the series only until a
+# signed stable release contains it: a failed application on the next release
+# is an intentional one-time review gate, not a silent fallback.
 [source]
 patches = "patches"
 

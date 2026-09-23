@@ -10,8 +10,9 @@ out_dir = "out"
 
 # Compatibility fixes already carried by Fedora: correct the C++ GLR skeleton's
 # parallel-stack bookkeeping under GCC 15 assertions and mark the generated
-# error counter unused for GCC 16. Both patches are upstream-facing and can be
-# dropped once the next Bison release supersedes 3.8.2.
+# error counter unused for GCC 16. The GCC 16 fix is an upstream commit; the
+# GLR fix is a bison-patches submission not yet merged. Each patch header
+# records its status; drop both once a Bison release after 3.8.2 carries them.
 [source]
 patches = "patches"
 
