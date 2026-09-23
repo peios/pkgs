@@ -160,10 +160,6 @@ SMOKE="$PEKIT_OUT/smoke"
 export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtraceevent"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
-# Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
-# which the catalogue does not package yet (PEI-1164). The staged-library
-# tests below are the gate until it does.
-
 find "$PREFIX/include/traceevent" -mindepth 1 -maxdepth 1 -type f \
   -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-headers"
 printf '%s\n' event-parse.h event-utils.h kbuffer.h trace-seq.h \
@@ -208,6 +204,20 @@ cmp "$STAGE/.repro/libtraceevent.so.$PEKIT_VERSION" \
 for plugin in "$STAGE/.repro/plugins"/*.so; do
   cmp "$plugin" "$BUILD/plugins/$(basename "$plugin")"
 done
+
+# Upstream's CUnit suite (utest/trace-utest) against the rebuilt library:
+# dynamic strings, cpumasks, sizeof() fields and BTF argument printing. The
+# BTF case reads the running kernel's /sys/kernel/btf/vmlinux and returns
+# early, passing, where the build root does not expose one. Guard against
+# silent test loss.
+mkdir -p "$SMOKE"
+make -C "$SRC" O="$BUILD" -j"$(nproc)" test
+UTEST=$(find "$BUILD" -type f -name trace-utest -perm -u+x | head -1)
+test -n "$UTEST"
+"$UTEST" > "$SMOKE/utest.out" || { cat "$SMOKE/utest.out"; exit 1; }
+cat "$SMOKE/utest.out"
+awk '$1 == "Tests" && $2 == ":" { run = $3; failed = $4 }
+     END { exit !(run >= 12 && failed == 0) }' "$SMOKE/utest.out"
 
 LIBSO="$LIBDIR/libtraceevent.so.$PEKIT_VERSION"
 readelf -d "$LIBSO" | grep -F 'Library soname: [libtraceevent.so.1]'
@@ -282,6 +292,8 @@ done
 
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
+# Upstream's unit suite links -lcunit.
+"com.gitlab.cunity.cunit-devel" = "*"
 "org.gnu.findutils"            = "*"
 "org.gnu.grep"                 = "*"
 "org.gnu.make"                 = "*"
