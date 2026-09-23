@@ -514,7 +514,8 @@ assuming `make install` did the right thing:
 - ship man pages, never Info manuals: Peios has no Info reader or index. Where a
   Texinfo manual is a library's only complete reference (glibc, GMP, MPFR,
   MPC), build it as HTML with `texi2any --html` into that library's `-doc`
-  package under `/usr/share/doc/<package>/html/`;
+  package under `/usr/share/doc/<source family>/html/` (for example
+  `/usr/share/doc/org.gnu.glibc/html/`);
 - name every installed script's interpreter through the runtime view
   (`#!/bin/sh`, `#!/bin/bash`, `#!/bin/python3`, `#!/bin/perl`), never through
   `/usr` package storage or `/usr/bin/env`. The one exception is a boot hook
