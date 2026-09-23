@@ -137,13 +137,6 @@ rm -rf "$PEKIT_OUT/.gocache"
 "org.debian.netbase"            = "*"
 "org.gnu.gzip"                  = "*"
 
-[build.main.dependencies.apt]
-golang-go      = ">= 2:1.24~"
-build-essential = "*"
-bash            = "*"
-binutils        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -265,8 +258,3 @@ find "$PACKAGED_GOROOT/bin" "$PACKAGED_GOROOT/pkg/tool/linux_amd64" \
 "dev.peios.build-essentials-c" = ">= 1.0.0-1"
 "org.gnu.bash"                  = "*"
 "org.debian.netbase"            = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-bash            = "*"
-binutils        = "*"

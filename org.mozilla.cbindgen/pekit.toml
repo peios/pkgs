@@ -31,10 +31,6 @@ test -n "$(find "$PEKIT_OUT/vendor" -mindepth 1 -maxdepth 1 -type d -print -quit
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils" = "*"
 
-[build.vendor.dependencies.apt]
-cargo           = "*"
-ca-certificates = "*"
-
 [build.main]
 needs = ["vendor"]
 command = '''
@@ -104,20 +100,6 @@ rm -f "$LIST"
 "org.gnu.binutils"         = "*"
 "org.sourceware.debugedit" = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-dash       = "*"
-coreutils  = "*"
-findutils  = "*"
-grep       = "*"
-sed        = "*"
-cargo      = "*"
-rustc      = "*"
-gcc        = "*"
-"g++"      = "*"
-binutils   = "*"
-debugedit  = "*"
-
 [test]
 needs = ["main", "vendor"]
 gate  = true
@@ -180,15 +162,3 @@ test "$(readelf -n "$DEBUG" 2>/dev/null | sed -n 's/^[[:space:]]*Build ID: //p' 
 "org.rust-lang.rust"       = ">= 1.98.1"
 "org.gnu.gcc-c++"          = ">= 16, < 17"
 "org.gnu.binutils"         = "*"
-
-[test.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-findutils = "*"
-grep      = "*"
-sed       = "*"
-cargo     = "*"
-rustc     = "*"
-gcc       = "*"
-"g++"     = "*"
-binutils  = "*"

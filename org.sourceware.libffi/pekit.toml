@@ -114,11 +114,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.gzip"                 = "*"
 "org.sourceware.debugedit"     = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-gzip            = "*"
-debugedit       = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -291,11 +286,3 @@ if readelf -d "$SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 "org.gnu.findutils"            = "*"
 "org.gnu.grep"                 = "*"
 "org.gnu.gzip"                 = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-pkgconf         = "*"
-binutils        = "*"
-findutils       = "*"
-grep            = "*"
-gzip            = "*"

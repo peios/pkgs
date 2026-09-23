@@ -143,20 +143,9 @@ test -n "$(find "$STAGE/usr/src/debug/org.ninja-build.ninja" -type f -print -qui
 "dev.peios.peiosutils"           = "*"
 "org.python.python3"             = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-python3         = "*"
-util-linux      = "*"
-bash            = "*"
-
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.git.kernel.dash"                     = "*"
 "org.sourceware.debugedit"                = "*"
 "dev.peios.peiosutils"     = "*"
 "org.python.python3"                  = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-debugedit       = "*"
-python3         = "*"

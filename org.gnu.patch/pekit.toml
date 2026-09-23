@@ -71,14 +71,6 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf"           = "*"
 "org.perl.perl"                = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-debugedit       = "*"
-gettext         = "*"
-gzip            = "*"
-patchelf        = "*"
-perl            = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -131,14 +123,3 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.patch" -type f -print -quit)"
 "org.gnu.sed"          = "*"
 "org.gnu.make"         = "*"
 "org.gnu.binutils"     = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-binutils  = "*"
-coreutils = "*"
-diffutils = "*"
-findutils = "*"
-gawk      = "*"
-grep      = "*"
-make      = "*"
-sed       = "*"

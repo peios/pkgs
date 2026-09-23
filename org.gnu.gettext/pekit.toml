@@ -155,18 +155,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elfs" "$PEKIT_OUT/.srclist"
 "org.gnu.bash" = "*"
 "org.perl.perl" = "*"
 
-[build.main.dependencies.apt]
-autoconf = "*"
-automake = "*"
-"bash" = "*"
-build-essential = "*"
-"g++" = "*"
-gzip = "*"
-locales-all = "*"
-perl = "*"
-debugedit = "*"
-patchelf = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -250,17 +238,3 @@ rm -rf "$TMP"
 "org.perl.perl" = "*"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
-
-[test.dependencies.apt]
-autoconf = "*"
-automake = "*"
-"bash" = "*"
-build-essential = "*"
-"g++" = "*"
-gzip = "*"
-locales-all = "*"
-perl = "*"
-debugedit = "*"
-patchelf = "*"
-coreutils = "*"
-dash = "*"

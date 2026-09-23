@@ -112,12 +112,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.ninja-build.ninja"        = "*"
 "org.gnu.gcc-libgomp-devel"    = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-debugedit       = "*"
-meson           = ">= 1.3"
-ninja-build     = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -347,11 +341,3 @@ done
 "org.gnu.binutils"             = "*"
 "org.gnu.findutils"            = "*"
 "org.gnu.grep"                 = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-meson           = ">= 1.3"
-pkgconf         = "*"
-binutils        = "*"
-findutils       = "*"
-grep            = "*"

@@ -385,18 +385,6 @@ done
 "org.tukaani.xz-devel"                         = "*"
 "com.facebook.zstd-devel"                      = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-pkgconf         = "*"
-libssl-dev      = "*"
-libbz2-dev      = "*"
-libncurses-dev  = "*"
-uuid-dev        = "*"
-netbase         = "*"
-zlib1g-dev      = "*"
-liblzma-dev     = "*"
-libzstd-dev     = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.coreutils-build-compat" = "*"
 "org.gnu.gzip" = "*"
@@ -411,18 +399,3 @@ libzstd-dev     = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                        = "*"
 "org.tukaani.xz-devel"                          = "*"
 "com.facebook.zstd-devel"                        = "*"
-
-[build.main.dependencies.apt]
-coreutils = "*"
-gzip = "*"
-build-essential = "*"
-debugedit       = "*"
-pkgconf         = "*"
-libssl-dev      = "*"
-libbz2-dev      = "*"
-libncurses-dev  = "*"
-uuid-dev        = "*"
-netbase         = "*"
-zlib1g-dev      = "*"
-liblzma-dev     = "*"
-libzstd-dev     = "*"

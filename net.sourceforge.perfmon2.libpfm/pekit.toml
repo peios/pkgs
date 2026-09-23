@@ -109,12 +109,6 @@ rm -f "$PEKIT_OUT/.srclist"
 
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -191,8 +185,3 @@ rm -rf "$TMP" "$STAGE/build"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.findutils" = "*"
 "org.gnu.grep" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-findutils = "*"
-grep = "*"

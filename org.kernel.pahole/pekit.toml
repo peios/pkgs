@@ -187,14 +187,6 @@ done
 "io.github.zlib-ng.zlib-ng-compat-devel"     = "*"
 "org.llvm.llvm"                              = "*"
 
-[test.dependencies.apt]
-python3 = "*"
-gzip = "*"
-build-essential = "*"
-libdw-dev       = "*"
-zlib1g-dev      = "*"
-llvm            = "*"
-
 [build.main.dependencies.peipkg]
 "org.python.python3" = "*"
 "org.gnu.gzip" = "*"
@@ -204,20 +196,3 @@ llvm            = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                      = "*"
 "org.gnu.bash"                    = "*"
 "org.llvm.llvm"                              = "*"
-
-[build.main.dependencies.apt]
-python3 = "*"
-gzip = "*"
-build-essential = "*"
-cmake            = "*"
-libdw-dev        = "*"
-zlib1g-dev       = "*"
-llvm             = "*"
-bash             = "*"
-binutils         = "*"
-coreutils        = "*"
-diffutils        = "*"
-grep             = "*"
-sed              = "*"
-debugedit        = "*"
-patchelf         = "*"

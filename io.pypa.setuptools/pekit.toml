@@ -12,7 +12,7 @@
 # copy — kept, it is part of upstream's install contract. The build and
 # install steps are the workspace helper's; see _pybuild_/README.md.
 #
-# Both rungs run the offline upstream functional suite and installed-backend
+# The build runs the offline upstream functional suite and installed-backend
 # gate. Live-network tests and release/performance tooling are a separate scope.
 # Qualification tools are acquired and recorded outside the bootstrap build;
 # final build/test workers remain offline.
@@ -31,11 +31,12 @@ file_regex  = 'setuptools-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 versions    = ">= 84.0.0"
 
 # Test tools are acquired separately from the minimal bootstrap build.
-# Final qualification uses --env peipkg-net (or debian); only vendor has network.
+# Final qualification uses --env peipkg-net; only vendor has network.
 [build.vendor]
 command = '''python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" acquire "$PWD" "$PEKIT_OUT" --project setuptools --version "$PEKIT_VERSION"'''
 [build.vendor.dependencies.peipkg]
-# The peipkg-net profile prepares this acquisition target from its APT mapping.
+# The peipkg-net profile prepares this acquisition target from its APT mapping
+# until pip is packaged natively; this is the recipe's only apt set.
 
 [build.vendor.dependencies.apt]
 python3 = "*"
@@ -58,9 +59,6 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
-
-[build.main.dependencies.apt]
-python3        = "*"
 
 [test]
 gate = true
@@ -217,8 +215,3 @@ rm -rf "$SMOKE"
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
-
-[test.dependencies.apt]
-build-essential = "*"
-python3-dev = "*"
-python3        = "*"

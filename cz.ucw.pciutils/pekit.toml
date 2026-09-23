@@ -132,21 +132,6 @@ rm -f "$PEKIT_OUT/.debug-list" "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf"                                  = ">= 0.19.1"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-coreutils       = "*"
-dash            = "*"
-findutils       = "*"
-grep            = "*"
-sed             = "*"
-pkg-config      = "*"
-libkmod-dev     = "*"
-libudev-dev     = "*"
-zlib1g-dev      = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -256,16 +241,3 @@ rm -rf "$SMOKE" "$STAGE/build" "$STAGE/build-static"
 "io.github.eudev-project.eudev-devel" = ">= 3.2.14"
 "io.github.zlib-ng.zlib-ng-compat-devel" = ">= 2.3.3"
 "org.gnu.gzip" = "*"
-
-[test.dependencies.apt]
-dash = "*"
-coreutils = "*"
-findutils = "*"
-grep = "*"
-sed = "*"
-build-essential = "*"
-pkg-config = "*"
-libkmod-dev = "*"
-libudev-dev = "*"
-zlib1g-dev = "*"
-gzip = "*"

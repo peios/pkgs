@@ -203,15 +203,6 @@ done
 "org.gnu.gettext"              = "*"
 "org.perl.perl"                = "*"
 
-[test.dependencies.apt]
-tar = "*"
-build-essential   = "*"
-file              = "*"
-gettext           = "*"
-libtest-deep-perl = "*"
-locales-all       = "*"
-perl              = "*"
-
 [build.main.dependencies.peipkg]
 # Gnulib probes EUC-JP before enabling the EUC-CN conversion regression cases.
 "org.gnu.glibc-gconv-extra" = ">= 2.44"
@@ -222,12 +213,3 @@ perl              = "*"
 "org.gnu.glibc-langpack-fr"    = ">= 2.43"
 "org.gnu.gettext" = "*"
 "org.perl.perl"    = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential   = "*"
-file              = "*"
-gettext           = "*"
-libtest-deep-perl = "*"
-locales-all       = "*"
-perl              = "*"

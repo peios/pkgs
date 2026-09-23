@@ -68,9 +68,6 @@ rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -100,7 +97,3 @@ CARGO_HOME="$SMOKE/cargo-home" RUSTFLAGS="-Clinker=gcc" RUSTC="$PREFIX/bin/rustc
 "org.gnu.gcc" = "*"
 "org.python.python3" = "*"
 "dev.peios.build-essentials" = "*"
-
-[test.dependencies.apt]
-python3 = "*"
-build-essential = "*"

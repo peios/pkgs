@@ -26,14 +26,12 @@ class Selection(unittest.TestCase):
 
     def test_toolchain_scope(self):
         self.assertIsNone(r.selection('arbitrary', 'build-main', [], INDEX))
-        self.assertRaises(ValueError, r.selection, 'dev.peios.authd', 'build-arbitrary', [], INDEX)
-        for family in r.RUST_FAMILIES - r.MUSL_FAMILIES:
+        self.assertRaises(ValueError, r.selection, 'dev.peios.resolvd', 'build-arbitrary', [], INDEX)
+        for family in r.RUST_FAMILIES:
             for target in r.TARGETS:
                 self.assertEqual(r.selection(family, target, [], INDEX)['toolchain'], 'rust-1.98.1')
-        self.assertEqual(r.selection('dev.peios.peios-installer', 'build-main', [], INDEX)['toolchain'], 'rust-1.98.1-musl')
-        self.assertEqual(r.selection('dev.peios.peios-installer', 'build-vendor', [], INDEX)['toolchain'], 'rust-1.98.1')
-        # Go recipes need a newer Debian, not a Rust overlay.
-        self.assertIsNone(r.selection('dev.peios.loregd', 'build-vendor', [], INDEX))
+        # Recipes outside the seed never build here and get no overlay.
+        self.assertIsNone(r.selection('dev.peios.authd', 'build-main', [], INDEX))
 
     def test_kernel_scope(self):
         # Only the two targets that run rustc receive the pinned toolchain;
@@ -44,14 +42,6 @@ class Selection(unittest.TestCase):
             self.assertIsNone(r.selection('dev.peios.kernel', target, [], INDEX))
         self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-arbitrary', [], INDEX)
         self.assertRaises(ValueError, r.selection, 'dev.peios.kernel', 'build-main', [], INDEX)
-
-    def test_kernel_stays_on_trixie(self):
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.kernel'}):
-            self.assertEqual(p.selected_image(), 'debian:trixie')
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.authd'}):
-            self.assertEqual(p.selected_image(), 'debian:trixie')
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/w/dev.peios.loregd'}):
-            self.assertEqual(p.selected_image(), 'debian:sid')
 
     def test_catalogue_routing(self):
         deps = [dep('gcc'), dep('dev.peios.libpeios-devel', ('>=', '0.5.0')), dep('python3.13')]
@@ -72,7 +62,7 @@ class Selection(unittest.TestCase):
         self.assertIsNone(s)
 
     def test_toolchain_substitution(self):
-        s = r.selection('dev.peios.authd', 'build-main', [], INDEX)
+        s = r.selection('dev.peios.resolvd', 'build-main', [], INDEX)
         original = [dep('cargo'), dep('gcc', ('>=', '16')), dep('rustc'), dep('rustfmt')]
         effective = r.effective_requests(original, s, INDEX)
         self.assertFalse({'cargo', 'rustc', 'rustfmt'} & {x['name'] for x in effective})
@@ -237,7 +227,7 @@ class Safety(unittest.TestCase):
         self.assertFalse((self.root / 'bad').exists())
 
     def test_dependency_record_capture(self):
-        recipe = self.root / 'dev.peios.authd'
+        recipe = self.root / 'dev.peios.resolvd'
         job = self.root / 'job'
         environ = {'PEKIT_RECIPE_ROOT': str(recipe), 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'vendor', 'PEKIT_DEPENDENCIES': 'cargo *', 'PEKIT_JOB_STATE': str(job), 'PEKIT_SANDBOX_ROOT': str(self.root / 'sandbox')}
         with patch.dict(os.environ, environ):
@@ -304,7 +294,7 @@ class Safety(unittest.TestCase):
             if fail == 'overlay':
                 raise ValueError('overlay failed')
             return {'runtime': {'passed': True}}
-        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/recipe/dev.peios.authd' if overlay else '/recipe/other', 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'main'}), \
+        with patch.dict(os.environ, {'PEKIT_RECIPE_ROOT': '/recipe/dev.peios.resolvd' if overlay else '/recipe/other', 'PEKIT_COMMAND': 'build', 'PEKIT_TARGET': 'main'}), \
                 patch.object(p, 'run', side_effect=run), patch.object(r, 'selection', return_value=selected), \
                 patch.object(r, 'effective_requests', return_value=[]), \
                 patch.object(r, 'install_container', side_effect=install) as hook:

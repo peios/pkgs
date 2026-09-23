@@ -93,13 +93,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-cmake          = "*"
-debugedit      = "*"
-patchelf       = "*"
-gzip           = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -163,10 +156,3 @@ sh "$PEKIT_RECIPE_ROOT/sdk-consumer/test.sh"
 "org.python.python3" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake" = "*"
-
-[test.dependencies.apt]
-python3 = "*"
-build-essential = "*"
-cmake          = "*"
-debugedit      = "*"
-patchelf       = "*"

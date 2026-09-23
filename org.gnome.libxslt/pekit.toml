@@ -127,15 +127,6 @@ rm -f "$PEKIT_OUT/.actual-bin" "$PEKIT_OUT/.expected-bin" \
 "org.gnu.gzip" = "*"
 "org.perl.perl"            = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-pkg-config      = "*"
-libxml2-dev     = ">= 2.15.1"
-debugedit       = "*"
-patchelf        = "*"
-gzip = "*"
-perl            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -366,12 +357,3 @@ rm -rf "$SMOKE" "$STAGE/.repro" "$STAGE/build"
 "org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 "org.perl.perl"            = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-pkg-config      = "*"
-libxml2-dev     = ">= 2.15.1"
-debugedit       = "*"
-patchelf        = "*"
-gzip = "*"
-perl            = "*"

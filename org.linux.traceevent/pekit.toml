@@ -310,11 +310,6 @@ done
 "org.gnu.make"                 = "*"
 "org.pkgconf.pkgconf"          = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-libcunit1-dev   = "*"
-pkgconf         = "*"
-
 [build.main.dependencies.peipkg]
 "org.oasis-open.docbook-xml" = "*"
 "dev.peios.build-essentials-c"               = "*"
@@ -327,15 +322,3 @@ pkgconf         = "*"
 "org.nixos.patchelf"                           = "*"
 "org.pkgconf.pkgconf"                            = "*"
 "org.gnu.sed"                                = "*"
-
-[build.main.dependencies.apt]
-docbook-xml = "*"
-asciidoc        = "*"
-build-essential = "*"
-debugedit       = "*"
-docbook-xsl     = "*"
-libcunit1-dev   = "*"
-gzip            = "*"
-patchelf        = "*"
-pkgconf         = "*"
-xsltproc        = "*"

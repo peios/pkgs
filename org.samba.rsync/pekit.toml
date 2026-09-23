@@ -186,15 +186,6 @@ if strings "$RSYNC" | grep -F "$ROOT"; then exit 1; fi
 "org.gnu.bash"                   = "*"
 "org.python.python3"             = "*"
 
-[test.dependencies.apt]
-libssl-dev = "*"
-libxxhash-dev = "*"
-libzstd-dev = "*"
-zlib1g-dev = "*"
-bash            = "*"
-build-essential = "*"
-python3         = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++"      = "*"
@@ -205,15 +196,3 @@ python3         = "*"
 "com.xxhash.xxhash-devel"              = "*"
 "com.facebook.zstd-devel"                = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-bash            = "*"
-build-essential = "*"
-debugedit       = "*"
-"g++"           = "*"
-libssl-dev      = "*"
-libxxhash-dev   = "*"
-libzstd-dev     = "*"
-python3         = "*"
-zlib1g-dev      = "*"

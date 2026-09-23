@@ -99,19 +99,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "com.facebook.zstd-devel"                    = "*"
 "org.gnu.gzip"                               = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-coreutils       = "*"
-diffutils       = "*"
-sed             = "*"
-zlib1g-dev      = "*"
-libbz2-dev      = "*"
-liblzma-dev     = "*"
-libzstd-dev     = "*"
-gzip            = "*"
-debugedit       = "*"
-patchelf        = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -250,14 +237,3 @@ done
 "org.sourceware.bzip2-devel"                   = "*"
 "org.tukaani.xz-devel"                         = "*"
 "com.facebook.zstd-devel"                      = "*"
-
-[test.dependencies.apt]
-dash            = "*"
-build-essential = "*"
-coreutils       = "*"
-diffutils       = "*"
-sed             = "*"
-zlib1g-dev      = "*"
-libbz2-dev      = "*"
-liblzma-dev     = "*"
-libzstd-dev     = "*"

@@ -81,11 +81,6 @@ du -sm "$dest"
 "org.gnu.findutils"     = "*"
 "com.facebook.zstd"          = "*"
 
-[build.main.dependencies.apt]
-coreutils = "*"
-findutils = "*"
-zstd      = "*"
-
 [test]
 needs = ["main"]
 gate = true
@@ -125,8 +120,3 @@ test ! -e "$PEKIT_MAIN_OUT/usr/bin"
 "dev.peios.peiosutils"   = "*"
 "org.gnu.findutils"      = "*"
 "com.facebook.zstd"      = "*"
-
-[test.dependencies.apt]
-coreutils = "*"
-findutils = "*"
-zstd      = "*"

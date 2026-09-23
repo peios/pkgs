@@ -41,7 +41,8 @@ The workspace files are intentional shared policy:
   and signed Peipkg repository targets.
 - `debian.env.pekit.toml`, `peipkg.env.pekit.toml`, and
   [`peipkg-net.env.pekit.toml`](peipkg-net.env.pekit.toml) supply the clean
-  Debian, native Peipkg, and networked source-vendoring environments.
+  Debian (bootstrap seed only), native Peipkg, and networked source-vendoring
+  environments.
 - [`lint.pekit.toml`](lint.pekit.toml) is inherited by every member.
 
 Do not copy those settings or environment links into individual recipes. A
@@ -275,17 +276,27 @@ archive.
 
 ## Hermetic build graph
 
-Every build and test target declares dependencies for both supported providers:
+Every build and test target declares its native (Peipkg) dependencies:
 
 ```toml
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "org.gnu.make" = "*"
+```
 
+Recipes tagged `minimal-bootstrap` also declare a Debian (apt) set for every
+target, because they are built under `--env debian` to seed an empty
+repository (see [Bootstrapping](#bootstrapping-from-an-empty-repository)):
+
+```toml
 [build.main.dependencies.apt]
 dash = "*"
 make = "*"
 ```
+
+No other recipe declares apt sets or builds under Debian; asking one to fails
+with `missing_dependency_provider`. The one exception is a vendor target that
+still acquires in a Debian root (below).
 
 An empty provider table means “none” and is preferable to an implicit host
 dependency. Name the Peios implementation actually used: for example Peios
@@ -294,20 +305,18 @@ coreutils. Declare tools invoked indirectly by configure, test harnesses,
 scripts, code generators, and package post-processing. Do not depend on what
 happens to be installed in the developer's host or composed root.
 
-The Debian rung is an independent reference build. The Peipkg rung proves the
-package can build using the distribution it helps create. Both must remain
-usable. Provider names may differ, but they must supply equivalent inputs and
-the staged result must satisfy the same tests.
+For a seed recipe, the Debian build must supply inputs equivalent to the
+native one, and its staged result must pass the same tests; the seed is then
+rebuilt natively. Some inputs Debian cannot supply, and
+`_debroot_/reference.py` provides them without trusting anything outside the
+Peios build's own roots:
 
-Some inputs Debian cannot supply, and `_debroot_/reference.py` provides them
-without trusting anything outside the Peios build's own roots:
-
-- **Rust.** Recipes that need a newer compiler than Debian's receive Rust's
-  own signed release archives, pinned by hash in `reference.py` and verified
-  against the release key in `_debroot_/keys` on download (1.98.1, with the
-  musl target for the installer; 1.83.0 with rust-src for the kernel's Rust
-  targets). Debian's `cargo`, `rustc` and `rustfmt` are then dropped from the
-  root. Native Rust bootstraps from the same upstream binaries.
+- **Rust.** Seed recipes that need a newer compiler than Debian's (resolvd,
+  peiosutils) receive Rust's own signed release archives, pinned by hash in
+  `reference.py` and verified against the release key in `_debroot_/keys` on
+  download (1.98.1; 1.83.0 with rust-src for the kernel's Rust targets).
+  Debian's `cargo`, `rustc` and `rustfmt` are then dropped from the root.
+  Native Rust bootstraps from the same upstream binaries.
 - **Catalogue packages.** An apt set may name a reverse-DNS catalogue
   package, such as `"dev.peios.libpeios-devel" = "= 0.5.0-1"`. The preparer
   composes it from the signed repository, verified against
@@ -373,9 +382,10 @@ downloading another compiler.
 
 A vendor target whose native set is empty acquires in a clean Debian root
 built from its declared apt set. This remains only for acquisition tools Peios
-does not yet package: pip (`io.pypa.*`) and gnupg for the Rust stage0
-signatures. Declare both sets either way. The Debian reference environment
-builds from the apt set, so native acquisition does not replace it.
+does not yet package: pip (`io.pypa.flit-core`, `io.pypa.setuptools`) and
+gnupg for the Rust stage0 signatures (`org.rust-lang.rust`,
+`org.rust-lang.rust-1.83`). Those vendor targets are the only apt sets outside
+the seed; remove each once its tool is packaged natively.
 
 If a delegated first-party recipe needs a remote upstream tree as a build
 input, package that tree separately under the upstream's qualified identity.
@@ -720,8 +730,9 @@ empty repository needs a seed built elsewhere. Two recipe tags mark it:
 - `bootstrap` (98 recipes, including those 38) is that seed closed under its
   own native dependencies: everything the seed needs to rebuild itself natively.
 
-Minimal seed: the Debian stage is as small as possible, and the native
-toolchain arrives only at the end, so rebuild the rest a second time:
+Only `minimal-bootstrap` recipes declare apt sets, so only they build in
+Debian. The native toolchain arrives only at the end, so rebuild the rest a
+second time:
 
 ```sh
 "$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env debian
@@ -730,16 +741,8 @@ toolchain arrives only at the end, so rebuild the rest a second time:
 "$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --env peipkg
 ```
 
-Closed seed: more is built in Debian, but the seed rebuilds natively before
-anything else, so the rest is built by native tools once:
-
-```sh
-"$PEKIT" workspace publish --all --latest --tag bootstrap --env debian
-"$PEKIT" workspace publish --all --latest --tag bootstrap --env peipkg
-"$PEKIT" workspace publish --all --latest --exclude-tag bootstrap --env peipkg
-```
-
-The sets are derived from declared dependencies (PEI-1156). Recompute them when
+A recipe joining `minimal-bootstrap` gains apt sets for every target; one
+leaving it drops them. The sets are derived from declared dependencies (PEI-1156). Recompute them when
 a recipe's native dependencies change which members form cycles, and keep the
 tags in the member recipes, never in a delegated source.
 
@@ -754,7 +757,8 @@ A package is ready for production publication only when all answers are yes:
 - Is source provenance authenticated as strongly as upstream allows and pinned
   in the committed lock?
 - Are patches minimal, documented, fail-closed, and still necessary?
-- Are every build/test input and both dependency-provider mappings declared?
+- Is every build/test input declared, with apt sets as well for a
+  `minimal-bootstrap` recipe?
 - Are compilation and testing offline except for an isolated, hash-pinned
   vendoring step?
 - Does the split match real install/use/upgrade boundaries with exact internal

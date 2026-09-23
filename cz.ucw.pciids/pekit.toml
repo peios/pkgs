@@ -44,11 +44,6 @@ cmp "$SOURCE" "$DEST"
 "org.gnu.diffutils"         = "*"
 "dev.peios.peiosutils" = "*"
 
-[build.main.dependencies.apt]
-coreutils = "*"
-dash      = "*"
-diffutils = "*"
-
 [test]
 gate  = true
 needs = ["main"]
@@ -202,11 +197,3 @@ PY
 "org.gnu.grep"             = "*"
 "org.python.python3"       = "*"
 "dev.peios.peiosutils" = "*"
-
-[test.dependencies.apt]
-coreutils = "*"
-dash      = "*"
-diffutils = "*"
-findutils = "*"
-grep      = "*"
-python3   = "*"

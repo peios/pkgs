@@ -130,10 +130,6 @@ EOF
 "org.git.kernel.dash"    = ">= 0.5.13.5-1"
 "dev.peios.peiosutils"   = ">= 0.8.8-1"
 
-[build.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-
 # Parse both public data formats rather than only checking that files exist.
 # This catches malformed shell quoting in os-release, malformed TOML, missing
 # policy seeds, accidental autoapply reclassification, and a broken compat
@@ -146,7 +142,3 @@ command = 'PEKIT_VERSION="$PEIOS_RELEASE_VERSION" PEKIT_OUT="$PEKIT_MAIN_OUT" py
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = ">= 0.5.13.5-1"
 "org.python.python3" = ">= 3.14.7-1"
-
-[test.dependencies.apt]
-dash    = "*"
-python3 = "*"

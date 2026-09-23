@@ -155,11 +155,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.gzip"                 = "*"
 "org.sourceware.debugedit"     = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-gzip            = "*"
-debugedit       = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -356,12 +351,3 @@ test "$(needed "$BIN/pcre2test")" = \
 "org.gnu.grep"                 = "*"
 "org.gnu.diffutils"            = "*"
 "org.gnu.sed"                  = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-pkgconf         = "*"
-binutils        = "*"
-findutils       = "*"
-grep            = "*"
-diffutils       = "*"
-sed             = "*"

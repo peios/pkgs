@@ -396,12 +396,6 @@ readelf -d "$STAGE$LIBDIR/libperl.so.$V" | grep -F "Library soname: [libperl.so.
 "io.github.zlib-ng.zlib-ng-compat-devel"   = ">= 2.3.3"
 "org.sourceware.bzip2-devel"               = ">= 1.0.8"
 
-[test.dependencies.apt]
-build-essential = "*"
-zlib1g-dev      = "*"
-libbz2-dev      = "*"
-netbase         = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.coreutils-build-compat" = "*"
 "org.gnu.gzip" = "*"
@@ -411,14 +405,3 @@ netbase         = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"                     = ">= 2.3.3"
 "org.nixos.patchelf"          = ">= 0.19.1"
 "org.sourceware.bzip2-devel"  = ">= 1.0.8"
-
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-zlib1g-dev      = "*"
-libbz2-dev      = "*"
-debugedit       = "*"
-patchelf        = "*"
-# Socket's upstream tests exercise named-service lookup when Docker DNS is
-# available; --no-install-recommends otherwise omits /etc/services.
-netbase         = "*"

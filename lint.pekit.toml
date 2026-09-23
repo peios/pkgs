@@ -42,9 +42,10 @@ signature.keys        = true
 patches.headers       = true
 
 [build]
-# Every build target declares its inputs for both rungs; an empty table
-# says "none" explicitly.
-dependencies.providers = ["peipkg", "apt"]
+# Every build target declares its native inputs; an empty table says "none"
+# explicitly. Only the minimal-bootstrap seed also declares Debian (apt) sets,
+# because only the seed is ever built under --env debian.
+dependencies.providers = ["peipkg"]
 test                   = true
 
 [payload]

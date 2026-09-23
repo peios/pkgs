@@ -35,9 +35,6 @@ done
 "org.git.kernel.dash"                = "*"
 "dev.peios.peiosutils" = "*"
 
-[build.main.dependencies.apt]
-coreutils = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -68,10 +65,3 @@ awk '$1 == "IPv4" && $2 == "0800" { found = 1 } END { exit !found }' "$ROOT/ethe
 "org.gnu.gawk" = "*"
 "org.gnu.grep" = "*"
 "org.gnu.sed" = "*"
-
-[test.dependencies.apt]
-dash = "*"
-coreutils = "*"
-gawk = "*"
-grep = "*"
-sed = "*"

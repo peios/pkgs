@@ -64,17 +64,11 @@ if test -f "$SRC/amd-ucode/README"; then
 fi
 """
 
-# The peipkg build root contains only declared tools. The apt provider keeps
-# the same recipe usable on the bootstrap/development rung.
+# The peipkg build root contains only declared tools.
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash"  = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils"    = "*"
-
-[build.main.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-findutils = "*"
 
 [test]
 needs = ["main"]
@@ -91,7 +85,3 @@ test -s "$PEKIT_MAIN_OUT/usr/share/licenses/com.amd.amd-ucode/LICENSE.amd-ucode"
 [test.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "org.python.python3"  = "*"
-
-[test.dependencies.apt]
-dash    = "*"
-python3 = "*"

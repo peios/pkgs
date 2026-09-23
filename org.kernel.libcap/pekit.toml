@@ -190,22 +190,9 @@ done
 "org.gnu.bash"                 = "*"
 "org.pkgconf.pkgconf"          = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-bash            = "*"
-pkgconf         = "*"
-
 # bash: progs/mkcapshdoc.sh is a bash script.
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.bash" = "*"
 "org.pkgconf.pkgconf" = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-bash = "*"
-debugedit = "*"
-patchelf = "*"
-pkgconf = "*"

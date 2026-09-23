@@ -148,14 +148,6 @@ done
 "org.nixos.patchelf"              = "*"
 "org.pkgconf.pkgconf"               = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-perl            = "*"
-debugedit        = "*"
-patchelf         = "*"
-pkgconf          = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -248,12 +240,3 @@ rm -rf "$PEKIT_MAIN_OUT/build-modern" "$PEKIT_MAIN_OUT/build-compat"
 "org.nixos.patchelf" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-dash = "*"
-perl = "*"
-debugedit = "*"
-patchelf = "*"
-pkgconf = "*"

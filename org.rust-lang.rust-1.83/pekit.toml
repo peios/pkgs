@@ -73,10 +73,6 @@ CARGO_HOME="$PEKIT_OUT/cargo-home" CARGO_TARGET_DIR="$PEKIT_OUT/target" RUSTC="$
 "org.gnu.gcc-libgcc" = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
 
-[build.seed-check.dependencies.apt]
-build-essential = "*"
-python3 = "*"
-
 [build.main]
 needs = ["vendor", "seed-check"]
 command = '''
@@ -458,15 +454,6 @@ python3 "$PEKIT_RECIPE_ROOT/regression-fixtures/run.py" \
 "org.pkgconf.pkgconf"                         = "*"
 "org.openssl.openssl-devel"                   = ">= 3.5, < 4"
 
-[test.dependencies.apt]
-python3 = "*"
-build-essential = "*"
-"llvm-18-dev"   = "*"
-zlib1g-dev      = "*"
-libzstd-dev     = "*"
-pkg-config      = "*"
-libssl-dev      = ">= 3.5, < 4"
-
 [build.main.dependencies.peipkg]
 "org.gnu.glibc" = ">= 2.43"
 "org.gnu.gcc-libgcc" = ">= 16"
@@ -481,16 +468,3 @@ libssl-dev      = ">= 3.5, < 4"
 "org.pkgconf.pkgconf"                      = "*"
 "org.openssl.openssl-devel"             = ">= 3.5, < 4"
 "org.sourceware.debugedit"                    = "*"
-
-# Debian uses the authenticated, exact stage0 acquired by build:vendor; the
-# remaining compiler and development dependencies are declared here.
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-python3         = "*"
-"llvm-18-dev"  = "*"
-zlib1g-dev      = "*"
-libzstd-dev     = "*"
-pkg-config      = "*"
-libssl-dev      = ">= 3.5, < 4"
-debugedit       = "*"

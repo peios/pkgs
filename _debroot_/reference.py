@@ -29,17 +29,13 @@ RUST_DIST = 'https://static.rust-lang.org/dist/'
 # every download; the hash is what binds a cached copy afterwards.
 RUST_ARCHIVES = {
     'rust-1.98.1-x86_64-unknown-linux-gnu.tar.xz': '5326b36c53de11d148c8f8dab6553a3d1006c2cfd32123683073fad3c302605b',
-    'rust-std-1.98.1-x86_64-unknown-linux-musl.tar.xz': 'bd9f35880de21dab0e387e84009c00001ae7836a4ba565cb16823f13f75f325f',
     'rust-1.83.0-x86_64-unknown-linux-gnu.tar.xz': 'b6467a0e8a6c5dca35269785c994e4d80d89754d6c600162cc9146f90c87ee08',
     'rust-src-1.83.0.tar.xz': '1d6af46e3f944b2cb5cfaef7afb42e7ee00abb3285f3b09ca98bbcfff959c0c5',
 }
-GNU = 'rust-1.98.1-x86_64-unknown-linux-gnu.tar.xz'
 TOOLCHAINS = {
     'rust-1.98.1': dict(version='1.98.1', archives=[
-        (GNU, ['rustc', 'cargo', 'rust-std-x86_64-unknown-linux-gnu', 'rustfmt-preview'])]),
-    'rust-1.98.1-musl': dict(version='1.98.1', archives=[
-        (GNU, ['rustc', 'cargo', 'rust-std-x86_64-unknown-linux-gnu', 'rustfmt-preview']),
-        ('rust-std-1.98.1-x86_64-unknown-linux-musl.tar.xz', ['rust-std-x86_64-unknown-linux-musl'])]),
+        ('rust-1.98.1-x86_64-unknown-linux-gnu.tar.xz',
+         ['rustc', 'cargo', 'rust-std-x86_64-unknown-linux-gnu', 'rustfmt-preview'])]),
     # The kernel builds Rust-for-Linux with the toolchain pkm pins in
     # build/toolchain.lock. Kbuild compiles core from rust-src itself.
     'rust-1.83.0': dict(version='1.83.0', archives=[
@@ -48,13 +44,8 @@ TOOLCHAINS = {
 }
 
 # Families whose Debian roots receive a pinned Rust toolchain in place of
-# Debian's older one.
-RUST_FAMILIES = {
-    'dev.peios.authd', 'dev.peios.eventd', 'dev.peios.timed', 'dev.peios.resolvd',
-    'dev.peios.trustd', 'dev.peios.atrium', 'dev.peios.netd', 'dev.peios.pnpd',
-    'dev.peios.peiosutils', 'dev.peios.peios-installer',
-}
-MUSL_FAMILIES = {'dev.peios.peios-installer'}
+# Debian's older one. Only minimal-bootstrap recipes build under Debian.
+RUST_FAMILIES = {'dev.peios.resolvd', 'dev.peios.peiosutils'}
 TARGETS = {'build-vendor', 'build-main', 'test-main'}
 KERNEL_FAMILIES = {'dev.peios.kernel'}
 # Every kernel target is reviewed here. Only the two that run rustc receive
@@ -104,8 +95,6 @@ def toolchain_for(family, target):
     if family in RUST_FAMILIES:
         if target not in TARGETS:
             raise ValueError('reference family has an unreviewed target: ' + target)
-        if family in MUSL_FAMILIES and target != 'build-vendor':
-            return 'rust-1.98.1-musl'
         return 'rust-1.98.1'
     return None
 
@@ -413,15 +402,12 @@ def run(cmd):
  checks.append(dict(command=cmd,status=p.returncode,output=p.stdout))
  if p.returncode:raise SystemExit(json.dumps(checks))
  return p.stdout
-# Libraries for a non-host Rust target (the musl std) never load on this host;
-# the musl consumer build below is what exercises them.
-foreign=re.compile(r'usr/lib/rustlib/(?!x86_64-unknown-linux-gnu/)[^/]+/lib/')
 for name,entry in record['payload'].items():
  p=root/name
  if entry.get('sha256'):
   if sha(p)!=entry['sha256']:raise SystemExit('copied bytes changed: '+name)
   with p.open('rb') as f:elf=f.read(4)==b'\x7fELF'
-  if not elf or foreign.match(name):continue
+  if not elf:continue
   dynamic=run(['/usr/bin/readelf','-dW',str(p)])
   if '(NEEDED)' not in dynamic:continue
   output=run(['/usr/bin/ldd',str(p)])
@@ -444,20 +430,6 @@ if toolchain:
   td=Path(td);src=td/'main.rs';exe=td/'main'
   src.write_text(probe)
   run(['/usr/bin/rustc',str(src),'-o',str(exe)]);run([str(exe)])
-  if toolchain['name'].endswith('-musl'):
-   musl=td/'musl'
-   run(['/usr/bin/rustc',str(src),'--target=x86_64-unknown-linux-musl',
-        '-C','target-feature=+crt-static','-C','relocation-model=pic',
-        '-C','link-arg=-static-pie','-C','link-arg=-Wl,-z,relro,-z,now',
-        '-C','link-arg=-Wl,-z,pack-relative-relocs','-o',str(musl)])
-   run([str(musl)])
-   dynamic=run(['/usr/bin/readelf','-dW',str(musl)])
-   header=run(['/usr/bin/readelf','-hW',str(musl)])
-   segments=run(['/usr/bin/readelf','-lW',str(musl)])
-   if ('(NEEDED)' in dynamic or '(RELR)' not in dynamic or 'NOW' not in dynamic
-       or not re.search(r'Type:\s+DYN\b',header) or 'INTERP' in segments
-       or 'GNU_RELRO' not in segments):
-    raise SystemExit('musl static consumer lacks required linkage/hardening')
  # Kbuild compiles core from the toolchain's own rust-src (RUST_LIB_SRC).
  if toolchain['name']=='rust-1.83.0' and not Path('/usr/lib/rustlib/src/rust/library/core/src/lib.rs').is_file():
   raise SystemExit('reference rust-src missing')

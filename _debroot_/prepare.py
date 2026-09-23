@@ -15,21 +15,9 @@ import sys
 sys.dont_write_bytecode = True
 import reference
 
+# Only the minimal-bootstrap seed builds here, and all of it builds on Debian
+# stable.
 IMAGE = "debian:trixie"
-# Coordinator-owned reference exceptions. Native publication policy is unchanged.
-# These rolling upstreams require dependencies newer than Debian stable.
-REFERENCE_IMAGES = {
-    "org.gnome.libxslt": "debian:sid",
-    "org.golang.go": "debian:sid",
-    "org.rust-lang.rust": "debian:sid",
-    # Go modules that require a newer Go than Debian stable ships.
-    "dev.peios.loregd": "debian:sid",
-    "dev.peios.peipkg": "debian:sid",
-}
-
-def selected_image():
-    recipe = Path(os.environ.get("PEKIT_RECIPE_ROOT", "")).name
-    return REFERENCE_IMAGES.get(recipe, IMAGE)
 
 SCHEMA = 1
 OPS = {"=": "eq", ">=": "ge", ">": "gt", "<=": "le", "<": "lt"}
@@ -160,7 +148,7 @@ def policy_id():
     # each root's reference evidence.
     root = Path(__file__).resolve().parent
     return hashlib.sha256((digest(root / 'enter.sh') + digest(root / 'prepare.py') +
-                           digest(root / 'reference.py') + selected_image()).encode()).hexdigest()
+                           digest(root / 'reference.py') + IMAGE).encode()).hexdigest()
 
 
 def load_record(directory, deps, policy):
@@ -222,7 +210,7 @@ def acquire(job, store, deps, policy, output):
         if base.get("policy_sha256") != policy:
             raise ValueError("Debian preparation policy changed during retained job; rebuild")
     else:
-        image = selected_image()
+        image = IMAGE
         run("docker", "pull", image)
         info = json.loads(run("docker", "image", "inspect", image, capture=True))[0]
         base = {"image": image, "image_id": info["Id"], "repo_digests": info["RepoDigests"],

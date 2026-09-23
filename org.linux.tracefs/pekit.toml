@@ -322,13 +322,6 @@ if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
 "org.linux.traceevent-devel"   = ">= 1.9.0-1, < 2"
 "org.pkgconf.pkgconf"          = "*"
 
-[test.dependencies.apt]
-bash              = "*"
-build-essential   = "*"
-libcunit1-dev     = "*"
-libtraceevent-dev = "*"
-pkgconf           = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"              = "*"
@@ -343,17 +336,3 @@ pkgconf           = "*"
 "org.nixos.patchelf"                            = "*"
 "org.pkgconf.pkgconf"                             = "*"
 "org.gnu.sed"                                 = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-asciidoc          = "*"
-bash              = "*"
-build-essential   = "*"
-debugedit         = "*"
-docbook-xsl       = "*"
-docbook-xml       = "*"
-libcunit1-dev     = "*"
-libtraceevent-dev = "*"
-patchelf          = "*"
-pkgconf           = "*"
-xsltproc          = "*"

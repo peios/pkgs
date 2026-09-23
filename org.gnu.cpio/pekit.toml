@@ -96,17 +96,6 @@ rm -f "$PEKIT_OUT/.dl"
 "org.perl.perl" = "*"
 "org.gnu.tar" = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-autoconf       = ">= 2.72"
-automake       = ">= 1.18"
-bash           = "*"
-debugedit      = "*"
-patchelf       = "*"
-perl           = "*"
-tar            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -183,13 +172,3 @@ rm -rf "$SMOKE" "$TMP"
 "dev.peios.peiosutils" = "*"
 "org.perl.perl" = "*"
 "org.gnu.tar" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-autoconf = ">= 2.72"
-automake = ">= 1.18"
-bash = "*"
-coreutils = "*"
-dash = "*"
-perl = "*"
-tar = "*"

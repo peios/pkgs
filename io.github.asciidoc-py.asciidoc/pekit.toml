@@ -81,15 +81,6 @@ done
 "org.oasis-open.docbook-xml" = "*"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-python3            = "*"
-python3-setuptools = "*"
-xsltproc           = "*"
-libxml2-utils      = "*"
-docbook-xsl        = "*"
-docbook-xml        = "*"
-gzip               = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -115,12 +106,3 @@ python3 -m asciidoc.asciidoc --doctest
 "org.docbook.docbook-xsl"    = "*"
 "org.oasis-open.docbook-xml" = "*"
 "org.gnu.gzip" = "*"
-
-[test.dependencies.apt]
-python3            = "*"
-python3-setuptools = "*"
-xsltproc           = "*"
-libxml2-utils      = "*"
-docbook-xsl        = "*"
-docbook-xml        = "*"
-gzip               = "*"

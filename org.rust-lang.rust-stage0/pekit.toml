@@ -77,9 +77,6 @@ rm -f "$PEKIT_OUT$PREFIX/bin/rustdoc" \
 "org.gnu.gcc-libgcc" = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -111,7 +108,3 @@ CARGO_HOME="$SMOKE/cargo-home" RUSTFLAGS="-Clinker=gcc" RUSTC="$PREFIX/bin/rustc
 "dev.peios.build-essentials" = "*"
 "org.gnu.gcc-libgcc"         = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
-
-[test.dependencies.apt]
-python3 = "*"
-build-essential = "*"

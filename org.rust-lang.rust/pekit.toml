@@ -75,10 +75,6 @@ CARGO_HOME="$PEKIT_OUT/cargo-home" CARGO_TARGET_DIR="$PEKIT_OUT/target" RUSTC="$
 "org.gnu.gcc-libgcc" = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
 
-[build.seed-check.dependencies.apt]
-build-essential = "*"
-python3 = "*"
-
 [build.main]
 needs = ["vendor", "seed-check"]
 clear_out = false
@@ -620,19 +616,6 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 "org.sourceware.debugedit"                    = "*"
 "org.gnu.gzip"                         = "*"
 
-# The source-authenticated private stage0 and musl reference SDK are declared
-# vendor prerequisites; Debian supplies the remaining native build tools.
-[build.main.dependencies.apt]
-build-essential = "*"
-python3         = "*"
-"llvm-23-dev"  = "*"
-zlib1g-dev      = "*"
-libzstd-dev     = "*"
-pkg-config      = "*"
-libssl-dev      = ">= 3.5, < 4"
-debugedit       = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -710,10 +693,3 @@ python3 "$PEKIT_RECIPE_ROOT/regression-fixtures/run.py" \
 "io.github.zlib-ng.zlib-ng-compat"                            = ">= 2.3.3"
 "org.openssl.libssl"           = ">= 3.5, < 4"
 "org.openssl.libcrypto"        = ">= 3.5, < 4"
-
-[test.dependencies.apt]
-python3 = "*"
-build-essential = "*"
-"llvm-23"       = "*"
-zlib1g           = "*"
-libssl3t64       = "*"

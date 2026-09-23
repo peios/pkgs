@@ -97,12 +97,6 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.sourceware.debugedit"              = "*"
 "org.nixos.patchelf"               = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -177,9 +171,3 @@ test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" 
 "org.gnu.binutils"               = "*"
 "org.gnu.findutils"              = "*"
 "org.gnu.grep"                   = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-binutils        = "*"
-findutils       = "*"
-grep            = "*"

@@ -135,15 +135,3 @@ done
 "dev.peios.build-essentials-c" = "*"
 "org.gnu.texinfo" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-texinfo = "*"
-dash = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-texinfo = "*"
-gzip = "*"
-debugedit = "*"
-patchelf = "*"

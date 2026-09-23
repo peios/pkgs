@@ -54,14 +54,6 @@ rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
 "org.perl.perl"                     = ">= 5.6"
 "org.gnu.tar"                      = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-bash           = "*"
-gzip           = "*"
-autoconf       = ">= 2.72"
-perl           = ">= 5.6"
-tar            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -97,12 +89,3 @@ TAR_OPTIONS=--no-same-owner make -j"$(nproc)" check
 "org.git.kernel.dash" = "*"
 "org.perl.perl" = "*"
 "org.gnu.tar" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-bash = "*"
-gzip = "*"
-autoconf = ">= 2.72"
-dash = "*"
-perl = "*"
-tar = "*"

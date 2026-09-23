@@ -188,21 +188,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.sourceware.debugedit"             = "*"
 "org.gnu.gzip"                         = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-gperf          = "*"
-pkg-config     = "*"
-libkmod-dev    = "*"
-libblkid-dev   = "*"
-file           = "*"
-perl           = "*"
-python3        = "*"
-tar            = "*"
-xz-utils       = "*"
-coreutils      = "*"
-debugedit      = "*"
-gzip           = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -288,18 +273,3 @@ rm -rf "$SMOKE"
 "dev.peios.peiosutils" = "*"
 "org.sourceware.debugedit" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-dash = "*"
-gperf = "*"
-pkg-config = "*"
-libkmod-dev = "*"
-libblkid-dev = "*"
-file = "*"
-perl = "*"
-python3 = "*"
-tar = "*"
-xz-utils = "*"
-coreutils = "*"
-debugedit = "*"

@@ -265,11 +265,6 @@ done
 "org.pkgconf.pkgconf"          = "*"
 "org.gnu.sed"                  = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-perl            = "*"
-pkg-config      = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"   = "*"
@@ -282,11 +277,3 @@ pkg-config      = "*"
 "org.perl.perl"                 = "*"
 "org.pkgconf.pkgconf"              = "*"
 "org.gnu.sed"                  = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
-perl            = "*"
-pkg-config      = "*"

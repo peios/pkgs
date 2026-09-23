@@ -170,21 +170,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.files"
 "org.gnome.libxslt" = "*"
 "org.docbook.docbook-xsl" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-cargo = "*"
-rustc = "*"
-libcurl4-openssl-dev = "*"
-zlib1g-dev = "*"
-gettext = "*"
-gzip = "*"
-tar = "*"
-asciidoc-base = "*"
-xsltproc = "*"
-docbook-xsl = "*"
-debugedit = "*"
-patchelf = "*"
-
 [test]
 needs = ["main"]
 gate = true
@@ -252,15 +237,3 @@ if strings "$GIT" | grep -F "$ROOT"; then exit 1; fi
 "org.gnu.tar" = "*"
 "org.gnu.gzip" = "*"
 "dev.peios.resolvd-nss" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-cargo = "*"
-rustc = "*"
-libcurl4-openssl-dev = "*"
-zlib1g-dev = "*"
-gettext = "*"
-bash = "*"
-perl = "*"
-tar = "*"
-gzip = "*"

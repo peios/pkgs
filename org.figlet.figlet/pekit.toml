@@ -82,14 +82,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.sourceware.debugedit"            = "*"
 "org.gnu.gzip"                        = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-coreutils       = "*"
-diffutils       = "*"
-sed             = "*"
-debugedit       = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -146,10 +138,3 @@ rm -rf "$PEKIT_MAIN_OUT/build"
 "org.gnu.diffutils" = "*"
 "org.gnu.sed"                  = "*"
 "org.sourceware.debugedit"            = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-coreutils       = "*"
-diffutils       = "*"
-sed             = "*"
-debugedit       = "*"

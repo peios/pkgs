@@ -224,11 +224,6 @@ if find "$STAGED_LIBDIR/slang/v2/modules" -type f \
 "org.gnu.ncurses-terminfo"                 = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"   = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-ncurses-base    = "*"
-zlib1g-dev      = "*"
-
 [build.main.dependencies.peipkg]
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"           = "*"
@@ -236,11 +231,3 @@ zlib1g-dev      = "*"
 "org.gnu.ncurses-terminfo" = "*"
 "org.nixos.patchelf"                     = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"               = "*"
-
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-debugedit       = "*"
-ncurses-base    = "*"
-patchelf        = "*"
-zlib1g-dev      = "*"

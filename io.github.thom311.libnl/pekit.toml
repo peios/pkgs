@@ -151,18 +151,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.elflist" "$PEKIT_OUT/.srclist"
 "org.pkgconf.pkgconf"                 = "*"
 "org.gnu.gzip"                        = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-check            = "*"
-debugedit        = "*"
-flex             = "*"
-bison            = "*"
-meson            = "*"
-ninja-build      = "*"
-patchelf         = "*"
-pkgconf          = "*"
-gzip             = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -303,15 +291,3 @@ rm -rf "$SMOKE"
 "org.nixos.patchelf" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-check = "*"
-debugedit = "*"
-flex = "*"
-bison = "*"
-dash = "*"
-meson = "*"
-ninja-build = "*"
-patchelf = "*"
-pkgconf = "*"

@@ -145,19 +145,6 @@ rm -f "$PEKIT_OUT/.dl"
 "org.gnu.glibc-bin"                      = "*"
 "org.gnu.gzip"                           = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-autoconf        = "*"
-automake        = "*"
-libtool         = "*"
-xsltproc        = "*"
-libxml2-utils   = "*"
-docbook-xsl     = "*"
-docbook-xml     = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -244,15 +231,3 @@ rm -f smoke.xml peios-smoke.1
 "org.docbook.docbook-xsl"        = "*"
 "org.oasis-open.docbook-xml"     = "*"
 "org.gnu.glibc-bin"                      = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-autoconf        = "*"
-automake        = "*"
-libtool         = "*"
-xsltproc        = "*"
-libxml2-utils   = "*"
-docbook-xsl     = "*"
-docbook-xml     = "*"
-debugedit       = "*"
-patchelf        = "*"

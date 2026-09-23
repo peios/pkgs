@@ -104,16 +104,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 # Native-language catalog generation.
 "org.gnu.gettext" = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-flex = "*"
-autoconf = ">= 2.72"
-m4 = ">= 1.4"
-gettext = "*"
-debugedit = "*"
-patchelf = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -160,13 +150,3 @@ rm -rf "$SMOKE"
 "org.gnu.gettext" = "*"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-flex = "*"
-autoconf = ">= 2.72"
-dash = "*"
-m4 = "*"
-gettext = "*"
-debugedit = "*"
-patchelf = "*"

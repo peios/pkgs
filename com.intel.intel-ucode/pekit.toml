@@ -85,19 +85,12 @@ cp "$SRC/README.md" "$SRC/releasenote.md" "$SRC/security.md" "$DOC_DIR/"
 rm -f "$FILE_LIST" "$BLOB_CHECK"
 """
 
-# The peipkg build root contains only declared tools. Apt retains a usable
-# bootstrap/development path; production inherits the workspace peipkg env.
+# The peipkg build root contains only declared tools.
 [build.main.dependencies.peipkg]
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.gnu.findutils" = "*"
 "org.gnu.gawk" = "*"
-
-[build.main.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-findutils = "*"
-gawk      = "*"
 
 [test]
 gate = true
@@ -153,11 +146,3 @@ rm -rf "$WORK"
 "org.gnu.findutils" = "*"
 "org.gnu.gawk" = "*"
 "org.gnu.grep" = "*"
-
-[test.dependencies.apt]
-dash = "*"
-coreutils = "*"
-diffutils = "*"
-findutils = "*"
-gawk = "*"
-grep = "*"

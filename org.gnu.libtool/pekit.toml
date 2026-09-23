@@ -263,13 +263,6 @@ readelf -d "$LTDL_SO" | grep -F 'Shared library: [libc.so.6]'
 "org.gnu.automake"               = "*"
 "org.gnu.tar"                    = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-"g++"           = "*"
-autoconf        = "*"
-automake        = "*"
-file            = "*"
-
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "com.darwinsys.file"   = "*"
@@ -279,13 +272,3 @@ file            = "*"
 "org.nixos.patchelf"                 = "*"
 "org.gnu.tar"                       = "*"
 "org.gnu.gzip"                      = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-"g++"           = "*"
-autoconf        = "*"
-automake        = "*"
-file            = "*"
-patchelf        = "*"
-debugedit       = "*"
-gzip            = "*"

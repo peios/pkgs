@@ -122,17 +122,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.perl.perl" = "*"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-libssl-dev = "*"
-zlib1g-dev = "*"
-libzstd-dev = "*"
-pkgconf = "*"
-perl = "*"
-gzip = "*"
-debugedit = "*"
-patchelf = "*"
-
 [test]
 needs = ["main"]
 gate = true
@@ -199,12 +188,3 @@ done
 "org.openssl.openssl" = "*"
 # The suite's servers and clients resolve localhost through NSS.
 "dev.peios.resolvd-nss" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-libssl-dev = "*"
-zlib1g-dev = "*"
-libzstd-dev = "*"
-perl = "*"
-python3 = "*"
-openssl = "*"

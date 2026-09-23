@@ -98,20 +98,6 @@ rm -f "$PEKIT_OUT/.debug-list"
 "org.gnu.glibc-bin"        = "*"
 "org.gnu.bash"   = "*"
 
-[build.main.dependencies.apt]
-bash            = "*"
-build-essential = "*"
-binutils        = "*"
-coreutils       = "*"
-diffutils       = "*"
-findutils       = "*"
-gawk            = "*"
-grep            = "*"
-gzip            = "*"
-libc-bin        = "*"
-sed             = "*"
-debugedit       = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -189,13 +175,3 @@ test -n "$(find "$STAGE/usr/src/debug/org.nixos.patchelf" -type f -print -quit)"
 "org.gnu.grep"               = "*"
 "org.gnu.glibc-bin"          = "*"
 "org.gnu.bash"               = "*"
-
-[test.dependencies.apt]
-bash            = "*"
-build-essential = "*"
-binutils        = "*"
-coreutils       = "*"
-findutils       = "*"
-gawk            = "*"
-grep            = "*"
-libc-bin        = "*"

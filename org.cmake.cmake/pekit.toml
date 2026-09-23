@@ -104,13 +104,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-libssl-dev      = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -186,10 +179,3 @@ rm -rf "$PEKIT_MAIN_OUT/.cmake-smoke" "$PEKIT_MAIN_OUT/build"
 "org.sourceware.debugedit" = "*"
 "org.nixos.patchelf" = "*"
 "org.gnu.gzip" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-libssl-dev      = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"

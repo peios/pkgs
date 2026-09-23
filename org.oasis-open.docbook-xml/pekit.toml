@@ -89,11 +89,6 @@ done
 "org.python.python3"                   = "*"
 "org.gnome.libxml2-utils" = "*"
 
-[build.main.dependencies.apt]
-coreutils      = "*"
-python3       = "*"
-libxml2-utils = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -140,8 +135,3 @@ test -z "$(find "$STAGE/usr/share" -type d ! -perm 0755 -print -quit)"
 "dev.peios.peiosutils"       = "*"
 "org.gnu.findutils"          = "*"
 "org.gnome.libxml2-utils"    = "*"
-
-[test.dependencies.apt]
-coreutils     = "*"
-findutils     = "*"
-libxml2-utils = "*"

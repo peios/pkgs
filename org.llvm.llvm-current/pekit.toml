@@ -337,17 +337,6 @@ done
 "com.facebook.zstd-devel"       = "*"
 "org.gnu.tar"                   = "*"
 
-[test.dependencies.apt]
-build-essential = "*"
-cmake            = "*"
-ninja-build      = "*"
-python3          = "*"
-perl             = "*"
-bash             = "*"
-zlib1g-dev       = "*"
-libzstd-dev      = "*"
-tar              = "*"
-
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
 "org.cmake.cmake"      = "*"
@@ -360,16 +349,3 @@ tar              = "*"
 "org.sourceware.debugedit"                = "*"
 "org.nixos.patchelf"                 = "*"
 "org.gnu.tar"                      = "*"
-
-[build.main.dependencies.apt]
-build-essential = "*"
-cmake            = "*"
-ninja-build      = "*"
-python3          = "*"
-perl             = "*"
-bash             = "*"
-zlib1g-dev       = "*"
-libzstd-dev      = "*"
-debugedit        = "*"
-patchelf         = "*"
-tar              = "*"

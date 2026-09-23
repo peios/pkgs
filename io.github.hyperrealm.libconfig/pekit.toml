@@ -112,12 +112,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf"                 = "*"
 "org.pkgconf.pkgconf"                  = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-pkgconf         = "*"
-debugedit       = "*"
-patchelf        = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -250,10 +244,3 @@ rm -rf "$SMOKE"
 "org.gnu.findutils" = "*"
 "org.gnu.grep" = "*"
 "org.pkgconf.pkgconf" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-dash = "*"
-findutils = "*"
-grep = "*"
-pkgconf = "*"

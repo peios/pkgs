@@ -127,10 +127,6 @@ find "$PEKIT_OUT/usr/share" -type f -exec "$CHMOD" 0644 {} +
 "org.gnu.findutils" = "*"
 "org.gnu.coreutils-build-compat" = "*"
 
-[build.main.dependencies.apt]
-coreutils = "*"
-findutils = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -208,13 +204,3 @@ rm -rf "$SMOKE"
 "org.gnome.libxml2-utils" = "*"
 "org.gnome.libxslt-utils" = "*"
 "org.oasis-open.docbook-xml" = ">= 4.5"
-
-[test.dependencies.apt]
-dash = "*"
-coreutils = "*"
-findutils = "*"
-grep = "*"
-diffutils = "*"
-libxml2-utils = "*"
-xsltproc = "*"
-docbook-xml = ">= 4.5"

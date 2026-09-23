@@ -70,16 +70,6 @@ done
 "org.gnu.make" = "*"
 "org.gnu.glibc-bin" = ">= 2.44"
 
-[build.main.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-findutils = "*"
-diffutils = "*"
-grep      = "*"
-gawk      = "*"
-make      = "*"
-libc-bin  = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -126,11 +116,3 @@ rm -rf "$STAGE/build" "$STAGE/zoneinfo-a" "$STAGE/zoneinfo-b" \
 "org.gnu.diffutils" = "*"
 "org.gnu.grep" = "*"
 "org.gnu.glibc-bin" = ">= 2.44"
-
-[test.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-findutils = "*"
-diffutils = "*"
-grep = "*"
-libc-bin = "*"

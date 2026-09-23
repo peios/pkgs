@@ -30,11 +30,6 @@ fi
 "dev.peios.peiosutils"   = "*"
 "org.gnu.gzip" = "*"
 
-[build.main.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-gzip = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -60,8 +55,3 @@ test "$man_sum" = "$installed_man_sum"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils"   = "*"
 "org.gnu.gzip" = "*"
-
-[test.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-gzip = "*"

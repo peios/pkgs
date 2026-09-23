@@ -33,7 +33,3 @@ command = "tests/test-mount-root-disk.sh"
 # binary: that dependency is exercised by image closure, while these tests are
 # deliberately about the hook's own decisions and arguments.
 "dev.peios.peiosutils"    = ">= 0.8.6-1"
-
-[test.dependencies.apt]
-dash      = "*"
-coreutils = "*"

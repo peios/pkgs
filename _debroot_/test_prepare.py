@@ -26,17 +26,12 @@ class PreparationTests(unittest.TestCase):
         context.start()
         self.addCleanup(context.stop)
 
-    def test_reference_image_is_coordinator_policy_and_changes_replay_identity(self):
+    def test_reference_image_is_coordinator_policy(self):
         with patch.dict(os.environ, {"PEKIT_RECIPE_ROOT": "/tmp/org.gnu.gcc"}):
-            self.assertEqual(p.selected_image(), "debian:trixie")
             stable = p.policy_id()
-        with patch.dict(os.environ, {"PEKIT_RECIPE_ROOT": "/tmp/org.gnome.libxslt"}):
-            self.assertEqual(p.selected_image(), "debian:sid")
-            self.assertNotEqual(p.policy_id(), stable)
-        with patch.dict(os.environ, {"PEKIT_RECIPE_ROOT": "/tmp/org.golang.go"}):
-            self.assertEqual(p.selected_image(), "debian:sid")
         with patch.dict(os.environ, {"PEKIT_RECIPE_ROOT": "/tmp/unlisted", "PEKIT_DEBIAN_IMAGE": "untrusted/image"}):
-            self.assertEqual(p.selected_image(), "debian:trixie")
+            self.assertEqual(p.policy_id(), stable)
+        self.assertEqual(p.IMAGE, "debian:trixie")
 
     def test_canonical_requests(self):
         self.assertEqual(p.requests("libc6 >=2:1.2~rc1, < 3\nlibc6 >= 2:1.2~rc1\nzlib1g:amd64 *"),

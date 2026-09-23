@@ -139,14 +139,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 "org.gnu.glibc-gconv-extra"   = "*"
 "org.gnu.gzip"                = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-pkg-config      = "*"
-zlib1g-dev      = "*"
-debugedit       = "*"
-patchelf        = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -279,9 +271,3 @@ rm -rf "$SMOKE" "$PEKIT_MAIN_OUT/.repro" "$PEKIT_MAIN_OUT/build"
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 "org.gnu.glibc-gconv-extra" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-pkgconf = "*"
-zlib1g-dev = "*"
-dash = "*"

@@ -18,8 +18,3 @@ command = "PATH=/usr/libexec/coreutils-build:$PATH tests/test-dynamic-boot.sh"
 "dev.peios.peiosutils"          = "*"
 "org.gnu.coreutils-build-compat" = "*"
 "org.gnu.grep"                   = "*"
-
-[test.dependencies.apt]
-dash      = "*"
-coreutils = "*"
-grep      = "*"

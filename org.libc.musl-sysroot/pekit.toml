@@ -125,10 +125,6 @@ make CROSS_COMPILE= install DESTDIR="$PEKIT_OUT"
 "dev.peios.build-essentials-c" = "*"
 "org.python.python3"            = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-python3         = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -237,6 +233,3 @@ rm -rf "$SMOKE" "$PEKIT_MAIN_OUT/build"
 
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"

@@ -77,12 +77,6 @@ rm -f "$PEKIT_OUT/.srclist"
 "org.nixos.patchelf" = "*"
 "dev.peios.build-essentials-c++" = "*"
 
-[build.main.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-debugedit       = "*"
-patchelf        = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -140,10 +134,3 @@ test -n "$(find "$STAGE/usr/src/debug/org.gnu.gperf" -type f -print -quit)"
 "org.gnu.binutils"               = "*"
 "org.gnu.findutils"              = "*"
 "org.gnu.grep"                   = "*"
-
-[test.dependencies.apt]
-gzip = "*"
-build-essential = "*"
-binutils        = "*"
-findutils       = "*"
-grep            = "*"

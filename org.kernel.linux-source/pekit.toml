@@ -41,11 +41,6 @@ tar -xOf "$ARCHIVE" "linux-$PEKIT_VERSION/COPYING" > "$LICENSE"
 "org.gnu.tar"          = "*"
 "org.tukaani.xz"       = "*"
 
-[build.main.dependencies.apt]
-coreutils = "*"
-tar       = "*"
-xz-utils  = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -75,10 +70,3 @@ cmp "$PEKIT_MAIN_OUT/usr/share/licenses/org.kernel.linux-source/COPYING" \
 "org.gnu.grep"         = "*"
 "org.gnu.tar"          = "*"
 "org.tukaani.xz"       = "*"
-
-[test.dependencies.apt]
-coreutils = "*"
-diffutils = "*"
-grep      = "*"
-tar       = "*"
-xz-utils  = "*"

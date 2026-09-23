@@ -105,16 +105,6 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" \
 "org.pkgconf.pkgconf"              = "*"
 "org.gnu.gzip"                     = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-autoconf        = "*"
-automake        = "*"
-debugedit       = "*"
-libtool         = "*"
-patchelf        = "*"
-pkg-config      = "*"
-gzip            = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -208,13 +198,3 @@ rm -rf "$PEKIT_MAIN_OUT/build" "$PEKIT_MAIN_OUT/bootstrap-source"
 "org.nixos.patchelf" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.git.kernel.dash" = "*"
-
-[test.dependencies.apt]
-build-essential = "*"
-autoconf = "*"
-automake = "*"
-debugedit = "*"
-dash = "*"
-libtool = "*"
-patchelf = "*"
-pkg-config = "*"

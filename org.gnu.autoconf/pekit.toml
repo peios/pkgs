@@ -49,13 +49,6 @@ rm -rf "$PEKIT_OUT/usr/share/info"
 "org.perl.perl"                     = ">= 5.6"
 "org.gnu.gzip"                      = "*"
 
-[build.main.dependencies.apt]
-build-essential = "*"
-bash  = "*"
-m4    = ">= 1.4.16"
-perl  = ">= 5.6"
-gzip  = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -84,9 +77,3 @@ make check TESTSUITEFLAGS="-j$jobs"
 "org.gnu.bash"           = "*"
 "org.gnu.m4"                       = ">= 1.4.16"
 "org.perl.perl"                     = ">= 5.6"
-
-[test.dependencies.apt]
-build-essential = "*"
-bash  = "*"
-m4    = ">= 1.4.16"
-perl  = ">= 5.6"

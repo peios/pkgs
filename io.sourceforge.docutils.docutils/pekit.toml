@@ -44,10 +44,6 @@ python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$SITE" "$PE
 "org.python.python3" = ">= 3.14, < 3.15"
 "io.pypa.flit-core"  = "*"
 
-[build.main.dependencies.apt]
-python3 = "*"
-flit    = "*"
-
 [test]
 gate = true
 needs = ["main"]
@@ -156,7 +152,3 @@ rm -rf "$SMOKE" "$PEKIT_OUT/test-tree"
 "org.git.kernel.dash" = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
-
-[test.dependencies.apt]
-dash = "*"
-python3 = "*"

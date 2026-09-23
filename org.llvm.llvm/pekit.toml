@@ -346,17 +346,6 @@ done
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
 "com.facebook.zstd-devel"       = "*"
 
-[test.dependencies.apt]
-perl = "*"
-bash = "*"
-tar = "*"
-build-essential = "*"
-cmake            = "*"
-ninja-build      = "*"
-python3          = "*"
-zlib1g-dev       = "*"
-libzstd-dev      = "*"
-
 [build.main.dependencies.peipkg]
 "org.perl.perl" = "*"
 "org.gnu.bash" = "*"
@@ -370,16 +359,3 @@ libzstd-dev      = "*"
 "com.facebook.zstd-devel"            = "*"
 "org.sourceware.debugedit"                = "*"
 "org.nixos.patchelf"                 = "*"
-
-[build.main.dependencies.apt]
-perl = "*"
-bash = "*"
-tar = "*"
-build-essential = "*"
-cmake            = "*"
-ninja-build      = "*"
-python3          = "*"
-zlib1g-dev       = "*"
-libzstd-dev      = "*"
-debugedit        = "*"
-patchelf         = "*"

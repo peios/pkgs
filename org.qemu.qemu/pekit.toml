@@ -194,22 +194,6 @@ rm -rf "$WORK"
 "org.pixman.pixman-devel"                 = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel"  = "*"
 
-[build.main.dependencies.apt]
-build-essential  = "*"
-debugedit        = "*"
-tar              = "*"
-xz-utils         = "*"
-patch            = "*"
-python3          = "*"
-python3-venv     = "*"
-python3-distlib  = "*"
-meson            = ">= 1.5"
-ninja-build      = "*"
-pkgconf          = "*"
-"libglib2.0-dev" = "*"
-libpixman-1-dev  = "*"
-zlib1g-dev       = "*"
-
 [test]
 needs = ["main"]
 gate  = true
@@ -319,13 +303,3 @@ test -n "$(find "$STAGE/usr/src/debug/org.qemu.qemu" -type f -print -quit)"
 "org.gnome.glib"        = ">= 2.66"
 "org.pixman.pixman"     = "*"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
-
-[test.dependencies.apt]
-bash      = "*"
-coreutils = "*"
-grep      = "*"
-findutils = "*"
-binutils  = "*"
-"libglib2.0-0t64" = "*"
-libpixman-1-0   = "*"
-zlib1g          = "*"

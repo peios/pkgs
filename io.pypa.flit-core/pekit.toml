@@ -14,7 +14,7 @@
 # workspace helper's, so that the policy lives in one place rather than in
 # each recipe. See _pybuild_/README.md for what it does and why.
 #
-# Both rungs run the full upstream core suite and installed-backend gate.
+# The build runs the full upstream core suite and installed-backend gate.
 # Test tools are acquired only for qualification, outside the bootstrap build
 # and runtime closure; the worker consumes their recorded wheels offline.
 
@@ -35,11 +35,12 @@ file_regex  = 'flit_core-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz'
 versions    = ">= 4.0.2"
 
 # Test tools are acquired separately from the minimal bootstrap build.
-# Final qualification uses --env peipkg-net (or debian); only vendor has network.
+# Final qualification uses --env peipkg-net; only vendor has network.
 [build.vendor]
 command = '''python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/test-tools" acquire "$PWD" "$PEKIT_OUT" --project flit_core --version "$PEKIT_VERSION"'''
 [build.vendor.dependencies.peipkg]
-# The peipkg-net profile prepares this acquisition target from its APT mapping.
+# The peipkg-net profile prepares this acquisition target from its APT mapping
+# until pip is packaged natively; this is the recipe's only apt set.
 
 [build.vendor.dependencies.apt]
 python3 = "*"
@@ -62,9 +63,6 @@ python3 "$PEKIT_WORKSPACE_ROOT/_pybuild_/install-wheel" \
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
-
-[build.main.dependencies.apt]
-python3          = "*"
 
 [test]
 gate = true
@@ -202,6 +200,3 @@ rm -rf "$SMOKE"
 "org.git.kernel.dash"          = "*"
 "dev.peios.peiosutils" = "*"
 "org.python.python3" = ">= 3.14, < 3.15"
-
-[test.dependencies.apt]
-python3          = "*"
