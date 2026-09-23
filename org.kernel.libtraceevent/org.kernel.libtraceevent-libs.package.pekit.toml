@@ -2,7 +2,7 @@
 # not need the event-format plugin collection.
 
 [package]
-name        = "org.linux.traceevent-libs"
+name        = "org.kernel.libtraceevent-libs"
 description = "Linux trace-event parsing runtime library"
 license     = "LGPL-2.1-only"
 
@@ -10,6 +10,6 @@ license     = "LGPL-2.1-only"
 "org.gnu.glibc" = ">= 2.43"
 
 [files]
-"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent-libs/LGPL-2.1"
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.kernel.libtraceevent-libs/LGPL-2.1"
 ":usr/lib/x86_64-linux-peios/libtraceevent.so.1" = "usr/lib/x86_64-linux-peios/libtraceevent.so.1"
 ":usr/lib/x86_64-linux-peios/libtraceevent.so.1.*" = "usr/lib/x86_64-linux-peios"

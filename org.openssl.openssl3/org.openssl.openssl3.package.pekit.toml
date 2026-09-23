@@ -1,12 +1,12 @@
 [package]
-name = "dev.openssl.openssl3"
+name = "org.openssl.openssl3"
 description = "OpenSSL 3 compatibility runtime libraries and providers"
 
 [dependencies]
 "org.gnu.glibc" = ">= 2.43"
 
 [files]
-"@source:LICENSE.txt" = "usr/share/licenses/dev.openssl.openssl3/"
+"@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl3/"
 ":usr/etc/ssl/openssl3.cnf" = "usr/etc/ssl/openssl3.cnf"
 ":usr/etc/ssl/ct_log_list-openssl3.cnf" = "usr/etc/ssl/ct_log_list-openssl3.cnf"
 ":usr/lib/x86_64-linux-peios/libcrypto.so.3" = "usr/lib/x86_64-linux-peios/libcrypto.so.3"

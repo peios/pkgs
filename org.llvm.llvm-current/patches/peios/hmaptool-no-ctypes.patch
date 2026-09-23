@@ -1,4 +1,5 @@
-From: Peios Package Maintainers <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: no
 Subject: [PATCH] clang: remove hmaptool's unused ctypes dependency
 
 hmaptool imports ctypes.ArgumentError solely to reject a negative integer in

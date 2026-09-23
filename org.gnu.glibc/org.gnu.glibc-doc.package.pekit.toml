@@ -1,13 +1,11 @@
-# glibc-doc — the GNU C Library reference manual (info pages). Arch-independent
-# text, so this overrides the base architecture to noarch.
-#
-# The `dir` info-index file is deliberately NOT shipped: it's a shared system
-# file rebuilt by install-info, so shipping it would collide with every other
-# doc package. Globbing libc.info* takes the manual but leaves `dir` alone.
+# glibc-doc — the GNU C Library reference manual as HTML, rendered by
+# upstream's `make html` (texi2any) from the release's Texinfo sources.
+# Arch-independent, so this overrides the base architecture to noarch.
+# Peios ships no Info documents.
 
 [package]
 name          = "org.gnu.glibc-doc"
-description  = "GNU C Library - reference manual"
+description  = "GNU C Library - HTML reference manual"
 architecture = "noarch"
 
 [provides]
@@ -17,4 +15,4 @@ architecture = "noarch"
 [files]
 "@source:COPYING*" = "usr/share/licenses/org.gnu.glibc-doc/"
 "@source:LICENSES" = "usr/share/licenses/org.gnu.glibc-doc/"
-":usr/share/info/libc.info*" = "usr/share/info/"
+":usr/share/doc/org.gnu.glibc/html/**" = "usr/share/doc/org.gnu.glibc/html"

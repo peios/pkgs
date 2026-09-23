@@ -1,7 +1,7 @@
 side_effects = ["man-db"]
 
 [package]
-name         = "org.linux.tracefs-doc"
+name         = "org.kernel.libtracefs-doc"
 description  = "libtracefs API and tracefs-sqlhist documentation"
 architecture = "noarch"
 license      = "LGPL-2.1-only"
@@ -9,7 +9,7 @@ license      = "LGPL-2.1-only"
 [provides]
 
 [files]
-"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs-doc/LGPL-2.1"
-":usr/share/doc/org.linux.tracefs/**" = "usr/share/doc/org.linux.tracefs"
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.kernel.libtracefs-doc/LGPL-2.1"
+":usr/share/doc/org.kernel.libtracefs/**" = "usr/share/doc/org.kernel.libtracefs"
 ":usr/share/man/man1/**" = "usr/share/man/man1"
 ":usr/share/man/man3/**" = "usr/share/man/man3"

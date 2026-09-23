@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Fail-closed installed-Clang pointer-offset regression; no host headers or linking."""
 import argparse, hashlib, json, pathlib, subprocess, sys
 

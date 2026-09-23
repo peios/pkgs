@@ -1,14 +1,17 @@
+# Static archives for LLVM, Clang and LLD (Fedora's -static model). Each
+# -devel package's installed CMake exports list every archive, so the three
+# -devel packages depend on this one rather than the other way round.
+
 [package]
 name        = "org.llvm.llvm-static"
-description = "Complete LLVM, Clang and LLD development SDKs"
-architecture = "noarch"
+description = "LLVM, Clang and LLD static libraries"
 license     = "(Apache-2.0 WITH LLVM-exception) AND (CC0-1.0 OR Apache-2.0)"
-
-[dependencies]
-"org.llvm.llvm-devel"  = "= {{release}}"
-"org.llvm.clang-devel" = "= {{release}}"
-"org.llvm.lld-devel"   = "= {{release}}"
 
 [files]
 "@source:llvm/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-static/LICENSE.TXT"
 "@source:llvm/lib/Support/BLAKE3/LICENSE" = "usr/share/licenses/org.llvm.llvm-static/BLAKE3-LICENSE"
+"@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-static/clang-LICENSE.TXT"
+"@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.llvm-static/lld-LICENSE.TXT"
+":usr/lib/x86_64-linux-peios/libLLVM*.a" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/libclang*.a" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/liblld*.a" = "usr/lib/x86_64-linux-peios"

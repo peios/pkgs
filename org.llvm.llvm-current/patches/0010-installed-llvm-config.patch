@@ -1,5 +1,10 @@
 Description: Build a relocatable installed llvm-config without private build paths
-Origin: Peios packaging; local installed-tool variant, preserving the upstream build-tree tool
+ Peios packages must not embed build-machine paths, and the llvm-config that
+ upstream installs records the private build tree. This is a local
+ installed-tool variant; the upstream build-tree tool is unchanged.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: not-needed
 
 --- a/llvm/tools/llvm-config/CMakeLists.txt
 +++ b/llvm/tools/llvm-config/CMakeLists.txt

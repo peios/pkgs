@@ -48,6 +48,12 @@ make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 find "$PEKIT_OUT/usr" -name '*.la' -delete
 rm -rf "$PEKIT_OUT/usr/share/info" "$PEKIT_OUT/usr/share/doc"
+# Peios ships no /usr/share/info. The MPFR manual is the library's only
+# complete reference, so build it from the release's Texinfo source as HTML
+# for org.gnu.mpfr-doc instead.
+mkdir -p "$PEKIT_OUT/usr/share/doc/org.gnu.mpfr"
+texi2any --html --output="$PEKIT_OUT/usr/share/doc/org.gnu.mpfr/html" \
+  "$SRC/doc/mpfr.texi"
 
 # Split build-ID-indexed debug data and stage the exact sources referenced by
 # rewritten DWARF paths. Static archives retain code but drop debug data.
@@ -59,12 +65,15 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.mpfr "$PEKIT_OUT/usr"
 "org.gnu.gmp-devel"          = "*"
 "org.gnu.gmp-static"         = "*"
 "org.pkgconf.pkgconf"            = "*"
+# texi2any renders the HTML manual for org.gnu.mpfr-doc.
+"org.gnu.texinfo"              = "*"
 
 [build.main.dependencies.apt]
 build-essential = "*"
 libgmp-dev      = "*"
 debugedit       = "*"
 pkgconf         = "*"
+texinfo         = "*"
 
 [test]
 needs = ["main"]
@@ -89,6 +98,9 @@ test -f "$PCDIR/mpfr.pc"
 readelf -d "$MPFR_SO" | grep -Eq 'SONAME.*[[]libmpfr[.]so[.]6[]]'
 grep -F 'Version: ' "$PCDIR/mpfr.pc" | grep -F "$PEKIT_VERSION"
 grep -F 'MPFR_USE_THREAD_SAFE=1' "$STAGE/config.log"
+test -s "$STAGE/usr/share/doc/org.gnu.mpfr/html/index.html"
+grep -F "GNU MPFR $PEKIT_VERSION" "$STAGE/usr/share/doc/org.gnu.mpfr/html/index.html"
+test ! -e "$STAGE/usr/share/info"
 
 mkdir -p "$SMOKE"
 cat > "$SMOKE/smoke.c" <<'EOF'

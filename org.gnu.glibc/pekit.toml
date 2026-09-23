@@ -185,11 +185,21 @@ make -j"$JOBS"
 # Build the manual and install the complete unstripped tree. Upstream, ABI,
 # policy, and reproducibility validation runs from test.main after the debug
 # split below, so package and publish treat it as an explicit release gate.
-make -j"$JOBS" info
+#
+# Peios ships no Info documents. The GNU C Library manual is the only complete
+# reference for the library, so upstream's `html` target renders it (texi2any
+# over manual/libc.texinfo and its generated chapters) for org.gnu.glibc-doc.
+# `make install` still builds and installs libc.info; it is removed here.
+make -j"$JOBS" html
 make install DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/info"
+test -s "$BUILD/manual/libc/index.html"
+mkdir -p "$PEKIT_OUT/usr/share/doc/org.gnu.glibc"
+cp -R "$BUILD/manual/libc" "$PEKIT_OUT/usr/share/doc/org.gnu.glibc/html"
 
 # The upstream shell/Perl polyglot executes correctly, but cannot be syntax
-# checked as a shell script. Use its declared Perl interpreter directly.
+# checked as a shell script. Use its declared Perl interpreter directly,
+# through the runtime view.
 python3 - "$PEKIT_OUT/usr/bin/mtrace" <<'PY_MTRACE'
 from pathlib import Path
 import sys
@@ -197,7 +207,7 @@ path = Path(sys.argv[1])
 text = path.read_text()
 body = text.index('# Copyright')
 assert text.startswith('#! /bin/sh\n') and 'exec perl' in text[:body]
-path.write_text('#!/usr/bin/perl\n' + text[body:])
+path.write_text('#!/bin/perl\n' + text[body:])
 PY_MTRACE
 perl -c "$PEKIT_OUT/usr/bin/mtrace"
 python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION"
@@ -527,10 +537,12 @@ make -j"$JOBS"
 # The default build omits the manual.  Upstream `make clean` removes generated
 # pkgvers.texi but accidentally leaves stamp-pkgvers behind, so make considers
 # the missing file current and summary.pl fails.  Invalidate that stale stamp,
-# then regenerate the info target so the reproducibility pass covers the
-# documented package as well as the binaries.
+# then regenerate the HTML manual from scratch so the reproducibility pass
+# covers the documentation package as well as the binaries.
 rm -f "$BUILD/manual/stamp-pkgvers"
-make -j"$JOBS" info
+rm -rf "$BUILD/manual/libc"
+make -j"$JOBS" html
+diff -r "$PEKIT_OUT/usr/share/doc/org.gnu.glibc/html" "$BUILD/manual/libc"
 make install DESTDIR="$SECOND_REPRO_ROOT"
 manifest_index=0
 for root in "$FIRST_REPRO_ROOT" "$SECOND_REPRO_ROOT"; do
@@ -582,6 +594,11 @@ GCONV_PATH="$STAGED_LIBDIR/gconv" "$LOADER" --library-path "$STAGED_LIBDIR" \
   "$PEKIT_OUT/usr/bin/iconv" -f EUC-JP -t UTF-8 "$SMOKE/japanese-euc" > "$SMOKE/japanese-roundtrip"
 cmp "$SMOKE/japanese-utf8" "$SMOKE/japanese-roundtrip"
 perl -c "$PEKIT_OUT/usr/bin/mtrace"
+test "$(head -n 1 "$PEKIT_OUT/usr/bin/mtrace")" = '#!/bin/perl'
+# Peios ships no Info documents; the manual is HTML in org.gnu.glibc-doc.
+test ! -e "$PEKIT_OUT/usr/share/info"
+test -s "$PEKIT_OUT/usr/share/doc/org.gnu.glibc/html/index.html"
+grep -F 'The GNU C Library' "$PEKIT_OUT/usr/share/doc/org.gnu.glibc/html/index.html"
 python3 "$PEKIT_RECIPE_ROOT/tools/install-manpages.py" "$PEKIT_OUT" "$PEKIT_VERSION" "$SMOKE/manuals"
 find "$SMOKE/manuals/usr/share/man" -type f -name '*.gz' | while IFS= read -r page; do
   cmp "$page" "$PEKIT_OUT${page#"$SMOKE/manuals"}"
@@ -1408,7 +1425,8 @@ gzip = "*"
 
 # Build deps. glibc is autotools (gcc + g++ + make) but pulls in a wider host set than
 # the bignums: bison (parser gen), gawk (its scripts need GNU awk specifically),
-# python3 + perl (build scripts), texinfo (makeinfo — checked at build start),
+# python3 + perl (build scripts), texinfo (makeinfo/texi2any for the HTML
+# manual — checked at build start),
 # gettext (msgfmt — also checked), and the Linux UAPI headers (linux-libc-dev
 # on Debian; linux-kernel-headers via build-essentials-c on Peios). The debug
 # split uses debugedit (no patchelf — glibc scrubs no libtool rpath).

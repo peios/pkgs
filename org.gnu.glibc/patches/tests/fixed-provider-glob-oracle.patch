@@ -1,5 +1,5 @@
 Description: Separate host-account glob oracles from fixed-provider libc checks
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
 Origin: vendor
 Forwarded: not-needed
 Last-Update: 2026-09-16

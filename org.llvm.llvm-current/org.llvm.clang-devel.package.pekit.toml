@@ -6,6 +6,8 @@ description = "Clang development headers and CMake metadata"
 "org.llvm.clang" = "= {{release}}"
 "org.llvm.clang-libs" = "= {{release}}"
 "org.llvm.llvm-devel" = "= {{release}}"
+# The exported CMake targets name every libclang*.a archive.
+"org.llvm.llvm-static" = "= {{release}}"
 
 [files]
 "@source:clang/LICENSE.TXT" = "usr/share/licenses/org.llvm.clang-devel/LICENSE.TXT"
@@ -14,6 +16,3 @@ description = "Clang development headers and CMake metadata"
 ":usr/lib/x86_64-linux-peios/libclang-cpp.so" = "usr/lib/x86_64-linux-peios/libclang-cpp.so"
 ":usr/lib/x86_64-linux-peios/libclang.so"     = "usr/lib/x86_64-linux-peios/libclang.so"
 ":usr/lib/x86_64-linux-peios/cmake/clang/**"  = "usr/lib/x86_64-linux-peios/cmake/clang"
-
-# Upstream exported CMake targets require their static archive locations.
-":usr/lib/x86_64-linux-peios/libclang*.a" = "usr/lib/x86_64-linux-peios"

@@ -1,4 +1,5 @@
-From: Peios Package Maintainers <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 Subject: [PATCH] tests: retain coverage in accountless user namespaces
 
 Peios build roots deliberately carry no /etc/passwd and run in a single-ID

@@ -1,7 +1,11 @@
 Description: Instrument GMP x86 assembly for Intel CET
+ Peios requires every shared object to carry the IBT and SHSTK properties.
+ GMP's hand-written assembly has no endbr64 landing pads or CET property
+ notes, so without this patch the linker drops CET from libgmp.
+Author: rpm-build <rpm-build>
 Origin: vendor, https://src.fedoraproject.org/rpms/gmp/blob/48233878dabed24130a8868e3eed48e394315805/f/gmp-intel-cet.patch
-Forwarded: not-needed
-Last-Update: 2026-09-16
+Forwarded: no
+Last-Update: 2026-09-23
 
 Imported unchanged from Fedora packaging commit 48233878dabed24130a8868e3eed48e394315805.
 SHA256 of original patch: 04155a6f1ca36e3ba00a59e215b927dd2ef5404a386ae9b50d46faeda05f5e94

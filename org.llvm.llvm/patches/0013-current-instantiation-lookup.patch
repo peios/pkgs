@@ -1,4 +1,6 @@
 Description: Backport dependent current-instantiation member lookup and corrections.
+ Peios' Clang 18 must compile against GCC 16's libstdc++ headers, which need
+ this lookup (see the notes below).
 Origin: backport, https://github.com/llvm/llvm-project/commit/8009bbec59d1c5d47ae06c431647ebee6d886ff2
 Origin: backport, https://github.com/llvm/llvm-project/commit/75ebcbf24abb2e5b045ec920bc86f667516e4cc6
 Origin: backport, https://github.com/llvm/llvm-project/commit/596a9c1f9b3179b3c77cbde1e96619292ce2a10a

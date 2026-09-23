@@ -36,7 +36,7 @@ mkdir -p "$BUILD"
 # Upstream honours environment CFLAGS directly. Append reproducible debug
 # paths and CET while retaining the workspace profile's optimisation and
 # linker policy. Generate IBT PLT entries while preserving input-note merging.
-export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtracefs"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$JOBS" \
@@ -114,7 +114,7 @@ make -C "$DOCSRC/Documentation" -j1 src="$DOCSRC" \
 
 install -d "$PREFIX/share/doc"
 mv "$PREFIX/share/doc/libtracefs-doc" \
-  "$PREFIX/share/doc/org.linux.tracefs"
+  "$PREFIX/share/doc/org.kernel.libtracefs"
 
 mkdir -p "$PEKIT_OUT/.repro"
 cp "$LIBDIR/libtracefs.a" \
@@ -123,7 +123,7 @@ cp "$LIBDIR/libtracefs.a" \
 # upstream's scripts/utils.mk links the shared library with -rpath=$ORIGIN;
 # the library needs no run path, so remove it.
 patchelf --remove-rpath "$LIBDIR/libtracefs.so.$PEKIT_VERSION"
-sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.linux.tracefs \
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.libtracefs \
   "$LIBDIR/libtracefs.so.$PEKIT_VERSION" "$LIBDIR/libtracefs.a"
 
 # DocBook XSL versions disagree on whether aliases include their section.
@@ -158,7 +158,7 @@ LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 COMPLETION="$PREFIX/share/bash-completion/completions/tracefs_sql.bash"
 SMOKE="$PEKIT_OUT/smoke"
 JOBS=2
-export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
+export CFLAGS="${CFLAGS:?} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtracefs"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
@@ -181,11 +181,11 @@ test "$(find "$LIBDIR/pkgconfig" -maxdepth 1 -type f -printf '%f\n')" = libtrace
 
 for txt in "$SRC"/Documentation/libtracefs*.txt; do
   page=$(basename "$txt" .txt)
-  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
+  test -s "$PREFIX/share/doc/org.kernel.libtracefs/$page.html"
 done
 for txt in "$SRC"/Documentation/libtracefs*.txt.1; do
   page=$(basename "$txt" .txt.1)
-  test -s "$PREFIX/share/doc/org.linux.tracefs/$page.html"
+  test -s "$PREFIX/share/doc/org.kernel.libtracefs/$page.html"
 done
 for section in 3 1; do
   find "$STAGE/doc-src/Documentation" -maxdepth 1 -type f -name "*.$section" \
@@ -269,7 +269,7 @@ cc -std=gnu99 -Wall -Wextra -Werror "$SMOKE/consumer.c" \
 
 DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
 test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
-test -n "$(find "$STAGE/usr/src/debug/org.linux.tracefs" -type f -print -quit)"
+test -n "$(find "$STAGE/usr/src/debug/org.kernel.libtracefs" -type f -print -quit)"
 readelf -S "$DEBUG" 2>/dev/null | grep -F '.debug_info'
 readelf -h "$LIBSO" | grep -Eq 'Type:[[:space:]]+DYN'
 readelf -W -l "$LIBSO" | grep 'GNU_STACK' | grep -F 'RW '
@@ -290,7 +290,7 @@ if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
 "org.gnu.grep"                 = "*"
 "org.gnu.make"                 = "*"
 "org.gnu.bash"                 = "*"
-"org.linux.traceevent-devel"   = ">= 1.9.0-1, < 2"
+"org.kernel.libtraceevent-devel"   = ">= 1.9.0-1, < 2"
 "org.pkgconf.pkgconf"          = "*"
 
 [build.main.dependencies.peipkg]
@@ -303,7 +303,7 @@ if strings "$LIBSO" | grep -F "$ROOT"; then exit 1; fi
 "org.gnu.make"                                = "*"
 "org.nixos.patchelf"              = "*"
 "org.gnu.bash"                    = "*"
-"org.linux.traceevent-devel"      = ">= 1.9.0-1, < 2"
+"org.kernel.libtraceevent-devel"      = ">= 1.9.0-1, < 2"
 "org.gnu.which"                   = "*"
 # xsltproc and the DocBook manpage stylesheets for the xmlto-free man build.
 "org.gnome.libxslt-utils"         = "*"

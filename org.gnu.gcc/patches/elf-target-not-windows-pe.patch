@@ -1,5 +1,6 @@
 Description: Do not misclassify the Peios target as Windows PE
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: no
 
 GCC decides whether the target uses ELF with a case statement whose non-ELF
 arm includes `*-*-pe*`, meant to catch Windows PE (Portable Executable)

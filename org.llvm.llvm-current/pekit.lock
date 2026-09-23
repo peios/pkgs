@@ -25,3 +25,10 @@ schema = 1
   sha256 = "ebe9be46fe8756d58c5b198ffad0fa2a766257add81a4dc52179bfacc7888ee6"
   signature_key = "d574bd5d1d0e98895e3bf90044f2485e45d59042"
   locked_at = "2026-09-16T20:42:57Z"
+
+[[source]]
+  version = "23.1.2"
+  url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.2/llvm-project-23.1.2.src.tar.xz"
+  sha256 = "c98bbef08a2b4c2613cd50e9aa9ae7b69b1fe6c16b2c40373bc0ab6116fdf78a"
+  signature_key = "ffb3368980f3e6bb5737145a316c56d064cacba5"
+  locked_at = "2026-09-23T14:27:31Z"

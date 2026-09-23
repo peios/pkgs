@@ -1,5 +1,9 @@
 Description: Reinherit Peios security descriptors while populating ext filesystems
-Author: Peios maintainers
+ Peios access control lives in inherited security descriptors, so files
+ copied in by mke2fs -d must get descriptors inherited from their parents
+ (through libpeios) rather than none.
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 
 diff --git a/debugfs/Makefile.in b/debugfs/Makefile.in
 index 689bf0c4..c3cad4fc 100644

@@ -3,16 +3,16 @@
 # mostly-empty primary package or forcing Bash onto library consumers.
 
 [package]
-name        = "org.linux.tracefs"
+name        = "org.kernel.libtracefs"
 description = "Linux tracefs interaction runtime library"
 license     = "LGPL-2.1-only"
 
 [dependencies]
 "org.gnu.glibc"                       = ">= 2.43"
-"org.linux.traceevent-libs" = ">= 1.9.0-1, < 2"
+"org.kernel.libtraceevent-libs"      = ">= 1.9.0-1, < 2"
 
 [files]
-"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.tracefs/LGPL-2.1"
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.kernel.libtracefs/LGPL-2.1"
 ":usr/lib/x86_64-linux-peios/libtracefs.so.1" = "usr/lib/x86_64-linux-peios/libtracefs.so.1"
 ":usr/lib/x86_64-linux-peios/libtracefs.so.1.*" = "usr/lib/x86_64-linux-peios"
 ":usr/share/bash-completion/completions/tracefs_sql.bash" = "usr/share/bash-completion/completions/tracefs_sql.bash"

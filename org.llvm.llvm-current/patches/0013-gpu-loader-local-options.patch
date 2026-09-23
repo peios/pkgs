@@ -1,5 +1,8 @@
 Description: Keep GPU loader options separate from the libLLVM global registry
-Origin: Peios packaging; LLVM23 tool-local OptTable follows upstream llvm-strings
+ Peios links every LLVM tool against the shared libLLVM, which makes
+ llvm-gpu-loader's options collide with libLLVM's at startup (see Bug below).
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, tool-local OptTable modelled on upstream llvm-strings
 Forwarded: no
 Bug: Linking against the complete libLLVM registers ThinLTO's threads option and
  collides with llvm-gpu-loader's threads alias before main. Preserve loader aliases

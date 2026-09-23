@@ -1,5 +1,8 @@
 Description: Add root security-descriptor options to mke2fs
-Author: Peios maintainers
+ Peios files are protected by security descriptors, so the root directory
+ of a new filesystem needs one from the start (-E root_sddl=/root_sd_file=).
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 
 diff --git a/misc/Makefile.in b/misc/Makefile.in
 index 0e3bed66..6b87bb71 100644

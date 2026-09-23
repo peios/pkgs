@@ -1,0 +1,12 @@
+# The GNU MPC manual as HTML, rendered by texi2any from the release's Texinfo
+# source. Peios ships no Info documents.
+
+[package]
+name         = "org.gnu.mpc-doc"
+description  = "GNU MPC - HTML manual"
+architecture = "noarch"
+license      = "GFDL-1.3-or-later"
+
+[files]
+"@source:COPYING*" = "usr/share/licenses/org.gnu.mpc-doc/"
+":usr/share/doc/org.gnu.mpc/html/**" = "usr/share/doc/org.gnu.mpc/html"

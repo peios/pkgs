@@ -1,4 +1,5 @@
-From: Peios Packaging <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: no
 Subject: [PATCH] posix: honor unsupported status for glob tilde mtrace companion
 
 The tst-glob-tilde test selects the passwd database programmatically and is

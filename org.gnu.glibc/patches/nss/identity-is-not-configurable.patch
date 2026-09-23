@@ -1,5 +1,11 @@
 Description: Make NSS identity selection a fixed Peios authority boundary
-Origin: vendor, Peios
+ On Peios a principal comes from the authentication authority, not from
+ /etc/passwd or another configurable source, so glibc gives the identity and
+ hosts databases fixed Peios providers that nsswitch.conf cannot override.
+ shadow, gshadow and the legacy Secure RPC publickey database are fixed empty.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: not-needed
 
 diff --git a/nss/initgroups.c b/nss/initgroups.c
 index f4106226ec..c0399b38e8 100644

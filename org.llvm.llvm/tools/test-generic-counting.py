@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Mandatory generic counting regressions, with an optional validated LSan check."""
 import argparse, hashlib, json, os, re, signal, subprocess
 from pathlib import Path

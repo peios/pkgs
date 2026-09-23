@@ -1,4 +1,5 @@
-From: Peios Packaging <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: no
 Subject: [PATCH] llvm: make Python test utilities independent of ctypes
 
 CPython's ctypes module is optional and may be absent from a small system

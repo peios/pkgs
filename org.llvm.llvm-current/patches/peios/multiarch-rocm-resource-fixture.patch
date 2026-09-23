@@ -1,4 +1,5 @@
-From: Peios Package Maintainers <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 Subject: [PATCH] clang: cover multiarch ROCm resource lookup
 
 LLVM's ordinary test fixture supplies both lib and lib64 because

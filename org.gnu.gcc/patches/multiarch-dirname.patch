@@ -1,5 +1,6 @@
 Description: Use the Peios target triplet for GCC multiarch library paths
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 
 GCC hardcodes the Debian multiarch directory name for this target as
 `x86_64-linux-gnu`.  Peios installs architecture-specific libraries under

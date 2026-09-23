@@ -1,0 +1,11 @@
+[package]
+name        = "org.kernel.libtraceevent-debuginfo"
+description = "libtraceevent plugin debugging symbols"
+
+[dependencies]
+"org.kernel.libtraceevent" = "= {{release}}"
+
+[files]
+"@source:LICENSES/LGPL-2.1"       = "usr/share/licenses/org.kernel.libtraceevent-debuginfo/LGPL-2.1"
+"@source:LICENSES/GPL-2.0"        = "usr/share/licenses/org.kernel.libtraceevent-debuginfo/GPL-2.0"
+":usr/lib/debug-traceevent/**"    = "usr/lib/debug"

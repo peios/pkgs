@@ -1,5 +1,5 @@
 Description: Capture the complete loader diagnostic in the late-pthread test
-Author: Peios maintainers
+Author: Peios maintainers <packaging@peios.org>
 Origin: vendor
 Forwarded: no
 Last-Update: 2026-09-16

@@ -1,4 +1,6 @@
 Description: Backport unsigned generic bit counting with full-width constant evaluation.
+ Peios' Clang 18 is a hosted compiler over GCC 16's libstdc++, whose <bit>
+ uses __builtin_popcountg, __builtin_clzg and __builtin_ctzg when available.
 Origin: backport, https://github.com/llvm/llvm-project/pull/82359
 Origin: backport, https://github.com/llvm/llvm-project/pull/83431
 Forwarded: not-needed

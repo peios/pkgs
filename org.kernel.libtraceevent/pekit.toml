@@ -35,7 +35,7 @@ mkdir -p "$BUILD"
 # it so every recursive Makefile, including plugins and tests, receives the
 # workspace distro flags. Generate IBT PLT entries without manufacturing CET
 # compatibility notes for plugins or their inputs.
-export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtraceevent"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 make -C "$SRC" O="$BUILD" -j"$(nproc)" \
@@ -112,7 +112,7 @@ find "$PREFIX/share/man/man3" -type f -name '*.3' -exec gzip -9n {} +
 # public manpage names.
 install -d "$PREFIX/share/doc"
 mv "$PREFIX/share/doc/libtraceevent-doc" \
-  "$PREFIX/share/doc/org.linux.traceevent"
+  "$PREFIX/share/doc/org.kernel.libtraceevent"
 
 mkdir -p "$PEKIT_OUT/.repro/plugins"
 cp "$LIBDIR/libtraceevent.a" \
@@ -131,7 +131,7 @@ SPLIT="$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug"
 split_into() {
   tree=$1; shift
   mkdir -p "$PEKIT_OUT/.split"
-  sh "$SPLIT" --stage "$PEKIT_OUT/.split" org.linux.traceevent "$@"
+  sh "$SPLIT" --stage "$PEKIT_OUT/.split" org.kernel.libtraceevent "$@"
   mv "$PEKIT_OUT/.split/usr/lib/debug" "$PREFIX/lib/$tree"
   cp -R "$PEKIT_OUT/.split/usr/src/." "$PREFIX/src/"
   rm -rf "$PEKIT_OUT/.split"
@@ -155,7 +155,7 @@ PREFIX="$STAGE/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 PLUGIN_DIR="$LIBDIR/traceevent/plugins"
 SMOKE="$PEKIT_OUT/smoke"
-export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
+export EXTRA_CFLAGS="${CFLAGS:?} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.libtraceevent"
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 
 # Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
@@ -186,7 +186,7 @@ test "$(readlink "$LIBDIR/libtraceevent.so.1")" = "libtraceevent.so.$PEKIT_VERSI
 
 for txt in "$SRC"/Documentation/libtraceevent*.txt; do
   page=$(basename "$txt" .txt)
-  test -s "$PREFIX/share/doc/org.linux.traceevent/$page.html"
+  test -s "$PREFIX/share/doc/org.kernel.libtraceevent/$page.html"
 done
 find "$BUILD/Documentation" -maxdepth 1 -type f -name '*.3' -printf '%f.gz\n' \
   | LC_ALL=C sort > "$PEKIT_OUT/expected-man3"
@@ -260,7 +260,7 @@ test "$((
   $(find "$STAGE/usr/lib/debug-traceevent" -type f -name '*.debug' | wc -l) +
   $(find "$STAGE/usr/lib/debug-traceevent-libs" -type f -name '*.debug' | wc -l)
 ))" -eq 14
-test -n "$(find "$STAGE/usr/src/debug/org.linux.traceevent" -type f -print -quit)"
+test -n "$(find "$STAGE/usr/src/debug/org.kernel.libtraceevent" -type f -print -quit)"
 for elf in "$LIBSO" "$PLUGIN_DIR"/*.so; do
   readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
   readelf -W -l "$elf" | grep 'GNU_STACK' | grep -F 'RW '

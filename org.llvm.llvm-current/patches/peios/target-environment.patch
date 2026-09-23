@@ -1,4 +1,5 @@
-From: Peios Package Maintainers <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 Subject: [PATCH] llvm: recognize Peios as a target environment
 
 Peios uses x86_64-unknown-linux-peios. LLVM validates the environment

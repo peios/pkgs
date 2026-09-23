@@ -1,7 +1,7 @@
 Description: Use numeric loopback in the OCSP certificate-chain test
-Author: Peios packaging
-Origin: vendor, Peios packaging
-Upstream-Status: Not-needed (Peios build-environment constraint)
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: not-needed
 Scope: test harness only
 
 Peios resolves host names only through resolvd, and the offline build root

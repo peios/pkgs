@@ -2,7 +2,7 @@
 # the retired combined `libtraceevent` package preserves its complete payload.
 
 [package]
-name        = "org.linux.traceevent"
+name        = "org.kernel.libtraceevent"
 description = "Linux trace-event parsing plugins"
 
 [provides]
@@ -11,9 +11,9 @@ description = "Linux trace-event parsing plugins"
 
 [dependencies]
 "org.gnu.glibc"                        = ">= 2.43"
-"org.linux.traceevent-libs" = "= {{release}}"
+"org.kernel.libtraceevent-libs" = "= {{release}}"
 
 [files]
-"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.linux.traceevent/LGPL-2.1"
-"@source:LICENSES/GPL-2.0"  = "usr/share/licenses/org.linux.traceevent/GPL-2.0"
+"@source:LICENSES/LGPL-2.1" = "usr/share/licenses/org.kernel.libtraceevent/LGPL-2.1"
+"@source:LICENSES/GPL-2.0"  = "usr/share/licenses/org.kernel.libtraceevent/GPL-2.0"
 ":usr/lib/x86_64-linux-peios/traceevent/plugins/**" = "usr/lib/x86_64-linux-peios/traceevent/plugins"

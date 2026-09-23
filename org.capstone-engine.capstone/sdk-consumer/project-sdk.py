@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Project only the selected SDK's declared same-family payload closure."""
 from pathlib import Path
 import argparse,hashlib,json,re,shutil,tomllib
@@ -24,7 +24,6 @@ def visit(name,stack=()):
    visit(dep,stack+(name,))
   else:external.add(dep)
 visit(a.sdk)
-if any(name.endswith('-static') for name in selected):raise ValueError('SDK unexpectedly requires optional static umbrella')
 a.out.mkdir(parents=True)
 files={}
 for name in sorted(selected):

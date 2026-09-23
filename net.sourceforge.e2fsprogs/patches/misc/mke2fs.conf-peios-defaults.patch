@@ -1,5 +1,10 @@
 Description: Compile Peios filesystem and security-descriptor defaults into mke2fs
-Author: Peios maintainers
+ Peios stores security descriptors in an xattr, so new filesystems need
+ larger inodes (to keep them inline), ea_inode (for oversized ones) and no
+ POSIX ACL mount default. Peios ships no mke2fs.conf, so these defaults are
+ compiled in.
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
 
 diff --git a/misc/mke2fs.conf.in b/misc/mke2fs.conf.in
 index b7fc95d..983283e 100644

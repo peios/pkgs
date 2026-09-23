@@ -1,5 +1,8 @@
 Description: Discover the Peios multiarch GCC installation and standard headers
-Origin: Peios packaging; native signed GCC 16 root driver regression
+ Peios installs GCC beneath /usr/lib/x86_64-linux-peios, where the Clang
+ driver does not look, so Clang would not find GCC's runtime or libstdc++.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
 Forwarded: not-needed
 
 --- a/clang/lib/Driver/ToolChains/Gnu.cpp

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Install command manuals from the staged glibc's own help, plus Peios notes.
 
 The descriptions and integration notes are maintained here; option references

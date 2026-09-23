@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Exercise each declared SDK split without borrowing files from sibling splits."""
 from pathlib import Path
 import errno
@@ -53,7 +53,9 @@ def mapped_files(name):
 results = []
 for family in ('llvm', 'clang', 'lld'):
     selected = closure('org.llvm.' + family + '-devel')
-    assert 'org.llvm.llvm-static' not in selected
+    # Each -devel's CMake exports list every archive, so -static is in every
+    # SDK closure and is the only package that ships archives.
+    assert 'org.llvm.llvm-static' in selected
     work = output / family
     work.mkdir()
     root = work / 'root'
@@ -64,6 +66,8 @@ for family in ('llvm', 'clang', 'lld'):
             if key in owners:
                 raise ValueError('Cross-package file collision: ' + key)
             owners[key] = name
+            if key.endswith('.a') and name != 'org.llvm.llvm-static':
+                raise ValueError('Static archive outside org.llvm.llvm-static: ' + key)
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             if source.is_symlink():

@@ -1,8 +1,8 @@
 # e2fsprogs-devel — headers, the dev .so symlinks, and pkg-config files for
 # building against libcom_err/libss/libext2fs/libe2p/libuuid, the com_err and
-# ss code generators (compile_et, mk_cmds) with their awk/sed programs, and
-# the libext2fs programming manual. Excludes the blkid header/.pc/.so — those
-# are org.kernel.libblkid-devel's.
+# ss code generators (compile_et, mk_cmds) with their awk/sed programs.
+# Excludes the blkid header/.pc/.so — those are org.kernel.libblkid-devel's.
+# The libext2fs Info manual is not built: Peios ships no Info documents.
 
 # The generators' manuals ship here (PSPU §5.24, as in the main package).
 side_effects = ["man-db"]
@@ -51,5 +51,3 @@ description = "Ext2/3/4 filesystem utilities - development files"
 ":usr/share/man/man1/mk_cmds.1.gz"     = "usr/share/man/man1/mk_cmds.1.gz"
 ":usr/share/et/**"                     = "usr/share/et"
 ":usr/share/ss/**"                     = "usr/share/ss"
-# The libext2fs programming manual.
-":usr/share/info/libext2fs.info*"      = "usr/share/info"

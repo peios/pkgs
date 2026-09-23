@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/bin/python3
 """Compile, link and execute with the staged drivers and ordinary system SDK.
 
 No include/library search overrides are permitted. LD_LIBRARY_PATH locates the

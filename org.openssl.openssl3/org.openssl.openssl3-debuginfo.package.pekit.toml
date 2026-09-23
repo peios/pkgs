@@ -1,0 +1,10 @@
+[package]
+name = "org.openssl.openssl3-debuginfo"
+description = "OpenSSL 3 compatibility debuginfo"
+
+[dependencies]
+"org.openssl.openssl3" = "= {{release}}"
+
+[files]
+"@source:LICENSE.txt" = "usr/share/licenses/org.openssl.openssl3-debuginfo/"
+":usr/lib/debug/**" = "usr/lib/debug"

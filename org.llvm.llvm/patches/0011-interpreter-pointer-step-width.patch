@@ -1,5 +1,8 @@
 Description: Widen internal prefix and postfix pointer steps for array bounds
-Origin: vendor, adapted from https://github.com/llvm/llvm-project/commit/7f0bbbb19b4f13c2efb400db300817aa7ed589cc
+ Peios keeps Clang 18 as its frozen kernel-toolchain compiler, so it carries
+ this upstream fix to the constant interpreter's pointer arithmetic.
+Author: Peios maintainers <packaging@peios.org>
+Origin: backport, https://github.com/llvm/llvm-project/commit/7f0bbbb19b4f13c2efb400db300817aa7ed589cc (adapted to LLVM 18)
 
 Keep user-supplied 128-bit offset comparisons intact. Widen only internal
 prefix constants and matching offset opcodes plus the postfix helper constant.

@@ -96,10 +96,13 @@ make install DESTDIR="$PEKIT_OUT"
 
 # Drop libtool archives (hardcode paths + overlink; pkg-config/DT_NEEDED supersede).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
-# The info manual is installed but packaged by nobody (Peios ships no
-# /usr/share/info; see texinfo/flex). Remove it rather than leave it orphaned
-# in the staging tree.
+# Peios ships no /usr/share/info. The GMP manual is the library's only
+# complete reference, so build it from the release's Texinfo source as HTML
+# for org.gnu.gmp-doc instead.
 rm -rf "$PEKIT_OUT/usr/share/info"
+mkdir -p "$PEKIT_OUT/usr/share/doc/org.gnu.gmp"
+texi2any --html --output="$PEKIT_OUT/usr/share/doc/org.gnu.gmp/html" \
+  "$SRC/doc/gmp.texi"
 
 # Produce build-ID-indexed debug files and the exact DWARF-referenced source;
 # static archives keep their code and drop their debug sections. The libtool
@@ -112,6 +115,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gmp "$PEKIT_OUT/usr"
 # post-install debug split uses debugedit and binutils. No external library
 # deps (gmp is a leaf).
 # bison: `make` descends into demos/calc, whose ylwrap wants a yacc.
+# texinfo: texi2any renders the HTML manual for org.gnu.gmp-doc.
 [build.main.dependencies.peipkg]
 "org.gnu.autoconf" = "*"
 "org.gnu.automake" = "*"
@@ -120,6 +124,7 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.gmp "$PEKIT_OUT/usr"
 "com.darwinsys.file" = "*"
 "org.gnu.m4" = "*"
 "org.gnu.bison" = "*"
+"org.gnu.texinfo" = "*"
 
 [build.main.dependencies.apt]
 autoconf = "*"
@@ -130,6 +135,7 @@ file = "*"
 m4 = "*"
 bison = "*"
 debugedit = "*"
+texinfo = "*"
 
 [test]
 needs = ["main"]
@@ -156,6 +162,9 @@ test -L "$LIBDIR/libgmpxx.so"
 test -L "$LIBDIR/libgmpxx.so.4"
 test -f "$LIBDIR/pkgconfig/gmp.pc"
 test -f "$LIBDIR/pkgconfig/gmpxx.pc"
+test -s "$STAGE/usr/share/doc/org.gnu.gmp/html/index.html"
+grep -F 'GNU MP' "$STAGE/usr/share/doc/org.gnu.gmp/html/index.html"
+test ! -e "$STAGE/usr/share/info"
 readelf -d "$GMP_SO" | grep -Eq 'SONAME.*[[]libgmp[.]so[.]10[]]'
 readelf -d "$GMPXX_SO" | grep -Eq 'SONAME.*[[]libgmpxx[.]so[.]4[]]'
 

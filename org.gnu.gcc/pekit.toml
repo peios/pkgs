@@ -338,10 +338,10 @@ if ls "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py >/dev/null 2>&1; then
   mv "$PEKIT_OUT$LIBDIR"/libstdc++.so.*-gdb.py "$PEKIT_OUT/usr/share/gdb/auto-load$LIBDIR/"
 fi
 
-# Info's generated `dir` index is host-global mutable state, not package
-# payload. Claim only the versioned/compressed manuals and fail if install
-# layout ever changes so the doc split cannot silently become empty.
-rm -f "$PEKIT_OUT/usr/share/info/dir"
+# Peios ships no Info documents, and GCC's command-line tools are documented
+# by their man pages. `make install` still installs the Info manuals (and the
+# host-global `dir` index); remove them all.
+rm -rf "$PEKIT_OUT/usr/share/info"
 
 
 # GCC records five generated/pre-generated inputs as build/gcc basenames even
@@ -464,8 +464,10 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 "com.darwinsys.file" = "*"
 # gcc's bootstrap copies fixed headers between stages via tar.
 "org.gnu.tar" = "*"
-# Builds the shipped Info manuals. DejaGNU/Expect are not yet packaged for
-# Peios; the recipe records that native exception at the regression gate.
+# makeinfo for upstream's documentation build. Its Info output is removed
+# after install; dropping texinfo from the build has not been qualified.
+# DejaGNU/Expect are not yet packaged for Peios; the recipe records that
+# native exception at the regression gate.
 "org.gnu.texinfo" = "*"
 "org.gnu.gzip" = "*"
 
@@ -639,8 +641,7 @@ else
   echo "gcc: DejaGNU unavailable in the native Peios build root (PEI-1164); Debian regression results are authoritative" >&2
 fi
 
-test -n "$(find "$PEKIT_OUT/usr/share/info" -maxdepth 1 -type f -name '*.info*' -print -quit)"
-test ! -e "$PEKIT_OUT/usr/share/info/dir"
+test ! -e "$PEKIT_OUT/usr/share/info"
 
 # Release gate against the freshly installed compiler. GCC's bootstrap
 # comparison proves stage 2 and stage 3 are a fixed point; these tests cover
@@ -1018,10 +1019,6 @@ find usr \( -type f -o -type l \) | LC_ALL=C sort | while IFS= read -r path; do
   esac
 
   case "$path" in
-    usr/share/info/*.info*)
-      rest=${path#usr/share/info/}
-      case "$rest" in */*) ;; *) add_owner org.gnu.gcc-doc;; esac
-      ;;
     usr/lib/$TRIPLET/libatomic.so.1*) add_lib_owner org.gnu.gcc-libatomic;;
     usr/lib/$TRIPLET/libatomic.so|usr/lib/$TRIPLET/libatomic_asneeded.so) add_lib_owner org.gnu.gcc-libatomic-devel;;
     usr/lib/$TRIPLET/libatomic.a|usr/lib/$TRIPLET/libatomic_asneeded.a) add_lib_owner org.gnu.gcc-libatomic-static;;

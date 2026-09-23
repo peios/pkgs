@@ -5,11 +5,11 @@ description = "LLD development headers and CMake metadata"
 [dependencies]
 "org.llvm.lld" = "= {{release}}"
 "org.llvm.llvm-devel" = "= {{release}}"
+# LLD's libraries are static only; the exported CMake targets name every
+# liblld*.a archive.
+"org.llvm.llvm-static" = "= {{release}}"
 
 [files]
 "@source:lld/LICENSE.TXT" = "usr/share/licenses/org.llvm.lld-devel/LICENSE.TXT"
 ":usr/include/lld/**" = "usr/include/lld"
 ":usr/lib/x86_64-linux-peios/cmake/lld/**" = "usr/lib/x86_64-linux-peios/cmake/lld"
-
-# Upstream exported CMake targets require their static archive locations.
-":usr/lib/x86_64-linux-peios/liblld*.a" = "usr/lib/x86_64-linux-peios"

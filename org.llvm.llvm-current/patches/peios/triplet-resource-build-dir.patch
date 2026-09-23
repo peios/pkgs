@@ -1,4 +1,5 @@
-From: Peios Package Maintainers <packages@peios.dev>
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: no
 Subject: [PATCH] clang: anchor build-tree resources at LLVM_BINARY_DIR
 
 Peios uses /x86_64-linux-peios as LLVM_LIBDIR_SUFFIX.  The resource-header

@@ -116,6 +116,9 @@ cd "$PEKIT_OUT"
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 make install-libs DESTDIR="$PEKIT_OUT"
+# Peios ships no Info documents. Without makeinfo the build skips
+# libext2fs.info, but install-doc-libs still creates the empty directory.
+rm -rf "$PEKIT_OUT/usr/share/info"
 
 # Drop libtool archives (hardcoded paths + overlink; DT_NEEDED supersedes).
 find "$PEKIT_OUT/usr" -name '*.la' -delete
@@ -178,8 +181,6 @@ done
 # every build assumes, and the debug-split tools (debugedit; strip/objcopy/
 # readelf come with binutils) the command below invokes.
 "dev.peios.build-essentials-c" = "*"
-# makeinfo, for doc/libext2fs.info (claimed as usr/share/info/**).
-"org.gnu.texinfo" = "*"
 "org.pkgconf.pkgconf" = "*"
 # The Peios patches call peios_sddl_parse_sd() / peios_sd_reinherit(), so the
 # build needs libpeios's headers and dev symlink; -devel pulls kernel-headers
@@ -204,7 +205,6 @@ done
 "dev.peios.kernel-headers" = "*"
 build-essential = "*"
 debugedit = "*"
-texinfo = "*"
 pkgconf = "*"
 bzip2 = "*"
 gzip = "*"
@@ -227,6 +227,7 @@ output=$("$BIN/mke2fs" -V 2>&1)
 case "$output" in *"$PEKIT_VERSION"*) ;; *) exit 1;; esac
 test -x "$BIN/e2fsck"
 test -x "$BIN/debugfs"
+test ! -e "$PEKIT_MAIN_OUT/usr/share/info"
 
 # Run the upstream release suite from the explicit package gate.
 PEKIT_OUT="$PEKIT_MAIN_OUT"
@@ -297,6 +298,8 @@ rm -rf "$SMOKE"
 '''
 
 # make check rebuilds test helpers and unpacks the upstream fixture corpus.
+# Perl generates long names and values in d_xattr_sorting and
+# f_create_symlinks (it used to arrive only through texinfo).
 [test.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "dev.peios.libpeios" = "*"
@@ -304,9 +307,9 @@ rm -rf "$SMOKE"
 "org.git.kernel.dash" = "*"
 "org.gnu.gzip" = "*"
 "org.gnu.tar" = "*"
-"org.gnu.texinfo" = "*"
 "org.gnu.which" = "*"
 "org.kernel.libblkid" = "*"
+"org.perl.perl" = "*"
 "org.pkgconf.pkgconf" = "*"
 "org.sourceware.bzip2" = "*"
 
@@ -315,7 +318,7 @@ rm -rf "$SMOKE"
 "dev.peios.libpeios-devel" = "*"
 "dev.peios.kernel-headers" = "*"
 build-essential = "*"
-texinfo = "*"
+perl = "*"
 pkgconf = "*"
 bzip2 = "*"
 gzip = "*"
