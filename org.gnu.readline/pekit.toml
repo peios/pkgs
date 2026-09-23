@@ -115,6 +115,7 @@ build-essential = "*"
 gzip            = "*"
 libncurses-dev  = "*"
 debugedit       = "*"
+dwz             = "*"
 
 [test]
 needs = ["main"]
