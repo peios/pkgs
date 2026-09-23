@@ -1,0 +1,22 @@
+# The runtest harness and its Tcl library, board and target configuration,
+# and the dejagnu(1) auxiliary commands.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.gnu.dejagnu"
+description = "Framework for testing programs, used by the GNU toolchain"
+
+[dependencies]
+"org.tcl-lang.expect" = ">= 5.45.4"
+"org.git.kernel.dash" = "*"
+"org.gnu.gawk"        = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.dejagnu/"
+"@source:README"  = "usr/share/doc/org.gnu.dejagnu/"
+"@source:NEWS"    = "usr/share/doc/org.gnu.dejagnu/"
+":usr/bin/runtest"   = "usr/bin/runtest"
+":usr/bin/dejagnu"   = "usr/bin/dejagnu"
+":usr/share/dejagnu/**" = "usr/share/dejagnu"
+":usr/share/man/man1/**" = "usr/share/man/man1"

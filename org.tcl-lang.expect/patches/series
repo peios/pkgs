@@ -1,0 +1,14 @@
+# Fedora's maintained Expect 5.45.4 fixes, in Fedora's apply order. The Tcl 9
+# porting patches are not carried: Peios builds Expect against Tcl 8.6.
+fedora/expect-5.43.0-log_file.patch
+fedora/expect-5.45-man-page.patch
+fedora/expect-5.45-match-gt-numchars-segfault.patch
+fedora/expect-5.45-re-memleak.patch
+fedora/expect-5.45-exp-log-buf-overflow.patch
+fedora/expect-5.45-segfault-with-stubs.patch
+fedora/expect-5.45-fd-leak.patch
+fedora/expect-5.45.4-covscan-fixes.patch
+fedora/expect-5.45-format-security.patch
+fedora/expect-configure-c99.patch
+fedora/expect-c99.patch
+fedora/expect-5.45.4-exit-sighandler.patch

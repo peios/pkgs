@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "DejaGnu 1.6.3's only signatures (release .sig and signed Git tag) are OpenPGP v3 SHA-1 signatures, which Pekit's verifier rejects by policy; the archive was verified out of band with GnuPG against the maintainer's GNU-keyring key recorded in keys/, and Pekit's immutable SHA-256 lock pins those bytes"

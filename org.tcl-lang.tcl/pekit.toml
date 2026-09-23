@@ -1,0 +1,234 @@
+# Tcl — the Tool Command Language. Peios packages it as the interpreter under
+# Expect and DejaGnu, the harness the GNU toolchain's test suites run on.
+#
+# The 8.6 line, not Tcl 9: Expect 5.45.4 (its latest release) does not build
+# against Tcl 9 without a large porting series, and the gcc and GDB
+# testsuites are exercised upstream on 8.6. 8.6.18 is announced as the final
+# 8.6 release; Debian still ships 8.6 as its default Tcl.
+#
+# tcl-core, not the full source archive: the bundled extension packages
+# (Itcl, SQLite, TDBC drivers, Thread) are not needed and are left out.
+
+out_dir = "out"
+
+# The release tree also carries the bundled zlib (unused: the system zlib is
+# linked) and the Autoconf build machinery.
+[source_package]
+license = "Zlib AND FSFUL AND FSFULLR"
+
+[source.url]
+url         = "https://downloads.sourceforge.net/project/tcl/Tcl/{{version}}/tcl-core{{version}}-src.tar.gz"
+listing_url = "https://sourceforge.net/projects/tcl/files/Tcl/"
+extract     = true
+root        = "tcl{{version}}"
+file_regex  = 'Tcl/(?P<version>8\.6\.[0-9]+)/'
+# The 8.6 line only: Tcl 9 changes the C API Expect is written against (see
+# above), so a major move waits for a coordinated Tcl/Expect/DejaGnu update.
+versions    = ">= 8.6.18, < 9"
+
+# The official file area publishes release archives but no detached
+# signatures, and the announcement carries no checksums. This is an explicit
+# authentication exception (see lint.pekit.toml): HTTPS authenticates
+# transport and Pekit's immutable SHA-256 lock detects changed bytes.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcl-lang.tcl"
+PREFIX="$PEKIT_OUT/usr"
+LIBDIR=/usr/lib/x86_64-linux-peios
+cd "$PEKIT_OUT"
+
+# Threads and 64-bit are Tcl 8.6's supported Linux configuration. The script
+# library is architecture-independent, so it lives under /usr/share, as
+# Fedora installs it; the system zlib is used rather than the bundled copy.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+"$SRC/unix/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir="$LIBDIR" \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --enable-threads \
+  --enable-64bit \
+  --enable-shared \
+  --enable-man-symlinks \
+  --disable-rpath \
+  --with-tzdata=no
+# The system zlib, not the bundled copy.
+grep -q 'HAVE_ZLIB=1' Makefile
+
+# Upstream links libtcl8.6.so without a DT_SONAME; give it its own name, as
+# every distribution does, so consumers record the right dependency.
+make -j"$(nproc)" TCL_LIBRARY=/usr/share/tcl8.6 \
+  SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS} -shared -Wl,-soname,${@}'
+make install install-libraries install-msgs INSTALL_ROOT="$PEKIT_OUT" \
+  TCL_LIBRARY=/usr/share/tcl8.6
+
+ln -s tclsh8.6 "$PREFIX/bin/tclsh"
+ln -s tclsh.1 "$PREFIX/share/man/man1/tclsh8.6.1"
+ln -s libtcl8.6.so "$PEKIT_OUT$LIBDIR/libtcl.so"
+
+# Private headers for extensions that reach into Tcl's internals (Expect),
+# in Fedora's layout; public headers there are links to the installed ones.
+mkdir -p "$PREFIX/include/tcl-private/generic" "$PREFIX/include/tcl-private/unix"
+cp -p "$SRC"/generic/*.h "$PREFIX/include/tcl-private/generic/"
+cp -p "$SRC"/unix/*.h "$PREFIX/include/tcl-private/unix/"
+for header in "$PREFIX"/include/*.h; do
+  name=${header##*/}
+  if [ -f "$PREFIX/include/tcl-private/generic/$name" ]; then
+    ln -sf "../../$name" "$PREFIX/include/tcl-private/generic/$name"
+  fi
+done
+
+# tclConfig.sh records the build tree; point it at the installed layout, with
+# the private headers standing in for the source tree.
+# The recorded compiler flags drop the build-root source-path mapping.
+sed -i -e 's| -fmacro-prefix-map=[^ '"'"']*||g' \
+  -e "s|$PEKIT_OUT|$LIBDIR|g" -e "s|$SRC|/usr/include/tcl-private|g" \
+  "$PEKIT_OUT$LIBDIR/tclConfig.sh"
+if grep -F -e "$ROOT" "$PEKIT_OUT$LIBDIR/tclConfig.sh" "$PEKIT_OUT$LIBDIR/tclooConfig.sh" \
+    "$PEKIT_OUT$LIBDIR/pkgconfig/tcl.pc"; then
+  exit 1
+fi
+
+# Deterministic manuals, including relative alias links.
+find "$PREFIX/share/man" -type f -name '*.[1-9n]' -exec gzip -9n {} +
+find "$PREFIX/share/man" -type l -name '*.[1-9n]' | while IFS= read -r page; do
+  target=$(readlink "$page")
+  rm "$page"
+  ln -s "$target.gz" "$page.gz"
+done
+
+# Upstream installs the libraries read-only (0555); the split rewrites them.
+chmod 0755 "$PEKIT_OUT$LIBDIR/libtcl8.6.so"
+chmod 0644 "$PEKIT_OUT$LIBDIR/libtclstub8.6.a"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.tcl-lang.tcl \
+  "$PREFIX/bin/tclsh8.6" "$PEKIT_OUT$LIBDIR/libtcl8.6.so" \
+  "$PEKIT_OUT$LIBDIR/libtclstub8.6.a"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c"           = "*"
+"org.gnu.gzip"                           = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+TCLSH="$PREFIX/bin/tclsh8.6"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# Upstream suite (44k cases), against the build tree; the clock tests read the
+# system zoneinfo, as the shipped interpreter does. tcltest is run directly
+# rather than through `make test`, which word-splits its arguments.
+#
+# Environmental exclusions, all from the build sandbox rather than Tcl:
+#  - the sandbox's network namespace has no usable loopback, so every test
+#    that listens on 127.0.0.1/localhost fails (and the http*.test files then
+#    hang): http*.test, unixInit-1.2, zlib-8.3, zlib-9.*, zlib-10.*;
+#  - the sandbox user is in no account database, so ~user expansion cannot
+#    resolve: filesystem-1.30.3, safe-16.*.
+# socket.test detects the missing loopback itself and skips.
+make -C "$STAGE" tcltest > "$SMOKE/tcltest-build.log" 2>&1
+TOP_DIR=$(sed -n 's|^TOP_DIR[[:space:]]*=[[:space:]]*||p' "$STAGE/Makefile")
+( cd "$STAGE" && LD_LIBRARY_PATH="$STAGE" TCLLIBPATH="$STAGE/pkgs" \
+    TCL_LIBRARY="$TOP_DIR/library" ./tcltest "$TOP_DIR/tests/all.tcl" \
+    -notfile 'http*.test' \
+    -skip 'filesystem-1.30.3 safe-16.* unixInit-1.2 zlib-8.3 zlib-9.* zlib-10.*' \
+  ) > "$SMOKE/suite.log" 2>&1 || true
+tail -40 "$SMOKE/suite.log"
+grep -E '^all\.tcl:[[:space:]]+Total[[:space:]]+[0-9]+[[:space:]]+Passed[[:space:]]+[0-9]+[[:space:]]+Skipped[[:space:]]+[0-9]+[[:space:]]+Failed[[:space:]]+0$' \
+  "$SMOKE/suite.log"
+
+export LD_LIBRARY_PATH="$LIBDIR"
+export TCL_LIBRARY="$PREFIX/share/tcl8.6"
+
+# Installed interpreter: version, script library, bundled modules, zlib,
+# threads, and the package path extensions install into.
+printf '%s\n' \
+  'puts [info patchlevel]' \
+  'puts [tcl::pkgconfig get threaded]' \
+  'package require msgcat; package require http; package require tcltest' \
+  'puts [string length [zlib compress [string repeat a 1000]]]' \
+  'puts [lsort [info commands ::oo::*]]' \
+  'puts $tcl_pkgPath' > "$SMOKE/probe.tcl"
+"$TCLSH" "$SMOKE/probe.tcl" > "$SMOKE/probe.out"
+cat "$SMOKE/probe.out"
+test "$(sed -n 1p "$SMOKE/probe.out")" = "$PEKIT_VERSION"
+test "$(sed -n 2p "$SMOKE/probe.out")" = 1
+test "$(sed -n 3p "$SMOKE/probe.out")" -lt 100
+grep -F '/usr/lib/x86_64-linux-peios' "$SMOKE/probe.out"
+test "$(readlink "$PREFIX/bin/tclsh")" = tclsh8.6
+
+# An extension built against the stubs library and loaded at run time, as
+# Expect is.
+cat > "$SMOKE/ext.c" <<'EOF'
+#include <tcl.h>
+static int Hello(ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{ (void)cd; (void)objc; (void)objv; Tcl_SetObjResult(interp, Tcl_NewStringObj("hello", -1)); return TCL_OK; }
+int Ext_Init(Tcl_Interp *interp)
+{
+  if (Tcl_InitStubs(interp, "8.6", 0) == NULL) return TCL_ERROR;
+  Tcl_CreateObjCommand(interp, "hello", Hello, NULL, NULL);
+  return Tcl_PkgProvide(interp, "Ext", "1.0");
+}
+EOF
+# tcl.pc requires zlib's module, which comes from the root.
+export PKG_CONFIG_LIBDIR="$LIBDIR/pkgconfig:/usr/lib/x86_64-linux-peios/pkgconfig"
+pkgconf --validate tcl
+test "$(pkgconf --modversion tcl)" = "$PEKIT_VERSION"
+cc -shared -fPIC -DUSE_TCL_STUBS -I"$PREFIX/include" "$SMOKE/ext.c" \
+  "$LIBDIR/libtclstub8.6.a" -o "$SMOKE/libext.so"
+printf '%s\n' "load $SMOKE/libext.so Ext" 'puts [hello]' | "$TCLSH" > "$SMOKE/ext.out"
+test "$(cat "$SMOKE/ext.out")" = hello
+test -f "$PREFIX/include/tcl-private/generic/tclInt.h"
+test -L "$PREFIX/include/tcl-private/generic/tcl.h"
+test -f "$PREFIX/include/tcl-private/unix/tclUnixPort.h"
+grep -F "TCL_SRC_DIR='/usr/include/tcl-private'" "$LIBDIR/tclConfig.sh"
+if grep -F "$STAGE" "$LIBDIR/tclConfig.sh" "$LIBDIR/pkgconfig/tcl.pc"; then exit 1; fi
+
+# Library metadata and hardening.
+readelf -d "$LIBDIR/libtcl8.6.so" | grep -F 'Library soname: [libtcl8.6.so]'
+needed() {
+  readelf -d "$1" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | LC_ALL=C sort | tr '\n' ' '
+}
+test "$(needed "$LIBDIR/libtcl8.6.so")" = 'libc.so.6 libm.so.6 libz.so.1 '
+test "$(needed "$TCLSH")" = 'libc.so.6 libtcl8.6.so '
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/org.tcl-lang.tcl" -type f -name 'tclBasic.c' -print -quit)"
+for elf in "$TCLSH" "$LIBDIR/libtcl8.6.so"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+test -f "$PREFIX/share/man/man1/tclsh.1.gz"
+test -f "$PREFIX/share/man/mann/string.n.gz"
+test -f "$PREFIX/share/man/man3/Tcl_Eval.3.gz" || test -L "$PREFIX/share/man/man3/Tcl_Eval.3.gz"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c"           = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.iana.tzdata"                        = "*"
+"org.pkgconf.pkgconf"                    = "*"
+"org.gnu.binutils"                       = "*"
+"org.gnu.findutils"                      = "*"
+"org.gnu.grep"                           = "*"
+"org.gnu.sed"                            = "*"

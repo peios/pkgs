@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "1.6.3"
+  url = "https://ftp.gnu.org/gnu/dejagnu/dejagnu-1.6.3.tar.gz"
+  sha256 = "87daefacd7958b4a69f88c6856dbd1634261963c414079d0c371f589cd66a2e3"
+  locked_at = "2026-09-23T20:36:47Z"

@@ -1,0 +1,126 @@
+# DejaGnu — the test harness (runtest) the GNU toolchain's suites run under:
+# binutils, GCC, GDB and dwz among them. Tcl scripts on Expect; no compiled
+# payload, so the package is architecture-independent.
+
+out_dir = "out"
+
+# The release tree also carries the Texinfo manual and the Automake build
+# machinery.
+[source_package]
+license = "GFDL-1.3-or-later AND FSFUL AND FSFULLR AND X11 AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND LicenseRef-Public-Domain"
+
+[source.url]
+url         = "https://ftp.gnu.org/gnu/dejagnu/dejagnu-{{version}}.tar.gz"
+listing_url = "https://ftp.gnu.org/gnu/dejagnu/"
+extract     = true
+root        = "dejagnu-{{version}}"
+file_regex  = 'dejagnu-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
+# Soft maintenance floor. Follow every newer authenticated release; harness
+# changes stop at DejaGnu's own suite and at its consumers' gates.
+versions    = ">= 1.6.3"
+
+# 1.6.3's detached signature (and its signed Git tag) are OpenPGP v3
+# signatures over SHA-1, from a key whose self-signatures are SHA-1 too;
+# Pekit's OpenPGP verifier rejects SHA-1 by policy, so it cannot check them.
+# This is an explicit authentication exception (see lint.pekit.toml). The
+# locked archive was verified out of band with GnuPG against Jacob Bachmeyer's
+# 2021 release key from the GNU keyring (D231B45ECB0B7BD8F6E7A682CE9D6843AABACC90,
+# kept in keys/ as the record), and the lock pins those exact bytes.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+PREFIX="$PEKIT_OUT/usr"
+cd "$PEKIT_OUT"
+
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/share/man \
+  --disable-silent-rules
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+
+# Peios ships no Info reader; the corresponding-source package keeps the
+# Texinfo manual.
+rm -rf "$PREFIX/share/info"
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
+for script in runtest dejagnu; do
+  test "$(sed -n 1p "$PREFIX/bin/$script")" = '#!/bin/sh'
+done
+# The dejagnu(1) launcher runs its auxiliary commands through their
+# interpreter; upstream installs the shell one without its execute bit.
+chmod 0755 "$PREFIX/share/dejagnu/commands/help.sh"
+# Nothing compiled is installed.
+if find "$PREFIX" -type f -exec sh -c 'head -c 4 "$1" | grep -q ELF' _ {} \; -print | grep .; then
+  exit 1
+fi
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.gnu.gzip"                   = "*"
+"org.tcl-lang.expect"            = ">= 5.45.4"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# DejaGnu's own suite (the runtest and library tests plus the C/C++ unit
+# harness), run by the in-tree runtest.
+make -C "$STAGE" check > "$SMOKE/suite.log" 2>&1 || { cat "$SMOKE/suite.log"; exit 1; }
+grep -E '# of (expected passes|unexpected|unresolved|untested|unsupported)' "$SMOKE/suite.log"
+if grep -E '^# of (unexpected failures|unexpected successes|unresolved testcases)' "$SMOKE/suite.log"; then
+  exit 1
+fi
+
+# The installed harness runs a tool's .exp suite and reports it.
+RUNTEST="$PREFIX/bin/runtest"
+export DEJAGNULIBS="$PREFIX/share/dejagnu"
+mkdir -p "$SMOKE/proj/testsuite/smoke.t" "$SMOKE/proj/testsuite/config"
+cat > "$SMOKE/proj/testsuite/config/unix.exp" <<'EOF'
+proc smoke_version {} {}
+EOF
+cat > "$SMOKE/proj/testsuite/smoke.t/basic.exp" <<'EOF'
+spawn sh -c {echo ready; read x; echo got-$x}
+expect "ready" { pass "spawned" } timeout { fail "spawned" }
+send "42\r"
+expect "got-42" { pass "round trip" } timeout { fail "round trip" }
+if {[string equal [info procs pass] pass]} { pass "library loaded" }
+EOF
+( cd "$SMOKE/proj/testsuite" && "$RUNTEST" --tool smoke --srcdir . > "$SMOKE/runtest.out" 2>&1 )
+cat "$SMOKE/runtest.out"
+grep -E '^# of expected passes[[:space:]]+3$' "$SMOKE/runtest.out"
+if grep -E '^# of unexpected' "$SMOKE/runtest.out"; then exit 1; fi
+"$RUNTEST" --version | grep -F "DejaGnu version	$PEKIT_VERSION"
+
+# The C unit-test API (org.gnu.dejagnu-devel) compiles against the installed
+# header.
+cat > "$SMOKE/unit.c" <<'EOF'
+#include <dejagnu.h>
+int main(void) { pass("one"); note("with a note"); totals(); return 0; }
+EOF
+cc -I"$PREFIX/include" "$SMOKE/unit.c" -o "$SMOKE/unit"
+"$SMOKE/unit" | grep -F 'PASSED: one'
+test -f "$PREFIX/share/man/man1/runtest.1.gz"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c++" = "*"
+"org.tcl-lang.expect"            = ">= 5.45.4"
+"org.gnu.gawk"                   = "*"
+"org.gnu.grep"                   = "*"
+"org.gnu.sed"                    = "*"
+"org.gnu.findutils"              = "*"

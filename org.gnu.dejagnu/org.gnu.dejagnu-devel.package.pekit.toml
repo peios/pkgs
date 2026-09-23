@@ -1,0 +1,13 @@
+# dejagnu.h, the header-only C/C++ API for unit-test programs whose output
+# runtest reads.
+
+[package]
+name        = "org.gnu.dejagnu-devel"
+description = "DejaGnu C and C++ unit-test API header"
+
+[dependencies]
+"org.gnu.dejagnu" = "= {{release}}"
+
+[files]
+"@source:COPYING"        = "usr/share/licenses/org.gnu.dejagnu-devel/"
+":usr/include/dejagnu.h" = "usr/include/dejagnu.h"

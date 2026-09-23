@@ -1,0 +1,18 @@
+Description: Create log files 0666 (subject to umask), not 0777
+ log_file made executable log files.
+Origin: vendor, https://src.fedoraproject.org/rpms/expect/blob/rawhide/f/expect-5.43.0-log_file.patch
+Forwarded: not-needed
+Last-Update: 2026-09-23
+
+diff -up expect5.45.4/exp_log.c.orig expect5.45.4/exp_log.c
+--- expect5.45.4/exp_log.c.orig	2018-02-02 20:15:52.000000000 +0100
++++ expect5.45.4/exp_log.c	2018-06-27 10:46:53.065655463 +0200
+@@ -499,7 +499,7 @@ expLogChannelOpen(interp,filename,append
+ 	Tcl_DStringAppend(&tsdPtr->logFilename,filename,-1);
+     }
+ 
+-    tsdPtr->logChannel = Tcl_OpenFileChannel(interp,newfilename,mode,0777);
++    tsdPtr->logChannel = Tcl_OpenFileChannel(interp,newfilename,mode,0666);
+     if (!tsdPtr->logChannel) {
+ 	Tcl_DStringFree(&tsdPtr->logFilename);
+ 	return TCL_ERROR;

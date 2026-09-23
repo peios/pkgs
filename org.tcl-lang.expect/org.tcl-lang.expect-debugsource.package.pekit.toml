@@ -1,0 +1,10 @@
+[package]
+name        = "org.tcl-lang.expect-debugsource"
+description = "Expect debug sources"
+
+[dependencies]
+"org.tcl-lang.expect-debuginfo" = "= {{release}}"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.expect-debugsource/"
+":usr/src/debug/**"     = "usr/src/debug"

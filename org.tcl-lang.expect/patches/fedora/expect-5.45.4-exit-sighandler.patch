@@ -1,0 +1,75 @@
+Description: Do not tear down Tcl's event loop from inside a signal-trap exit
+ exit from a trap handler (Ctrl-C's default exit 130) ran Tcl_Exit while the
+ event loop was still on the stack and crashed.
+Origin: vendor, https://src.fedoraproject.org/rpms/expect/blob/rawhide/f/expect-5.45.4-exit-sighandler.patch
+Forwarded: not-needed
+Comment: Rebased by Peios onto the 8.6 prototypes (Fedora applies it after its Tcl 9 _ANSI_ARGS_ removal).
+Last-Update: 2026-09-23
+
+diff --git a/exp_command.c b/exp_command.c
+index c055ffd..a0e6906 100644
+--- a/exp_command.c
++++ b/exp_command.c
+@@ -2513,6 +2513,30 @@ Exp_ExitObjCmd(
+ 	}
+     }
+ 
++    /*
++     * When exit is called from a signal trap handler (e.g., the default
++     * SIGINT handler runs "exit 130" on Ctrl-C), we may be deep inside
++     * Tcl's event loop via Tcl_AsyncInvoke.  Calling Tcl_Exit in that
++     * context crashes because FinalizeThread tears down the event system
++     * (epoll file descriptors, channel handlers) while it is still in use
++     * on the call stack.  Restore the terminal and exit immediately.
++     */
++    if (exp_in_signal_handler()) {
++	if (exp_onexit_action) {
++	    Tcl_GlobalEval(interp, exp_onexit_action);
++	}
++
++	if (!exp_disconnected
++	    && !exp_forked
++	    && (exp_dev_tty != -1)
++	    && isatty(exp_dev_tty)) {
++	    if (exp_ioctled_devtty) {
++		exp_tty_set(interp, &exp_tty_original, exp_dev_tty, 0);
++	    }
++	}
++	_exit(value);
++    }
++
+     /*
+      * Restore previous definition of close.  Needed when expect is
+      * dynamically loaded after close has been redefined
+diff --git a/exp_command.h b/exp_command.h
+index d30d911..49fb7d6 100644
+--- a/exp_command.h
++++ b/exp_command.h
+@@ -252,6 +252,7 @@ EXTERN int		exp_2tcl_returnvalue _ANSI_ARGS_((int));
+ EXTERN void		exp_rearm_sigchld _ANSI_ARGS_((Tcl_Interp *));
+ EXTERN int		exp_string_to_signal _ANSI_ARGS_((Tcl_Interp *,char *));
+ 
++EXTERN int		exp_in_signal_handler _ANSI_ARGS_((void));
+ EXTERN char *exp_onexit_action;
+ 
+ #define exp_new(x)	(x *)malloc(sizeof(x))
+diff --git a/exp_trap.c b/exp_trap.c
+index 390e0e3..0ea8010 100644
+--- a/exp_trap.c
++++ b/exp_trap.c
+@@ -77,6 +77,15 @@ static int current_sig = NO_SIG;
+ int exp_nostack_dump = FALSE;	/* TRUE if user has requested unrolling of */
+ 				/* stack with no trace */
+ 
++/* Return whether we are currently inside a signal trap handler.
++ * This is used by Exp_ExitObjCmd to avoid calling Tcl_Exit from within
++ * event processing (via Tcl_AsyncInvoke), which would crash because
++ * Tcl_Exit tears down the event system while it is still in use. */
++int
++exp_in_signal_handler(void)
++{
++	return current_sig != NO_SIG;
++}
+ 
+ 
+ /*ARGSUSED*/

@@ -1,0 +1,13 @@
+# Shared metadata for the Tcl package family. Each package is defined in its
+# own *.package.pekit.toml; this file is only the base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# Tcl is under the Tcl/Tk licence; the bundled libtommath compiled into
+# libtcl is public domain under the Unlicense.
+license       = "TCL AND Unlicense"
+license_class = "free"
+homepage      = "https://www.tcl-lang.org/"

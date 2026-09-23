@@ -1,0 +1,180 @@
+# Expect — scripted control of interactive programs through a pseudo-terminal,
+# as a Tcl extension and the `expect` interpreter. DejaGnu, the GNU toolchain's
+# test harness, runs on it.
+#
+# 5.45.4 (2018) is upstream's latest release. Fedora maintains the fixes it
+# needs for modern compilers and several crash, leak and overflow bugs; those
+# are carried in patches/ (the Tcl 9 porting series is not: Peios builds
+# Expect against Tcl 8.6). The example scripts upstream installs into /usr/bin
+# (autoexpect, kibitz, mkpasswd, unbuffer, …) are not shipped.
+
+out_dir = "out"
+
+# The release tree also carries the Autoconf/TEA build machinery.
+[source_package]
+license = "FSFUL AND FSFULLR AND (GPL-2.0-or-later WITH Autoconf-exception-generic)"
+
+[source]
+patches = "patches"
+
+[source.url]
+url         = "https://downloads.sourceforge.net/project/expect/Expect/{{version}}/expect{{version}}.tar.gz"
+listing_url = "https://sourceforge.net/projects/expect/files/Expect/"
+extract     = true
+root        = "expect{{version}}"
+file_regex  = 'Expect/(?P<version>5\.[0-9]+\.[0-9]+)/'
+# Soft maintenance floor. A future release stops at the patch series (which
+# must be rebased or dropped) and at the upstream suite.
+versions    = ">= 5.45.4"
+
+# The official file area publishes only an unsigned .SHA256 beside each
+# archive, on the same host. This is an explicit authentication exception
+# (see lint.pekit.toml): HTTPS authenticates transport and Pekit's immutable
+# SHA-256 lock detects changed bytes.
+
+[build.main]
+command = '''
+set -eu
+SRC="$(pwd)"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+# Expect is K&R-era C: empty-parenthesis prototypes and old-style signal
+# handler types. GCC 15+ defaults to C23, where `int f()` means no
+# parameters, so compile it as the gnu17 it was written against.
+export CFLAGS="${CFLAGS:?} -std=gnu17 -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcl-lang.expect"
+LIBDIR=/usr/lib/x86_64-linux-peios
+PREFIX="$PEKIT_OUT/usr"
+# The C99 fixes patch configure.in and tclconfig/tcl.m4 (its old probes use
+# implicit int and undeclared exit, which modern GCC rejects, so every
+# termios probe fails); regenerate configure from them, as Fedora does.
+(cd "$SRC" && autoconf)
+cd "$PEKIT_OUT"
+
+# TEA reads tclConfig.sh from --with-tcl and Tcl's private headers through the
+# TCL_SRC_DIR it records (/usr/include/tcl-private). Generate IBT PLT entries.
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+"$SRC/configure" \
+  --build=x86_64-pc-linux-gnu \
+  --host=x86_64-pc-linux-gnu \
+  --prefix=/usr \
+  --exec-prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir="$LIBDIR" \
+  --includedir=/usr/include \
+  --mandir=/usr/share/man \
+  --with-tcl="$LIBDIR" \
+  --with-tclinclude=/usr/include \
+  --enable-shared \
+  --enable-threads \
+  --enable-64bit \
+  --disable-rpath
+
+# TEA links the extension without a DT_SONAME; name it, so the expect binary
+# records the right dependency.
+make -j"$(nproc)" SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS} -shared -Wl,-soname,${@}'
+make install DESTDIR="$PEKIT_OUT"
+
+# The extension library also serves the expect binary: keep one copy in the
+# library directory, where the loader finds it, and point the Tcl package index
+# at it there.
+PKGDIR="$PEKIT_OUT$LIBDIR/expect$PEKIT_VERSION"
+mv "$PKGDIR/libexpect$PEKIT_VERSION.so" "$PEKIT_OUT$LIBDIR/"
+chmod 0755 "$PEKIT_OUT$LIBDIR/libexpect$PEKIT_VERSION.so"
+ln -s "libexpect$PEKIT_VERSION.so" "$PEKIT_OUT$LIBDIR/libexpect.so"
+sed -i "s|\[file join \$dir libexpect$PEKIT_VERSION.so\]|$LIBDIR/libexpect$PEKIT_VERSION.so|" \
+  "$PKGDIR/pkgIndex.tcl"
+grep -F "load $LIBDIR/libexpect$PEKIT_VERSION.so" "$PKGDIR/pkgIndex.tcl"
+
+# Example scripts are not shipped; nor are their manuals.
+find "$PREFIX/bin" -mindepth 1 ! -name expect -exec rm -f {} +
+find "$PREFIX/share/man/man1" -type f ! -name expect.1 -exec rm -f {} +
+test "$(ls "$PREFIX/bin")" = expect
+find "$PREFIX/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} +
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.tcl-lang.expect \
+  "$PREFIX/bin/expect" "$PEKIT_OUT$LIBDIR/libexpect$PEKIT_VERSION.so"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip"                 = "*"
+"org.tcl-lang.tcl-devel"       = ">= 8.6.18"
+"org.gnu.autoconf"             = ">= 2.72"
+
+[test]
+needs = ["main"]
+gate  = true
+command = '''
+set -eu
+STAGE="$PEKIT_MAIN_OUT"
+PREFIX="$STAGE/usr"
+LIBDIR="$PREFIX/lib/x86_64-linux-peios"
+EXPECT="$PREFIX/bin/expect"
+SMOKE="$PEKIT_OUT/smoke"
+rm -rf "$SMOKE"
+mkdir -p "$SMOKE"
+
+# Upstream suite (spawn, send, expect, stty, logfile, pid, cat), against the
+# build tree, on a real pseudo-terminal.
+make -C "$STAGE" test > "$SMOKE/suite.log" 2>&1
+cat "$SMOKE/suite.log"
+grep -E '^all\.tcl:.*Failed[[:space:]]+0$' "$SMOKE/suite.log"
+
+export LD_LIBRARY_PATH="$LIBDIR"
+
+# The interpreter drives an interactive program through a pty.
+cat > "$SMOKE/drive.exp" <<'EOF'
+set timeout 10
+spawn sh -c {printf 'name? '; read name; printf 'hello, %s\n' "$name"; exit 7}
+expect "name? "
+send "peios\r"
+expect {
+  "hello, peios" {}
+  timeout { exit 2 }
+}
+expect eof
+lassign [wait] pid spawn_id os_error status
+exit [expr {$status == 7 ? 0 : 3}]
+EOF
+"$EXPECT" "$SMOKE/drive.exp"
+"$EXPECT" -v | grep -F "expect version $PEKIT_VERSION"
+
+# The Tcl extension loads from a plain tclsh through the package index, which
+# names the library's installed path; point a copy at the staged one.
+INDEX="$LIBDIR/expect$PEKIT_VERSION/pkgIndex.tcl"
+grep -F "load /usr/lib/x86_64-linux-peios/libexpect$PEKIT_VERSION.so" "$INDEX"
+mkdir -p "$SMOKE/pkg"
+sed "s|/usr/lib/x86_64-linux-peios/|$LIBDIR/|" "$INDEX" > "$SMOKE/pkg/pkgIndex.tcl"
+printf '%s\n' 'puts [package require Expect]' > "$SMOKE/pkg.tcl"
+test "$(TCLLIBPATH="$SMOKE/pkg" tclsh8.6 "$SMOKE/pkg.tcl")" = "$PEKIT_VERSION"
+
+# Library metadata and hardening.
+LIB="$LIBDIR/libexpect$PEKIT_VERSION.so"
+readelf -d "$LIB" | grep -F "Library soname: [libexpect$PEKIT_VERSION.so]"
+readelf -d "$EXPECT" | grep -F "Shared library: [libexpect$PEKIT_VERSION.so]"
+# The extension binds to Tcl through the stubs table, so only the
+# interpreter links libtcl directly.
+readelf -d "$EXPECT" | grep -F 'Shared library: [libtcl8.6.so]'
+if readelf -d "$LIB" | grep -F 'Shared library: [libtcl'; then exit 1; fi
+test "$(find "$PREFIX/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 2
+test -n "$(find "$PREFIX/src/debug/org.tcl-lang.expect" -type f -name 'expect.c' -print -quit)"
+for elf in "$EXPECT" "$LIB"; do
+  readelf -h "$elf" | grep -Eq 'Type:[[:space:]]+DYN'
+  readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
+  readelf -W -l "$elf" | grep -F 'GNU_RELRO'
+  readelf -d "$elf" | grep -F 'BIND_NOW'
+  readelf -d "$elf" | grep -F 'RELR'
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
+  if readelf -S "$elf" | grep -Fq '.debug_'; then exit 1; fi
+done
+test -f "$PREFIX/include/expect.h"
+test -f "$PREFIX/share/man/man1/expect.1.gz"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.tcl-lang.tcl-devel"       = ">= 8.6.18"
+"org.gnu.binutils"             = "*"
+"org.gnu.findutils"            = "*"
+"org.gnu.grep"                 = "*"
+"org.gnu.sed"                  = "*"

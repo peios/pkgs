@@ -1,0 +1,10 @@
+[package]
+name        = "org.tcl-lang.tcl-debugsource"
+description = "Tcl debug sources"
+
+[dependencies]
+"org.tcl-lang.tcl-debuginfo" = "= {{release}}"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.tcl-debugsource/"
+":usr/src/debug/**"     = "usr/src/debug"

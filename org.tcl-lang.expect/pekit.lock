@@ -1,0 +1,12 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "5.45.4"
+  url = "https://downloads.sourceforge.net/project/expect/Expect/5.45.4/expect5.45.4.tar.gz"
+  sha256 = "49a7da83b0bdd9f46d04a04deec19c7767bb9a323e40c4781f89caf760b92c34"
+  locked_at = "2026-09-23T20:35:25Z"

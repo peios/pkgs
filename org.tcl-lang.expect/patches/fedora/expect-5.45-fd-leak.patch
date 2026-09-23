@@ -1,0 +1,18 @@
+Description: Duplicate the saved stderr descriptor close-on-exec
+ Spawned children otherwise inherit it.
+Origin: vendor, https://src.fedoraproject.org/rpms/expect/blob/rawhide/f/expect-5.45-fd-leak.patch
+Forwarded: not-needed
+Last-Update: 2026-09-23
+
+diff -up expect5.45/exp_clib.c.orig expect5.45/exp_clib.c
+--- expect5.45/exp_command.c.orig	2014-09-04 12:12:21.075837835 +0200
++++ expect5.45/exp_command.c	2014-09-04 12:13:39.098593465 +0200
+@@ -1161,7 +1161,7 @@ Exp_SpawnObjCmd(
+     /* if stty finds dev(stderr) != dev(stdout) */
+ 
+     /* save error fd while we're setting up new one */
+-    errorfd = fcntl(2,F_DUPFD,3);
++    errorfd = fcntl(2,F_DUPFD_CLOEXEC,3);
+     /* and here is the macro to restore it */
+ #define restore_error_fd {close(2);fcntl(errorfd,F_DUPFD,2);}
+ 

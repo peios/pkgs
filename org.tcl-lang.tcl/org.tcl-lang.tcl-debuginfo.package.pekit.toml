@@ -1,0 +1,10 @@
+[package]
+name        = "org.tcl-lang.tcl-debuginfo"
+description = "Tcl debugging symbols"
+
+[dependencies]
+"org.tcl-lang.tcl" = "= {{release}}"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.tcl-debuginfo/"
+":usr/lib/debug/**"     = "usr/lib/debug"

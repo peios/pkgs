@@ -1,0 +1,5 @@
+[elf]
+debuginfo = "org.tcl-lang.expect-debuginfo"
+
+[allow]
+"source.signature.required" = "Expect's authoritative SourceForge release area publishes only an unsigned .SHA256 file beside the archive, on the same host, which adds no authentication; HTTPS plus Pekit's immutable SHA-256 lock is the available provenance boundary"

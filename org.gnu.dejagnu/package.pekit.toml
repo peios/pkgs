@@ -1,0 +1,10 @@
+# Shared metadata for the DejaGnu package family.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "noarch"
+license       = "GPL-3.0-or-later"
+license_class = "free"
+homepage      = "https://www.gnu.org/software/dejagnu/"

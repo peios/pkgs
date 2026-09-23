@@ -1,0 +1,25 @@
+# Headers (public and, for extensions such as Expect that need them, private),
+# the stubs library every Tcl extension links, tclConfig.sh, pkg-config, and
+# the C API manuals.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.tcl-lang.tcl-devel"
+description = "Tcl development files"
+
+[dependencies]
+"org.tcl-lang.tcl" = "= {{release}}"
+# tcl.pc lists zlib in Requires.private.
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.tcl-devel/"
+":usr/include/*.h"      = "usr/include"
+":usr/include/tcl-private/**" = "usr/include/tcl-private"
+":usr/lib/x86_64-linux-peios/libtcl.so"         = "usr/lib/x86_64-linux-peios/libtcl.so"
+":usr/lib/x86_64-linux-peios/libtclstub8.6.a"   = "usr/lib/x86_64-linux-peios/libtclstub8.6.a"
+":usr/lib/x86_64-linux-peios/tclConfig.sh"      = "usr/lib/x86_64-linux-peios/tclConfig.sh"
+":usr/lib/x86_64-linux-peios/tclooConfig.sh"    = "usr/lib/x86_64-linux-peios/tclooConfig.sh"
+":usr/lib/x86_64-linux-peios/pkgconfig/tcl.pc"  = "usr/lib/x86_64-linux-peios/pkgconfig/tcl.pc"
+":usr/share/man/man3/**" = "usr/share/man/man3"

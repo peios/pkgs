@@ -1,0 +1,20 @@
+# Headers, linker name and C API manual for programs that embed Expect.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.tcl-lang.expect-devel"
+description = "Expect development files"
+
+[dependencies]
+"org.tcl-lang.expect"    = "= {{release}}"
+"org.tcl-lang.tcl-devel" = ">= 8.6.18"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.expect-devel/"
+":usr/include/expect.h"      = "usr/include/expect.h"
+":usr/include/expect_comm.h" = "usr/include/expect_comm.h"
+":usr/include/expect_tcl.h"  = "usr/include/expect_tcl.h"
+":usr/include/tcldbg.h"      = "usr/include/tcldbg.h"
+":usr/lib/x86_64-linux-peios/libexpect.so" = "usr/lib/x86_64-linux-peios/libexpect.so"
+":usr/share/man/man3/libexpect.3.gz"       = "usr/share/man/man3/libexpect.3.gz"

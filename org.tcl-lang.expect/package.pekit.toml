@@ -1,0 +1,13 @@
+# Shared metadata for the Expect package family. Each package is defined in
+# its own *.package.pekit.toml; this file is only the base layer.
+
+format = "peipkg"
+
+[package]
+version       = "{{version}}-1"
+architecture  = "x86_64"
+# Expect was written at NIST and placed in the public domain; the POSIX
+# error-string helpers the stubs patch carries are Tcl-licensed.
+license       = "LicenseRef-Public-Domain AND TCL"
+license_class = "free"
+homepage      = "https://core.tcl-lang.org/expect/"

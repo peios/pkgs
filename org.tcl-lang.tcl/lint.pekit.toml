@@ -1,0 +1,6 @@
+[elf]
+debuginfo = "org.tcl-lang.tcl-debuginfo"
+
+[allow]
+"source.signature.required" = "The authoritative SourceForge release area publishes Tcl archives without detached signatures, and the release announcement carries no checksums or signature; HTTPS plus Pekit's immutable SHA-256 lock is the available provenance boundary"
+"source.versions.ceiling" = "Tcl 9 changes the C API Expect 5.45.4 is written against; moving to it is a coordinated Tcl/Expect/DejaGnu migration, not an unattended update"

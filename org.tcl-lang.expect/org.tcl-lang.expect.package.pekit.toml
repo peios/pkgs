@@ -1,0 +1,21 @@
+# The expect interpreter and the Expect Tcl extension (package require
+# Expect), which share libexpect.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.tcl-lang.expect"
+description = "Tcl extension and interpreter for automating interactive programs"
+
+[dependencies]
+"org.gnu.glibc"    = ">= 2.43"
+"org.tcl-lang.tcl" = ">= 8.6.18"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.expect/"
+"@source:README"        = "usr/share/doc/org.tcl-lang.expect/"
+"@source:NEWS"          = "usr/share/doc/org.tcl-lang.expect/"
+":usr/bin/expect"       = "usr/bin/expect"
+":usr/lib/x86_64-linux-peios/libexpect5.45.4.so" = "usr/lib/x86_64-linux-peios/libexpect5.45.4.so"
+":usr/lib/x86_64-linux-peios/expect5.45.4/**" = "usr/lib/x86_64-linux-peios/expect5.45.4"
+":usr/share/man/man1/expect.1.gz" = "usr/share/man/man1/expect.1.gz"

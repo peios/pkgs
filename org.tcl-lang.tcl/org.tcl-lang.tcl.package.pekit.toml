@@ -1,0 +1,25 @@
+# The Tcl interpreter: tclsh, libtcl, the script library and its bundled
+# Tcl modules (http, msgcat, platform, tcltest), and the command manuals.
+
+side_effects = ["man-db"]
+
+[package]
+name        = "org.tcl-lang.tcl"
+description = "Tool Command Language interpreter and runtime library"
+
+[dependencies]
+"org.gnu.glibc"                    = ">= 2.43"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
+
+[files]
+"@source:license.terms" = "usr/share/licenses/org.tcl-lang.tcl/"
+"@source:libtommath/LICENSE" = "usr/share/licenses/org.tcl-lang.tcl/LICENSE.libtommath"
+"@source:README.md"     = "usr/share/doc/org.tcl-lang.tcl/"
+"@source:changes"       = "usr/share/doc/org.tcl-lang.tcl/"
+":usr/bin/tclsh"        = "usr/bin/tclsh"
+":usr/bin/tclsh8.6"     = "usr/bin/tclsh8.6"
+":usr/lib/x86_64-linux-peios/libtcl8.6.so" = "usr/lib/x86_64-linux-peios/libtcl8.6.so"
+":usr/share/tcl8.6/**"  = "usr/share/tcl8.6"
+":usr/share/tcl8/**"    = "usr/share/tcl8"
+":usr/share/man/man1/**" = "usr/share/man/man1"
+":usr/share/man/mann/**" = "usr/share/man/mann"
