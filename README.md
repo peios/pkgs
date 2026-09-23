@@ -40,7 +40,8 @@ The workspace files are intentional shared policy:
 - [`package.pekit.toml`](package.pekit.toml) supplies the signed Peipkg
   repository publication target.
 - `_pybuild_/` (Python wheel installation) and `_pkgtools_/` (`split-debug`,
-  `collect-rust-licences`, `install-manpages.py`, `config-sub-peios.sh`) are
+  `collect-rust-licences`, `install-manpages.py`, `config-sub-peios.sh`, and
+  `pty-drive.c`, a small send/expect driver for interactive terminal gates) are
   shared helpers every recipe reaches through `$PEKIT_WORKSPACE_ROOT`.
   `dev.peios.packaging-tools` ships `split-debug` and `collect-rust-licences`
   under `/usr/libexec/peios-packaging/` for first-party repositories, which also
@@ -788,15 +789,16 @@ publishes producers before consumers.
 The native environment installs everything from the catalogue itself, so an
 empty repository needs a seed built elsewhere. Two recipe tags mark it:
 
-- `minimal-bootstrap` (40 recipes) is the smallest set whose absence leaves no
+- `minimal-bootstrap` (42 recipes) is the smallest set whose absence leaves no
   cycle among native build and test dependencies. It is the toolchain and
-  ambient userland (`build-essentials-c` and what it installs), plus the members
+  ambient userland (`build-essentials-c` and what it installs, including DWZ for
+  `split-debug`), plus the members
   that break the remaining cycles: bash, m4, tar, flex, gzip, ncurses, pkgconf,
   ca-certificates, e2fsprogs (Python links its libuuid) and resolvd (native
   acquisition needs its NSS module). bindgen joins them because the kernel's
-  Debian build takes it from the catalogue, and PCRE2 because the seed's grep
-  links it.
-- `bootstrap` (99 recipes, including those 40) is that seed closed under its
+  Debian build takes it from the catalogue, PCRE2 because the seed's grep links
+  it, and Readline because the seed's gawk does.
+- `bootstrap` (101 recipes, including those 42) is that seed closed under its
   own native dependencies: everything the seed needs to rebuild itself natively.
 
 Only `minimal-bootstrap` recipes declare apt sets, so only they build in

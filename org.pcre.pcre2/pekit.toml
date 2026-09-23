@@ -10,8 +10,9 @@
 # would exercise the shared ABI. The autotools build links both against the
 # shared libraries and is what Debian and Fedora use.
 #
-# Deliberately disabled: pcre2test line editing (neither readline nor libedit
-# is packaged for Peios), and pcre2grep's in-process .gz/.bz2 readers (Fedora
+# Deliberately disabled: pcre2test line editing (GNU Readline is GPL-3.0, and
+# upstream warns that linking it would put pcre2test under the GPL; the tool
+# is a scripted tester, so the BSD licence wins), and pcre2grep's in-process .gz/.bz2 readers (Fedora
 # omits them too; compressed input can be piped through zcat/bzcat, and the
 # command keeps a closure of PCRE2 and libc only).
 #
