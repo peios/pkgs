@@ -26,12 +26,12 @@ delegate = true
 url = "https://github.com/peios/pkm.git"
 ref = "v{{version}}"
 tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-rc[0-9]+)?)$'
-# pkm only carries its own pekit files from v0.20.1-rc1 on; earlier tags
-# (≤ v0.20.0-rc2) predate them, so a "*" sweep skips them instead of failing.
-# The floor is written with the prerelease (-rc1, not 0.20.1) deliberately: a
+# v0.20.1-rc24 is the first tag whose package definitions need no catalogue
+# overlay (PEI-1163); earlier tags would build with stale revision pins.
+# The floor is written with the prerelease (-rc24, not 0.20.1) deliberately: a
 # bare ">=0.20.1" floor would drop every prerelease — including the only tags
 # that ship today — so the prerelease suffix is what lets RC tags through it.
-versions = ">=0.20.1-rc1"
+versions = ">=0.20.1-rc24"
 # The pristine Linux tarball comes with the borrowed build: from v0.20.1-rc21
 # pkm declares it as [input.linux], beside the KERNEL_VERSION and patch series
 # it must agree with, and carries kernel.org's release key. Pekit fetches and
