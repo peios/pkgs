@@ -47,8 +47,8 @@ test -s README
 # Distribution builds must not inherit upstream's -Werror policy: new compiler
 # diagnostics are not package build failures. OPTIM carries Peios's inherited
 # optimisation, fortification, stack and control-flow flags. Python bindings
-# remain disabled: they are optional, Debian does not ship them, and the Peios
-# catalogue does not yet contain their SWIG build dependency.
+# remain disabled: they are optional, and the Peios catalogue does not yet
+# contain their SWIG build dependency.
 env -u CFLAGS make -j"$(nproc)" \
   ARCH=x86_64 \
   CONFIG_PFMLIB_SHARED=y \
@@ -172,9 +172,7 @@ readelf -W -l "$PFM_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$PFM_SO" | grep -F 'GNU_RELRO'
 readelf -d "$PFM_SO" | grep -F 'BIND_NOW'
 readelf -d "$PFM_SO" | grep -F 'RELR'
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$PFM_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$PFM_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$PFM_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(readelf -d "$PFM_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$PFM_SO" | grep -F 'Shared library: [libc.so.6]'

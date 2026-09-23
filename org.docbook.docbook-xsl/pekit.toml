@@ -39,13 +39,8 @@ DOC="$PEKIT_OUT/usr/share/doc/org.docbook.docbook-xsl"
 LICENSES="$PEKIT_OUT/usr/share/licenses/org.docbook.docbook-xsl"
 
 # Native Peios keeps GNU compatibility tools outside the runtime PATH.
-# Debian's declared coreutils dependency installs them on PATH.
-CP=cp
-CHMOD=chmod
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  CP=/usr/libexec/coreutils-build/cp
-  CHMOD=/usr/libexec/coreutils-build/chmod
-fi
+CP=/usr/libexec/coreutils-build/cp
+CHMOD=/usr/libexec/coreutils-build/chmod
 mkdir -p "$XSL" "$DOC" "$LICENSES"
 "$CP" -a "$SRC"/. "$XSL/"
 

@@ -114,22 +114,18 @@ SMOKE="$PEKIT_OUT/smoke"
 test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
 # Peios host lookup is resolvd-only; the offline worker runs no resolver
 # service. This one OCSP fixture needs two local connections, not a name-service
-# integration test. Use numeric loopback only on the native rung, retaining all
-# three upstream assertions. The reference rung tests the original hostname.
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
-  OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
-  cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
-  restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
-  trap restore_ocsp_recipe EXIT HUP INT TERM
-  grep -q 'localhost:' "$OCSP_ORIG"
-  sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
-fi
+# integration test. Use numeric loopback, retaining all three upstream
+# assertions.
+OCSP_RECIPE="$SRC/test/recipes/82-test_ocsp_cert_chain.t"
+OCSP_ORIG="$PEKIT_OUT/82-test_ocsp_cert_chain.t.orig"
+cp -p "$OCSP_RECIPE" "$OCSP_ORIG"
+restore_ocsp_recipe() { cp -p "$OCSP_ORIG" "$OCSP_RECIPE"; }
+trap restore_ocsp_recipe EXIT HUP INT TERM
+grep -q 'localhost:' "$OCSP_ORIG"
+sed 's/localhost:/127.0.0.1:/g' "$OCSP_ORIG" > "$OCSP_RECIPE"
 make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  restore_ocsp_recipe
-  trap - EXIT HUP INT TERM
-fi
+restore_ocsp_recipe
+trap - EXIT HUP INT TERM
 # The public payload contains runtime files only. The SDK and command here are
 # private test/build fixtures; no file mapping can publish them.
 test ! -e "$STAGE/usr/bin"
@@ -199,9 +195,7 @@ find "$STAGED_LIBDIR" -type f | while IFS= read -r elf; do
   readelf -d "$elf" | grep -F BIND_NOW
   readelf -d "$elf" | grep -F RELR
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
-  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 '''

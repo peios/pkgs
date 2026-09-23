@@ -273,9 +273,7 @@ readelf -W -l "$SO" | grep -E 'GNU_STACK.*RW '
 readelf -W -l "$SO" | grep -F 'GNU_RELRO'
 readelf -d "$SO" | grep -F 'BIND_NOW'
 readelf -d "$SO" | grep -F 'RELR'
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 '''
 

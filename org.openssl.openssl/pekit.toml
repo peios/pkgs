@@ -136,30 +136,26 @@ test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
 # Peios host lookup is resolvd-only; offline workers run no resolver service.
 # These three socket fixtures use localhost only as a local connection address.
 # Keep every protocol assertion and explicit ECH/SNI name; use numeric loopback
-# for native connections. Reference tests retain the original hostname fixtures.
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  LOOPBACK_FIXTURES="82-test_ocsp_cert_chain.t 20-test_app_s_client_msg.t 82-test_ech_client_server.t"
-  LOOPBACK_BACKUP="$PEKIT_OUT/loopback-originals"
-  mkdir -p "$LOOPBACK_BACKUP"
+# for the connections.
+LOOPBACK_FIXTURES="82-test_ocsp_cert_chain.t 20-test_app_s_client_msg.t 82-test_ech_client_server.t"
+LOOPBACK_BACKUP="$PEKIT_OUT/loopback-originals"
+mkdir -p "$LOOPBACK_BACKUP"
+for fixture in $LOOPBACK_FIXTURES; do
+  cp -p "$SRC/test/recipes/$fixture" "$LOOPBACK_BACKUP/$fixture"
+done
+restore_loopback_recipes() {
   for fixture in $LOOPBACK_FIXTURES; do
-    cp -p "$SRC/test/recipes/$fixture" "$LOOPBACK_BACKUP/$fixture"
+    cp -p "$LOOPBACK_BACKUP/$fixture" "$SRC/test/recipes/$fixture"
   done
-  restore_loopback_recipes() {
-    for fixture in $LOOPBACK_FIXTURES; do
-      cp -p "$LOOPBACK_BACKUP/$fixture" "$SRC/test/recipes/$fixture"
-    done
-  }
-  trap restore_loopback_recipes EXIT HUP INT TERM
-  for fixture in $LOOPBACK_FIXTURES; do
-    grep -q 'localhost:' "$LOOPBACK_BACKUP/$fixture"
-    sed 's/localhost:/127.0.0.1:/g' "$LOOPBACK_BACKUP/$fixture" > "$SRC/test/recipes/$fixture"
-  done
-fi
+}
+trap restore_loopback_recipes EXIT HUP INT TERM
+for fixture in $LOOPBACK_FIXTURES; do
+  grep -q 'localhost:' "$LOOPBACK_BACKUP/$fixture"
+  sed 's/localhost:/127.0.0.1:/g' "$LOOPBACK_BACKUP/$fixture" > "$SRC/test/recipes/$fixture"
+done
 make -C "$BUILD" test HARNESS_JOBS="$(nproc)"
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  restore_loopback_recipes
-  trap - EXIT HUP INT TERM
-fi
+restore_loopback_recipes
+trap - EXIT HUP INT TERM
 
 find "$STAGE/usr/bin" -maxdepth 1 -type f -printf '%f\n' | \
   LC_ALL=C sort > "$PEKIT_OUT/installed-tools"
@@ -248,9 +244,7 @@ find "$STAGE/usr/bin" "$STAGED_LIBDIR" -type f ! -type l ! -name '*.a' | \
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
-  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 '''

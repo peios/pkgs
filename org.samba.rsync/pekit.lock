@@ -18,3 +18,10 @@ schema = 1
   sha256 = "c7ffd1ef653e99540f661e47cb00b7f9cad1ee6b972399b16f93d672656e0d33"
   signature_key = "9fef112dce19a0dc7e882cb81bb24997a8535f6f"
   locked_at = "2026-09-05T15:33:21Z"
+
+[[source]]
+  version = "3.5.1"
+  url = "https://download.samba.org/pub/rsync/src/rsync-3.5.1.tar.gz"
+  sha256 = "c55f9c9dc10fb8bec397b399a0fdded53cc9a2d8e30891bb0d63724d25c37bef"
+  signature_key = "9fef112dce19a0dc7e882cb81bb24997a8535f6f"
+  locked_at = "2026-09-23T09:58:22Z"

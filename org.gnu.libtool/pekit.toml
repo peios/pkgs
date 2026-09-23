@@ -248,9 +248,7 @@ readelf -W -l "$LTDL_SO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$LTDL_SO" | grep -F 'GNU_RELRO'
 readelf -d "$LTDL_SO" | grep -F 'BIND_NOW'
 readelf -d "$LTDL_SO" | grep -F 'RELR'
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$LTDL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$LTDL_SO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$LTDL_SO" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 test "$(readelf -d "$LTDL_SO" | grep -c 'Shared library:')" -eq 1
 readelf -d "$LTDL_SO" | grep -F 'Shared library: [libc.so.6]'

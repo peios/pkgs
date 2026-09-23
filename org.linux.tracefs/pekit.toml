@@ -303,9 +303,7 @@ readelf -W -l "$LIBSO" | grep 'GNU_STACK' | grep -F 'RW '
 readelf -W -l "$LIBSO" | grep -F 'GNU_RELRO'
 readelf -d "$LIBSO" | grep -F 'BIND_NOW'
 readelf -d "$LIBSO" | grep -F 'RELR'
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$LIBSO" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$LIBSO" | grep -E 'x86 feature:.*IBT.*SHSTK'
 if readelf -d "$LIBSO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 test "$(readelf -d "$LIBSO" | grep -c 'Shared library:')" -eq 2
 readelf -d "$LIBSO" | grep -F 'Shared library: [libtraceevent.so.1]'

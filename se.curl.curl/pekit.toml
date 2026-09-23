@@ -164,9 +164,7 @@ for elf in "$CURL" "$LIBCURL"; do
   readelf -W -l "$elf" | grep -E 'GNU_STACK.*RW '
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 test "$(find "$PREFIX/lib/debug-curl" "$PREFIX/lib/debug-libcurl" -type f -name '*.debug' | wc -l)" -eq 2

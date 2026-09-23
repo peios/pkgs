@@ -128,9 +128,7 @@ readelf -d "$BIN" | grep -F 'BIND_NOW'
 readelf -d "$BIN" | grep -F 'RELR'
 readelf -W -l "$BIN" | grep -E 'GNU_STACK.*RW '
 if readelf -d "$BIN" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$BIN" | grep -E 'x86 feature:.*IBT.*SHSTK'
 DEBUG=$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug')
 test "$(printf '%s\n' "$DEBUG" | grep -c .)" -eq 1
 readelf -S "$DEBUG" 2>/dev/null | grep -F '.debug_info'

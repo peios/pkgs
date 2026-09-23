@@ -7,7 +7,7 @@
 # auto-detected; pixman picks between them at run time. The GTK demos and the
 # libpng test helper stay off because neither library is packaged. OpenMP is
 # used only by the test programs (the library never links libgomp); it is
-# enabled explicitly so both build rungs run the suite the same way.
+# enabled explicitly so the suite runs deterministically.
 # Upstream's README, NEWS and AUTHORS are contributor notes or empty, so no
 # documentation is shipped.
 
@@ -326,9 +326,7 @@ for elf in "$LIBDIR/libpixman-1.so.$PEKIT_VERSION"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 '''

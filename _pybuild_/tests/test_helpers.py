@@ -23,17 +23,13 @@ loader.exec_module(tools)
 
 
 class Paths(unittest.TestCase):
-    def test_debian_stages_distribution_layout(self):
-        with patch.object(python_paths.sysconfig, 'get_path', return_value='/usr/local/lib/python3.13/dist-packages'):
-            self.assertEqual(str(python_paths.staged_site('/stage', 'apt')), f'/stage/usr/lib/x86_64-linux-peios/python{sys.version_info.major}.{sys.version_info.minor}/site-packages')
-
     def test_native_matches_running_minor(self):
         expected = f'/usr/lib/x86_64-linux-peios/python{sys.version_info.major}.{sys.version_info.minor}/site-packages'
         with patch.object(python_paths.sysconfig, 'get_path', return_value=expected):
             self.assertEqual(str(python_paths.staged_site('/stage', 'peipkg')), '/stage'+expected)
 
     def test_wrong_native_and_unsafe_paths_fail(self):
-        for path, provider in [('/usr/lib/python3/dist-packages','peipkg'), ('relative','apt'), ('/usr/../escape','apt'), ('/usr/lib','unexpected')]:
+        for path, provider in [('/usr/lib/python3/dist-packages','peipkg'), ('relative',''), ('/usr/../escape',''), ('/usr/lib','apt')]:
             with self.subTest(path=path), patch.object(python_paths.sysconfig, 'get_path', return_value=path):
                 with self.assertRaises(ValueError):python_paths.staged_site('/stage',provider)
 

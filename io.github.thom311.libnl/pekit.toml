@@ -156,10 +156,10 @@ gate = true
 needs = ["main"]
 command = '''
 set -eu
-# Run every test enabled by the environment. Debian's Check dependency enables
-# check-all and check-direct in addition to the public C/C++ header and bundled
-# c-list checks. Peipkg runs every dependency-free upstream check until Check
-# itself is packaged; PEI-678 tracks that remaining self-hosted dependency gap.
+# Run every test enabled by the environment: check-all and check-direct run
+# in addition to the public C/C++ header and bundled c-list checks whenever
+# Check is present. Otherwise, upstream's dependency-free checks run until
+# Check is packaged; PEI-678 tracks that remaining self-hosted dependency gap.
 cd "$PEKIT_MAIN_OUT"
 make -j"$(nproc)" check
 # Surface upstream's internal namespace skips, which Check counts as passing.
@@ -271,9 +271,7 @@ while IFS= read -r f; do
   readelf -W -l "$f" | grep -F 'GNU_RELRO'
   readelf -d "$f" | grep -F 'BIND_NOW'
   readelf -d "$f" | grep -F 'RELR'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$f" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$f" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$f" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done < "$ELFLIST"
 rm -rf "$SMOKE"

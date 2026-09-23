@@ -34,16 +34,10 @@ SRC="$PEKIT_SOURCE_ROOT"
 BUILD="$PEKIT_OUT/build"
 LIBDIR=/usr/lib/x86_64-linux-peios
 
-# Perl's extension configuration needs the build environment's dependency
-# library directory, while the installed ABI is always the Peios triplet.
-if [ -d /usr/lib/x86_64-linux-peios ]; then
-  DEPLIBDIR=/usr/lib/x86_64-linux-peios
-else
-  DEPLIBDIR=/usr/lib/x86_64-linux-gnu
-fi
-# Dependency lookup is a property of the current build rung, not of the Perl
-# installation being produced. GCC honours LIBRARY_PATH for link-time probes
-# without baking Debian's triplet into Perl's target-facing Config metadata.
+# Perl's extension configuration needs the dependency root's library
+# directory. GCC honours LIBRARY_PATH for link-time probes without baking the
+# build root into Perl's target-facing Config metadata.
+DEPLIBDIR="$LIBDIR"
 export LIBRARY_PATH="$DEPLIBDIR${LIBRARY_PATH:+:$LIBRARY_PATH}"
 
 mkdir -p "$BUILD"
@@ -67,12 +61,9 @@ sed -i \\
 rm -rf cpan/Compress-Raw-Zlib/zlib-src cpan/Compress-Raw-Bzip2/bzip2-src
 sed -i '/\\/zlib-src\\//d; /\\/bzip2-src\\//d' MANIFEST
 
-# Debian's build-essential happens to expose libcrypt while the current Peios
-# bootstrap closure does not. Keep both reference rungs feature-identical until
-# io.github.besser82.libxcrypt is independently productionized: Perl treats
-# crypt() as an
-# optional platform facility, and config.over is upstream's supported final
-# override for Configure probes.
+# Build without crypt() until io.github.besser82.libxcrypt is independently
+# productionized: Perl treats crypt() as an optional platform facility, and
+# config.over is upstream's supported final override for Configure probes.
 cat > config.over <<EOF
 cryptlib=''
 d_crypt='undef'
@@ -166,9 +157,9 @@ export BZIP2_INCLUDE=/usr/include
 export BZIP2_LIB="$DEPLIBDIR"
 
 # Perl's generated makefile controls LD_LIBRARY_PATH while running the
-# just-built interpreter. Include the current rung's dependency directory so
-# DynaLoader's upstream libc discovery test works on the Debian reference
-# rung, without making that host path part of installed Config metadata.
+# just-built interpreter. Include the dependency directory so DynaLoader's
+# upstream libc discovery test works, without making that build-root path part
+# of installed Config metadata.
 BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
 make -j"$(nproc)" LDLIBPTH="$BUILD_LDLIBPTH"
 
@@ -194,8 +185,8 @@ ln -s perl.1.gz "$PEKIT_OUT/usr/share/man/man1/perl$V.1.gz"
 
 
 # Config is consumed by ExtUtils when future XS modules are built. It must
-# describe the Peios target, never the Debian reference builder or Pekit's
-# disposable staging path.
+# describe the Peios target, never the build root or Pekit's disposable
+# staging path.
 # Fedora/Debian-class shared-library layout: full-version real object, stable
 # major.minor SONAME link, and development-only unversioned links. Keep the
 # CORE link because ExtUtils and embedding consumers derive it from Config.
@@ -269,11 +260,7 @@ set -eu
 STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE/build"
 LIBDIR=/usr/lib/x86_64-linux-peios
-if [ -d /usr/lib/x86_64-linux-peios ]; then
-  DEPLIBDIR=/usr/lib/x86_64-linux-peios
-else
-  DEPLIBDIR=/usr/lib/x86_64-linux-gnu
-fi
+DEPLIBDIR="$LIBDIR"
 V=$(awk '$1=="#define" && $2=="PERL_REVISION"{r=$3} $1=="#define" && $2=="PERL_VERSION"{v=$3} $1=="#define" && $2=="PERL_SUBVERSION"{s=$3} END{print r"."v"."s}' "$BUILD/patchlevel.h")
 API=$(printf '%s\n' "$V" | awk -F. '{print $1"."$2}')
 BUILD_LDLIBPTH="LD_LIBRARY_PATH=$BUILD:$DEPLIBDIR"
@@ -293,17 +280,16 @@ done
 grep '^ccflags=' "$BUILD/config.sh" | grep -F '_FORTIFY_SOURCE=3'
 grep '^ldflags=' "$BUILD/config.sh" | grep -F -- '-z,now'
 
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-  export NO_NETWORK_TESTING=1
-  # Peios hostname lookups require resolvd, absent in the offline test root;
-  # /etc/hosts is not a native resolver prerequisite. Keep the module load and
-  # run all nine lookup assertions whenever libc can resolve localhost. A
-  # broken Net::hostent wrapper must not be mistaken for unavailable DNS.
-  HOSTENT_TEST="$BUILD/lib/Net/hostent.t"
-  cp "$HOSTENT_TEST" "$PEKIT_OUT/Net-hostent.t.upstream"
-  chmod u+w "$HOSTENT_TEST"
-  trap 'cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"' EXIT HUP INT TERM
-  LD_LIBRARY_PATH="$BUILD:$DEPLIBDIR" "$BUILD/perl" -I"$BUILD/lib" - "$HOSTENT_TEST" <<'PERL'
+export NO_NETWORK_TESTING=1
+# Peios hostname lookups require resolvd, absent in the offline test root;
+# /etc/hosts is not a native resolver prerequisite. Keep the module load and
+# run all nine lookup assertions whenever libc can resolve localhost. A
+# broken Net::hostent wrapper must not be mistaken for unavailable DNS.
+HOSTENT_TEST="$BUILD/lib/Net/hostent.t"
+cp "$HOSTENT_TEST" "$PEKIT_OUT/Net-hostent.t.upstream"
+chmod u+w "$HOSTENT_TEST"
+trap 'cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"' EXIT HUP INT TERM
+LD_LIBRARY_PATH="$BUILD:$DEPLIBDIR" "$BUILD/perl" -I"$BUILD/lib" - "$HOSTENT_TEST" <<'PERL'
 use strict;
 use warnings;
 my $path = shift;
@@ -319,13 +305,10 @@ open my $out, '>', $path or die "$path: $!";
 print {$out} $source;
 close $out or die "$path: $!";
 PERL
-fi
 PERL_BUILD_PACKAGING=1 CI=true LC_ALL=C TEST_JOBS="$(nproc)" \
   make -C "$BUILD" LDLIBPTH="$BUILD_LDLIBPTH" test_harness_notty
-if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-  cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"
-  trap - EXIT HUP INT TERM
-fi
+cp "$PEKIT_OUT/Net-hostent.t.upstream" "$HOSTENT_TEST"
+trap - EXIT HUP INT TERM
 
 ARCHROOT="$STAGE$LIBDIR/perl5/$API"
 CONFIG_FILES="$ARCHROOT/Config.pm $ARCHROOT/Config_heavy.pl"

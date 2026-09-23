@@ -220,8 +220,7 @@ int main(void)
   return 0;
 }
 EOF
-# The staged metadata first, then the root's own search path (which differs
-# between a Peios and a Debian root): pkgconf resolves the Requires.private
+# The staged metadata first, then the root's own search path: pkgconf resolves the Requires.private
 # modules (libpcre2-8, libffi, zlib) even for --cflags, which is also why
 # org.gnome.glib-devel depends on their -devel packages.
 unset PKG_CONFIG_LIBDIR
@@ -266,9 +265,7 @@ while IFS= read -r elf; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then echo "bad dynamic: $elf" >&2; exit 1; fi
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
 done
 '''
 

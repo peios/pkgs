@@ -40,10 +40,10 @@ ROOT="$(dirname "$(dirname "$PEKIT_OUT")")"
 export CFLAGS="${CFLAGS:-} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.python.python3"
 REL_SRC=$(realpath --relative-to="$PEKIT_OUT" "$SRC")
 
-# Keep unavailable optional modules deterministic across the Debian reference
-# and Peios-native environments. PEI-725 tracks libffi, SQLite, GDBM and tzdata;
-# PEI-613 tracks Readline. The dependency set below deliberately enables TLS,
-# bzip2, XZ, Zstandard, curses, and UUID support now.
+# Keep unavailable optional modules deterministically disabled. PEI-725 tracks
+# libffi, SQLite, GDBM and tzdata; PEI-613 tracks Readline. The dependency set
+# below deliberately enables TLS, bzip2, XZ, Zstandard, curses, and UUID
+# support now.
 #
 # Compile with the workspace's -fcf-protection and generate IBT PLT entries.
 # Do not assert compatibility on behalf of unmarked provider startup objects.
@@ -280,13 +280,11 @@ STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE"
 JOBS="$(nproc)"
 
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  # Independent libc results determine service prerequisites. Python wrapper
-  # failures must never turn into skips when the libc control succeeds.
-  cc -Wall -Wextra -Werror "$SRC/Lib/test/support/peios_libc_prerequisites.c" \
-    -o "$PEKIT_OUT/peios-libc-prerequisites"
-  export PEKIT_LIBC_PREREQUISITE_PROBE="$PEKIT_OUT/peios-libc-prerequisites"
-fi
+# Independent libc results determine service prerequisites. Python wrapper
+# failures must never turn into skips when the libc control succeeds.
+cc -Wall -Wextra -Werror "$SRC/Lib/test/support/peios_libc_prerequisites.c" \
+  -o "$PEKIT_OUT/peios-libc-prerequisites"
+export PEKIT_LIBC_PREREQUISITE_PROBE="$PEKIT_OUT/peios-libc-prerequisites"
 
 cd "$BUILD"
 LD_LIBRARY_PATH="$BUILD" \
@@ -359,17 +357,13 @@ for elf in "$STAGE/usr/bin/python$PYVER" \
   readelf -dW "$elf" | grep -q '(RELR)'
   ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
   readelf -nW "$elf" | grep -q 'Build ID:'
-  if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-    readelf -nW "$elf" | grep -q 'IBT, SHSTK'
-  fi
+  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
 done
 find "$STDLIB/lib-dynload" -type f -name '*.so' | while IFS= read -r elf; do
   readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
   ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
   readelf -nW "$elf" | grep -q 'Build ID:'
-  if [ "${PEKIT_DEPENDENCY_PROVIDER:-}" = peipkg ]; then
-    readelf -nW "$elf" | grep -q 'IBT, SHSTK'
-  fi
+  readelf -nW "$elf" | grep -q 'IBT, SHSTK'
 done
 '''
 

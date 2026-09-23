@@ -295,8 +295,7 @@ make = "*"
 ```
 
 No other recipe declares apt sets or builds under Debian; asking one to fails
-with `missing_dependency_provider`. The one exception is a vendor target that
-still acquires in a Debian root (below).
+with `missing_dependency_provider`.
 
 An empty provider table means “none” and is preferable to an implicit host
 dependency. Name the Peios implementation actually used: for example Peios
@@ -380,12 +379,10 @@ Cargo fetches Git dependencies with its built-in client unless the recipe sets
 should set `GOTOOLCHAIN=local`, so a `go.mod` bump fails instead of
 downloading another compiler.
 
-A vendor target whose native set is empty acquires in a clean Debian root
-built from its declared apt set. This remains only for acquisition tools Peios
-does not yet package: pip (`io.pypa.flit-core`, `io.pypa.setuptools`) and
-gnupg for the Rust stage0 signatures (`org.rust-lang.rust`,
-`org.rust-lang.rust-1.83`). Those vendor targets are the only apt sets outside
-the seed; remove each once its tool is packaged natively.
+A vendor target must declare a non-empty native set; there is no Debian
+acquisition root. Python test tools are fetched by pip running from its own
+wheel, which `_pybuild_/test-tools` downloads by PyPI's published digest, so
+acquisition needs only the root's Python.
 
 If a delegated first-party recipe needs a remote upstream tree as a build
 input, package that tree separately under the upstream's qualified identity.

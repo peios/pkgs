@@ -41,12 +41,15 @@ fingerprints = ["108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"]
 [build.vendor]
 command = 'python3 "$PEKIT_RECIPE_ROOT/acquire-stage0.py" "$(pwd -P)" "$PEKIT_OUT"'
 
-# enter-net selects the declared Debian acquisition root for this target.
+# Upstream's install.sh runs base utilities, and the acquired rustc and cargo
+# run once to confirm their versions.
 [build.vendor.dependencies.peipkg]
-
-[build.vendor.dependencies.apt]
-python3 = "*"
-ca-certificates = "*"
+"dev.peios.peiosutils"             = "*"
+"org.gnu.coreutils-build-compat"   = "*"
+"org.gnu.grep"                  = "*"
+"org.gnu.sed"                      = "*"
+"org.gnu.gcc-libgcc"               = ">= 16"
+"io.github.zlib-ng.zlib-ng-compat" = "*"
 
 [build.seed-check]
 needs = ["vendor"]
@@ -83,10 +86,6 @@ TRIPLET_DIR=/usr/lib/x86_64-linux-peios
 export LD_LIBRARY_PATH="$TRIPLET_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 STAGE0="$PEKIT_VENDOR_OUT/stage0"
 LLVM_CONFIG=/usr/bin/llvm-config
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = apt ]; then
-  STAGE0="$PEKIT_VENDOR_OUT/stage0"
-  LLVM_CONFIG=/usr/lib/llvm-18/bin/llvm-config
-fi
 export PATH="$(dirname "$LLVM_CONFIG"):$PATH"
 PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
@@ -418,20 +417,14 @@ while IFS= read -r elf; do
   readelf -lW "$elf" | grep -q 'GNU_RELRO'
   readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
   readelf -dW "$elf" | grep -q '(RELR)'
-  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-    readelf -nW "$elf" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -nW "$elf" | grep -Eq 'x86 feature:.*IBT.*SHSTK'
   readelf -nW "$elf" | grep -q 'Build ID:'
   if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
     echo "rust: forbidden dynamic tag in $elf" >&2
     exit 1
   fi
 done
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  LLVM_SONAME=libLLVM.so.18.1
-else
-  LLVM_SONAME=libLLVM-18.so.18.1
-fi
+LLVM_SONAME=libLLVM.so.18.1
 readelf -dW "$LIBDIR"/librustc_driver-*.so | grep -F "Shared library: [$LLVM_SONAME]"
 for needed in libssl.so.3 libcrypto.so.3 libz.so.1; do
   readelf -dW "$PREFIX/bin/cargo" | grep -F "Shared library: [$needed]"

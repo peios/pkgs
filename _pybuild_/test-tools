@@ -5,10 +5,14 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tomllib
+import urllib.request
 import zipfile
+
+PYPI = 'https://pypi.org'
 
 # These are upstream release automation / benchmark instrumentation, not the
 # functional package suite. All other upstream test requirements are retained.
@@ -32,6 +36,28 @@ def portable(path):
             raise ValueError(f'test wheel is not pure Python: {path.name}')
 
 
+def bootstrap_pip(directory):
+    """Fetch the current pip wheel by PyPI's published digest. Pip runs from the
+    wheel itself, so acquisition needs only the build root's Python."""
+    with urllib.request.urlopen(f'{PYPI}/pypi/pip/json', timeout=120) as response:
+        release = json.load(response)
+    wheels = [u for u in release['urls']
+              if u['packagetype'] == 'bdist_wheel' and u['filename'].endswith('-none-any.whl')]
+    if len(wheels) != 1:
+        raise ValueError('expected one portable pip wheel in the current release')
+    entry = wheels[0]
+    if not entry['url'].startswith('https://files.pythonhosted.org/'):
+        raise ValueError(f'pip wheel is served from an unexpected origin: {entry["url"]}')
+    directory.mkdir(parents=True)
+    path = directory / Path(entry['filename']).name
+    with urllib.request.urlopen(entry['url'], timeout=120) as response, path.open('wb') as out:
+        shutil.copyfileobj(response, out)
+    if sha(path) != entry['digests']['sha256']:
+        raise ValueError('pip wheel does not match its published digest')
+    portable(path)
+    return path
+
+
 def acquire(source, output, project, version):
     if project == 'setuptools':
         config = tomllib.loads((source / 'pyproject.toml').read_text())
@@ -46,11 +72,15 @@ def acquire(source, output, project, version):
     wheels.mkdir(parents=True, exist_ok=False)
     req = output / 'requirements.txt'
     req.write_text('\n'.join(requirements) + '\n')
+    bootstrap = output / 'bootstrap-pip'
+    env = dict(os.environ, PYTHONPATH=str(bootstrap_pip(bootstrap)), PIP_CONFIG_FILE=os.devnull,
+               PIP_DISABLE_PIP_VERSION_CHECK='1')
     subprocess.run([sys.executable, '-m', 'pip', '--isolated', 'download',
-                    '--index-url=https://pypi.org/simple', '--no-cache-dir',
+                    f'--index-url={PYPI}/simple', '--no-cache-dir',
                     '--only-binary=:all:', '--platform=any', '--implementation=py',
                     '--abi=none', '--python-version', f'{sys.version_info.major}.{sys.version_info.minor}',
-                    '-r', str(req), '-d', str(wheels)], check=True)
+                    '-r', str(req), '-d', str(wheels)], env=env, check=True)
+    shutil.rmtree(bootstrap)
     files = {}
     for p in sorted(wheels.iterdir()):
         portable(p)

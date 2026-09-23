@@ -44,10 +44,7 @@ cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
 
 # Instrument actual code generation while leaving stable feature probes intact.
 export RUSTC_WRAPPER="$PEKIT_RECIPE_ROOT/tools/rustc-cet"
-CET_LINK="-C link-arg=-Wl,-z,ibtplt"
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  CET_LINK="$CET_LINK -C link-arg=-Wl,-z,cet-report=error"
-fi
+CET_LINK="-C link-arg=-Wl,-z,ibtplt -C link-arg=-Wl,-z,cet-report=error"
 export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$CET_LINK --remap-path-prefix=$PEKIT_WORKSPACE_ROOT=/usr/src/debug/org.mozilla.cbindgen/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=/usr/src/debug/org.mozilla.cbindgen/.build --remap-path-prefix=$SRC=/usr/src/debug/org.mozilla.cbindgen --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=/usr/src/debug/org.mozilla.cbindgen/vendor"
 
 # Build the generator offline from the vendored dependency closure. Its unit
@@ -115,10 +112,7 @@ mkdir -p "$CARGO_HOME"
 cp "$PEKIT_VENDOR_OUT/cargo-config.toml" "$CARGO_HOME/config.toml"
 # Instrument actual code generation while leaving stable feature probes intact.
 export RUSTC_WRAPPER="$PEKIT_RECIPE_ROOT/tools/rustc-cet"
-CET_LINK="-C link-arg=-Wl,-z,ibtplt"
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  CET_LINK="$CET_LINK -C link-arg=-Wl,-z,cet-report=error"
-fi
+CET_LINK="-C link-arg=-Wl,-z,ibtplt -C link-arg=-Wl,-z,cet-report=error"
 export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$CET_LINK --remap-path-prefix=$PEKIT_WORKSPACE_ROOT=/usr/src/debug/org.mozilla.cbindgen/.workspace --remap-path-prefix=$PEKIT_OUT_BASE=/usr/src/debug/org.mozilla.cbindgen/.build --remap-path-prefix=$SRC=/usr/src/debug/org.mozilla.cbindgen --remap-path-prefix=$PEKIT_VENDOR_OUT/vendor=/usr/src/debug/org.mozilla.cbindgen/vendor"
 
 test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = "$PEKIT_VERSION"

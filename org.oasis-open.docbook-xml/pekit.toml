@@ -19,8 +19,7 @@ versions = "= 4.5"
 command = """
 set -eu
 SRC="$(pwd)"
-CHMOD=chmod
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then CHMOD=/usr/libexec/coreutils-build/chmod; fi
+CHMOD=/usr/libexec/coreutils-build/chmod
 DTD="$PEKIT_OUT/usr/share/xml/docbook/schema/dtd/$PEKIT_VERSION"
 ARCHIVE="$SRC/docbook-xml-$PEKIT_VERSION.zip"
 mkdir -p "$DTD"

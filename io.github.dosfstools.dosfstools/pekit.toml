@@ -39,9 +39,9 @@ FSCKDIR="$PEKIT_OUT/usr/libexec/fsck"
 
 # The complete upstream suite depends on xxd only for reversing its committed
 # reference hexdumps. Peios does not yet package Vim's xxd, so provide that
-# narrow interface with the declared Perl interpreter on the self-hosted rung.
-# Debian still uses its real xxd. Offset-aware writes preserve xxd's sparse
-# `*` sections instead of expanding large runs through shell text handling.
+# narrow interface with the declared Perl interpreter until it does.
+# Offset-aware writes preserve xxd's sparse `*` sections instead of expanding
+# large runs through shell text handling.
 if ! command -v xxd >/dev/null 2>&1; then
   mkdir -p "$PEKIT_OUT/.test-bin"
   cat > "$PEKIT_OUT/.test-bin/xxd" <<'EOF'
@@ -228,9 +228,7 @@ for elf in "$BIN/fatlabel" "$BIN/fsck.fat" "$BIN/mkfs.fat"; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   test "$(readelf -d "$elf" | grep -c 'Shared library:')" -eq 1
   readelf -d "$elf" | grep -F 'Shared library: [libc.so.6]'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi

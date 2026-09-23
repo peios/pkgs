@@ -38,7 +38,7 @@ cp -a "$SRC/." "$BUILD/"
 cd "$BUILD"
 
 # Preserve the workspace toolchain profile while making the security and
-# reproducible-source-path contract explicit on both supported build rungs.
+# reproducible-source-path contract explicit.
 CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.jedsoft.slang" \
 LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,-z,pack-relative-relocs -Wl,-z,ibtplt" \
   ./configure \
@@ -202,9 +202,7 @@ for elf in "$SLSH" "$SLANG_SO" "$STAGED_LIBDIR"/slang/v2/modules/*-module.so; do
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
   if strings "$elf" | grep -F "$ROOT"; then exit 1; fi
 done

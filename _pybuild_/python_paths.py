@@ -14,11 +14,9 @@ def library_path(provider=None):
     if provider == 'peipkg':
         if path != expected:
             raise ValueError(f'native interpreter uses {path}, expected {expected}')
-    elif provider not in ('apt', ''):
+    elif provider != '':
         raise ValueError(f'unsupported Python dependency provider: {provider}')
-    # Reference interpreters stage the same distribution layout, using their
-    # own ABI version. Their /usr/local sysconfig default is not package policy.
-    return expected if provider in ('apt', 'peipkg') else path
+    return path
 
 
 def staged_site(stage, provider=None):

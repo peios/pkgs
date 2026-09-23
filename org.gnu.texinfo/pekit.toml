@@ -87,11 +87,9 @@ SMOKE="$PEKIT_OUT/smoke"
 mkdir -p "$SMOKE"
 
 # Run the complete converter/module suites. Peios does not yet package the
-# optional Test::Deep module. If it is absent on the native rung, accept only
-# that suite's exact single missing-module error after every other TAP test
-# has completed; Debian carries Test::Deep and must pass without this branch.
+# optional Test::Deep module, so accept only that suite's exact single
+# missing-module error after every other TAP test has completed.
 if ! make -C "$STAGE/tta/perl" -j"$(nproc)" check; then
-  test "${PEKIT_NATIVE_ROOT:-}" = 1
   actual=$(find "$STAGE/tta/perl" -name '*.trs' -type f | while IFS= read -r result; do
     grep -Eq '^:test-result: (FAIL|ERROR)$' "$result" || continue
     printf '%s\n' "${result#"$STAGE/tta/perl"/}"

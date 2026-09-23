@@ -2,7 +2,7 @@
 #
 # Its first consumer is the kernel family: pkm's test.kunit, test.modsig,
 # test.fwsig and test.stratafs boot the kernel they built in QEMU (PEI-534),
-# which on the native rung needs a Peios QEMU. The build is therefore the
+# which needs a Peios QEMU. The build is therefore the
 # headless x86 system emulator and nothing else: one target, KVM and TCG,
 # pixman, no GUI, audio, network backends, block drivers, user-mode
 # emulation or tools. --without-default-features makes that explicit: every
@@ -286,9 +286,7 @@ readelf -W -l "$QEMU" | grep -E 'GNU_STACK.*RW '
 readelf -W -l "$QEMU" | grep -F 'GNU_RELRO'
 readelf -d "$QEMU" | grep -F 'BIND_NOW'
 if readelf -d "$QEMU" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$QEMU" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$QEMU" | grep -E 'x86 feature:.*IBT.*SHSTK'
 test "$(find "$STAGE/usr/lib/debug/.build-id" -type f -name '*.debug' | wc -l)" -eq 1
 test -n "$(find "$STAGE/usr/src/debug/org.qemu.qemu" -type f -print -quit)"
 '''

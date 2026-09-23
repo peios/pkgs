@@ -162,9 +162,7 @@ readelf -W -l "$RSYNC" | grep -E 'GNU_STACK.*RW '
 readelf -W -l "$RSYNC" | grep -F 'GNU_RELRO'
 readelf -d "$RSYNC" | grep -F 'BIND_NOW'
 readelf -d "$RSYNC" | grep -F 'RELR'
-if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-  readelf -n "$RSYNC" | grep -E 'x86 feature:.*IBT.*SHSTK'
-fi
+readelf -n "$RSYNC" | grep -E 'x86 feature:.*IBT.*SHSTK'
 # Validate the actual linked cryptography ABI selected by the declared SDK.
 # This accepts OpenSSL's supported major ABI rather than freezing an old SONAME.
 crypto_major=$(printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_MAJOR\n' | cc -E -P -x c - | tail -n 1)

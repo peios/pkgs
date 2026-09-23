@@ -167,9 +167,7 @@ find "$BIN" "$STAGED_LIBDIR" -type f | LC_ALL=C sort | while IFS= read -r file; 
   readelf -W -l "$file" | grep -F 'GNU_RELRO'
   readelf -d "$file" | grep -F 'BIND_NOW'
   readelf -d "$file" | grep -F 'RELR'
-  if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
-    readelf -n "$file" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$file" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$file" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 done
 test "$(wc -l < "$PEKIT_OUT/elf-list")" -eq 13

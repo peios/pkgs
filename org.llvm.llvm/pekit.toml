@@ -104,17 +104,15 @@ cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
 # not reach it. Its upstream __CET__ hooks emit real ENDBR instructions and
 # property notes with the explicit ASM flags above. Check these small objects
 # early, before the expensive compiler build, and retain the final ELF gates.
-if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-  cmake --build "$BUILD" --target LLVMSupportBlake3 -j"$JOBS"
-  ASM_COUNT=0
-  for object in "$BUILD"/lib/Support/BLAKE3/CMakeFiles/LLVMSupportBlake3.dir/*_x86-64_unix.S.o; do
-    test -f "$object"
-    readelf -n "$object" | grep -E 'x86 feature:.*IBT.*SHSTK'
-    objdump -d "$object" | grep -q 'endbr64'
-    ASM_COUNT=$((ASM_COUNT + 1))
-  done
-  test "$ASM_COUNT" -eq 4
-fi
+cmake --build "$BUILD" --target LLVMSupportBlake3 -j"$JOBS"
+ASM_COUNT=0
+for object in "$BUILD"/lib/Support/BLAKE3/CMakeFiles/LLVMSupportBlake3.dir/*_x86-64_unix.S.o; do
+  test -f "$object"
+  readelf -n "$object" | grep -E 'x86 feature:.*IBT.*SHSTK'
+  objdump -d "$object" | grep -q 'endbr64'
+  ASM_COUNT=$((ASM_COUNT + 1))
+done
+test "$ASM_COUNT" -eq 4
 
 cmake --build "$BUILD" -j"$JOBS"
 
@@ -328,9 +326,7 @@ for elf in "$BIN/llvm-config" "$BIN/clang-$LLVM_MAJOR" "$BIN/lld" \
   readelf -W -l "$elf" | grep -F 'GNU_RELRO'
   readelf -d "$elf" | grep -F 'BIND_NOW'
   readelf -d "$elf" | grep -F 'RELR'
-  if [ "${PEKIT_DEPENDENCY_PROVIDER-}" = peipkg ]; then
-    readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
-  fi
+  readelf -n "$elf" | grep -E 'x86 feature:.*IBT.*SHSTK'
   if readelf -d "$elf" | grep -Eq '(RPATH|RUNPATH)'; then exit 1; fi
 done
 '''
