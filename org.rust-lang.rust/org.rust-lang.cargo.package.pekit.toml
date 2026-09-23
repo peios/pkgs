@@ -13,8 +13,8 @@ description = "Package manager and build tool for the Rust ecosystem"
 "org.gnu.glibc"                   = ">= 2.43"
 "org.gnu.gcc-libgcc"                  = ">= 16"
 "io.github.zlib-ng.zlib-ng-compat"                    = ">= 2.3.3"
-"org.openssl.libssl"    = ">= 3.5"
-"org.openssl.libcrypto" = ">= 3.5"
+"org.openssl.libssl"    = ">= 4"
+"org.openssl.libcrypto" = ">= 4"
 
 [files]
 # Keep the component's upstream notices beside its installed payload.

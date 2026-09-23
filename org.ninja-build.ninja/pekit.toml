@@ -91,18 +91,14 @@ cmp "$PEKIT_OUT/ninja.1.gz" "$STAGE/usr/share/man/man1/ninja.1.gz"
 # Upstream scripts locate the tested executable relative to the working directory.
 cd "$BUILD"
 
-# Dependency-closed upstream regression coverage. The jobserver client suite
-# needs util-linux's taskset; the pseudo-terminal suite needs script and Bash.
-# PEI-702 tracks the separate GoogleTest C++ suite.
+# Dependency-closed upstream regression coverage. Not run: the jobserver client
+# suite (misc/jobserver_test.py) needs util-linux's taskset and the
+# pseudo-terminal suite (misc/output_test.py) needs util-linux's script, and
+# the catalogue's util-linux does not ship either yet (PEI-1164). PEI-702
+# tracks the separate GoogleTest C++ suite.
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SRC/misc" \
   python3 "$SRC/misc/ninja_syntax_test.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_pool_test.py"
-if command -v taskset >/dev/null 2>&1; then
-  PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/jobserver_test.py"
-fi
-if command -v script >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
-  PYTHONDONTWRITEBYTECODE=1 python3 "$SRC/misc/output_test.py"
-fi
 
 # Exercise the installed executor, its shell integration and target tooling.
 mkdir -p "$SMOKE"

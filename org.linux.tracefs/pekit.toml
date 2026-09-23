@@ -185,12 +185,9 @@ JOBS=2
 export CFLAGS="${CFLAGS:--O2 -g} -Wall -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.tracefs"
 export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
-if pkgconf --exists cunit; then
-  make -C "$SRC" O="$BUILD" -j1 test
-  "$BUILD/utest/trace-utest" --help >/dev/null
-else
-  echo 'CUnit unavailable; running maintained hermetic tests only' >&2
-fi
+# Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
+# which the catalogue does not package yet (PEI-1164). The hermetic tests below
+# are the gate until it does.
 
 test "$(find "$PREFIX/include/tracefs" -mindepth 1 -maxdepth 1 \
   -type f -printf '%f\n')" = tracefs.h

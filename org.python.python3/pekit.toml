@@ -18,8 +18,9 @@ listing_url = "https://www.python.org/downloads/source/"
 file_regex  = 'Python-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
 extract     = true
 root        = "Python-{{version}}"
-# Soft supported-ABI floor. Follow every newer stable release; an incompatible
-# interpreter ABI stops at the full build, test, and staged-extension gates.
+# The 3.14 feature line: follow every maintenance release unattended. The
+# ceiling is deliberate: 3.15 changes the ABI and site-packages path, so it
+# waits for the coordinated rebuild of every Python package.
 versions    = ">= 3.14.0, < 3.15"
 
 # CPython 3.14+ release archives are Sigstore-only (PEP 761). Pekit cannot yet
@@ -296,14 +297,20 @@ STDLIB="$1"
 PYVER="${STDLIB##*python}"
 LIBDIR="$STAGE/usr/lib/x86_64-linux-peios"
 PYTHON="$STAGE/usr/bin/python$PYVER"
-CONFIGDIR="$STAGE/python-devel/usr/lib/x86_64-linux-peios/python$PYVER"/config-*
+set -- "$STAGE/python-devel/usr/lib/x86_64-linux-peios/python$PYVER"/config-*
+[ "$#" -eq 1 ] && [ -f "$1/Makefile" ]
+CONFIGDIR="$1"
 SMOKE="$PEKIT_OUT/smoke"
 
-if grep -F -n -e "$SRC" -e "$STAGE" \
-     "$STDLIB"/_sysconfigdata_*.py "$STDLIB"/_sysconfig_vars_*.json \
-     "$STDLIB/build-details.json" "$CONFIGDIR/Makefile" \
-     "$STAGE"/usr/bin/python*-config; then
-  echo "python3: installed development metadata contains a build path" >&2
+# grep exits 1 when nothing matches and 2 when a file is missing; only 1
+# proves the metadata is clean.
+status=0
+grep -F -n -e "$SRC" -e "$STAGE" \
+  "$STDLIB"/_sysconfigdata_*.py "$STDLIB"/_sysconfig_vars_*.json \
+  "$STDLIB/build-details.json" "$CONFIGDIR/Makefile" \
+  "$STAGE"/usr/bin/python*-config || status=$?
+if [ "$status" -ne 1 ]; then
+  echo "python3: installed development metadata contains a build path, or is missing (grep status $status)" >&2
   exit 1
 fi
 
@@ -362,13 +369,17 @@ for elf in "$STAGE/usr/bin/python$PYVER" \
   readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
   readelf -dW "$elf" | grep -Eq 'BIND_NOW|FLAGS.*NOW'
   readelf -dW "$elf" | grep -q '(RELR)'
-  ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
+  if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
+    echo "python3: $elf has RPATH, RUNPATH or TEXTREL" >&2; exit 1
+  fi
   readelf -nW "$elf" | grep -q 'Build ID:'
   readelf -nW "$elf" | grep -q 'IBT, SHSTK'
 done
 find "$STDLIB/lib-dynload" -type f -name '*.so' | while IFS= read -r elf; do
   readelf -lW "$elf" | grep 'GNU_STACK' | grep -q ' RW '
-  ! readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'
+  if readelf -dW "$elf" | grep -Eq 'RPATH|RUNPATH|TEXTREL'; then
+    echo "python3: $elf has RPATH, RUNPATH or TEXTREL" >&2; exit 1
+  fi
   readelf -nW "$elf" | grep -q 'Build ID:'
   readelf -nW "$elf" | grep -q 'IBT, SHSTK'
 done

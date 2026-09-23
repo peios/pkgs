@@ -2,11 +2,11 @@
 #
 # PEIOS-DIVERGENCE(userland): Peios's installed system userland is peiosutils,
 # a KACS-aware hard fork of uutils/coreutils which deliberately omits the
-# traditional POSIX ownership and mode tools. GNU Coreutils remains the small
-# C-bootstrap implementation: Autotools requires GNU semantics and a working
-# chmod long before the Rust toolchain can build peiosutils. The `coreutils`
-# capability keeps consumers independent of which implementation fills that
-# role later in the bootstrap.
+# traditional POSIX ownership and mode tools. Upstream build systems still need
+# GNU semantics (chmod, chown, install -m, GNU options), so the GNU commands
+# ship only as org.gnu.coreutils-build-compat, in /usr/libexec/coreutils-build,
+# which Pekit's sandbox puts first on PATH. No package installs them into
+# /usr/bin, where they would collide with peiosutils.
 
 tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
@@ -59,14 +59,11 @@ MAKE_STDBUF_CFLAGS='src_libstdbuf_so_CFLAGS=-fPIC $(WERROR_CFLAGS)'
 make -j"$(nproc)" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
 
 make install DESTDIR="$PEKIT_OUT" "$MAKE_PIE_CFLAGS" "$MAKE_PIE_LDFLAGS" "$MAKE_STDBUF_CFLAGS"
-find "$PEKIT_OUT/usr/share/man" -type f -name '*.[1-9]' -exec gzip -9n {} \\;
-# The bracket command implements test with a required closing bracket.
-ln -s test.1.gz "$PEKIT_OUT/usr/share/man/man1/[.1.gz"
-
-# Peios has no Info reader at present. Command manuals remain in the common
-# package, and the complete source/documentation remains reproducible through
-# the corresponding-source package.
-rm -rf "$PEKIT_OUT/usr/share/info"
+# The commands are private build tools off the system PATH, so their manuals
+# and Info documentation are not shipped: they would also collide with
+# peiosutils' manuals. The complete documentation remains in the
+# corresponding-source package.
+rm -rf "$PEKIT_OUT/usr/share/man" "$PEKIT_OUT/usr/share/info"
 
 # Distribution debug split over all command binaries and libstdbuf.so.
 cd "$PEKIT_OUT"
@@ -98,10 +95,7 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist"
 """
 
 [build.main.dependencies.peipkg]
-# Bootstrap the first non-overlapping compatibility split with the last signed
-# C build floor that carried full GNU Coreutils. Later build floors can consume
-# org.gnu.coreutils-build-compat without installing the overlapping utilities.
-"dev.peios.build-essentials-c" = "1.0.0-1"
+"dev.peios.build-essentials-c" = "*"
 # The upstream test harness and generated help/man machinery use Perl.
 "org.perl.perl" = "*"
 # The help/version regression exercises compressed-input dispatch.
@@ -193,7 +187,7 @@ rm -rf "$SMOKE"
 '''
 
 [test.dependencies.peipkg]
-"dev.peios.build-essentials-c" = "1.0.0-1"
+"dev.peios.build-essentials-c" = "*"
 "org.perl.perl" = "*"
 "org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"

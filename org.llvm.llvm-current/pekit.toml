@@ -71,6 +71,11 @@ export LDFLAGS="${LDFLAGS:-} -Wl,-z,relro,-z,now -Wl,--as-needed -Wl,-z,pack-rel
 # Keep a valid CMake tree across interrupted or failed checks. Pekit preserves
 # this target stage and CMake refreshes it from the declared configuration
 # below; a new source version still receives its own empty output scope.
+# Only the CMake tree survives: everything a previous run staged is removed,
+# so a rerun splits debug info afresh and cannot carry stale payload.
+rm -rf "$PREFIX" "$PEKIT_OUT/.debuginfo" "$PEKIT_OUT/.manuals" \
+  "$PEKIT_OUT/.source-list" "$PEKIT_OUT/.build-ids" "$PEKIT_OUT/.debugedit-list" \
+  "$PEKIT_OUT/default-driver" "$PEKIT_OUT/sdk-closures" "$PEKIT_OUT/smoke"
 cmake -G Ninja -S "$SRC/llvm" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_FLAGS="$CFLAGS" \

@@ -178,12 +178,9 @@ SMOKE="$PEKIT_OUT/smoke"
 export EXTRA_CFLAGS="${CFLAGS:--O2 -g} -fcf-protection=full -fmacro-prefix-map=$ROOT=/usr/src/debug/org.linux.traceevent"
 export LDFLAGS="${LDFLAGS:-} -Wl,-z,ibtplt"
 
-if pkgconf --exists cunit; then
-  make -C "$SRC" O="$BUILD" test
-  "$BUILD/utest/trace-utest"
-else
-  echo 'CUnit unavailable; running maintained staged-library tests only' >&2
-fi
+# Not run: upstream's unit suite (make test; utest/trace-utest) needs CUnit,
+# which the catalogue does not package yet (PEI-1164). The staged-library
+# tests below are the gate until it does.
 
 find "$PREFIX/include/traceevent" -mindepth 1 -maxdepth 1 -type f \
   -printf '%f\n' | LC_ALL=C sort > "$PEKIT_OUT/actual-headers"

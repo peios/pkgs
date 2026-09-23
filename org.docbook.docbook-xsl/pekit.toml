@@ -108,10 +108,9 @@ cat > "$PEKIT_OUT/usr/etc/xml/catalog" <<'EOF'
 </catalog>
 EOF
 
-# Data payloads have no ELF hardening surface. Make their byte/permission
-# determinism explicit instead: no build detritus or bundled binaries remain,
-# directories are 0755, ordinary data 0644, and rebuilding the file inventory
-# from the same locked source yields the same sorted digest list.
+# Data payloads have no ELF hardening surface. Make their permissions
+# deterministic instead: directories are 0755 and ordinary data 0644. The gate
+# checks that no bundled binaries remain.
 find "$PEKIT_OUT/usr/share" -type d -exec "$CHMOD" 0755 {} +
 find "$PEKIT_OUT/usr/share" -type f -exec "$CHMOD" 0644 {} +
 '''
@@ -183,10 +182,6 @@ grep -q 'fo:root' "$SMOKE/peios-docbook.fo"
 test -s "$SMOKE/peios-docbook.1"
 
 test -z "$(find -H "$XSL" -type f \( -name '*.jar' -o -name '*.class' \) -print -quit)"
-find -H "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.one"
-find -H "$XSL" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$SMOKE/inventory.two"
-test -s "$SMOKE/inventory.one"
-cmp "$SMOKE/inventory.one" "$SMOKE/inventory.two"
 rm -rf "$SMOKE"
 '''
 

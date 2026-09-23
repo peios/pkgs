@@ -14,8 +14,8 @@ license     = "GPL-2.0-or-later"
 
 [files]
 "@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-getopt/"
-"@source:AUTHORS"                   = "usr/share/doc/org.kernel.util-linux/"
-"@source:NEWS"                      = "usr/share/doc/org.kernel.util-linux/"
-"@source:README"                    = "usr/share/doc/org.kernel.util-linux/"
+"@source:AUTHORS"                   = "usr/share/doc/org.kernel.util-linux-getopt/"
+"@source:NEWS"                      = "usr/share/doc/org.kernel.util-linux-getopt/"
+"@source:README"                    = "usr/share/doc/org.kernel.util-linux-getopt/"
 ":usr/bin/getopt"                   = "usr/bin/getopt"
 ":usr/share/man/man1/getopt.1.gz"   = "usr/share/man/man1/getopt.1.gz"

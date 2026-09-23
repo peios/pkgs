@@ -14,9 +14,9 @@ license     = "BSD-4-Clause-UC AND GPL-2.0-or-later"
 
 [files]
 "@source:COPYING"                   = "usr/share/licenses/org.kernel.util-linux-hexdump/"
-"@source:AUTHORS"                   = "usr/share/doc/org.kernel.util-linux/"
-"@source:NEWS"                      = "usr/share/doc/org.kernel.util-linux/"
-"@source:README"                    = "usr/share/doc/org.kernel.util-linux/"
+"@source:AUTHORS"                   = "usr/share/doc/org.kernel.util-linux-hexdump/"
+"@source:NEWS"                      = "usr/share/doc/org.kernel.util-linux-hexdump/"
+"@source:README"                    = "usr/share/doc/org.kernel.util-linux-hexdump/"
 ":usr/bin/hexdump"                   = "usr/bin/hexdump"
 ":usr/share/man/man1/hexdump.1.gz"   = "usr/share/man/man1/hexdump.1.gz"
 "@source:text-utils/hexdump.c" = "usr/share/licenses/org.kernel.util-linux-hexdump/hexdump.c"

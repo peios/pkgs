@@ -5,8 +5,6 @@ name        = "org.python.python3"
 description = "Python 3 interpreter and command-line tools"
 
 [provides]
-# Include the package revision so this canonical provider outranks the retained
-# 3.14.7-1 bootstrap artifact in mixed local pools.
 
 [replaces]
 

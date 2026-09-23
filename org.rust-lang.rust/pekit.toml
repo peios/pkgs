@@ -565,7 +565,11 @@ LLVM_SONAME=$(readelf -dW "$LLVM_LIBRARY" | sed -n 's/.*(SONAME).*\[\(.*\)\].*/\
 test -n "$LLVM_SONAME"
 readelf -dW "$LIBDIR"/librustc_driver-*.so | grep -F "Shared library: [$LLVM_SONAME]"
 
-for needed in libssl.so.3 libcrypto.so.3 libz.so.1; do
+# Cargo links the system OpenSSL (openssl-sys supports 3.x and 4.x). Check the
+# SONAME of the SDK actually installed rather than freezing one ABI here.
+crypto_major=$(printf '#include <openssl/opensslv.h>\nOPENSSL_VERSION_MAJOR\n' | cc -E -P -x c - | tail -n 1)
+case "$crypto_major" in 3|4) ;; *) echo "rust: unreviewed OpenSSL ABI $crypto_major" >&2; exit 1 ;; esac
+for needed in "libssl.so.$crypto_major" "libcrypto.so.$crypto_major" libz.so.1; do
   readelf -dW usr/bin/cargo | grep -F "Shared library: [$needed]"
 done
 
@@ -589,7 +593,7 @@ rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
 "io.github.zlib-ng.zlib-ng-compat-devel"                = "*"
 "com.facebook.zstd-devel"                = "*"
 "org.pkgconf.pkgconf"                      = "*"
-"org.openssl.openssl-devel"             = ">= 3.5, < 4"
+"org.openssl.openssl-devel"             = ">= 4"
 "org.sourceware.debugedit"                    = "*"
 "org.gnu.gzip"                         = "*"
 
@@ -668,5 +672,5 @@ python3 "$PEKIT_RECIPE_ROOT/regression-fixtures/run.py" \
 "org.gnu.gcc-libatomic-static" = ">= 16"
 "org.llvm.llvm"                            = ">= 23.1.1, < 24"
 "io.github.zlib-ng.zlib-ng-compat"                            = ">= 2.3.3"
-"org.openssl.libssl"           = ">= 3.5, < 4"
-"org.openssl.libcrypto"        = ">= 3.5, < 4"
+"org.openssl.libssl"           = ">= 4"
+"org.openssl.libcrypto"        = ">= 4"
