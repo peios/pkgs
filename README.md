@@ -681,6 +681,17 @@ produce a materially different package, including changes to:
 - tests whose correction exposes a different accepted artifact; or
 - signing/provenance policy represented by the package.
 
+The revision is for recipe changes only. **A code change is a new version, not a
+new revision.** For a first-party package, anything that changes what the source
+builds (code, build system, tests, or the repo's own `pekit.toml` and package
+definitions) is released from the first-party repository as a new version:
+bump its version, tag `vX.Y.Z`, push, relock the member here, and start that
+version at `-1`. Bump the revision only when this tree's recipe changes and
+the same upstream source is rebuilt; a first-party fix never reaches a package
+as a revision bump over an old tag. Every revision restarted at `-1` for the
+September 2026 rebootstrap, so a revision above `-1` names a real recipe change
+since then.
+
 Do not overwrite or silently republish the same name/version/architecture with
 different bytes. Rebuild every split in a source family at the new exact family
 revision, even if only one member's dependency changed. Already published bad
