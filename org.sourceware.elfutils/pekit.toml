@@ -37,13 +37,23 @@ export CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.sourc
 export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
 cd "$PEKIT_OUT"
 
+# The minimal-bootstrap Debian build omits bzip2. Linked against Debian's
+# libbz2 it would need the soname libbz2.so.1.0, which the catalogue's bzip2
+# (soname libbz2.so.1) never provides, and debugedit carries elfutils-libs
+# into every native build root. The native rebuild of the seed has bzip2
+# support, and the test gate requires it there.
+BZLIB=--with-bzlib
+if [ "${PEKIT_NATIVE_ROOT:-}" != 1 ]; then
+  BZLIB=--without-bzlib
+fi
+
 "$SRC/configure" \
   --prefix=/usr \
   --bindir=/usr/bin \
   --libdir=/usr/lib/x86_64-linux-peios \
   --mandir=/usr/share/man \
   --program-prefix=eu- \
-  --with-bzlib \
+  "$BZLIB" \
   --with-lzma \
   --with-zstd \
   --enable-deterministic-archives \
@@ -102,9 +112,17 @@ mkdir -p "$TMPDIR"
 
 # Assert the configured production feature set, then run the complete upstream
 # suite with ownership-neutral fixture extraction.
-for define in USE_ZLIB USE_BZLIB USE_LZMA USE_ZSTD USE_ZSTD_COMPRESS USE_DEMANGLE; do
+for define in USE_ZLIB USE_LZMA USE_ZSTD USE_ZSTD_COMPRESS USE_DEMANGLE; do
   grep -Fx "#define $define 1" "$STAGE/config.h"
 done
+# bzip2 is omitted only from the Debian seed build (see build.main); every
+# native build must have it.
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  grep -Fx '#define USE_BZLIB 1' "$STAGE/config.h"
+  readelf -d "$LIBDIR/libdw.so.1" | grep -F 'Shared library: [libbz2.so.1]'
+else
+  if grep -Fx '#define USE_BZLIB 1' "$STAGE/config.h"; then exit 1; fi
+fi
 grep -Fx '#define DEFAULT_AR_DETERMINISTIC true' "$STAGE/config.h"
 TAR_OPTIONS=--no-same-owner make -C "$STAGE" -j"$(nproc)" check
 
