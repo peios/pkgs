@@ -5,7 +5,9 @@ Description: Build the ssl module against OpenSSL 4
  macros are set, so the module linked with four undefined symbols, failed
  its import check and was dropped. Define the macros for OpenSSL 4 and
  later, as a build without those methods already does; the protocol
- constants that need them are then simply not offered.
+ constants that need them are then simply not offered. The SSLv3 case of
+ the context constructor checked only OPENSSL_NO_SSL3, unlike the TLS
+ cases, so it also checks OPENSSL_NO_SSL3_METHOD now.
 Author: Peios maintainers <packaging@peios.org>
 Origin: vendor
 Forwarded: no
@@ -37,3 +39,14 @@ Forwarded: no
  /* OpenSSL API 1.1.0+ does not include version methods */
  #ifndef OPENSSL_NO_SSL3_METHOD
  extern const SSL_METHOD *SSLv3_method(void);
+@@ -3127,7 +3145,9 @@
+     }
+ 
+     switch(proto_version) {
+-#if defined(SSL3_VERSION) && !defined(OPENSSL_NO_SSL3)
++#if (defined(SSL3_VERSION) && \
++        !defined(OPENSSL_NO_SSL3) && \
++        !defined(OPENSSL_NO_SSL3_METHOD))
+     case PY_SSL_VERSION_SSL3:
+         PY_SSL_DEPRECATED("ssl.PROTOCOL_SSLv3 is deprecated", 2, NULL);
+         method = SSLv3_method();
