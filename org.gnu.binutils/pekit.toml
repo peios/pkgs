@@ -197,6 +197,10 @@ needs = ["main"]
 command = '''
 set -eu
 BIN="$PEKIT_MAIN_OUT/usr/bin"
+# ar.exp's "replacing non-deterministic member" requires SOURCE_DATE_EPOCH to
+# be unset (it says so): with it set, `ar U` records that date instead of the
+# member's real one. The test exercises ar, not this build's reproducibility.
+unset SOURCE_DATE_EPOCH
 
 # Upstream DejaGnu suites for the binutils tools, the assembler, the linker and
 # libsframe, against the build tree, in both environments. Any unexpected

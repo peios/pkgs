@@ -313,4 +313,10 @@ if __name__ == "__main__":
     try:
         prepare()
     except (KeyError, ValueError, OSError, subprocess.CalledProcessError) as error:
-        raise SystemExit(f"Debian root preparation failed: {error}")
+        # A captured tool's own message is the useful part; the exception
+        # alone only says which command exited non-zero.
+        detail = ''
+        if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+            stderr = error.stderr.decode(errors='replace') if isinstance(error.stderr, bytes) else error.stderr
+            detail = '\n' + stderr.strip()
+        raise SystemExit(f"Debian root preparation failed: {error}{detail}")

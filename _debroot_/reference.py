@@ -289,8 +289,13 @@ def install_catalogue(catalogue, stage, snapshot, anchor, work):
         lines += ['[[package]]', f'name = "{dep["name"]}"', f'version = "{constraint(dep["checks"])}"']
     manifest.write_text('\n'.join(lines) + '\n')
     scratch = work / 'scratch'
+    # --no-dependencies: only the named packages' own files are taken below,
+    # and what they need at run time comes from the Debian set. Resolving
+    # their catalogue closure would make a seed build wait for packages the
+    # seed cannot have yet (packaging-tools needs python3, bindgen clang).
     subprocess.run(['peipkg-compose', 'build', str(manifest), '--out', str(scratch),
-                    '--record-xattrs', str(work / 'xattrs.jsonl'), '--dangerously-bypass-path-restrictions'],
+                    '--record-xattrs', str(work / 'xattrs.jsonl'), '--dangerously-bypass-path-restrictions',
+                    '--no-dependencies'],
                    check=True, capture_output=True)
     installed = {}
     for line in subprocess.run(['peipkg', '--root', str(scratch), 'list'], check=True,
