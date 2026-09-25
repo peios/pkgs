@@ -135,7 +135,12 @@ fi
 if readelf -d "$MPFR_SO" | grep -Eq '(RPATH|RUNPATH|TEXTREL)'; then exit 1; fi
 readelf -d "$MPFR_SO" | grep -F 'Shared library: [libgmp.so.10]'
 readelf -d "$MPFR_SO" | grep -F 'Shared library: [libc.so.6]'
-if readelf -d "$MPFR_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+# Thread-safe MPFR uses TLS. Debian's GCC 14 reaches it through
+# __tls_get_addr, which ld.so provides, so the seed's Debian build rightly
+# names ld-linux; the native toolchain's build does not, and is held to that.
+if [ "${PEKIT_NATIVE_ROOT:-}" = 1 ]; then
+  if readelf -d "$MPFR_SO" | grep -F 'Shared library: [ld-linux-x86-64.so.2]'; then exit 1; fi
+fi
 '''
 
 [test.dependencies.peipkg]
