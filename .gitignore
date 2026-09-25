@@ -9,6 +9,7 @@ _pkgsOut_
 # slash ignores only real directories; leaving it off keeps that operational
 # symlink from falsely marking otherwise exact-commit package provenance dirty.
 _peipkgRepo_
+_repo2_
 _pkgsOut_.presigning-bak/
 # Older spelling of the same retired flat publish pool; never commit it.
 pkgsOut/

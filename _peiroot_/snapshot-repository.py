@@ -7,7 +7,8 @@ import shutil
 import tempfile
 
 state = Path(os.environ['PEKIT_JOB_STATE'])
-source = (Path(os.environ['PEKIT_WORKSPACE_ROOT']) / '_peipkgRepo_').resolve()
+# The publish target in package.pekit.toml; keep the two in step.
+source = (Path(os.environ['PEKIT_WORKSPACE_ROOT']) / '_repo2_').resolve()
 snapshot = state / 'native-repository'
 if not snapshot.exists():
     temporary = Path(tempfile.mkdtemp(prefix='repository-', dir=state))

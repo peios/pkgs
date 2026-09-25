@@ -66,7 +66,7 @@ their replacements.
 
 `out_dir` must be a dedicated child of the recipe root; use the inherited
 convention `out_dir = "out"`. Do not point it at source, a parent/workspace
-directory, or `_peipkgRepo_`. A `[clean]` target is only for
+directory, or a repository directory. A `[clean]` target is only for
 additional regeneratable state outside `out_dir` (for example Cargo's local
 `target/`) and must name that state narrowly. Never add `[clean] command =
 "rm -rf out"`: Pekit already owns and removes `out_dir`.
@@ -706,7 +706,11 @@ recipe. Development keyrings are per-developer, gitignored qualification inputs
 and must never be treated as public-repository custody.
 
 `pekit publish` packages the selected package(s), runs the gates and publishes
-them into `_peipkgRepo_`, creating the Peipkg repository if it does not exist.
+them into `_repo2_`, creating the Peipkg repository if it does not exist.
+Native builds install their dependencies from the same directory. `_repo2_`
+replaced `_peipkgRepo_` for the September 2026 rebootstrap; the older
+repository stays in place, frozen, only for images still composed from it.
+Nothing publishes to it or installs from it for a build.
 Repository publication currently regenerates the complete signed index from
 repository contents; it is not an incremental database operation. The
 repository is a directory of static files and requires no SQLite service.
@@ -719,7 +723,7 @@ only `--quick`), and deploy the verified directory atomically. After every
 publish:
 
 ```sh
-peipkg-repo verify _peipkgRepo_
+peipkg-repo verify _repo2_
 ```
 
 Verification includes the repository descriptor/index, package archives, and
@@ -776,7 +780,7 @@ RECIPE=org.example.product
 
    ```sh
    "$PEKIT" --recipe "$RECIPE" publish --all --latest --strict --keyring dev
-   peipkg-repo verify _peipkgRepo_
+   peipkg-repo verify _repo2_
    ```
 
 For the whole catalogue, put workspace flags before the delegated command and

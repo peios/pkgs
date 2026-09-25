@@ -25,7 +25,10 @@ dependency_provider = "peipkg"
 # regeneratable staging area, so publication does not duplicate every artifact
 # into a flat pool. The keyring selects environment-specific key custody
 # without putting a key path or private material in version control.
+# _repo2_ is the September 2026 rebootstrap's repository; the older
+# _peipkgRepo_ stays in place, frozen, for images still composed from it.
+# _peiroot_/snapshot-repository.py names the same directory.
 [publish.peipkg]
-path = "_peipkgRepo_"
+path = "_repo2_"
 name = "peios"
 signing_key = "keyring:signing.repository_key"
