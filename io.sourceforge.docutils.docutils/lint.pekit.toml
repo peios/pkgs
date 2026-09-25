@@ -1,0 +1,7 @@
+# Upstream ships many library modules with a `#!` line (some naming
+# /usr/bin/env). They are installed non-executable, and imported or run with
+# `python3 -m`, never by path; the launchers docutils installs in /usr/bin
+# name /bin/python3. Rewriting the lines would change the sources that the
+# checked-hash bytecode was compiled from.
+[allow_files."payload.scripts"]
+"usr/lib/x86_64-linux-peios/python3.14/site-packages/docutils/**" = "Library modules with upstream #! lines; installed non-executable and never run by path"

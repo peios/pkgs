@@ -6,10 +6,9 @@ description = "Intel Sound Open Firmware DSP firmware, modules and topologies"
 "@source:LICENCE.Intel"                            = "usr/share/licenses/org.sofproject.sof-firmware/"
 ":usr/lib/firmware/intel/sof-ace-tplg"             = "usr/lib/firmware/intel/sof-ace-tplg"
 ":usr/lib/firmware/intel/**/*.ri.zst"              = "usr/lib/firmware/intel"
-":usr/lib/firmware/intel/**/*.ri.zst.peios.sig"    = "usr/lib/firmware/intel"
 ":usr/lib/firmware/intel/**/*.tplg.zst"            = "usr/lib/firmware/intel"
-":usr/lib/firmware/intel/**/*.tplg.zst.peios.sig"  = "usr/lib/firmware/intel"
 ":usr/lib/firmware/intel/**/*.llext.zst"           = "usr/lib/firmware/intel"
-":usr/lib/firmware/intel/**/*.llext.zst.peios.sig" = "usr/lib/firmware/intel"
 ":usr/lib/firmware/intel/**/*.bin.zst"             = "usr/lib/firmware/intel"
-":usr/lib/firmware/intel/**/*.bin.zst.peios.sig"   = "usr/lib/firmware/intel"
+# One sidecar per regular payload file (the gate checks the pairing). Symlink
+# aliases, such as the .bin names that point at .llext modules, have none.
+":usr/lib/firmware/intel/**/*.zst.peios.sig"       = "usr/lib/firmware/intel"
