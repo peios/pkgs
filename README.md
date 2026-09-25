@@ -828,16 +828,26 @@ which the repository normally refuses (a published version never changes), so
 they pass `--replace` to overwrite the earlier builds:
 
 ```sh
-"$PEKIT" workspace publish --all --latest --locked --tag minimal-bootstrap --env debian
-"$PEKIT" workspace publish --all --latest --locked --exclude-tag minimal-bootstrap
-"$PEKIT" workspace publish --all --latest --locked --tag minimal-bootstrap --replace
-"$PEKIT" workspace publish --all --latest --locked --exclude-tag minimal-bootstrap --replace
+J=_rebootstrap_
+mkdir -p "$J"
+"$PEKIT" workspace --jobs 3 --journal "$J/round1" publish --all --latest --locked --tag minimal-bootstrap --env debian
+"$PEKIT" workspace --jobs 3 --journal "$J/round2" publish --all --latest --locked --exclude-tag minimal-bootstrap
+"$PEKIT" workspace --jobs 3 --journal "$J/round3" publish --all --latest --locked --tag minimal-bootstrap --replace
+"$PEKIT" workspace --jobs 3 --journal "$J/round4" publish --all --latest --locked --exclude-tag minimal-bootstrap --replace
 ```
 
 `--locked` makes every round build the newest version already in each
 recipe's lock instead of asking upstream. Without it, an upstream release that
 lands between rounds would be built in a later round only, and `--replace`
 would never reach the version the earlier round published.
+
+Each round takes hours and the later ones a day or more, so each has its own
+`--journal`: repeating a round's command resumes it, skipping what already
+published. To stop for a power-off, `touch "$J/roundN.stop"`; the round lets
+running members finish, starts nothing new and exits. A hard power-off instead
+loses only the members that were running. `--replace` makes the journal
+essential in rounds 3 and 4: without it a restarted round would rebuild
+everything it had already replaced.
 
 `--replace` breaks the retention promise for the versions it overwrites. Use
 it only on a repository nobody consumes yet, never on the public repository;

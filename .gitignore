@@ -10,6 +10,8 @@ _pkgsOut_
 # symlink from falsely marking otherwise exact-commit package provenance dirty.
 _peipkgRepo_
 _repo2_
+# Workspace journals and stop files for the multi-round bootstrap.
+_rebootstrap_/
 _pkgsOut_.presigning-bak/
 # Older spelling of the same retired flat publish pool; never commit it.
 pkgsOut/
