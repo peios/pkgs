@@ -4,3 +4,4 @@ peios/platform-triplet.patch  # PEIOS-DIVERGENCE(triplet): configure + configure
 peios/purelib-is-platlib.patch  # PEIOS-DIVERGENCE(purelib): purelib = platlib, one site-packages
 peios/test-userns-identities.patch  # Test prerequisites: representable Linux user-namespace identities
 peios/test-offline-services.patch  # Test prerequisites: resolver/account services; loopback transports
+peios/openssl4-version-methods.patch  # OpenSSL 4 dropped the version-specific methods; mark them absent

@@ -1,0 +1,39 @@
+Description: Build the ssl module against OpenSSL 4
+ OpenSSL 4.0 removed SSLv3_method, TLSv1_method, TLSv1_1_method and
+ TLSv1_2_method from libssl without defining the OPENSSL_NO_*_METHOD macros
+ that tell _ssl.c they are absent. _ssl.c declares them itself unless those
+ macros are set, so the module linked with four undefined symbols, failed
+ its import check and was dropped. Define the macros for OpenSSL 4 and
+ later, as a build without those methods already does; the protocol
+ constants that need them are then simply not offered.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: no
+
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -135,6 +135,24 @@
+ #error Unsupported OpenSSL version
+ #endif
+ 
++/* OpenSSL 4.0 removed the version-specific methods but defines none of the
++   OPENSSL_NO_*_METHOD macros that mark them absent, so the declarations
++   below would name functions libssl no longer exports. */
++#if OPENSSL_VERSION_MAJOR >= 4
++#  ifndef OPENSSL_NO_SSL3_METHOD
++#    define OPENSSL_NO_SSL3_METHOD
++#  endif
++#  ifndef OPENSSL_NO_TLS1_METHOD
++#    define OPENSSL_NO_TLS1_METHOD
++#  endif
++#  ifndef OPENSSL_NO_TLS1_1_METHOD
++#    define OPENSSL_NO_TLS1_1_METHOD
++#  endif
++#  ifndef OPENSSL_NO_TLS1_2_METHOD
++#    define OPENSSL_NO_TLS1_2_METHOD
++#  endif
++#endif
++
+ /* OpenSSL API 1.1.0+ does not include version methods */
+ #ifndef OPENSSL_NO_SSL3_METHOD
+ extern const SSL_METHOD *SSLv3_method(void);
