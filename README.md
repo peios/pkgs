@@ -828,11 +828,16 @@ which the repository normally refuses (a published version never changes), so
 they pass `--replace` to overwrite the earlier builds:
 
 ```sh
-"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --env debian
-"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap
-"$PEKIT" workspace publish --all --latest --tag minimal-bootstrap --replace
-"$PEKIT" workspace publish --all --latest --exclude-tag minimal-bootstrap --replace
+"$PEKIT" workspace publish --all --latest --locked --tag minimal-bootstrap --env debian
+"$PEKIT" workspace publish --all --latest --locked --exclude-tag minimal-bootstrap
+"$PEKIT" workspace publish --all --latest --locked --tag minimal-bootstrap --replace
+"$PEKIT" workspace publish --all --latest --locked --exclude-tag minimal-bootstrap --replace
 ```
+
+`--locked` makes every round build the newest version already in each
+recipe's lock instead of asking upstream. Without it, an upstream release that
+lands between rounds would be built in a later round only, and `--replace`
+would never reach the version the earlier round published.
 
 `--replace` breaks the retention promise for the versions it overwrites. Use
 it only on a repository nobody consumes yet, never on the public repository;
