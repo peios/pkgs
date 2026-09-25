@@ -14,8 +14,8 @@ license = "GPL-3.0-or-later AND GPL-2.0-or-later AND LGPL-2.1-or-later AND GFDL-
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/m4/m4-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/m4/"
+url         = "https://ftpmirror.gnu.org/m4/m4-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/m4/"
 extract     = true
 root        = "m4-{{version}}"
 file_regex  = 'm4-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'

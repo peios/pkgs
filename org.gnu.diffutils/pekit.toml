@@ -4,8 +4,8 @@ tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/diffutils/diffutils-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/diffutils/"
+url         = "https://ftpmirror.gnu.org/diffutils/diffutils-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/diffutils/"
 extract     = true
 root        = "diffutils-{{version}}"
 file_regex = 'diffutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

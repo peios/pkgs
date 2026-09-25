@@ -11,8 +11,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/grep/grep-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/grep/"
+url         = "https://ftpmirror.gnu.org/grep/grep-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/grep/"
 extract     = true
 root        = "grep-{{version}}"
 file_regex  = 'grep-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

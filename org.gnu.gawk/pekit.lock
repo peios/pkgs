@@ -14,7 +14,7 @@ schema = 1
 
 [[source]]
   version = "5.4.1"
-  url = "https://ftp.gnu.org/gnu/gawk/gawk-5.4.1.tar.xz"
+  url = "https://ftpmirror.gnu.org/gawk/gawk-5.4.1.tar.xz"
   sha256 = "07f6f7342b7febe4313fc2c2542ad93d64fe20ad8717200109f105a826f5fd37"
   signature_key = "d1967c63788713177d861ed7df597815937ec0d2"
-  locked_at = "2026-09-04T21:15:45Z"
+  locked_at = "2026-09-25T22:48:36Z"

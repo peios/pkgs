@@ -16,8 +16,8 @@ patches = "patches"
 
 [source.url]
 # ftp.gnu.org mirrors gmp's signed releases (gmp itself is not GNU-VCS-hosted).
-url         = "https://ftp.gnu.org/gnu/gmp/gmp-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/gmp/"
+url         = "https://ftpmirror.gnu.org/gmp/gmp-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/gmp/"
 root        = "gmp-{{version}}"
 extract     = true
 file_regex  = 'gmp-\d+\.\d+\.\d+\.tar\.xz'

@@ -6,8 +6,8 @@ tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/mpc/mpc-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/mpc/"
+url         = "https://ftpmirror.gnu.org/mpc/mpc-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/mpc/"
 root        = "mpc-{{version}}"
 extract     = true
 file_regex  = 'mpc-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'

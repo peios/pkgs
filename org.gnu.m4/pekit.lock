@@ -14,7 +14,7 @@ schema = 1
 
 [[source]]
   version = "1.4.21"
-  url = "https://ftp.gnu.org/gnu/m4/m4-1.4.21.tar.xz"
+  url = "https://ftpmirror.gnu.org/m4/m4-1.4.21.tar.xz"
   sha256 = "f25c6ab51548a73a75558742fb031e0625d6485fe5f9155949d6486a2408ab66"
   signature_key = "71c2cc22b1c4602927d2f3aaa7a16b4a2527436a"
-  locked_at = "2026-09-05T00:57:30Z"
+  locked_at = "2026-09-25T22:47:50Z"

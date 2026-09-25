@@ -21,8 +21,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/binutils/binutils-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/binutils/"
+url         = "https://ftpmirror.gnu.org/binutils/binutils-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/binutils/"
 root        = "binutils-{{version}}"
 extract     = true
 # Matched within the directory-listing HTML, so deliberately unanchored.

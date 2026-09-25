@@ -23,8 +23,8 @@ out_dir = "out"
 license = "GFDL-1.3-or-later AND GPL-2.0-or-later AND X11 AND FSFUL AND LicenseRef-Public-Domain AND LicenseRef-Kuhn-wcwidth AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0) AND (GPL-3.0-or-later WITH Texinfo-exception)"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/readline/readline-{{major}}.{{minor}}.tar.gz"
-listing_url = "https://ftp.gnu.org/gnu/readline/"
+url         = "https://ftpmirror.gnu.org/readline/readline-{{major}}.{{minor}}.tar.gz"
+listing_url = "https://ftpmirror.gnu.org/readline/"
 extract     = true
 root        = "readline-{{major}}.{{minor}}"
 file_regex  = 'readline-[0-9]+\.[0-9]+\.tar\.gz'
@@ -41,7 +41,7 @@ key_files    = ["keys/chet-ramey.asc"]
 fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
 
 [source.url.patch_series]
-url         = "https://ftp.gnu.org/gnu/readline/readline-{{major}}.{{minor}}-patches/readline{{major}}{{minor}}-{{patch}}"
+url         = "https://ftpmirror.gnu.org/readline/readline-{{major}}.{{minor}}-patches/readline{{major}}{{minor}}-{{patch}}"
 patch_width = 3
 strip       = 0
 

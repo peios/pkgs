@@ -1,12 +1,13 @@
 # pekit.lock — machine-written by pekit; records pinned source inputs.
-# Do not edit by hand. To accept changed upstream bytes for a version, run:
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
 #   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
 
 schema = 1
 
 [[source]]
   version = "4.4.1"
-  url = "https://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz"
+  url = "https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz"
   sha256 = "dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3"
   signature_key = "6d4eeb02ad834703510b117680cb727a20c79bb2"
-  locked_at = "2026-09-05T01:41:41Z"
+  locked_at = "2026-09-25T22:48:01Z"

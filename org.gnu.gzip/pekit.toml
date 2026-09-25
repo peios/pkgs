@@ -4,8 +4,8 @@ tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/gzip/gzip-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/gzip/"
+url         = "https://ftpmirror.gnu.org/gzip/gzip-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/gzip/"
 extract     = true
 root        = "gzip-{{version}}"
 file_regex  = 'gzip-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

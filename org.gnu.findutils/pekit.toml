@@ -10,8 +10,8 @@ tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/findutils/findutils-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/findutils/"
+url         = "https://ftpmirror.gnu.org/findutils/findutils-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/findutils/"
 extract     = true
 root        = "findutils-{{version}}"
 file_regex  = 'findutils-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

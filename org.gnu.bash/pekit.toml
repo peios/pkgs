@@ -19,8 +19,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/bash/bash-{{version}}.tar.gz"
-listing_url = "https://ftp.gnu.org/gnu/bash/"
+url         = "https://ftpmirror.gnu.org/bash/bash-{{version}}.tar.gz"
+listing_url = "https://ftpmirror.gnu.org/bash/"
 extract  = true
 root     = "bash-{{version}}"
 # Soft maintenance floor: automatic sweeps follow newer stable base releases
@@ -35,7 +35,7 @@ key_files    = ["keys/chet-ramey.asc"]
 fingerprints = ["7C0135FB088AAF6C66C650B9BB5869F064EA74AB"]
 
 [source.url.patch_series]
-url         = "https://ftp.gnu.org/gnu/bash/bash-{{major}}.{{minor}}-patches/bash{{major}}{{minor}}-{{patch}}"
+url         = "https://ftpmirror.gnu.org/bash/bash-{{major}}.{{minor}}-patches/bash{{major}}{{minor}}-{{patch}}"
 patch_width = 3
 strip       = 0
 

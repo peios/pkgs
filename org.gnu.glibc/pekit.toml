@@ -51,8 +51,8 @@ patches = "patches"
 # GNU's release area is the canonical, immutable distribution channel.  Use
 # signed release archives rather than a mutable Git ref so unattended version
 # discovery authenticates the exact source bytes that enter the repository.
-url         = "https://ftp.gnu.org/gnu/libc/glibc-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/libc/"
+url         = "https://ftpmirror.gnu.org/libc/glibc-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/libc/"
 extract     = true
 root        = "glibc-{{version}}"
 file_regex  = 'glibc-[0-9]+\.[0-9]+\.tar\.xz'

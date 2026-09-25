@@ -14,7 +14,7 @@ schema = 1
 
 [[source]]
   version = "4.11.0"
-  url = "https://ftp.gnu.org/gnu/findutils/findutils-4.11.0.tar.xz"
+  url = "https://ftpmirror.gnu.org/findutils/findutils-4.11.0.tar.xz"
   sha256 = "bfd19cb06cc71f3352d567e90284d8cdac02ac89774bbeadf0b533b0c11432fd"
   signature_key = "0cf4e8d871593224842832b888dd9e08c5ddacb9"
-  locked_at = "2026-09-04T20:35:27Z"
+  locked_at = "2026-09-25T22:48:38Z"

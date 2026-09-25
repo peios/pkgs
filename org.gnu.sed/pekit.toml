@@ -9,8 +9,8 @@ tags = ["bootstrap", "minimal-bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/sed/sed-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/sed/"
+url         = "https://ftpmirror.gnu.org/sed/sed-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/sed/"
 extract     = true
 root        = "sed-{{version}}"
 file_regex  = 'sed-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

@@ -21,7 +21,7 @@ schema = 1
 
 [[source]]
   version = "9.12"
-  url = "https://ftp.gnu.org/gnu/coreutils/coreutils-9.12.tar.xz"
+  url = "https://ftpmirror.gnu.org/coreutils/coreutils-9.12.tar.xz"
   sha256 = "a480198559733e9b3da999e90543ac6f888a2caa544d8d664c5a1f17e528e210"
   signature_key = "6c37dc12121a5006bc1db804df6fd971306037d9"
-  locked_at = "2026-09-16T12:27:11Z"
+  locked_at = "2026-09-25T22:47:47Z"

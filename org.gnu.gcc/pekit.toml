@@ -74,8 +74,8 @@ CXXFLAGS = "-O2 -g -Wformat -Wformat-security -fstack-clash-protection -fcf-prot
 # GCC publishes release archives and detached signatures on GNU's canonical
 # mirror network. Enumerate version directories from the parent index so a new
 # 16.x point release is selected without recipe maintenance.
-url         = "https://ftp.gnu.org/gnu/gcc/gcc-{{version}}/gcc-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/gcc/"
+url         = "https://ftpmirror.gnu.org/gcc/gcc-{{version}}/gcc-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/gcc/"
 extract     = true
 root        = "gcc-{{version}}"
 file_regex  = 'gcc-[0-9]+\.[0-9]+\.[0-9]+/'

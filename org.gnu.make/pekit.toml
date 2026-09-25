@@ -14,8 +14,8 @@ license = "GPL-3.0-or-later AND LGPL-2.1-or-later AND GFDL-1.3-or-later AND GPL-
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/make/make-{{version}}.tar.gz"
-listing_url = "https://ftp.gnu.org/gnu/make/"
+url         = "https://ftpmirror.gnu.org/make/make-{{version}}.tar.gz"
+listing_url = "https://ftpmirror.gnu.org/make/"
 extract     = true
 root        = "make-{{version}}"
 file_regex  = 'make-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.gz'
