@@ -4,17 +4,20 @@ Description: Build the ssl module against OpenSSL 4
  that tell _ssl.c they are absent. _ssl.c declares them itself unless those
  macros are set, so the module linked with four undefined symbols, failed
  its import check and was dropped. Define the macros for OpenSSL 4 and
- later, as a build without those methods already does; the protocol
- constants that need them are then simply not offered. The SSLv3 case of
+ later, as a build without those methods already does: a context for one
+ of those version-specific PROTOCOL_* constants then raises ValueError
+ ("invalid or unsupported protocol version"). The SSLv3 case of
  the context constructor checked only OPENSSL_NO_SSL3, unlike the TLS
- cases, so it also checks OPENSSL_NO_SSL3_METHOD now.
+ cases, so it also checks OPENSSL_NO_SSL3_METHOD now. SSLv3 itself is gone
+ from OpenSSL 4, so OPENSSL_NO_SSL3 is defined too: without it, HAS_SSLv3
+ and the minimum available protocol version claimed SSLv3.
 Author: Peios maintainers <packaging@peios.org>
 Origin: vendor
 Forwarded: no
 
 --- a/Modules/_ssl.c
 +++ b/Modules/_ssl.c
-@@ -135,6 +135,24 @@
+@@ -135,6 +135,30 @@
  #error Unsupported OpenSSL version
  #endif
  
@@ -22,6 +25,12 @@ Forwarded: no
 +   OPENSSL_NO_*_METHOD macros that mark them absent, so the declarations
 +   below would name functions libssl no longer exports. */
 +#if OPENSSL_VERSION_MAJOR >= 4
++/* SSLv3 is gone altogether (the minimum version cannot be set to it), but
++   OPENSSL_NO_SSL3 is not defined either, so HAS_SSLv3 and the minimum
++   available version would claim it. */
++#  ifndef OPENSSL_NO_SSL3
++#    define OPENSSL_NO_SSL3
++#  endif
 +#  ifndef OPENSSL_NO_SSL3_METHOD
 +#    define OPENSSL_NO_SSL3_METHOD
 +#  endif
@@ -39,7 +48,7 @@ Forwarded: no
  /* OpenSSL API 1.1.0+ does not include version methods */
  #ifndef OPENSSL_NO_SSL3_METHOD
  extern const SSL_METHOD *SSLv3_method(void);
-@@ -3127,7 +3145,9 @@
+@@ -3127,7 +3151,9 @@
      }
  
      switch(proto_version) {

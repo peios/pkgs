@@ -1,0 +1,84 @@
+Description: Test the ssl module against OpenSSL 4
+ OpenSSL 4 still negotiates TLS 1.2 but no longer has the version-specific
+ TLSv1_2_method, so ssl.PROTOCOL_TLSv1_2 raises ValueError while
+ ssl.HAS_TLSv1_2 is true. has_tls_protocol() inferred the first from the
+ second; it now also constructs the context. The two tests that used
+ PROTOCOL_TLSv1_2 without asking has_tls_protocol() ask it, and
+ test_openssl_version accepts OpenSSL 4. Pairs with
+ openssl4-version-methods.patch.
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor
+Forwarded: no
+
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -195,7 +195,16 @@
+         # auto-negotiate protocols are always available
+         return True
+     name = protocol.name
+-    return has_tls_version(name[len('PROTOCOL_'):])
++    if not has_tls_version(name[len('PROTOCOL_'):]):
++        return False
++    # A version can be enabled while its version-specific method is not:
++    # OpenSSL 4 negotiates TLS 1.2 but no longer has TLSv1_2_method.
++    try:
++        with warnings_helper.check_warnings():
++            ssl.SSLContext(protocol)
++    except ValueError:
++        return False
++    return True
+ 
+ 
+ @functools.lru_cache
+@@ -587,11 +596,11 @@
+         # Some sanity checks follow
+         # >= 1.1.1
+         self.assertGreaterEqual(n, 0x10101000)
+-        # < 4.0
+-        self.assertLess(n, 0x40000000)
++        # < 5.0
++        self.assertLess(n, 0x50000000)
+         major, minor, fix, patch, status = t
+         self.assertGreaterEqual(major, 1)
+-        self.assertLess(major, 4)
++        self.assertLess(major, 5)
+         self.assertGreaterEqual(minor, 0)
+         self.assertLess(minor, 256)
+         self.assertGreaterEqual(fix, 0)
+@@ -1728,16 +1737,17 @@
+             self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
+             self._assert_context_options(ctx)
+ 
+-        with warnings_helper.check_warnings():
+-            ctx = ssl._create_stdlib_context(
+-                ssl.PROTOCOL_TLSv1_2,
+-                cert_reqs=ssl.CERT_REQUIRED,
+-                check_hostname=True
+-            )
+-        self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLSv1_2)
+-        self.assertEqual(ctx.verify_mode, ssl.CERT_REQUIRED)
+-        self.assertTrue(ctx.check_hostname)
+-        self._assert_context_options(ctx)
++        if has_tls_protocol(ssl.PROTOCOL_TLSv1_2):
++            with warnings_helper.check_warnings():
++                ctx = ssl._create_stdlib_context(
++                    ssl.PROTOCOL_TLSv1_2,
++                    cert_reqs=ssl.CERT_REQUIRED,
++                    check_hostname=True
++                )
++            self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLSv1_2)
++            self.assertEqual(ctx.verify_mode, ssl.CERT_REQUIRED)
++            self.assertTrue(ctx.check_hostname)
++            self._assert_context_options(ctx)
+ 
+         ctx = ssl._create_stdlib_context(purpose=ssl.Purpose.CLIENT_AUTH)
+         self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLS_SERVER)
+@@ -3628,6 +3638,8 @@
+     def test_protocol_tlsv1_2(self):
+         """Connecting to a TLSv1.2 server with various client options.
+            Testing against older TLS versions."""
++        if not has_tls_protocol(ssl.PROTOCOL_TLSv1_2):
++            self.skipTest("PROTOCOL_TLSv1_2 is not available.")
+         if support.verbose:
+             sys.stdout.write("\n")
+         try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_TLSv1_2, 'TLSv1.2',

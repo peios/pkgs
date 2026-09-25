@@ -5,3 +5,4 @@ peios/purelib-is-platlib.patch  # PEIOS-DIVERGENCE(purelib): purelib = platlib, 
 peios/test-userns-identities.patch  # Test prerequisites: representable Linux user-namespace identities
 peios/test-offline-services.patch  # Test prerequisites: resolver/account services; loopback transports
 peios/openssl4-version-methods.patch  # OpenSSL 4 dropped the version-specific methods; mark them absent
+peios/test-openssl4.patch  # test_ssl: a TLS version can be enabled without its version-specific method
