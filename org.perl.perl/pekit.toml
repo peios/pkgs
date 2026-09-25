@@ -251,6 +251,14 @@ grep '^ccflags=' "$BUILD/config.sh" | grep -F '_FORTIFY_SOURCE=3'
 grep '^ldflags=' "$BUILD/config.sh" | grep -F -- '-z,now'
 
 export NO_NETWORK_TESTING=1
+# op/magic.t checks %ENV stores by parsing `env`, after clearing %ENV down to
+# PATH. Coreutils 9.12's env (coreutils-build-compat, first on PATH) shell-
+# quotes what it prints unless QUOTING_STYLE says otherwise, and the cleared
+# environment drops that. Put an env that prints raw NAME=value, as POSIX
+# specifies, first on the suite's PATH: the system one.
+mkdir -p "$PEKIT_OUT/raw-env"
+ln -sf /usr/bin/env "$PEKIT_OUT/raw-env/env"
+export PATH="$PEKIT_OUT/raw-env:$PATH"
 # Peios hostname lookups require resolvd, absent in the offline test root;
 # /etc/hosts is not a native resolver prerequisite. Keep the module load and
 # run all nine lookup assertions whenever libc can resolve localhost. A
