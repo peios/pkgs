@@ -69,6 +69,13 @@ RUSTFLAGS = "-C link-arg=-Wl,-z,relro -C link-arg=-Wl,-z,now -C link-arg=-Wl,--a
 CARGO_PROFILE_RELEASE_DEBUG = "2"
 CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO = "off"
 CARGO_PROFILE_RELEASE_INCREMENTAL = "false"
+# Coreutils 9.12's env and printenv shell-quote what they print, honouring
+# QUOTING_STYLE and defaulting to shell-escape. Build systems and test suites
+# parse `env` output as raw NAME=value lines (perl's op/magic.t does), and the
+# build roots put coreutils-build-compat's env first on PATH, so keep the
+# output raw. It also sets the default for ls and stat, where literal is what
+# a non-terminal already got.
+QUOTING_STYLE = "literal"
 
 # Symbol-version derivation policy (PSD automatic dependency derivation).
 #
