@@ -11,8 +11,8 @@ tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/automake/automake-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/automake/"
+url         = "https://ftpmirror.gnu.org/automake/automake-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/automake/"
 extract  = true
 root     = "automake-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU

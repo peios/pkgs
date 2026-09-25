@@ -7,7 +7,7 @@ schema = 1
 
 [[source]]
   version = "17.2"
-  url = "https://ftp.gnu.org/gnu/gdb/gdb-17.2.tar.xz"
+  url = "https://ftpmirror.gnu.org/gdb/gdb-17.2.tar.xz"
   sha256 = "1c036c0d72e4b3d1fb5c94c88632add6f9d76f4d7c4d2ea793c12a9f19a3228c"
   signature_key = "f40adb902b24264aa42e50bf92edb04bff325cf3"
-  locked_at = "2026-09-23T19:06:02Z"
+  locked_at = "2026-09-25T21:32:58Z"

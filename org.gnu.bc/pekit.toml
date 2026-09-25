@@ -16,8 +16,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/bc/bc-{{version}}.tar.gz"
-listing_url = "https://ftp.gnu.org/gnu/bc/"
+url         = "https://ftpmirror.gnu.org/bc/bc-{{version}}.tar.gz"
+listing_url = "https://ftpmirror.gnu.org/bc/"
 extract  = true
 root     = "bc-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU

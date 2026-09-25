@@ -9,8 +9,8 @@ out_dir = "out"
 license = "GPL-3.0-or-later AND LGPL-2.1-or-later AND GFDL-1.3-or-later AND FSFAP AND FSFULLR"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/patch/patch-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/patch/"
+url         = "https://ftpmirror.gnu.org/patch/patch-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/patch/"
 extract     = true
 root        = "patch-{{version}}"
 file_regex  = 'patch-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

@@ -17,8 +17,8 @@ out_dir = "out"
 patches = "patches"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/bison/bison-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/bison/"
+url         = "https://ftpmirror.gnu.org/bison/bison-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/bison/"
 extract     = true
 root        = "bison-{{version}}"
 file_regex = 'bison-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'

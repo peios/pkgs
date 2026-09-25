@@ -1,12 +1,13 @@
 # pekit.lock — machine-written by pekit; records pinned source inputs.
-# Do not edit by hand. To accept changed upstream bytes for a version, run:
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
 #   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
 
 schema = 1
 
 [[source]]
   version = "7.3"
-  url = "https://ftp.gnu.org/gnu/texinfo/texinfo-7.3.tar.xz"
+  url = "https://ftpmirror.gnu.org/texinfo/texinfo-7.3.tar.xz"
   sha256 = "51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e"
   signature_key = "eaf669b31e31e1decbd11513ddbc579dab37fba9"
-  locked_at = "2026-09-05T16:41:02Z"
+  locked_at = "2026-09-25T21:33:26Z"

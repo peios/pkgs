@@ -8,8 +8,8 @@ tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/which/which-{{version}}.tar.gz"
-listing_url = "https://ftp.gnu.org/gnu/which/"
+url         = "https://ftpmirror.gnu.org/which/which-{{version}}.tar.gz"
+listing_url = "https://ftpmirror.gnu.org/which/"
 extract     = true
 root        = "which-{{version}}"
 file_regex  = 'which-[0-9]+\.[0-9]+\.tar\.gz'

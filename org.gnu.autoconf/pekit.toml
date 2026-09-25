@@ -11,8 +11,8 @@ tags = ["bootstrap"]
 out_dir = "out"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/autoconf/autoconf-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/autoconf/"
+url         = "https://ftpmirror.gnu.org/autoconf/autoconf-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/autoconf/"
 extract  = true
 root     = "autoconf-{{version}}"
 # Soft maintenance floor: automatic sweeps follow every newer stable GNU

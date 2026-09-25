@@ -15,8 +15,8 @@ out_dir = "out"
 license = "GPL-3.0-or-later AND GPL-3.0-only AND GPL-2.0-or-later AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-only AND LGPL-3.0-or-later AND GFDL-1.3-no-invariants-or-later AND CC0-1.0 AND FSFAP AND FSFUL AND FSFULLR AND X11 AND LicenseRef-Public-Domain AND (GPL-1.0-or-later OR Artistic-1.0-Perl)"
 
 [source.url]
-url         = "https://ftp.gnu.org/gnu/texinfo/texinfo-{{version}}.tar.xz"
-listing_url = "https://ftp.gnu.org/gnu/texinfo/"
+url         = "https://ftpmirror.gnu.org/texinfo/texinfo-{{version}}.tar.xz"
+listing_url = "https://ftpmirror.gnu.org/texinfo/"
 extract     = true
 root        = "texinfo-{{version}}"
 file_regex  = 'texinfo-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
