@@ -454,6 +454,10 @@ rm -f "$PEKIT_OUT/.dl" "$PEKIT_OUT/.srclist" "$PEKIT_OUT/.elf-inodes"
 # cc1 compiles and links against — all from our own pool.
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c++" = "*"
+# libcpp's "working iconv" probe converts EUC-JP, which glibc keeps outside
+# its core converters. Without them cpp is built with no iconv at all, and
+# -finput-charset/-fexec-charset fail ("no iconv implementation").
+"org.gnu.glibc-gconv-extra" = "*"
 "io.github.westes.flex" = "*"
 "org.gnu.bison" = "*"
 "org.gnu.gmp-devel" = "*"
