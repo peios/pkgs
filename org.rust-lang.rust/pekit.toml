@@ -574,6 +574,27 @@ done
 
 rm -f "$PEKIT_OUT/.debug-one" "$PEKIT_OUT/.debug-sources" \
   "$PEKIT_OUT/.debug-buildids" "$PEKIT_OUT/.debug-elfs"
+
+# The installer records (rustlib/manifest-*) list each file by its staging
+# path. Rewrite every entry to its installed path, and drop entries for files
+# removed above (the debugger wrappers, the musl dylib), so the records name
+# exactly what ships.
+for manifest in "$PEKIT_OUT$TRIPLET_DIR"/rustlib/manifest-*; do
+  while IFS= read -r entry; do
+    kind=${entry%%:*}
+    path=${entry#*:}
+    path=${path#"$PEKIT_OUT"}
+    if [ -e "$PEKIT_OUT$path" ] || [ -L "$PEKIT_OUT$path" ]; then
+      printf '%s:%s\n' "$kind" "$path"
+    fi
+  done < "$manifest" > "$manifest.new"
+  mv "$manifest.new" "$manifest"
+  test -s "$manifest"
+done
+if grep -l "$PEKIT_OUT" "$PEKIT_OUT$TRIPLET_DIR"/rustlib/manifest-*; then
+  echo "rust: an installer manifest still names the staging tree" >&2
+  exit 1
+fi
 '''
 
 [build.main.dependencies.peipkg]
