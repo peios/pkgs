@@ -131,8 +131,10 @@ rm -rf "$PEKIT_OUT/target"
 [build.main.dependencies.peipkg]
 "dev.peios.build-essentials-c" = "*"
 "org.rust-lang.rust" = "*"
-"org.llvm.clang" = ">= 18.1.8, < 19"
-"org.llvm.clang-devel" = ">= 18.1.8, < 19"
+# No clang here: libclang is loaded at run time (see above), and the only
+# rust with cargo links LLVM 23 while this lane's clang is LLVM 18. Both
+# ship as org.llvm.llvm-libs, so one root cannot hold the pair. The test
+# root, which has no rust, takes clang 18.
 "org.sourceware.debugedit" = "*"
 "org.gnu.binutils" = "*"
 "org.gnu.gzip" = "*"
