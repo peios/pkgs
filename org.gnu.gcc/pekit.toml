@@ -1058,7 +1058,12 @@ done
 '''
 
 [test.dependencies.peipkg]
-# The regression gate's upstream suites run under DejaGnu.
+# The regression gate's upstream suites run under DejaGnu, driven by
+# `make check` through Makefiles that name the build root's tools
+# (coreutils-build-compat's install, diff, ...). The base build-essentials
+# carries exactly those; the compilers under test are the build tree's own,
+# so no installed gcc is added.
+"dev.peios.build-essentials" = "*"
 "org.gnu.dejagnu" = "*"
 "org.gnu.gzip" = "*"
 "org.git.kernel.dash" = "*"
