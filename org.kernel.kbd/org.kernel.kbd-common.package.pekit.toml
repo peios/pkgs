@@ -1,0 +1,14 @@
+side_effects = ["man-db"]
+
+[package]
+name = "org.kernel.kbd-common"
+description = "Console keymaps, fonts, translations and manuals"
+architecture = "noarch"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.kbd-common/COPYING"
+":usr/share/kbd/**" = "usr/share/kbd"
+":usr/share/man/**" = "usr/share/man"
+":usr/share/locale/**" = "usr/share/locale"
+"@recipe:src/COPYING.LIB" = "usr/share/licenses/org.kernel.kbd-common/COPYING.LIB"
+"@recipe:src/COPYING.LESSER" = "usr/share/licenses/org.kernel.kbd-common/COPYING.LESSER"

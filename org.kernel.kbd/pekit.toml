@@ -1,0 +1,75 @@
+out_dir = "out"
+
+[source.url]
+url = "https://www.kernel.org/pub/linux/utils/kbd/kbd-{{version}}.tar.xz"
+listing_url = "https://www.kernel.org/pub/linux/utils/kbd/"
+file_regex = 'kbd-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+root = "kbd-{{version}}"
+extract = true
+versions = ">= 2.10.0"
+
+# Release signature covers the decompressed tar. Public key retrieved from
+# the upstream maintainer's https://github.com/legionus.gpg on 2026-09-27.
+[source.url.signature]
+url = "https://www.kernel.org/pub/linux/utils/kbd/kbd-{{version}}.tar.sign"
+of = "decompressed"
+key_files = ["keys/alexey-gladkov.asc"]
+fingerprints = ["7F2A3D07298149A0793C9A4EA45ABA544CFFD434"]
+
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.kbd"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" config/config.sub
+# Build in the acquired source tree: upstream's data installation refers to
+# its source directories directly. Authentication remains with authd, so no
+# PAM vlock; XKB conversion is optional and outside this console-only package.
+./configure --prefix=/usr --bindir=/usr/bin --datadir=/usr/share/kbd \
+  --localedir=/usr/share/locale --mandir=/usr/share/man \
+  --disable-vlock --disable-xkb --disable-optional-progs \
+  --disable-libkeymap --disable-libkfont --disable-memcheck \
+  --enable-tests --enable-compress='gzip -n' \
+  --with-zlib --with-bzip2 --with-lzma --with-zstd
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.kbd "$PEKIT_OUT/usr"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.libtool" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.bison" = "*"
+"io.github.westes.flex" = "*"
+"org.pkgconf.pkgconf-devel" = "*"
+"org.gnu.gzip" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.sourceware.bzip2-devel" = "*"
+"org.tukaani.xz-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+make -j"$(nproc)" check
+sh "$PEKIT_RECIPE_ROOT/tests/installed.sh"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.libtool" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.bison" = "*"
+"io.github.westes.flex" = "*"
+"org.pkgconf.pkgconf-devel" = "*"
+"org.gnu.gzip" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.sourceware.bzip2-devel" = "*"
+"org.tukaani.xz-devel" = "*"
+"com.facebook.zstd-devel" = "*"

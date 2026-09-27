@@ -1,0 +1,19 @@
+[package]
+name = "org.kernel.kbd"
+description = "Linux console keyboard, font and virtual-terminal tools"
+
+[dependencies]
+"org.kernel.kbd-common" = "= {{release}}"
+"org.git.kernel.dash" = "*"
+# libkbdfile loads compression libraries with dlopen; ELF NEEDED discovery
+# cannot supply these runtime edges.
+"io.github.zlib-ng.zlib-ng-compat" = "*"
+"org.sourceware.bzip2-libs" = "*"
+"org.tukaani.xz-libs" = "*"
+"com.facebook.zstd-libs" = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.kbd/COPYING"
+":usr/bin/**" = "usr/bin"
+"@recipe:src/COPYING.LIB" = "usr/share/licenses/org.kernel.kbd/COPYING.LIB"
+"@recipe:src/COPYING.LESSER" = "usr/share/licenses/org.kernel.kbd/COPYING.LESSER"

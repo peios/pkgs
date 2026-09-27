@@ -1,0 +1,12 @@
+[package]
+name = "org.kernel.kbd-debuginfo"
+description = "Console tools debugging symbols"
+
+[dependencies]
+"org.kernel.kbd" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.kbd-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"
+"@recipe:src/COPYING.LIB" = "usr/share/licenses/org.kernel.kbd-debuginfo/COPYING.LIB"
+"@recipe:src/COPYING.LESSER" = "usr/share/licenses/org.kernel.kbd-debuginfo/COPYING.LESSER"

@@ -1,0 +1,8 @@
+format = "peipkg"
+
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "GPL-2.0-or-later AND GPL-2.0-only AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND LicenseRef-Public-Domain"
+license_class = "free"
+homepage = "https://kbd-project.org/"
