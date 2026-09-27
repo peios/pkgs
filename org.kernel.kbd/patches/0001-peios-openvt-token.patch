@@ -1,0 +1,53 @@
+Description: Preserve Peios tokens when launching a virtual-terminal command
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, PEI-1185
+Forwarded: not-needed
+
+Peios rejects Linux setuid even when the requested UID is unchanged. openvt
+ships without setuid bits and inherits its caller token. Do not change device
+ownership through numeric UIDs; retain the existing console descriptor. Reject
+legacy user inference/login -f explicitly rather than manufacturing an identity.
+
+--- a/src/openvt.c
++++ b/src/openvt.c
+@@ -328,9 +328,11 @@
+ 				if (vtno <= 0 || vtno > 63)
+ 					kbd_error(5, 0, _("%s: Illegal vt number"), optarg);
+ 
++#ifndef ENABLE_PEIOS
+ 				/* close security holes - until we can do this safely */
+ 				if (setuid(getuid()) < 0)
+ 					kbd_error(5, errno, "%s: setuid", optarg);
++#endif
+ 				break;
+ 			case 'l':
+ 				login = TRUE;
+@@ -351,6 +353,9 @@
+ 				do_wait = TRUE;
+ 				break;
+ 			case 'u':
++#ifdef ENABLE_PEIOS
++				kbd_error(EXIT_FAILURE, 0, "--user is unsupported on Peios; use an authenticated login service");
++#endif
+ 				/* we'll let 'em get away with the meaningless -ul combo */
+ 				if (getuid())
+ 					kbd_error(EXIT_FAILURE, 0, _("Only root can use the -u flag."));
+@@ -470,6 +475,9 @@
+ 		if (access(vtname, R_OK | W_OK) < 0)
+ 			kbd_error(5, errno, _("Cannot open %s read/write"), vtname);
+ 
++		/* Peios keeps the inherited token and descriptor ownership.
++		 * This executable is never setuid; KACS authorizes the VT operations. */
++#ifndef ENABLE_PEIOS
+ 		if (!as_user && !geteuid()) {
+ 			uid_t uid = getuid();
+ 			if (chown(vtname, uid, getgid()) == -1)
+@@ -477,6 +485,8 @@
+ 			if (setuid(uid) < 0)
+ 				kbd_error(5, errno, "setuid");
+ 		}
++
++#endif
+ 
+ 		if (show && change_vt(fd, vtno) < 0)
+ 			exit(1);

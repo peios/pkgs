@@ -5,6 +5,8 @@ bin=$stage/usr/bin
 work=$PEKIT_OUT/installed
 mkdir -p "$work"
 "$bin/loadkeys" --version | grep -F "$PEKIT_VERSION"
+if "$bin/openvt" --user > "$work/openvt-user" 2>&1; then exit 1; fi
+grep -F 'unsupported on Peios' "$work/openvt-user"
 test ! -e "$bin/vlock"
 test ! -e "$stage/etc/pam.d"
 test -L "$bin/psfgettable"

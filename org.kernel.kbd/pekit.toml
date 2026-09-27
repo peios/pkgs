@@ -1,5 +1,8 @@
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url = "https://www.kernel.org/pub/linux/utils/kbd/kbd-{{version}}.tar.xz"
 listing_url = "https://www.kernel.org/pub/linux/utils/kbd/"
@@ -20,6 +23,7 @@ fingerprints = ["7F2A3D07298149A0793C9A4EA45ABA544CFFD434"]
 command = '''
 set -eu
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS"
 export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.kbd"
 sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" config/config.sub
 # Build in the acquired source tree: upstream's data installation refers to
