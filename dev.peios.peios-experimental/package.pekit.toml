@@ -65,6 +65,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # medium: an installed system can install another.
 "dev.peios.peiosutils" = ">= 0.8.8-1"
 "dev.peios.libpeios"   = ">= 0.5.0-1"
+"org.gnu.glibc-bin"    = ">= 2.44-1" # locale tools and compiled C.UTF-8
 "org.git.kernel.dash"  = ">= 0.5.13.5-1"
 "dev.peios.peipkg" = ">= 0.1.3-1"
 "dev.peios.peios-install" = ">= 0.3.0-1"
