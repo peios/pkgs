@@ -51,8 +51,6 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.kernel-modules"     = ">= 0.20.1-rc13-1"
 "dev.peios.kernel-modules-irf" = { constraint = ">= 0.20.1-rc13-1", root = "initramfs" }
 "org.kernel.kmod"              = ">= 34.2-1"
-# Local console switching, keymaps and fonts (PEI-1187).
-"org.kernel.kbd"               = ">= 2.10.0-1"
 "dev.peios.coldplug-irf"       = { constraint = ">= 1.0.0-1", root = "initramfs" }
 "io.github.eudev-project.eudev" = ">= 3.2.14-1"
 
