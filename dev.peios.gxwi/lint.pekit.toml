@@ -2,3 +2,6 @@
 debuginfo = "dev.peios.gxwi-debuginfo"
 [allow]
 "source.signature.required" = "First-party release tags are not yet signed (PEI-1169); HTTPS plus the commit pinned in pekit.lock is the provenance boundary until they are"
+
+[allow_files."elf.cet"]
+"usr/bin/gxwi-server" = "The capability-restricted worker must be self-contained: upstream musl assembly in Peios's packaged static target does not yet promise CET. Rust code retains cf-protection; no property notes are forced. Static PIE, NX, RELRO and RELR remain checked."
