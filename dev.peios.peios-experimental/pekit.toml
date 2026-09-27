@@ -91,7 +91,9 @@ autoapply = [
   # cannot act.
   "timed-service",
   "timed-policy",
-  "atriumd-service",
+  # Authenticated remote access replaces the deprecated Atrium listener.
+  "sshd-service",
+  "sshd-network",
   # Experimental is the development-machine image, so its PNP viewer service
   # is deliberately enabled. This is not a production-profile policy.
   "pnpd-service",

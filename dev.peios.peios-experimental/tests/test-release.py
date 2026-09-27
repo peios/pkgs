@@ -61,7 +61,8 @@ assert registry["autoapply"] == [
     "trustd-service",
     "timed-service",
     "timed-policy",
-    "atriumd-service",
+    "sshd-service",
+    "sshd-network",
     "pnpd-service",
     "installerd-service",
 ]
@@ -87,7 +88,7 @@ assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
-    "dev.peios.atrium": ">= 0.0.25-1",
+    "dev.peios.openssh": ">= 10.5.1-1",
     "dev.peios.authd": ">= 0.0.14-1",
     "dev.peios.authd-live-account": ">= 0.0.14-1",
     "dev.peios.authd-login": ">= 0.0.14-1",
@@ -146,3 +147,5 @@ historical_first_party_names = {
     "trustd",
 }
 assert historical_first_party_names.isdisjoint(dependencies)
+
+assert "dev.peios.atrium" not in dependencies
