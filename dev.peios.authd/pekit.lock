@@ -56,5 +56,5 @@ schema = 1
 [[source]]
   version = "0.0.22"
   ref = "v0.0.22"
-  commit = "5966669b523585c2e901b4c27d8bba6547691fc8"
-  locked_at = "2026-09-27T14:54:36Z"
+  commit = "51f60f7cb0dfee0c5082d00b4a2af98ce39ca026"
+  locked_at = "2026-09-27T18:10:04Z"
