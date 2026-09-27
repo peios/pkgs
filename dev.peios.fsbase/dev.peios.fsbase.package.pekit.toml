@@ -184,3 +184,12 @@ special_system_package = true
 
 # Additional secret consumers must receive an explicit grant.
 "var/state/secrets" = "O:SYG:SYD:P(A;OICI;GA;;;SY)"
+
+# Private mutable containers. Traverse the container to an explicitly shared
+# child, but do not list it or inherit public access into new data.
+"var/state" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+"var/cache" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+"var/log" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+"var/crash" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+"data" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
+"srv" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;FX;;;WD)"
