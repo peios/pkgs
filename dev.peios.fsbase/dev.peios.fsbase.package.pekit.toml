@@ -106,8 +106,7 @@ special_system_package = true
 # /usr and /home alike — so an ordinary account had privacy nowhere and, since
 # nothing grants Everyone FILE_ADD_FILE, nowhere to write either.
 #
-# These two entries are the exception to inheritance, not a replacement for it.
-# Every other path fsbase mints still takes its descriptor from /.
+# Subtree overrides establish inheritance scopes; children normally inherit.
 #
 # Both DACLs are protected (the leading P). Without it the inheritable
 # Everyone read ACE from / is merged in, which would make /home listable by
@@ -168,3 +167,20 @@ special_system_package = true
 # therefore neither cleared at boot nor size-limited. PEI-556 makes it a real
 # mount and closes both.
 "tmp" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;0x1200af;;;WD)(A;OICIIO;GA;;;S-1-3-0)"
+
+# Public software scopes; runtime state does not inherit this public policy.
+"usr" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/bin" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/sbin" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/libexec" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/lib" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/include" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/share" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/etc" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/conf" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+
+# Persistent temporary files have the same creator-private policy as /tmp.
+"var/tmp" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;0x1200af;;;WD)(A;OICIIO;GA;;;S-1-3-0)"
+
+# Additional secret consumers must receive an explicit grant.
+"var/state/secrets" = "O:SYG:SYD:P(A;OICI;GA;;;SY)"

@@ -102,3 +102,23 @@ special_system_package = true
 ":irf/usr/etc" = "usr/etc"
 ":irf/usr/conf" = "usr/conf"
 "docs/LICENSE" = "usr/share/licenses/dev.peios.fsbase-irf/LICENSE"
+
+[sd_overrides]
+"tmp" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;0x1200af;;;WD)(A;OICIIO;GA;;;S-1-3-0)"
+
+# Public software scopes; runtime state does not inherit this public policy.
+"usr" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/bin" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/sbin" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/libexec" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/lib" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/include" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/share" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/etc" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+"lcl/conf" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GRGX;;;WD)"
+
+# Persistent temporary files have the same creator-private policy as /tmp.
+"var/tmp" = "O:SYG:SYD:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;;0x1200af;;;WD)(A;OICIIO;GA;;;S-1-3-0)"
+
+# Additional secret consumers must receive an explicit grant.
+"var/state/secrets" = "O:SYG:SYD:P(A;OICI;GA;;;SY)"
