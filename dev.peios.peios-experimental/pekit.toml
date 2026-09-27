@@ -94,6 +94,12 @@ autoapply = [
   # Authenticated remote access replaces the deprecated Atrium listener.
   "sshd-service",
   "sshd-network",
+  # Experimental web desktop; HTTP on a trusted development network only.
+  "gxwid-service",
+  "gxwi-config",
+  "gxwi-network",
+  "fenestra-config",
+  "fenesh-config",
   # Experimental is the development-machine image, so its PNP viewer service
   # is deliberately enabled. This is not a production-profile policy.
   "pnpd-service",

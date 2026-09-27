@@ -146,6 +146,12 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # Authenticated SSH access; the deprecated Atrium stack is not shipped.
 "dev.peios.openssh" = ">= 10.5.1-1"
 
+# GXWI display server, compositor, desktop shell and file explorer.
+"dev.peios.gxwi" = ">= 0.0.1-1"
+"dev.peios.fenestra" = ">= 0.0.1-1"
+"dev.peios.fenesh" = ">= 0.0.1-1"
+"dev.peios.gexora" = ">= 0.0.1-1"
+
 # The PNP viewer (PEI-598): network observation, starting as the packet viewer.
 # Experimental is explicitly the development-machine image, so PNPd is
 # intentionally installed and its pnpd-service seed is autoapplied. This does

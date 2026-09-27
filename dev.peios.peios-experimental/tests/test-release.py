@@ -63,6 +63,11 @@ assert registry["autoapply"] == [
     "timed-policy",
     "sshd-service",
     "sshd-network",
+    "gxwid-service",
+    "gxwi-config",
+    "gxwi-network",
+    "fenestra-config",
+    "fenesh-config",
     "pnpd-service",
     "installerd-service",
 ]
@@ -88,6 +93,10 @@ assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
+    "dev.peios.gxwi": ">= 0.0.1-1",
+    "dev.peios.fenestra": ">= 0.0.1-1",
+    "dev.peios.fenesh": ">= 0.0.1-1",
+    "dev.peios.gexora": ">= 0.0.1-1",
     "dev.peios.openssh": ">= 10.5.1-1",
     "dev.peios.authd": ">= 0.0.14-1",
     "dev.peios.authd-live-account": ">= 0.0.14-1",
