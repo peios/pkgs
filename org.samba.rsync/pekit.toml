@@ -1,7 +1,5 @@
-# rsync — authenticated upstream tracking and the complete supported local
-# transfer feature set. A daemon remains available for explicit invocation,
-# but Peios does not ship a service definition until its identity and policy
-# integration have been designed.
+# rsync — content synchronization over local paths and SSH (PEI-1186).
+# Native archive preservation and daemon identity integration are deferred.
 
 tags = ["bootstrap"]
 out_dir = "out"
@@ -44,6 +42,7 @@ cd "$BUILD"
 # and deliberately omit POSIX ACLs: Peios uses KACS DACLs instead. IDN host
 # names (3.5.1+) stay off until libidn2 is packaged. __FILE__ is mapped with
 # the same prefix split-debug gives DWARF.
+CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS" LIBS="${LIBS:-} -lpeios" \
 CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.samba.rsync" \
 CXXFLAGS="${CXXFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.samba.rsync" \
 LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
@@ -78,12 +77,24 @@ needs = ["main"]
 gate = true
 command = '''
 set -eu
+SRC="$(pwd)"
 STAGE="$PEKIT_MAIN_OUT"
 BUILD="$STAGE/build"
 PREFIX="$STAGE/usr"
 RSYNC="$PREFIX/bin/rsync"
 SMOKE="$PEKIT_OUT/smoke"
 VERSION_OUT="$PEKIT_OUT/rsync-version"
+
+# Linux-worker upstream coverage uses the portable branch. Installed native
+# behavior is separately mandatory in the Peios VM qualification fixture.
+BUILD="$PEKIT_OUT/portable-tests"
+mkdir -p "$BUILD"
+cd "$BUILD"
+"$SRC/configure" --prefix=/usr --with-included-popt --with-included-zlib=no \
+  --with-rrsync --enable-roll-simd --disable-lz4 --disable-acl-support \
+  --disable-idn --disable-md2man
+make -j"$(nproc)"
+PORTABLE_RSYNC="$BUILD/rsync"
 
 # The worker has a single UID/GID mapping. Exclude only cases whose concrete
 # identity or trusted procfs-owner prerequisite is unavailable; all other
@@ -121,7 +132,7 @@ import os
 import sys
 os.setxattr(sys.argv[1], b'user.peios-rsync-test', b'preserved')
 PY
-"$RSYNC" -aHX "$SMOKE/src/" "$SMOKE/dst/"
+"$PORTABLE_RSYNC" -aHX "$SMOKE/src/" "$SMOKE/dst/"
 cmp "$SMOKE/src/sub/payload" "$SMOKE/dst/sub/payload"
 test "$(readlink "$SMOKE/dst/symlink")" = sub/payload
 test "$(stat -c %i "$SMOKE/dst/sub/payload")" = "$(stat -c %i "$SMOKE/dst/hardlink")"
@@ -164,6 +175,7 @@ if strings "$RSYNC" | grep -F "$ROOT"; then exit 1; fi
 "org.python.python3"             = "*"
 
 [build.main.dependencies.peipkg]
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c++"      = "*"
 "org.sourceware.debugedit"                   = "*"

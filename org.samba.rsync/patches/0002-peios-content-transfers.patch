@@ -1,0 +1,509 @@
+Description: Native destination security for content transfers (PEI-1186)
+ Where the kernel has no native security, which is where a Peios build root
+ runs, every rule here stands aside and rsync is what upstream made it
+ (PEI-1193).
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/authenticate.c
++++ b/authenticate.c
+@@ -256,14 +256,25 @@
+ 			rsyserr(FERROR, errno, "fstat(%s)", filename);
+ 			exit_cleanup(RERR_SYNTAX);
+ 		}
+-		if ((st.st_mode & 06) != 0) {
+-			rprintf(FERROR, "ERROR: password file must not be other-accessible\n");
++#ifdef ENABLE_PEIOS
++        if (peios_native()) {
++            if (!peios_private_password(fd)) {
++                rprintf(FERROR, "Peios: password file must have a protected private native DACL.\n");
++                close(fd);
++                exit_cleanup(RERR_SYNTAX);
++            }
++        } else
++#endif
++        {
++        if ((st.st_mode & 06) != 0) {
++            rprintf(FERROR, "ERROR: password file must not be other-accessible\n");
+ 			exit_cleanup(RERR_SYNTAX);
+ 		}
+ 		if (MY_UID() == ROOT_UID && st.st_uid != ROOT_UID) {
+ 			rprintf(FERROR, "ERROR: password file must be owned by root when running as root\n");
+ 			exit_cleanup(RERR_SYNTAX);
+ 		}
++        }
+ 
+ 		n = read(fd, buffer, sizeof buffer - 1);
+ 		close(fd);
+--- a/clientserver.c
++++ b/clientserver.c
+@@ -1413,6 +1413,10 @@
+    here */
+ int start_daemon(int f_in, int f_out)
+ {
++#ifdef ENABLE_PEIOS
++    rprintf(FERROR, "Peios: rsync daemon serving is not supported; use SSH transfers.\n");
++    return RERR_UNSUPPORTED;
++#endif
+ 	char line[1024];
+ 	const char *addr, *host;
+ 	char *p;
+@@ -1745,6 +1749,10 @@
+ 
+ int daemon_main(void)
+ {
++#ifdef ENABLE_PEIOS
++    rprintf(FERROR, "Peios: rsync daemon serving is not supported; use SSH transfers.\n");
++    return RERR_UNSUPPORTED;
++#endif
+ 	if (is_inetd_socket(STDIN_FILENO)) {
+ 		int i;
+ 
+--- a/delete.c
++++ b/delete.c
+@@ -194,7 +194,13 @@
+ 	char *what;
+ 	int ok;
+ 
+-	if (DEBUG_GTE(DEL, 2)) {
++#ifdef ENABLE_PEIOS
++    if ((flags & DEL_MAKE_ROOM) && peios_native()) {
++        rprintf(FERROR_XFER, "Peios: refusing a type/link replacement that would discard destination security: %s\n", fbuf);
++        return DR_FAILURE;
++    }
++#endif
++    if (DEBUG_GTE(DEL, 2)) {
+ 		rprintf(FINFO, "delete_item(%s) mode=%o flags=%d\n",
+ 			fbuf, (int)mode, (int)flags);
+ 	}
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -45,7 +45,7 @@
+ zlib_OBJS=zlib/deflate.o zlib/inffast.o zlib/inflate.o zlib/inftrees.o \
+ 	zlib/trees.o zlib/zutil.o zlib/adler32.o zlib/compress.o zlib/crc32.o
+ OBJS1_NO_MAIN=flist.o rsync.o generator.o receiver.o cleanup.o sender.o exclude.o \
+-	util1.o util2.o checksum.o match.o syscall.o log.o backup.o delete.o
++	util1.o util2.o checksum.o match.o syscall.o peios.o log.o backup.o delete.o
+ OBJS1=$(OBJS1_NO_MAIN) main.o
+ OBJS2=options.o io.o compat.o hlink.o token.o uidlist.o socket.o hashtable.o \
+ 	usage.o fileio.o batch.o clientname.o chmod.o acls.o xattrs.o
+@@ -55,7 +55,7 @@
+ 	popt/popthelp.o popt/poptparse.o popt/poptint.o
+ OBJS=$(OBJS1) $(OBJS2) $(OBJS3) $(DAEMON_OBJ) $(LIBOBJ) @BUILD_ZLIB@ @BUILD_POPT@
+ 
+-TLS_OBJ = tls.o syscall.o util2.o t_stub.o lib/compat.o lib/snprintf.o lib/permstring.o lib/sysxattrs.o @BUILD_POPT@
++TLS_OBJ = tls.o peios.o syscall.o util2.o t_stub.o lib/compat.o lib/snprintf.o lib/permstring.o lib/sysxattrs.o @BUILD_POPT@
+ 
+ # Programs we must have to run the test cases
+ CHECK_PROGS = rsync$(EXEEXT) tls$(EXEEXT) getgroups$(EXEEXT) getfsdev$(EXEEXT) \
+--- a/options.c
++++ b/options.c
+@@ -2205,6 +2205,23 @@
+ 	}
+ #endif
+ 
++#ifdef ENABLE_PEIOS
++    if (!peios_native()) {
++        /* No native security to preserve or to lose: every mode is upstream's. */
++    } else if (preserve_perms || preserve_uid || preserve_gid || preserve_acls
++        || am_root < 0 || chmod_modes) {
++        snprintf(err_buf, sizeof err_buf,
++            "Peios: native security preservation is not supported (including -a/-p/-o/-g); use -rlt for content synchronization.\n");
++        goto cleanup;
++    } else if (preserve_hard_links || preserve_devices || preserve_specials
++        || tmpdir || partial_dir || keep_partial || delay_updates
++        || make_backups || backup_dir || basis_dir_cnt || inplace < 0
++        || insecure_links || write_batch || read_batch) {
++        snprintf(err_buf, sizeof err_buf,
++            "Peios: this staging, backup, hardlink, special-file or batch mode is not yet supported; use ordinary content synchronization.\n");
++        goto cleanup;
++    }
++#endif
+ 	if (fuzzy_basis > 1)
+ 		fuzzy_basis = basis_dir_cnt + 1;
+ 
+--- /dev/null
++++ b/peios.c
+@@ -0,0 +1,238 @@
++/* Peios content synchronization: security belongs to the destination.
++ * Named staging data is private. An unnamed inode obtains native inheritance
++ * before its DACL is tightened, so no reader can acquire it in that interval.
++ *
++ * All of it is for a kernel that has native security. On one that has none,
++ * which is where a Peios build root runs, there is no descriptor to keep and
++ * nothing here can succeed, so rsync is what upstream made it: peios_native()
++ * says which, and every native rule is asked for only where it says yes.
++ */
++#include "rsync.h"
++#ifdef ENABLE_PEIOS
++#include <peios/file.h>
++#include <peios/security.h>
++#include <peios/token.h>
++#include <sys/syscall.h>
++#include <sys/random.h>
++
++#define PEIOS_SD_ALL (KACS_SECINFO_OWNER | KACS_SECINFO_GROUP | KACS_SECINFO_DACL | KACS_SECINFO_SACL)
++static struct {
++    int parent, stage, target;
++    char name[MAXPATHLEN], temporary[MAXPATHLEN];
++    unsigned char descriptor[65535];
++    ssize_t length;
++    struct stat target_stat;
++} transfer = { .parent = -1, .stage = -1, .target = -1 };
++
++static void peios_transfer_close(void)
++{
++    if (transfer.target >= 0) close(transfer.target);
++    if (transfer.stage >= 0) close(transfer.stage);
++    if (transfer.parent >= 0) close(transfer.parent);
++    transfer.parent = transfer.stage = transfer.target = -1;
++}
++
++/* Whether the kernel has native security. Only the token call not existing
++ * says it has not: a Peios kernel has the call, so nothing on a Peios system
++ * can bring that answer about, and a call that is there and refuses is a
++ * refusal under the native rules, not a way out of them. Asked once. */
++int peios_native(void)
++{
++    static int native = -1;
++    int token, saved = errno;
++    if (native >= 0) return native;
++    token = peios_token_open_self(0, KACS_TOKEN_QUERY);
++    if (token >= 0) close(token);
++    native = token >= 0 || errno != ENOSYS;
++    errno = saved;
++    return native;
++}
++
++static ssize_t peios_self_sid(unsigned char *user)
++{
++    int token = peios_token_open_self(0, KACS_TOKEN_QUERY), saved;
++    ssize_t n;
++    if (token < 0) return -1;
++    n = peios_token_user(token, user, PEIOS_SID_MAX_BYTES);
++    saved = errno; close(token); errno = saved;
++    return n;
++}
++
++int peios_trusted_link(int parent, const char *name)
++{
++    unsigned char bytes[65535], user[PEIOS_SID_MAX_BYTES], system[PEIOS_SID_MAX_BYTES];
++    peios_sd_view sd;
++    const void *owner;
++    size_t ownerlen;
++    ssize_t n, un = peios_self_sid(user), sn;
++    int fd, ok = 0, saved;
++    if (un <= 0) return 0;
++    fd = openat(parent, name, O_PATH | O_NOFOLLOW | O_CLOEXEC);
++    if (fd < 0) return 0;
++    n = peios_fd_get_sd(fd, KACS_SECINFO_OWNER, bytes, sizeof(bytes));
++    sn = peios_sid_well_known(system, sizeof(system), PEIOS_WKS_SYSTEM);
++    if (n > 0 && sn > 0 && peios_sd_parse(bytes, n, &sd) == 0
++        && peios_sd_view_owner(&sd, &owner, &ownerlen) == 0)
++        ok = peios_sid_equal(owner, ownerlen, user, un)
++            || peios_sid_equal(owner, ownerlen, system, sn);
++    saved = errno; close(fd); errno = saved;
++    return ok;
++}
++
++/* OpenSSL's private-file rule also applies to rsync daemon-client passwords. */
++int peios_private_password(int fd)
++{
++    unsigned char bytes[65535], user[PEIOS_SID_MAX_BYTES];
++    peios_sd_view sd;
++    peios_acl_view acl;
++    peios_ace_view ace;
++    struct stat st;
++    const void *sid;
++    size_t len;
++    ssize_t un = peios_self_sid(user), n;
++    unsigned i;
++    if (un <= 0 || fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) return 0;
++    n = peios_fd_get_sd(fd, KACS_SECINFO_OWNER | KACS_SECINFO_DACL, bytes, sizeof(bytes));
++    if (n <= 0 || peios_sd_parse(bytes, n, &sd) < 0
++        || !(peios_sd_view_control(&sd) & KACS_SD_DACL_PROTECTED)
++        || peios_sd_view_owner(&sd, &sid, &len) < 0
++        || !peios_sid_equal(sid, len, user, un)
++        || peios_sd_view_dacl(&sd, &acl) < 0) return 0;
++    for (i = 0; i < peios_acl_view_count(&acl); i++) {
++        if (peios_acl_view_ace(&acl, i, &ace) < 0
++            || peios_ace_view_type(&ace) != KACS_ACE_TYPE_ACCESS_ALLOWED
++            || peios_ace_view_flags(&ace) != 0
++            || peios_ace_view_sid(&ace, &sid, &len) < 0
++            || !peios_sid_equal(sid, len, user, un)) return 0;
++    }
++    return 1;
++}
++
++int peios_open_tmpfile(char *tmp, const char *name, struct file_struct *file)
++{
++    unsigned char user[PEIOS_SID_MAX_BYTES];
++    ssize_t un;
++    const char *leaf;
++    peios_acl_builder *acl = NULL;
++    peios_sd_builder *sd = NULL;
++    const void *ab, *sb;
++    size_t al, sl;
++    int parent, fd = -1, saved;
++    char *tmp_leaf = strrchr(tmp, '/');
++    tmp_leaf = tmp_leaf ? tmp_leaf + 1 : tmp;
++    peios_transfer_close();
++    parent = held_dfd_for(name, file);
++    if (parent >= 0) {
++        parent = fcntl(parent, F_DUPFD_CLOEXEC, 3);
++        leaf = strrchr(name, '/'); leaf = leaf ? leaf + 1 : name;
++    } else {
++        parent = owner_walk_parent(name, &leaf);
++    }
++    if (parent < 0) return -1;
++    transfer.parent = parent;
++    strlcpy(transfer.name, leaf, sizeof(transfer.name));
++    transfer.target = openat(parent, leaf, O_PATH | O_NOFOLLOW | O_CLOEXEC);
++    if (transfer.target >= 0) {
++        if (fstat(transfer.target, &transfer.target_stat) < 0) goto fail;
++        if (!S_ISREG(transfer.target_stat.st_mode)) { errno = EOPNOTSUPP; goto fail; }
++        transfer.length = peios_fd_get_sd(transfer.target, PEIOS_SD_ALL,
++            transfer.descriptor, sizeof(transfer.descriptor));
++        if (transfer.length <= 0) {
++            rprintf(FERROR_XFER, "Peios: cannot preserve complete destination security for %s; use --inplace explicitly if appropriate.\n", name);
++            goto fail;
++        }
++    } else if (errno != ENOENT) goto fail;
++
++    /* The inode is unreachable until its private DACL has been installed. */
++    fd = openat(parent, ".", O_TMPFILE | O_RDWR | O_CLOEXEC, 0600);
++    if (fd < 0) goto fail;
++    transfer.stage = fd;
++    if (transfer.target < 0) {
++        transfer.length = peios_fd_get_sd(fd, KACS_SECINFO_DACL,
++            transfer.descriptor, sizeof(transfer.descriptor));
++        if (transfer.length <= 0) goto fail;
++    }
++    un = peios_self_sid(user);
++    acl = peios_acl_builder_new(); sd = peios_sd_builder_new();
++    if (un <= 0 || !acl || !sd) goto fail;
++    peios_acl_builder_allow(acl, user, un, KACS_ACCESS_GENERIC_ALL, 0);
++    ab = peios_acl_builder_bytes(acl, &al);
++    if (!ab) goto fail;
++    peios_sd_builder_dacl(sd, ab, al);
++    peios_sd_builder_control(sd, KACS_SD_DACL_PROTECTED, 0);
++    sb = peios_sd_builder_bytes(sd, &sl);
++    if (!sb || peios_fd_set_sd(fd, KACS_SECINFO_DACL, sb, sl) < 0) goto fail;
++    for (int tries = 0; tries < 100; tries++) {
++        static const char hex[] = "0123456789abcdef";
++        unsigned char r[6]; size_t len = strlen(tmp_leaf);
++        if (len < 6) { errno = EINVAL; goto fail; }
++        if (getrandom(r, sizeof(r), 0) != sizeof(r)) goto fail;
++        for (int i = 0; i < 6; i++) tmp_leaf[len - 6 + i] = hex[r[i] & 15];
++        if (linkat(fd, "", parent, tmp_leaf, AT_EMPTY_PATH) == 0) {
++            int result = fcntl(fd, F_DUPFD_CLOEXEC, 3);
++            if (result < 0) { unlinkat(parent, tmp_leaf, 0); goto fail; }
++            strlcpy(transfer.temporary, tmp_leaf, sizeof(transfer.temporary));
++            peios_acl_builder_free(acl); peios_sd_builder_free(sd);
++            return result;
++        }
++        if (errno != EEXIST) goto fail;
++    }
++fail:
++    saved = errno;
++    peios_acl_builder_free(acl); peios_sd_builder_free(sd);
++    peios_transfer_close(); errno = saved;
++    return -1;
++}
++
++/* Called after data and ordinary metadata, immediately before publication. */
++int peios_finish_transfer(void)
++{
++    unsigned char now[65535];
++    struct stat st, tmpst, heldst;
++    ssize_t n;
++    int result = -1, saved, anchor = -1;
++    char proc[64];
++    if (transfer.parent < 0) { errno = EINVAL; return 0; }
++    if (fstat(transfer.stage, &heldst) < 0
++        || fstatat(transfer.parent, transfer.temporary, &tmpst, AT_SYMLINK_NOFOLLOW) < 0)
++        goto out;
++    if (tmpst.st_dev != heldst.st_dev || tmpst.st_ino != heldst.st_ino
++        || tmpst.st_nlink != 1) { errno = ESTALE; goto out; }
++    if (transfer.target >= 0) {
++        if (fstatat(transfer.parent, transfer.name, &st, AT_SYMLINK_NOFOLLOW) < 0) goto out;
++        if (st.st_dev != transfer.target_stat.st_dev || st.st_ino != transfer.target_stat.st_ino) {
++            errno = ESTALE; goto out;
++        }
++        n = peios_fd_get_sd(transfer.target, PEIOS_SD_ALL, now, sizeof(now));
++        if (n != transfer.length || memcmp(now, transfer.descriptor, n) != 0) {
++            errno = ESTALE; goto out;
++        }
++    }
++    /* O_PATH asks the native live authorization path; never manufacture rights
++     * that the original writable descriptor did not capture at open time. */
++    snprintf(proc, sizeof(proc), "/proc/self/fd/%d", transfer.stage);
++    anchor = open(proc, O_PATH | O_CLOEXEC);
++    if (anchor < 0 || peios_fd_set_sd(anchor,
++            transfer.target < 0 ? KACS_SECINFO_DACL : PEIOS_SD_ALL,
++            transfer.descriptor, transfer.length) < 0) goto out;
++    if (transfer.target < 0)
++        result = syscall(SYS_renameat2, transfer.parent, transfer.temporary,
++            transfer.parent, transfer.name, RENAME_NOREPLACE);
++    else
++        result = renameat(transfer.parent, transfer.temporary, transfer.parent, transfer.name);
++out:
++    saved = errno;
++    if (anchor >= 0) close(anchor);
++    if (result < 0) {
++        /* Do not remove a pathname which no longer names our staging inode. */
++        if (fstat(transfer.stage, &heldst) == 0
++            && fstatat(transfer.parent, transfer.temporary, &tmpst,
++                       AT_SYMLINK_NOFOLLOW) == 0
++            && tmpst.st_dev == heldst.st_dev && tmpst.st_ino == heldst.st_ino)
++            unlinkat(transfer.parent, transfer.temporary, 0);
++        rsyserr(FERROR_XFER, saved, "Peios: destination security publication failed");
++    }
++    peios_transfer_close(); errno = saved;
++    return result == 0;
++}
++#endif
+--- a/receiver.c
++++ b/receiver.c
+@@ -416,7 +416,15 @@
+ 	mode_t added_perms;
+ 
+ 	if (!get_tmpname(fnametmp, fname, False))
+-		return -1;
++        return -1;
++#ifdef ENABLE_PEIOS
++    if (peios_native()) {
++        fd = peios_open_tmpfile(fnametmp, fname, file);
++        if (fd < 0)
++            rsyserr(FERROR_XFER, errno, "Peios: secure staging failed for %s", fname);
++        return fd;
++    }
++#endif
+ 
+ 	if (am_root < 0) {
+ 		/* For --fake-super, the file must be useable by the copying
+--- a/rsync.c
++++ b/rsync.c
+@@ -912,7 +912,11 @@
+ 		       ok_to_set_time ? ATTRS_ACCURATE_TIME : ATTRS_SKIP_MTIME | ATTRS_SKIP_ATIME | ATTRS_SKIP_CRTIME);
+ 	operator_path_resolve = 0;
+ 
+-	/* move tmp file over real file */
++#ifdef ENABLE_PEIOS
++    if (peios_native())
++        return peios_finish_transfer();
++#endif
++    /* move tmp file over real file */
+ 	if (DEBUG_GTE(RECV, 1))
+ 		rprintf(FINFO, "renaming %s to %s\n", fnametmp, fname);
+ 	ret = robust_rename(fnametmp, fname, temp_copy_name, file->mode, file);
+--- a/rsync.h
++++ b/rsync.h
+@@ -335,6 +335,15 @@
+ 	DR_SUCCESS = 0, DR_FAILURE, DR_AT_LIMIT, DR_NOT_EMPTY
+ };
+ 
++#ifdef ENABLE_PEIOS
++struct file_struct;
++int peios_native(void);
++int peios_trusted_link(int, const char *);
++int peios_open_tmpfile(char *, const char *, struct file_struct *);
++int peios_finish_transfer(void);
++int peios_private_password(int);
++#endif
++
+ /* Defines for make_path() */
+ #define MKP_DROP_NAME		(1<<0) /* drop trailing filename or trailing slash */
+ #define MKP_SKIP_SLASH		(1<<1) /* skip one or more leading slashes */
+--- a/syscall.c
++++ b/syscall.c
+@@ -496,9 +496,21 @@
+                     || strcmp(comp, "stdin") == 0
+                     || strcmp(comp, "stdout") == 0
+                     || strcmp(comp, "stderr") == 0)));
+-			if (!namespace_pin && lst.st_uid != 0 && lst.st_uid != trusted_uid) {
+-				rprintf(FERROR,
+-					"refusing to follow a symlink owned by an untrusted user; "
++			/* The native rule where the kernel has native security,
++			 * and upstream's where it has none. A build without Peios
++			 * has only upstream's, and nothing of Peios to link. */
++#ifdef ENABLE_PEIOS
++			const int native = peios_native();
++			const int trusted = native ? peios_trusted_link(dfd, comp)
++				: (lst.st_uid == 0 || lst.st_uid == trusted_uid);
++#else
++			const int native = 0;
++			const int trusted = lst.st_uid == 0 || lst.st_uid == trusted_uid;
++#endif
++			if (!namespace_pin && !trusted) {
++				rprintf(FERROR, "%s", native
++                    ? "Peios: refusing a symlink owned by another principal; use a path owned by your SID or SYSTEM.\n"
++					: "refusing to follow a symlink owned by an untrusted user; "
+ 					"use --insecure-links locally or \"insecure links = yes\" in a "
+ 					"daemon module ONLY if every path component is trusted\n");
+ 				saved_errno = ELOOP;
+--- a/xattrs.c
++++ b/xattrs.c
+@@ -259,7 +259,11 @@
+ 		name_len = strlen(name) + 1;
+ 		list_len -= name_len;
+ 
+-		if (saw_xattr_filter) {
++#ifdef ENABLE_PEIOS
++        if (peios_native() && !HAS_PREFIX(name, USER_PREFIX))
++            continue;
++#endif
++        if (saw_xattr_filter) {
+ 			if (name_is_excluded(name, NAME_IS_XATTR, ALL_FILTERS))
+ 				continue;
+ 		}
+@@ -372,7 +376,11 @@
+ 		name_len = strlen(name) + 1;
+ 		list_len -= name_len;
+ 
+-		if (saw_xattr_filter) {
++#ifdef ENABLE_PEIOS
++        if (peios_native() && !HAS_PREFIX(name, USER_PREFIX))
++            continue;
++#endif
++        if (saw_xattr_filter) {
+ 			if (name_is_excluded(name, NAME_IS_XATTR, ALL_FILTERS))
+ 				continue;
+ 		}
+@@ -865,7 +873,11 @@
+ 			read_buf(f, ptr + 1, xattr_sum_len);
+ 		}
+ 
+-		if (saw_xattr_filter) {
++#ifdef ENABLE_PEIOS
++        if (peios_native() && !HAS_PREFIX(name, USER_PREFIX))
++            continue;
++#endif
++        if (saw_xattr_filter) {
+ 			if (name_is_excluded(name, NAME_IS_XATTR, ALL_FILTERS)) {
+ 				free(ptr);
+ 				continue;
+@@ -1010,6 +1022,10 @@
+ 
+ 	for (i = 0; i < xalp->count; i++) {
+ 		name = rxas[i].name;
++#ifdef ENABLE_PEIOS
++        if (peios_native() && !HAS_PREFIX(name, USER_PREFIX))
++            continue;
++#endif
+ 
+ 		if (XATTR_ABBREV(rxas[i])) {
+ 			/* See if the fnamecmp version is identical. */
+@@ -1075,7 +1091,11 @@
+ 		name_len = strlen(name) + 1;
+ 		list_len -= name_len;
+ 
+-		if (saw_xattr_filter) {
++#ifdef ENABLE_PEIOS
++        if (peios_native() && !HAS_PREFIX(name, USER_PREFIX))
++            continue;
++#endif
++        if (saw_xattr_filter) {
+ 			if (name_is_excluded(name, NAME_IS_XATTR, ALL_FILTERS))
+ 				continue;
+ 		}

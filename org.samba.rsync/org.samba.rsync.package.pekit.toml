@@ -1,5 +1,5 @@
-# The core local/remote transfer engine. Daemon mode is available for explicit
-# use; this package intentionally does not install a Peios service definition.
+# Local/SSH content synchronization with native destination security.
+# Daemon serving is disabled; no Peios service definition is installed.
 
 side_effects = ["man-db"]
 
@@ -12,6 +12,7 @@ description = "Fast incremental file-transfer utility"
 [replaces]
 
 [dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
 "org.gnu.glibc"                    = ">= 2.43"
 "com.facebook.zstd-libs"                  = ">= 1.5.7"
 "org.openssl.libcrypto" = ">= 3.5"
