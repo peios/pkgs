@@ -5,6 +5,8 @@ description = "Linux console keyboard, font and virtual-terminal tools"
 [dependencies]
 "org.kernel.kbd-common" = "= {{release}}"
 "org.git.kernel.dash" = "*"
+# apply-keymap reads Machine\System\Console with `reg`.
+"dev.peios.peiosutils" = "*"
 # libkbdfile loads compression libraries with dlopen; ELF NEEDED discovery
 # cannot supply these runtime edges.
 "io.github.zlib-ng.zlib-ng-compat" = "*"
