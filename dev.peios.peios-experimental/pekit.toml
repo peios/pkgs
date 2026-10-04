@@ -91,6 +91,9 @@ autoapply = [
   # cannot act.
   "timed-service",
   "timed-policy",
+  # The console keyboard layout Machine\System\Console Keymap names; absent,
+  # the built-in US layout.
+  "console-keymap",
   # Authenticated remote access replaces the deprecated Atrium listener.
   "sshd-service",
   "sshd-network",

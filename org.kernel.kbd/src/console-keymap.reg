@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "The console keyboard layout: a oneshot service that loads the keymap",
+    "Machine\\System\\Console Keymap names (/usr/libexec/kbd/apply-keymap).",
+    "",
+    "Triggers boot, and runs again whenever it is restarted, which is how a",
+    "changed value takes effect without a reboot: System Settings writes the",
+    "value and restarts this service.",
+    "",
+    "Identity SYSTEM, because loading a keymap is a console operation the",
+    "kernel allows only to a process with the console as its own terminal or",
+    "with the TTY-configuration privilege, and a service has no terminal.",
+    "Type Oneshot (1), Readiness Alive (1), RestartPolicy Never (0): it runs,",
+    "loads, and exits. ErrorControl Normal (0): a machine with no virtual",
+    "console, or a bad value, logs a warning and boots on the built-in US",
+    "layout.",
+    "",
+    "The Console key is created with no Keymap, which is the built-in US",
+    "layout.",
+    "",
+    "Shipped by org.kernel.kbd into /usr/share/regim/; inert until an image",
+    "names it in [registry] autoapply."
+  ],
+  "keys": [
+    { "path": "Machine\\System" },
+    { "path": "Machine\\System\\Services" },
+    {
+      "path": "Machine\\System\\Services\\console-keymap",
+      "values": [
+        { "name": "ImagePath", "type": "sz", "data": "/usr/libexec/kbd/apply-keymap" },
+        { "name": "Type", "type": "dword", "data": 1 },
+        { "name": "Triggers", "type": "multi", "data": ["boot"] },
+        { "name": "Identity", "type": "sz", "data": "SYSTEM" },
+        { "name": "Readiness", "type": "dword", "data": 1 },
+        { "name": "RestartPolicy", "type": "dword", "data": 0 },
+        { "name": "ErrorControl", "type": "dword", "data": 0 },
+        { "name": "DisplayName", "type": "sz", "data": "Console keyboard layout" },
+        {
+          "name": "Description",
+          "type": "sz",
+          "data": "Loads the console keyboard layout Machine\\System\\Console Keymap names"
+        }
+      ]
+    },
+    { "path": "Machine\\System\\Console" }
+  ]
+}

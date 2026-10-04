@@ -1,0 +1,29 @@
+#!/bin/sh
+# Load the console keyboard layout `Machine\System\Console Keymap` names.
+#
+# Run by the console-keymap service at boot, and again whenever something
+# that changed the value restarts the service (System Settings does). The
+# kernel holds one keymap for every virtual console, so one load is enough;
+# -C picks the console it is loaded through, since a service has none of its
+# own. Absent, the kernel's built-in US layout is put back (-d).
+#
+# Only a name is accepted, never a path: loadkeys looks a name up under
+# /usr/share/kbd/keymaps, and a path would let whoever may write the value
+# point the console at any file.
+set -eu
+
+console=/dev/tty0
+# One value is printed bare. Absent is an error, and means the default.
+map=$(reg get 'Machine\System\Console' Keymap 2>/dev/null) || map=
+
+if [ -z "$map" ]; then
+  exec loadkeys -C "$console" -d
+fi
+
+case $map in
+  */* | .* | *[!A-Za-z0-9_.+-]*)
+    echo "console-keymap: \"$map\" is not a keymap name; the layout is unchanged" >&2
+    exit 1
+    ;;
+esac
+exec loadkeys -C "$console" "$map"

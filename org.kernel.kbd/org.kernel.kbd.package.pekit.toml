@@ -15,5 +15,8 @@ description = "Linux console keyboard, font and virtual-terminal tools"
 [files]
 "@source:COPYING" = "usr/share/licenses/org.kernel.kbd/COPYING"
 ":usr/bin/**" = "usr/bin"
+":usr/libexec/kbd/**" = "usr/libexec/kbd"
+":usr/share/regim/**" = "usr/share/regim"
+":usr/share/regman/**" = "usr/share/regman"
 "@recipe:src/COPYING.LIB" = "usr/share/licenses/org.kernel.kbd/COPYING.LIB"
 "@recipe:src/COPYING.LESSER" = "usr/share/licenses/org.kernel.kbd/COPYING.LESSER"

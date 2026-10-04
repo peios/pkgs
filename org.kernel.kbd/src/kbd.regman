@@ -1,0 +1,24 @@
+--- machine\system\console
+canonical: Machine\System\Console
+
+The machine's virtual consoles: the text screens on its own display and
+keyboard (`/dev/tty1` and so on). Not a terminal over SSH or a serial line,
+and not the desktop, whose keyboard is the browser's.
+
+Default security: inherits the Machine hive root (SYSTEM and Administrators
+full, Authenticated Users read).
+
+--- machine\system\console keymap
+canonical: Machine\System\Console Keymap
+type: REG_SZ
+default: (absent — the kernel's built-in US layout)
+valid: a keymap name under /usr/share/kbd/keymaps, such as uk, de, fr or dvorak; a name, never a path
+applies: restart of the console-keymap service, and every boot
+
+The console's keyboard layout. The `console-keymap` service loads it at
+boot with `loadkeys`; to apply a change at once, restart the service
+(`svctl restart console-keymap`), which System Settings does for you.
+
+One layout serves every virtual console: the kernel holds a single keymap.
+A name that is not a keymap leaves the layout as it was, and the service
+logs why.

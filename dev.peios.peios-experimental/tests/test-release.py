@@ -61,6 +61,7 @@ assert registry["autoapply"] == [
     "trustd-service",
     "timed-service",
     "timed-policy",
+    "console-keymap",
     "sshd-service",
     "sshd-network",
     "gxwid-service",

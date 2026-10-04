@@ -37,6 +37,12 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" config/config.sub
   --with-zlib --with-bzip2 --with-lzma --with-zstd
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
+# The console layout as machine configuration (Machine\System\Console
+# Keymap): the script that loads it, its service seed (inert until an image
+# autoapplies it) and the value's regman page.
+install -Dm0755 "$PEKIT_RECIPE_ROOT/src/apply-keymap" "$PEKIT_OUT/usr/libexec/kbd/apply-keymap"
+install -Dm0644 "$PEKIT_RECIPE_ROOT/src/console-keymap.reg" "$PEKIT_OUT/usr/share/regim/console-keymap.reg"
+install -Dm0644 "$PEKIT_RECIPE_ROOT/src/kbd.regman" "$PEKIT_OUT/usr/share/regman/kbd.regman"
 find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} +
 sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.kbd "$PEKIT_OUT/usr"
 '''

@@ -20,6 +20,12 @@ for layout in us uk de fr; do
   test -s "$work/$layout.bmap"
 done
 if cmp -s "$work/us.bmap" "$work/uk.bmap"; then exit 1; fi
+# The console layout as machine configuration: the loader, its inert
+# service seed and the value's regman page are all shipped.
+test -x "$stage/usr/libexec/kbd/apply-keymap"
+grep -F 'Machine\\System\\Services\\console-keymap' "$stage/usr/share/regim/console-keymap.reg"
+grep -F -- '--- machine\system\console keymap' "$stage/usr/share/regman/kbd.regman"
+
 printf 'keycode invalid = broken\n' > "$work/invalid.map"
 if "$bin/loadkeys" --bkeymap "$work/invalid.map" > /dev/null 2>&1; then exit 1; fi
 
