@@ -11,7 +11,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.feat-dynamic-boot"
-version      = "1.0.0-1"
+version      = "1.1.0-1"
 architecture = "noarch"
 description  = "Feature: run mkirf/mkuki in watch form as Dynamic Boot services"
 license      = "MIT"
@@ -25,9 +25,11 @@ homepage     = "https://github.com/peios/pkgs"
 sh                        = ">= 1"
 
 # The feature definition: four lifecycle scripts under the vendor feature
-# library. feat reads this directory; peipkg only delivers the files (it never
-# runs them — package purity), so this stays plain file delivery.
+# library, and feature.toml, which says what the feature is to `feat info` and
+# Feature Manager. feat reads this directory; peipkg only delivers the files
+# (it never runs them — package purity), so this stays plain file delivery.
 [files]
+"src/feature.toml" = "usr/libexec/features/dynamic-boot/feature.toml"
 "src/install.sh"   = "usr/libexec/features/dynamic-boot/install.sh"
 "src/enable.sh"    = "usr/libexec/features/dynamic-boot/enable.sh"
 "src/disable.sh"   = "usr/libexec/features/dynamic-boot/disable.sh"

@@ -1,0 +1,8 @@
+title = "Dynamic Boot"
+description = """
+Keeps this machine's boot image up to date. Two services, mkirf-watch and
+mkuki-watch, make it again whenever the kernel, the initramfs or the kernel
+command line changes, so a change to any of them is used at the next boot
+without making the boot image by hand.
+
+Turning it on or off takes effect at the next boot."""
