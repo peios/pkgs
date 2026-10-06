@@ -8,11 +8,5 @@ schema = 1
 [[source]]
   version = "0.0.1"
   ref = "v0.0.1"
-  commit = "083026c6fac4b72b70ed417285a5e53b0e19ed48"
-  locked_at = "2026-10-06T16:18:05Z"
-
-[[source]]
-  version = "0.0.2"
-  ref = "v0.0.2"
-  commit = "f9a0a4b0d784256c705faf463f682e728f23894e"
-  locked_at = "2026-10-06T18:30:33Z"
+  commit = "37cf3b984d4ee54272be83028e876fcb9f73d29a"
+  locked_at = "2026-10-06T18:30:36Z"
