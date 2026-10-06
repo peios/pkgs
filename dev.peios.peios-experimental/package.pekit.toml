@@ -221,6 +221,11 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.gxwi-disk-manager" = ">= 0.0.1-1"
 "dev.peios.gxwi-services-manager" = ">= 0.0.1-1"
 "dev.peios.gxwi-task-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-event-viewer" = ">= 0.0.1-1"
+"dev.peios.gxwi-registry-editor" = ">= 0.0.1-1"
+"dev.peios.gxwi-security-policy" = ">= 0.0.1-1"
+"dev.peios.gxwi-system-settings" = ">= 0.0.1-1"
+"dev.peios.gxwi-network-manager" = ">= 0.0.1-1"
 
 # The PNP viewer (PEI-598): network observation, starting as the packet viewer.
 # Experimental is explicitly the development-machine image, so PNPd is
