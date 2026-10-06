@@ -96,7 +96,7 @@ assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
-    "dev.peios.gxwi": ">= 0.0.6-1",
+    "dev.peios.gxwi": ">= 0.0.7-1",
     "dev.peios.fenestra": ">= 0.0.4-1",
     "dev.peios.fenesh": ">= 0.0.7-1",
     "dev.peios.gexora": ">= 0.0.3-1",
@@ -134,11 +134,11 @@ expected_first_party = {
     "dev.peios.libpeios": ">= 0.5.8-1",
     "dev.peios.net": ">= 0.1.8-1",
     "dev.peios.netd": ">= 0.1.8-1",
-    "dev.peios.oobe": ">= 0.1.12-1",
+    "dev.peios.oobe": ">= 0.1.13-1",
     "dev.peios.peinit": ">= 0.0.12-1",
     "dev.peios.peinit-svctl": ">= 0.0.12-1",
     "dev.peios.peios-install": ">= 0.3.0-1",
-    "dev.peios.peios-installer": ">= 0.1.12-1",
+    "dev.peios.peios-installer": ">= 0.1.13-1",
     "dev.peios.peiosutils": ">= 0.8.18-1",
     "dev.peios.peipkg": ">= 0.1.9-1",
     "dev.peios.pnpd": ">= 0.6.1-1",
