@@ -1,0 +1,40 @@
+Description: Reject Unix identity permission and namespace options (PEI-1190)
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/xioopts.c
++++ b/xioopts.c
+@@ -2161,6 +2161,33 @@
+ #if 0
+ 	 continue;
+ #endif
++      }
++      /* Unix IDs/modes are projections, not native authority. Reject all
++         aliases before an address is opened or a child is executed. */
++      switch (ent->desc->optcode) {
++      case OPT_SETUID:
++      case OPT_SETUID_EARLY:
++      case OPT_SETGID:
++      case OPT_SETGID_EARLY:
++      case OPT_SUBSTUSER:
++      case OPT_SUBSTUSER_EARLY:
++      case OPT_SUBSTUSER_DELAYED:
++      case OPT_USER:
++      case OPT_USER_EARLY:
++      case OPT_USER_LATE:
++      case OPT_GROUP:
++      case OPT_GROUP_EARLY:
++      case OPT_GROUP_LATE:
++      case OPT_PERM:
++      case OPT_PERM_EARLY:
++      case OPT_PERM_LATE:
++      case OPT_UMASK:
++      case OPT_CHROOT:
++      case OPT_CHROOT_EARLY:
++      case OPT_SET_NETNS:
++         Error1("option %s is unsupported on Peios; use native identity and FACS policy", ent->desc->defname);
++         return -1;
++      default: break;
+       }
+       (*opts)[i].desc = ent->desc;
+ 

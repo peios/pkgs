@@ -1,0 +1,8 @@
+side_effects = ["man-db"]
+[package]
+name = "org.tcpdump.tcpdump"
+description = "Capture and decode network packets"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.tcpdump.tcpdump/LICENSE"
+":usr/bin/**" = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

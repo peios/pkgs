@@ -1,0 +1,54 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://www.tcpdump.org/release/libpcap-{{version}}.tar.xz"
+listing_url = "https://www.tcpdump.org/release/"
+file_regex = 'libpcap-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\.tar\.xz'
+versions = ">= 1.10.7"
+root = "libpcap-{{version}}"
+extract = true
+[source.url.checksum]
+"1.10.7" = "sha256:68fa62cffb974f4275641ce14c2e2d75739251f30e00e6a0900903b247d76a03"
+[source.url.signature]
+url = "{{source_url}}.sig"
+of = "artifact"
+key_files = ["keys/tcpdump.asc"]
+fingerprints = ["1F166A5742ABB9E0249A8D30E089DEF1D9C15D0D"]
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a . "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+export CFLAGS="${CFLAGS:?} -DENABLE_PEIOS -D_GNU_SOURCE -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcpdump.libpcap"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcpdump.libpcap"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+LIBS="-lpeios" ac_cv_lib_cap_cap_get_proc=no ./configure --prefix=/usr --sbindir=/usr/bin --libdir=/usr/lib/x86_64-linux-peios --enable-shared --disable-remote --disable-usb --disable-netmap --disable-bluetooth --disable-dbus --disable-rdma --without-libnl --without-dag --without-septel --without-snf --without-turbocap
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libpcap.a"
+rm -rf "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr" -type f -name '*.la' -delete
+find "$PEKIT_OUT/usr/bin" -type f -exec sh -c 'for f do if readelf -h "$f" >/dev/null 2>&1; then patchelf --remove-rpath "$f"; fi; done' sh {} +
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
+find "$PEKIT_OUT/usr/share/man" -type l -exec sh -c 'for f do target=$(readlink "$f"); ln -s "$target.gz" "$f.gz"; rm "$f"; done' sh {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.tcpdump.libpcap "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"io.github.westes.flex" = "*"
+"org.gnu.bison" = "*"
+"dev.peios.libpeios-devel" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = 'python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"'
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.libpeios-devel" = "*"

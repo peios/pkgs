@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Official HTTPS release archive is pinned by reviewed SHA-256; upstream v0.96 tag is unsigned and release index supplies no signature. New releases require a reviewed checksum."

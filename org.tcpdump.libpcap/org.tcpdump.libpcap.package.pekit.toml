@@ -1,0 +1,8 @@
+[package]
+name = "org.tcpdump.libpcap"
+description = "Portable packet capture and filtering library"
+[dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.tcpdump.libpcap/LICENSE"
+":usr/lib/x86_64-linux-peios/libpcap.so.*" = "usr/lib/x86_64-linux-peios"

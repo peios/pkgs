@@ -1,0 +1,8 @@
+[package]
+name = "org.tcpdump.libpcap-debugsource"
+description = "Debug sources"
+[dependencies]
+"org.tcpdump.libpcap-debuginfo" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.tcpdump.libpcap-debugsource/LICENSE"
+":usr/src/debug/**" = "usr/src/debug"

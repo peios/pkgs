@@ -1,0 +1,8 @@
+[package]
+name = "net.sourceforge.traceroute-debuginfo"
+description = "Debugging symbols"
+[dependencies]
+"net.sourceforge.traceroute" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/net.sourceforge.traceroute-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

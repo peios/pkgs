@@ -1,0 +1,48 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://www.bitwizard.nl/mtr/files/mtr-{{version}}.tar.gz"
+listing_url = "https://www.bitwizard.nl/mtr/files/"
+file_regex = 'mtr-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\.tar\.gz'
+versions = ">= 0.96"
+root = "mtr-{{version}}"
+extract = true
+[source.url.checksum]
+"0.96" = "sha256:ffd19a9f8d5f616c1ea2f0da9fbf9d1239bcecdf5a68912e831966d20929037a"
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a . "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/nl.bitwizard.mtr"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$ROOT=/usr/src/debug/nl.bitwizard.mtr"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+LIBS="" ac_cv_lib_cap_cap_get_proc=no ./configure --prefix=/usr --sbindir=/usr/bin --libdir=/usr/lib/x86_64-linux-peios --without-gtk --without-jansson --without-ipinfo
+make -j"$(nproc)"
+install -Dm755 mtr "$PEKIT_OUT/usr/bin/mtr"
+install -Dm755 mtr-packet "$PEKIT_OUT/usr/bin/mtr-packet"
+install -Dm644 mtr.8 "$PEKIT_OUT/usr/share/man/man8/mtr.8"
+install -Dm644 mtr-packet.8 "$PEKIT_OUT/usr/share/man/man8/mtr-packet.8"
+rm -rf "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr" -type f -name '*.la' -delete
+find "$PEKIT_OUT/usr/bin" -type f -exec sh -c 'for f do if readelf -h "$f" >/dev/null 2>&1; then patchelf --remove-rpath "$f"; fi; done' sh {} +
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" nl.bitwizard.mtr "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.gnu.ncurses-devel" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = 'python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"'
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.ncurses-devel" = "*"

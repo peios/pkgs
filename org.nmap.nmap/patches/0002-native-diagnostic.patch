@@ -1,0 +1,15 @@
+Description: Describe raw scan authority using native privilege terminology
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/NmapOps.cc
++++ b/NmapOps.cc
+@@ -366,7 +366,7 @@
+ 
+ 
+ void NmapOps::ValidateOptions() {
+-        const char *privreq = "root privileges.";
++        const char *privreq = "enabled Peios SeTcbPrivilege.";
+ #ifdef WIN32
+         if (!have_pcap)
+           privreq = "Npcap, but it seems to be missing.\n\

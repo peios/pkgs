@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "GPL-2.0-or-later"
+license_class = "free"
+homepage = "https://traceroute.sourceforge.net/"

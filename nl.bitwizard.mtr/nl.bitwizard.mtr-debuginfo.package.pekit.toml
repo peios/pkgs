@@ -1,0 +1,8 @@
+[package]
+name = "nl.bitwizard.mtr-debuginfo"
+description = "Debugging symbols"
+[dependencies]
+"nl.bitwizard.mtr" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/nl.bitwizard.mtr-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

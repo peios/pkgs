@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "NPSL-0.95 AND MIT AND BSD-3-Clause"
+license_class = "proprietary"
+homepage = "https://nmap.org/"

@@ -1,0 +1,40 @@
+out_dir = "out"
+[source.url]
+url = "https://downloads.sourceforge.net/project/traceroute/traceroute/traceroute-{{version}}/traceroute-{{version}}.tar.gz"
+listing_url = "https://sourceforge.net/projects/traceroute/files/traceroute/"
+file_regex = 'traceroute-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\.tar\.gz'
+versions = ">= 2.1.6"
+root = "traceroute-{{version}}"
+extract = true
+[source.url.checksum]
+"2.1.6" = "sha256:9ccef9cdb9d7a98ff7fbf93f79ebd0e48881664b525c4b232a0fcec7dcb9db5e"
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a . "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/net.sourceforge.traceroute"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$ROOT=/usr/src/debug/net.sourceforge.traceroute"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+make -j"$(nproc)" CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LIBDEPS=
+make install prefix=/usr DESTDIR="$PEKIT_OUT" LIBDEPS=
+rm -rf "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr" -type f -name '*.la' -delete
+find "$PEKIT_OUT/usr/bin" -type f -exec sh -c 'for f do if readelf -h "$f" >/dev/null 2>&1; then patchelf --remove-rpath "$f"; fi; done' sh {} +
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" net.sourceforge.traceroute "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = 'python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"'
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"dev.peios.build-essentials-c" = "*"

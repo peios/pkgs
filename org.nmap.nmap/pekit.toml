@@ -1,0 +1,58 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://nmap.org/dist/nmap-{{version}}.tar.bz2"
+listing_url = "https://nmap.org/dist/"
+file_regex = 'nmap-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\.tar\.bz2'
+versions = ">= 7.991"
+root = "nmap-{{version}}"
+extract = true
+[source.url.checksum]
+"7.991" = "sha256:a5d507f29437bef3bedd4771ff9aaa8fc1c2a109ddba1f5b1cf12027456929be"
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a . "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.nmap.nmap"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.nmap.nmap"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+LIBS="-lpeios" ac_cv_lib_cap_cap_get_proc=no ./configure --prefix=/usr --sbindir=/usr/bin --libdir=/usr/lib/x86_64-linux-peios --without-ncat --without-nping --without-ndiff --without-zenmap --with-libpcap=/usr --with-openssl=/usr --with-libpcre=/usr --with-liblua=included --with-libz=/usr
+make -j"$(nproc)"
+make install STRIP=true DESTDIR="$PEKIT_OUT"
+rm -rf "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr" -type f -name '*.la' -delete
+find "$PEKIT_OUT/usr/bin" -type f -exec sh -c 'for f do if readelf -h "$f" >/dev/null 2>&1; then patchelf --remove-rpath "$f"; fi; done' sh {} +
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.nmap.nmap "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"dev.peios.build-essentials-c++" = "*"
+"org.tcpdump.libpcap-devel" = "*"
+"dev.peios.libpeios-devel" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.pcre.pcre2-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''set -eu
+make -C "$PEKIT_MAIN_OUT/build" check
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"
+'''
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.build-essentials-c++" = "*"
+"org.tcpdump.libpcap-devel" = "*"
+"dev.peios.libpeios-devel" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.pcre.pcre2-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"

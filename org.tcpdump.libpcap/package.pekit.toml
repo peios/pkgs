@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "BSD-3-Clause"
+license_class = "free"
+homepage = "https://www.tcpdump.org/"

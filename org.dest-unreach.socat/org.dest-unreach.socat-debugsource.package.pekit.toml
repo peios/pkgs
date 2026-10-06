@@ -1,0 +1,8 @@
+[package]
+name = "org.dest-unreach.socat-debugsource"
+description = "Debug sources"
+[dependencies]
+"org.dest-unreach.socat-debuginfo" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.dest-unreach.socat-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,189 @@
+Description: Protect named capture files with native FACS (PEI-1190)
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/sf-pcap.c
++++ b/sf-pcap.c
+@@ -899,6 +899,9 @@
+ /*
+  * Initialize so that sf_write() will output to the file named 'fname'.
+  */
++#ifdef ENABLE_PEIOS
++#include "peios-private.h"
++#endif
+ pcap_dumper_t *
+ pcap_dump_open(pcap_t *p, const char *fname)
+ {
+@@ -939,7 +942,11 @@
+ 		 * required on Windows, as the file is a binary file
+ 		 * and must be written in binary mode.
+ 		 */
+-		f = pcapint_charset_fopen(fname, "wb");
++		#ifdef ENABLE_PEIOS
++	f = peios_private_fopen(fname, "wb");
++#else
++	f = pcapint_charset_fopen(fname, "wb");
++#endif
+ 		if (f == NULL) {
+ 			pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+ 			    errno, "%s", fname);
+@@ -1039,7 +1046,11 @@
+ 	 * even though it does nothing.  It's required on Windows, as the
+ 	 * file is a binary file and must be read in binary mode.
+ 	 */
++	#ifdef ENABLE_PEIOS
++	f = peios_private_fopen(fname, "ab+");
++#else
+ 	f = pcapint_charset_fopen(fname, "ab+");
++#endif
+ 	if (f == NULL) {
+ 		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+ 		    errno, "%s", fname);
+--- a/peios-private.h
++++ b/peios-private.h
+@@ -0,0 +1,145 @@
++/* Native private regular-file output; no Unix-mode fallback. */
++#include <errno.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <peios/file.h>
++#include <peios/security.h>
++#include <peios/token.h>
++static int peios_private_existing(int fd, const void *user, size_t userlen)
++{
++    unsigned char bytes[65535];
++    struct stat st;
++    peios_sd_view sd;
++    peios_acl_view acl;
++    peios_ace_view ace;
++    const void *sid;
++    size_t sidlen;
++    unsigned i;
++    ssize_t n;
++
++    if (fstat(fd, &st) < 0)
++        return 0;
++    if (!S_ISREG(st.st_mode) || st.st_nlink != 1)
++        goto refuse;
++    n = peios_fd_get_sd(fd, KACS_SECINFO_OWNER | KACS_SECINFO_DACL,
++        bytes, sizeof(bytes));
++    if (n < 0)
++        return 0;
++    if (peios_sd_parse(bytes, n, &sd) < 0
++        || !(peios_sd_view_control(&sd) & KACS_SD_DACL_PROTECTED)
++        || peios_sd_view_owner(&sd, &sid, &sidlen) < 0
++        || !peios_sid_equal(sid, sidlen, user, userlen)
++        || peios_sd_view_dacl(&sd, &acl) < 0)
++        goto refuse;
++    for (i = 0; i < peios_acl_view_count(&acl); i++) {
++        if (peios_acl_view_ace(&acl, i, &ace) < 0
++            || peios_ace_view_type(&ace) != KACS_ACE_TYPE_ACCESS_ALLOWED
++            || peios_ace_view_flags(&ace) != 0
++            || peios_ace_view_sid(&ace, &sid, &sidlen) < 0
++            || !peios_sid_equal(sid, sidlen, user, userlen))
++            goto refuse;
++    }
++    return 1;
++refuse:
++    errno = EACCES;
++    return 0;
++}
++
++static int peios_private_fd(const char *filename, char mode)
++{
++    unsigned char user[PEIOS_SID_MAX_BYTES];
++    ssize_t userlen;
++    peios_acl_builder *acl = NULL;
++    peios_sd_builder *sd = NULL;
++    const void *aclbytes;
++    size_t aclsize;
++    int token, fd = -1, saved;
++    struct peios_open_params args = {
++        .desired_access = KACS_FILE_READ_DATA | KACS_FILE_WRITE_DATA | KACS_FILE_APPEND_DATA
++            | KACS_FILE_READ_ATTRIBUTES | KACS_ACCESS_READ_CONTROL
++            | KACS_ACCESS_SYNCHRONIZE,
++        .disposition = KACS_DISPOSITION_CREATE,
++        .flags = AT_SYMLINK_NOFOLLOW
++    };
++
++    token = peios_token_open_self(0, KACS_TOKEN_QUERY);
++    if (token < 0)
++        return -1;
++    userlen = peios_token_user(token, user, sizeof(user));
++    saved = errno;
++    close(token);
++    errno = saved;
++    if (userlen <= 0)
++        return -1;
++    acl = peios_acl_builder_new();
++    sd = peios_sd_builder_new();
++    if (acl == NULL || sd == NULL)
++        goto end;
++    peios_acl_builder_allow(acl, user, userlen, KACS_ACCESS_GENERIC_ALL, 0);
++    aclbytes = peios_acl_builder_bytes(acl, &aclsize);
++    if (aclbytes == NULL)
++        goto end;
++    peios_sd_builder_owner(sd, user, userlen);
++    peios_sd_builder_dacl(sd, aclbytes, aclsize);
++    peios_sd_builder_control(sd, KACS_SD_DACL_PROTECTED, 0);
++    args.sd = peios_sd_builder_bytes(sd, &args.sd_len);
++    if (args.sd == NULL)
++        goto end;
++    fd = peios_file_open(AT_FDCWD, filename, &args, NULL);
++    if (fd < 0 && errno == EEXIST) {
++        int anchor = open(filename, O_PATH | O_NOFOLLOW | O_CLOEXEC);
++        struct stat st;
++        char proc[64];
++        if (anchor < 0)
++            goto end;
++        if (fstat(anchor, &st) < 0 || !S_ISREG(st.st_mode) || st.st_nlink != 1) {
++            close(anchor);
++            errno = EACCES;
++            goto end;
++        }
++        /* Reopen this exact regular inode, avoiding FIFO/device opens and
++         * pathname substitution. FACS authorizes this ordinary open too. */
++        snprintf(proc, sizeof(proc), "/proc/self/fd/%d", anchor);
++        fd = open(proc, O_RDWR | O_NONBLOCK | O_CLOEXEC);
++        saved = errno;
++        close(anchor);
++        errno = saved;
++        if (fd >= 0 && !peios_private_existing(fd, user, userlen))
++            goto bad_fd;
++    }
++    if (fd >= 0) {
++        if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
++            goto bad_fd;
++        if (mode == 'a') {
++            int flags = fcntl(fd, F_GETFL);
++            if (flags < 0 || fcntl(fd, F_SETFL, flags | O_APPEND) < 0)
++                goto bad_fd;
++        } else if (ftruncate(fd, 0) < 0) {
++            goto bad_fd;
++        }
++    }
++    goto end;
++bad_fd:
++    saved = errno;
++    close(fd);
++    fd = -1;
++    errno = saved;
++end:
++    saved = errno;
++    peios_sd_builder_free(sd);
++    peios_acl_builder_free(acl);
++    errno = saved;
++    return fd;
++}
++static FILE *peios_private_fopen(const char *path, const char *mode)
++{
++    int fd = peios_private_fd(path, mode[0]);
++    FILE *f;
++    if (fd < 0) return NULL;
++    f = fdopen(fd, mode);
++    if (!f) { int saved = errno; close(fd); errno = saved; }
++    return f;
++}

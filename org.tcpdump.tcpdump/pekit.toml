@@ -1,0 +1,59 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://www.tcpdump.org/release/tcpdump-{{version}}.tar.xz"
+listing_url = "https://www.tcpdump.org/release/"
+file_regex = 'tcpdump-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\.tar\.xz'
+versions = ">= 4.99.7"
+root = "tcpdump-{{version}}"
+extract = true
+[source.url.checksum]
+"4.99.7" = "sha256:39675dfa06fb0e99be8da5d4a1784acbaab58ae0870231d956ff7870cb99eec1"
+[source.url.signature]
+url = "{{source_url}}.sig"
+of = "artifact"
+key_files = ["keys/tcpdump.asc"]
+fingerprints = ["1F166A5742ABB9E0249A8D30E089DEF1D9C15D0D"]
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a . "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcpdump.tcpdump"
+export CXXFLAGS="${CXXFLAGS:-$CFLAGS} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.tcpdump.tcpdump"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE"
+export LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+LIBS="" ac_cv_lib_cap_cap_get_proc=no ./configure --prefix=/usr --sbindir=/usr/bin --libdir=/usr/lib/x86_64-linux-peios --without-user --without-cap-ng --without-smi --without-sandbox-capsicum --with-crypto
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+rm "$PEKIT_OUT/usr/bin/tcpdump"
+mv "$PEKIT_OUT/usr/bin/tcpdump.4.99.7" "$PEKIT_OUT/usr/bin/tcpdump"
+rm -rf "$PEKIT_OUT/usr/share/doc"
+find "$PEKIT_OUT/usr" -type f -name '*.la' -delete
+find "$PEKIT_OUT/usr/bin" -type f -exec sh -c 'for f do if readelf -h "$f" >/dev/null 2>&1; then patchelf --remove-rpath "$f"; fi; done' sh {} +
+find "$PEKIT_OUT/usr/share/man" -type f ! -name '*.gz' -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.tcpdump.tcpdump "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.tcpdump.libpcap-devel" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.perl.perl" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''set -eu
+make -C "$PEKIT_MAIN_OUT/build" check
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"
+'''
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"dev.peios.build-essentials-c" = "*"
+"org.tcpdump.libpcap-devel" = "*"
+"org.openssl.openssl-devel" = "*"
+"org.perl.perl" = "*"

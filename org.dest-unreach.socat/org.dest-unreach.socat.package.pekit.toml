@@ -1,0 +1,8 @@
+side_effects = ["man-db"]
+[package]
+name = "org.dest-unreach.socat"
+description = "Relay data between sockets files terminals and processes"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.dest-unreach.socat/COPYING"
+":usr/bin/**" = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

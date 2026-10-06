@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Official SourceForge release has no detached signature. Pin the reviewed HTTPS archive SHA-256; new releases require review."

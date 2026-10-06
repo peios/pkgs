@@ -1,0 +1,8 @@
+[package]
+name = "org.tcpdump.tcpdump-debugsource"
+description = "Debug sources"
+[dependencies]
+"org.tcpdump.tcpdump-debuginfo" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.tcpdump.tcpdump-debugsource/LICENSE"
+":usr/src/debug/**" = "usr/src/debug"

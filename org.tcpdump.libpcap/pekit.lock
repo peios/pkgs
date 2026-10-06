@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "1.10.7"
+  url = "https://www.tcpdump.org/release/libpcap-1.10.7.tar.xz"
+  sha256 = "68fa62cffb974f4275641ce14c2e2d75739251f30e00e6a0900903b247d76a03"
+  signature_key = "1f166a5742abb9e0249a8d30e089def1d9c15d0d"
+  locked_at = "2026-09-27T22:38:18Z"

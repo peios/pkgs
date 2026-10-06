@@ -1,0 +1,15 @@
+Description: Name the native packet-capture authority requirement
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/pcap-linux.c
++++ b/pcap-linux.c
+@@ -2495,7 +2495,7 @@
+ 			 */
+ 			status = PCAP_ERROR_PERM_DENIED;
+ 			snprintf(handle->errbuf, PCAP_ERRBUF_SIZE,
+-			    "Attempt to create packet socket failed - CAP_NET_RAW may be required");
++			    "Packet capture requires enabled Peios SeTcbPrivilege");
+ 		} else if (errno == EAFNOSUPPORT) {
+ 			/*
+ 			 * PF_PACKET sockets not supported.

@@ -1,0 +1,30 @@
+Description: Use invoking native authority without POSIX capability transitions (PEI-1190)
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/packet/packet.c
++++ b/packet/packet.c
+@@ -121,21 +121,8 @@
+ int drop_elevated_permissions(
+     void)
+ {
+-    /*  Drop any suid permissions granted  */
+-    if (setgid(getgid()) || setuid(getuid())) {
+-        return -1;
+-    }
+-
+-    if (geteuid() != getuid() || getegid() != getgid()) {
+-        return -1;
+-    }
+-
+-    /*
+-       Drop all process capabilities.
+-     */
+-#ifdef HAVE_LIBCAP
+-    drop_excess_capabilities();
+-#endif
++    /* Installed without set-ID bits or file capabilities. Native authority
++       remains the invoking token and each socket operation is authorized. */
+ 
+     return 0;
+ }

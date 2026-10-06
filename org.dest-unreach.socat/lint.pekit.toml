@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Debian orig archive SHA-256 is authenticated by the retained Debian maintainer-signed DSC, verified with pinned key A0DF7E0D3851E0EE45C00BC8ACE1F33CB933BBBB. Pekit checksum-manifest format does not accept DSC metadata. Each release requires a reviewed explicit checksum."

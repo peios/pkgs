@@ -1,0 +1,9 @@
+[allow]
+"source.signature.required" = "PEI-1190: Jack approved a Nmap-only legacy DSA/SHA-1 exception. GPG verified the retained official signature using the official pinned key; Pekit policy is unchanged. Each release needs an explicit reviewed SHA-256."
+
+[allow_files."payload.scripts"]
+"usr/share/nmap/nselib/data/oracle-default-accounts.lst" = "Non-executable NSE data; #!comment: is the documented data-comment marker parsed by unpwdb/brute, not a script interpreter."
+"usr/share/nmap/nselib/data/oracle-sids" = "Non-executable NSE data; #!comment: is the documented data-comment marker parsed by unpwdb/brute, not a script interpreter."
+"usr/share/nmap/nselib/data/passwords.lst" = "Non-executable NSE data; #!comment: is the documented data-comment marker parsed by unpwdb/brute, not a script interpreter."
+"usr/share/nmap/nselib/data/rtsp-urls.txt" = "Non-executable NSE data; #!comment: is the documented data-comment marker parsed by unpwdb/brute, not a script interpreter."
+"usr/share/nmap/nselib/data/snmpcommunities.lst" = "Non-executable NSE data; #!comment: is the documented data-comment marker parsed by unpwdb/brute, not a script interpreter."

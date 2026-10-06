@@ -1,0 +1,8 @@
+side_effects = ["man-db"]
+[package]
+name = "net.sourceforge.traceroute"
+description = "Trace network paths using UDP ICMP or TCP probes"
+[files]
+"@source:COPYING" = "usr/share/licenses/net.sourceforge.traceroute/COPYING"
+":usr/bin/**" = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

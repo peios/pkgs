@@ -1,0 +1,8 @@
+side_effects = ["man-db"]
+[package]
+name = "nl.bitwizard.mtr"
+description = "Continuously measure network paths and packet loss"
+[files]
+"@source:COPYING" = "usr/share/licenses/nl.bitwizard.mtr/COPYING"
+":usr/bin/**" = "usr/bin"
+":usr/share/man/**" = "usr/share/man"

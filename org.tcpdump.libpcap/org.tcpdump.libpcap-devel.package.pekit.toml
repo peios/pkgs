@@ -1,0 +1,13 @@
+side_effects = ["man-db"]
+[package]
+name = "org.tcpdump.libpcap-devel"
+description = "Packet capture headers linker files and API manuals"
+[dependencies]
+"org.tcpdump.libpcap" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.tcpdump.libpcap-devel/LICENSE"
+":usr/include/**" = "usr/include"
+":usr/bin/pcap-config" = "usr/bin/pcap-config"
+":usr/lib/x86_64-linux-peios/libpcap.so" = "usr/lib/x86_64-linux-peios/libpcap.so"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/**" = "usr/share/man"

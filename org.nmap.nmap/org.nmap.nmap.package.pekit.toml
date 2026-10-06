@@ -1,0 +1,15 @@
+side_effects = ["man-db"]
+[package]
+name = "org.nmap.nmap"
+description = "Network discovery and service scanning"
+[dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.nmap.nmap/LICENSE"
+"@source:liblua/lua.h" = "usr/share/licenses/org.nmap.nmap/Lua-lua.h"
+"@source:libdnet-stripped/LICENSE" = "usr/share/licenses/org.nmap.nmap/libdnet-LICENSE"
+"@source:liblinear/COPYRIGHT" = "usr/share/licenses/org.nmap.nmap/liblinear-COPYRIGHT"
+"@source:libssh2/COPYING" = "usr/share/licenses/org.nmap.nmap/libssh2-COPYING"
+":usr/bin/**" = "usr/bin"
+":usr/share/man/**" = "usr/share/man"
+":usr/share/nmap/**" = "usr/share/nmap"

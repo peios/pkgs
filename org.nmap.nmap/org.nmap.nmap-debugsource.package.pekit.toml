@@ -1,0 +1,8 @@
+[package]
+name = "org.nmap.nmap-debugsource"
+description = "Debug sources"
+[dependencies]
+"org.nmap.nmap-debuginfo" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.nmap.nmap-debugsource/LICENSE"
+":usr/src/debug/**" = "usr/src/debug"
