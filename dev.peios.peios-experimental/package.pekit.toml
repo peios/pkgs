@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-version      = "2026.8-9"
+version      = "2026.8-10"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -101,7 +101,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # install-tui (its terminal surface). Ships alongside peios-install, not
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
-"dev.peios.peios-installer" = ">= 0.1.11-1"
+"dev.peios.peios-installer" = ">= 0.1.12-1"
 
 # First-boot setup: oobed and its own terminal surface. A separate package
 # from the installer because the two have separate lifetimes -- an installed
@@ -110,7 +110,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 #
 # It ships a seed master and nothing applies it here: `install_autoapply` in
 # release.toml is what opts it in, on the installed machine only.
-"dev.peios.oobe" = ">= 0.1.11-1"
+"dev.peios.oobe" = ">= 0.1.12-1"
 
 # The graphical installer and first-boot setup, drawn as GXWI's overlay so the
 # machine's address opens straight into them (PEI-1203, PEI-1213). They ship
@@ -205,8 +205,10 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 
 # GXWI display server, compositor, desktop shell and file explorer. 0.0.3 is
 # the first gxwi with overlay sessions, which the graphical installer needs;
-# 0.0.5 serves the JetBrains Mono face that fenestra 0.0.4 names.
-"dev.peios.gxwi" = ">= 0.0.5-1"
+# 0.0.5 serves the JetBrains Mono face that fenestra 0.0.4 names; 0.0.6 serves
+# HTTPS with the machine's own certificate, which installer 0.1.12 carries from
+# the live medium into the installed system.
+"dev.peios.gxwi" = ">= 0.0.6-1"
 "dev.peios.fenestra" = ">= 0.0.4-1"
 "dev.peios.fenesh" = ">= 0.0.7-1"
 "dev.peios.gexora" = ">= 0.0.3-1"
