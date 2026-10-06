@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-version      = "2026.8-4"
+version      = "2026.8-5"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -207,7 +207,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # the first gxwi with overlay sessions, which the graphical installer needs.
 "dev.peios.gxwi" = ">= 0.0.4-1"
 "dev.peios.fenestra" = ">= 0.0.3-1"
-"dev.peios.fenesh" = ">= 0.0.5-1"
+"dev.peios.fenesh" = ">= 0.0.6-1"
 "dev.peios.gexora" = ">= 0.0.3-1"
 
 # GXWI's shared dialogs and the management apps (PEI-1218, PEI-1400).
