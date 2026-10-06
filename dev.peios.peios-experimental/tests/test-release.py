@@ -74,7 +74,7 @@ assert registry["autoapply"] == [
     "pnpd-service",
     "installerd-service",
 ]
-assert registry["live_autoapply"] == ["lpsd-first-account", "installer-gxwi-overlay"]
+assert registry["live_autoapply"] == ["lpsd-first-account", "installer-gxwi-overlay", "gxwi-live-notice"]
 assert registry["install_autoapply"] == ["oobe-service"]
 
 # The edition is the release manifest, not merely the three files above. Keep
@@ -96,9 +96,9 @@ assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
-    "dev.peios.gxwi": ">= 0.0.3-1",
+    "dev.peios.gxwi": ">= 0.0.4-1",
     "dev.peios.fenestra": ">= 0.0.3-1",
-    "dev.peios.fenesh": ">= 0.0.3-1",
+    "dev.peios.fenesh": ">= 0.0.4-1",
     "dev.peios.gexora": ">= 0.0.3-1",
     "dev.peios.gxwi-sd-editor": ">= 0.0.1-1",
     "dev.peios.gxwi-file-dialog": ">= 0.0.1-1",

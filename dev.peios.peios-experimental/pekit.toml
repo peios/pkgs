@@ -132,6 +132,9 @@ live_autoapply = [
   # address opens straight into it. Live only: on an installed machine these
   # values would keep gxwid from ever falling back to the sign-in page.
   "installer-gxwi-overlay",
+  # The sign-in page's line naming the passwordless live account. It belongs
+  # only where that account exists; gxwi-config above carries the rest.
+  "gxwi-live-notice",
 ]
 
 # Seeds only an INSTALLED machine applies. peiso stages these into
