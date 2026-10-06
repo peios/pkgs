@@ -68,6 +68,10 @@ cat > "$PEKIT_OUT/usr/share/peios/release.toml" <<EOF
 [registry]
 autoapply = [
   "port-reservations",
+  # The event emission policy root, the Generic Events key (PEI-1281): the
+  # key with no Enabled, so each type's tier decides, carrying a SACL that
+  # audits writes to the policy. Shipped by the kernel from alpha10-2.
+  "event-policy",
   # PNP dev-baseline packet policy (PEI-598): listing it here is what arms
   # firewall enforcement on this edition (generation 1 at boot). jack
   # approved the rule set 2026-09-01.

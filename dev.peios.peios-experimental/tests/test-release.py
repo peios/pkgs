@@ -45,6 +45,7 @@ registry = release["registry"]
 assert set(registry) == {"autoapply", "live_autoapply", "install_autoapply"}
 assert registry["autoapply"] == [
     "port-reservations",
+    "event-policy",
     "pnp-rules",
     "eudev-service",
     "authd-service",
