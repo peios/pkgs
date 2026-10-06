@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-version      = "2026.8-1"
+version      = "2026.8-2"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -47,9 +47,9 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # the *-irf hooks and ELF-derived edges pull them there.
 [dependencies]
 # Kernel, modules, and the tools that load them.
-"dev.peios.kernel"             = ">= 0.21.0-alpha2-1"
-"dev.peios.kernel-modules"     = ">= 0.21.0-alpha2-1"
-"dev.peios.kernel-modules-irf" = { constraint = ">= 0.21.0-alpha2-1", root = "initramfs" }
+"dev.peios.kernel"             = ">= 0.21.0-alpha11-1"
+"dev.peios.kernel-modules"     = ">= 0.21.0-alpha11-1"
+"dev.peios.kernel-modules-irf" = { constraint = ">= 0.21.0-alpha11-1", root = "initramfs" }
 "org.kernel.kmod"              = ">= 34.2-1"
 # Local console switching, keymaps and fonts (PEI-1187).
 "org.kernel.kbd"               = ">= 2.10.0-1"
@@ -63,11 +63,11 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 
 # Base userspace. peios-install is part of every Peios, not of the live
 # medium: an installed system can install another.
-"dev.peios.peiosutils" = ">= 0.8.8-1"
-"dev.peios.libpeios"   = ">= 0.5.0-1"
+"dev.peios.peiosutils" = ">= 0.8.17-1"
+"dev.peios.libpeios"   = ">= 0.5.8-1"
 "org.gnu.glibc-bin"    = ">= 2.44-1" # locale tools and compiled C.UTF-8
 "org.git.kernel.dash"  = ">= 0.5.13.5-1"
-"dev.peios.peipkg" = ">= 0.1.3-1"
+"dev.peios.peipkg" = ">= 0.1.9-1"
 "dev.peios.peios-install" = ">= 0.3.0-1"
 
 # Text inspection, file selection and archives (PEI-1179).
@@ -101,7 +101,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # install-tui (its terminal surface). Ships alongside peios-install, not
 # instead of it, until it has installed a system that boots -- the script is
 # still what `make boot-install` drives.
-"dev.peios.peios-installer" = ">= 0.1.5-1"
+"dev.peios.peios-installer" = ">= 0.1.11-1"
 
 # First-boot setup: oobed and its own terminal surface. A separate package
 # from the installer because the two have separate lifetimes -- an installed
@@ -110,7 +110,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 #
 # It ships a seed master and nothing applies it here: `install_autoapply` in
 # release.toml is what opts it in, on the installed machine only.
-"dev.peios.oobe" = ">= 0.1.5-1"
+"dev.peios.oobe" = ">= 0.1.11-1"
 
 # The graphical installer and first-boot setup, drawn as GXWI's overlay so the
 # machine's address opens straight into them (PEI-1203, PEI-1213). They ship
@@ -121,36 +121,37 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.oobe-gxwi" = ">= 0.0.1-1"
 
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
-"dev.peios.prelude" = { constraint = ">= 0.0.3-1", root = "initramfs" }
-"dev.peios.peinit"  = ">= 0.0.2-1"
+"dev.peios.prelude" = { constraint = ">= 0.0.7-1", root = "initramfs" }
+"dev.peios.peinit"  = ">= 0.0.12-1"
 # svctl and the shutdown commands are peinit's operator client, split into
 # their own package so recovery images can carry the client without PID 1;
 # nothing depends on it, so like net and resolv it is listed here (PEI-1071).
-"dev.peios.peinit-svctl" = ">= 0.0.2-1"
+"dev.peios.peinit-svctl" = ">= 0.0.12-1"
 
 # Identity (PGSS Logon).
-"dev.peios.authd"       = ">= 0.0.14-1"
-"dev.peios.authd-lpsd"  = ">= 0.0.14-1"
-"dev.peios.authd-lps"   = ">= 0.0.14-1"
-"dev.peios.authd-login" = ">= 0.0.14-1"
-"dev.peios.authd-nss"   = ">= 0.0.14-1"
+"dev.peios.authd"       = ">= 0.0.24-1"
+"dev.peios.authd-lpsd"  = ">= 0.0.24-1"
+"dev.peios.authd-lps"   = ">= 0.0.24-1"
+"dev.peios.authd-login" = ">= 0.0.24-1"
+"dev.peios.authd-nss"   = ">= 0.0.24-1"
 # The passwordless live-image administrator is deliberately no longer carried
 # by lpsd itself. This image explicitly opts into both its payload and registry
 # seed; installed/production images do not acquire it transitively.
-"dev.peios.authd-live-account" = ">= 0.0.14-1"
+"dev.peios.authd-live-account" = ">= 0.0.24-1"
 
-# Durable events, service logs and metrics.
-"dev.peios.eventd" = ">= 0.1.0-1"
+# Durable events, service logs and metrics. 0.1.11 is the first eventd on the
+# catalogue event names that kernel alpha11 emits; nothing older pairs with it.
+"dev.peios.eventd" = ">= 0.1.11-1"
 
 # Networking: netd owns links, addresses, routes and DHCP; resolvd owns
 # name resolution; net and resolv are their operator commands;
 # resolvd-nss is dlopened by glibc for host lookups, so like authd-nss
 # nothing depends on it and it must be listed.
-"dev.peios.netd"        = ">= 0.1.1-1"
-"dev.peios.net"         = ">= 0.1.1-1"
-"dev.peios.resolvd"     = ">= 0.1.0-1"
-"dev.peios.resolv"      = ">= 0.1.0-1"
-"dev.peios.resolvd-nss" = ">= 0.1.0-1"
+"dev.peios.netd"        = ">= 0.1.8-1"
+"dev.peios.net"         = ">= 0.1.8-1"
+"dev.peios.resolvd"     = ">= 0.1.6-1"
+"dev.peios.resolv"      = ">= 0.1.6-1"
+"dev.peios.resolvd-nss" = ">= 0.1.6-1"
 
 # Network diagnostics and transfers (PEI-1184). These commands retain the
 # caller's authority and traverse PNP; they install no network services.
@@ -181,8 +182,8 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # numeric major is 2026 rather than 20260830. The prior undotted floor could not
 # be satisfied by a qualified package, leaving this edition unresolvable
 # (PEI-840).
-"dev.peios.trustd" = ">= 0.1.1-1"
-"dev.peios.trust"  = ">= 0.1.1-1"
+"dev.peios.trustd" = ">= 0.1.6-1"
+"dev.peios.trust"  = ">= 0.1.6-1"
 "org.mozilla.ca-certificates" = ">= 2026.09.06-1"
 
 # Zone data. Like the trust roots it is base-system data nothing depends on
@@ -195,8 +196,8 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # separate, future, unprivileged package which subscribes to timed for its
 # state, because the client holds the privilege and listens on nothing
 # while a server is exposed to the whole domain and needs no privilege.
-"dev.peios.timed" = ">= 0.1.1-1"
-"dev.peios.clock" = ">= 0.1.1-1"
+"dev.peios.timed" = ">= 0.1.10-1"
+"dev.peios.clock" = ">= 0.1.10-1"
 
 # Authenticated SSH access; the deprecated Atrium stack is not shipped.
 "dev.peios.openssh" = ">= 10.5.1.2-1"
@@ -225,9 +226,8 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # Experimental is explicitly the development-machine image, so PNPd is
 # intentionally installed and its pnpd-service seed is autoapplied. This does
 # not approve the unauthenticated listener for a future production profile;
-# such a profile requires a separate least-privilege exposure design. The floor
-# is the first qualified build under PNPd's qualified package identity.
-"dev.peios.pnpd" = ">= 0.5.1-1"
+# such a profile requires a separate least-privilege exposure design.
+"dev.peios.pnpd" = ">= 0.6.1-1"
 
 # Device firmware (PEI-466). Unconditional: see above.
 "org.kernel.linux-firmware-iwlwifi"         = ">= 2026.08.10-1"
