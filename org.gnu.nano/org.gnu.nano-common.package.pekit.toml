@@ -1,0 +1,16 @@
+side_effects = ["man-db"]
+
+[package]
+name = "org.gnu.nano-common"
+description = "Nano syntax definitions, translations and documentation"
+architecture = "noarch"
+
+[dependencies]
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.nano-common/COPYING"
+"@source:COPYING.DOC" = "usr/share/licenses/org.gnu.nano-common/COPYING.DOC"
+":usr/share/nano/**" = "usr/share/nano"
+":usr/share/man/**" = "usr/share/man"
+":usr/share/locale/**" = "usr/share/locale"
+":usr/share/doc/**" = "usr/share/doc"

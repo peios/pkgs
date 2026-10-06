@@ -1,0 +1,12 @@
+
+[package]
+name = "org.gnu.nano-debugsource"
+description = "Nano debug sources"
+
+[dependencies]
+"org.gnu.nano-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.nano-debugsource/COPYING"
+"@source:COPYING.DOC" = "usr/share/licenses/org.gnu.nano-debugsource/COPYING.DOC"
+":usr/src/debug/**" = "usr/src/debug"

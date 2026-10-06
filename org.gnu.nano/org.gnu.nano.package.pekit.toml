@@ -1,0 +1,16 @@
+
+[package]
+name = "org.gnu.nano"
+description = "Small terminal text editor with Peios file security"
+
+[dependencies]
+"org.gnu.nano-common" = "= {{release}}"
+"dev.peios.libpeios" = ">= 0.5.4-1"
+"org.gnu.ncurses-libs" = "*"
+"org.git.kernel.dash" = "*"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.nano/COPYING"
+"@source:COPYING.DOC" = "usr/share/licenses/org.gnu.nano/COPYING.DOC"
+":usr/bin/*" = "usr/bin"
+":usr/etc/nanorc" = "usr/etc/nanorc"

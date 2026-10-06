@@ -1,0 +1,12 @@
+
+[package]
+name = "org.gnu.nano-debuginfo"
+description = "Nano debugging symbols"
+
+[dependencies]
+"org.gnu.nano" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.gnu.nano-debuginfo/COPYING"
+"@source:COPYING.DOC" = "usr/share/licenses/org.gnu.nano-debuginfo/COPYING.DOC"
+":usr/lib/debug/**" = "usr/lib/debug"

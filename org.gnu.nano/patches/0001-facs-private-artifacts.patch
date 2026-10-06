@@ -1,0 +1,480 @@
+Description: Use FACS for private editor artifacts; preserve document security
+Author: Peios maintainers <packaging@peios.org>
+Origin: vendor, PEI-1181
+Forwarded: not-needed
+
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -25,6 +25,8 @@
+ nano_SOURCES = \
+ 		definitions.h \
+ 		prototypes.h \
++		peios.c \
++		peios.h \
+ 		browser.c \
+ 		chars.c \
+ 		color.c \
+--- a/src/definitions.h
++++ b/src/definitions.h
+@@ -63,6 +63,9 @@
+ #include <regex.h>
+ #include <signal.h>
+ #include <stdlib.h>
++#ifdef ENABLE_PEIOS
++#include "peios.h"
++#endif
+ #include <sys/stat.h>
+ 
+ #ifdef HAVE_NCURSES_H
+--- a/src/files.c
++++ b/src/files.c
+@@ -422,7 +422,13 @@
+ 			return FALSE;
+ 		}
+ #elif defined(HAVE_GETEUID)
+-		if (new_one && !(fileinfo.st_mode & (S_IWUSR|S_IWGRP|S_IWOTH)) && geteuid() == ROOT_UID)
++		if (new_one &&
++#ifdef ENABLE_PEIOS
++				access(filename, W_OK) < 0
++#else
++				!(fileinfo.st_mode & (S_IWUSR|S_IWGRP|S_IWOTH)) && geteuid() == ROOT_UID
++#endif
++		)
+ 			statusline(ALERT, _("'%s' is meant to be read-only"), realname);
+ #endif
+ 	} else if (*filename && filename[strlen(filename) - 1] == '/') {
+@@ -1443,12 +1449,16 @@
+ 	strcat(tempfile_name, "nano.XXXXXX");
+ 	strcat(tempfile_name, extension);
+ 
++	#ifdef ENABLE_PEIOS
++	descriptor = nano_private_mkstemps(tempfile_name, strlen(extension));
++#else
+ 	descriptor = mkstemps(tempfile_name, strlen(extension));
++#endif
+ 
+-	*stream = (descriptor > 0) ? fdopen(descriptor, "r+b") : NULL;
++	*stream = (descriptor >= 0) ? fdopen(descriptor, "r+b") : NULL;
+ 
+ 	if (*stream == NULL) {
+-		if (descriptor > 0)
++		if (descriptor >= 0)
+ 			close(descriptor);
+ 		free(tempfile_name);
+ 		return NULL;
+@@ -1604,7 +1614,11 @@
+ 	creation_flags = O_WRONLY|O_CREAT|(ISSET(INSECURE_BACKUP) ? O_TRUNC : O_EXCL);
+ 
+ 	/* Create the backup file (or truncate the existing one). */
++	#ifdef ENABLE_PEIOS
++	descriptor = nano_private_open(backupname, creation_flags, 0);
++#else
+ 	descriptor = open(backupname, creation_flags, S_IRUSR|S_IWUSR);
++#endif
+ 
+   retry:
+ 	if (descriptor >= 0)
+@@ -1613,7 +1627,7 @@
+ 	if (backup_file == NULL)
+ 		goto problem;
+ 
+-#ifdef HAVE_FCHOWN
++#if defined(HAVE_FCHOWN) && !defined(ENABLE_PEIOS)
+ 	/* Try to change owner and group to those of the original file;
+ 	 * ignore permission errors, as a normal user cannot change the owner. */
+ 	if (fchown(descriptor, openfile->statinfo->st_uid,
+@@ -1622,7 +1636,7 @@
+ 		goto problem;
+ 	}
+ #endif
+-#ifdef HAVE_FCHMOD
++#if defined(HAVE_FCHMOD) && !defined(ENABLE_PEIOS)
+ 	/* Set the backup's permissions to those of the original file.
+ 	 * It is not a security issue if this fails, as we have created
+ 	 * the file with just read and write permission for the owner. */
+@@ -1680,7 +1694,11 @@
+ 		backupname = nmalloc(strlen(homedir) + strlen(tail(realname)) + 9);
+ 		sprintf(backupname, "%s/%s~XXXXXX", homedir, tail(realname));
+ 
++		#ifdef ENABLE_PEIOS
++		descriptor = nano_private_mkstemps(backupname, 0);
++#else
+ 		descriptor = mkstemp(backupname);
++#endif
+ 		backup_file = NULL;
+ 
+ 		second_attempt = TRUE;
+@@ -1801,6 +1819,11 @@
+ #endif
+ 
+ 		/* Now open the file.  Use O_EXCL for an emergency file. */
++		#ifdef ENABLE_PEIOS
++		if (!normal)
++			descriptor = nano_private_open(realname, O_WRONLY | O_CREAT | O_EXCL, 0);
++		else
++#endif
+ 		descriptor = open(realname, O_WRONLY | O_CREAT | ((method == APPEND) ?
+ 					O_APPEND : (normal ? O_TRUNC : O_EXCL)), permissions);
+ 
+--- a/src/history.c
++++ b/src/history.c
+@@ -197,6 +197,10 @@
+ }
+ #endif /* ENABLE_TABCOMP */
+ 
++#ifndef ENABLE_PEIOS
++#define nano_private_fopen fopen
++#endif
++
+ /* Check whether we have or could make a directory for history files. */
+ bool have_statedir(void)
+ {
+@@ -208,7 +212,11 @@
+ 	if (homedir) {
+ 		statedir = concatenate(homedir, "/.nano/");
+ 
+-		if (stat(statedir, &dirinfo) == 0 && S_ISDIR(dirinfo.st_mode)) {
++		if (stat(statedir, &dirinfo) == 0 && S_ISDIR(dirinfo.st_mode)
++#ifdef ENABLE_PEIOS
++                && nano_private_mkdir(statedir) == 0
++#endif
++        ) {
+ 			registername = concatenate(statedir, POSITION_HISTORY);
+ 			return TRUE;
+ 		}
+@@ -234,7 +242,13 @@
+ 			mkdir(statepath, S_IRWXU);
+ 			free(statepath);
+ 		}
+-		if (mkdir(statedir, S_IRWXU) < 0) {
++		if (
++#ifdef ENABLE_PEIOS
++            nano_private_mkdir(statedir)
++#else
++            mkdir(statedir, S_IRWXU)
++#endif
++            < 0) {
+ 			jot_error(N_("Unable to create directory %s: %s\n"
+ 								"It is required for saving/loading "
+ 								"search history or cursor positions.\n"),
+@@ -249,6 +263,12 @@
+ 		return FALSE;
+ 	}
+ 
++#ifdef ENABLE_PEIOS
++    if (nano_private_mkdir(statedir) < 0) {
++        jot_error(N_("Unsafe history directory %s: %s"), statedir, strerror(errno));
++        return FALSE;
++    }
++#endif
+ 	registername = concatenate(statedir, POSITION_HISTORY);
+ 	return TRUE;
+ }
+@@ -257,7 +277,7 @@
+ void load_history(void)
+ {
+ 	char *historyname = concatenate(statedir, SEARCH_HISTORY);
+-	FILE *histories = fopen(historyname, "rb");
++	FILE *histories = nano_private_fopen(historyname, "rb");
+ 
+ 	/* If reading an existing file failed, don't save history when we quit. */
+ 	if (histories == NULL && errno != ENOENT) {
+@@ -325,7 +345,7 @@
+ 		return;
+ 
+ 	char *historyname = concatenate(statedir, SEARCH_HISTORY);
+-	FILE *histories = fopen(historyname, "wb");
++	FILE *histories = nano_private_fopen(historyname, "wb");
+ 
+ 	if (histories == NULL) {
+ 		jot_error(N_("Error writing %s: %s"), historyname, strerror(errno));
+@@ -334,8 +354,10 @@
+ 	}
+ 
+ 	/* Don't allow others to read or write the history file. */
++#ifndef ENABLE_PEIOS
+ 	if (chmod(historyname, S_IRUSR | S_IWUSR) < 0)
+ 		jot_error(N_("Cannot limit permissions on %s: %s"), historyname, strerror(errno));
++#endif
+ 
+ 	if (!write_list(searchtop, histories) || !write_list(replacetop, histories) ||
+ 											!write_list(executetop, histories))
+@@ -392,7 +414,7 @@
+ /* Load the recorded cursor positions for files that were opened. */
+ void load_positions_register(void)
+ {
+-	FILE *registry = fopen(registername, "rb");
++	FILE *registry = nano_private_fopen(registername, "rb");
+ 
+ 	/* If reading an existing file failed, don't save the register when we quit. */
+ 	if (registry == NULL && errno != ENOENT) {
+@@ -461,7 +483,7 @@
+ /* Save the recorded cursor positions for files that were opened. */
+ void save_positions_register(void)
+ {
+-	FILE *registry = fopen(registername, "wb");
++	FILE *registry = nano_private_fopen(registername, "wb");
+ 	struct stat fileinfo;
+ 	positionstruct *item;
+ 	int count = 0;
+@@ -472,8 +494,10 @@
+ 	}
+ 
+ 	/* Don't allow others to read or write the positions-register file. */
++#ifndef ENABLE_PEIOS
+ 	if (chmod(registername, S_IRUSR | S_IWUSR) < 0)
+ 		jot_error(N_("Cannot limit permissions on %s: %s"), registername, strerror(errno));
++#endif
+ 
+ 	for (item = positions_register; item != NULL && count++ < 200; item = item->next) {
+ 		char *path_and_place;
+--- a/src/peios.c
++++ b/src/peios.c
+@@ -0,0 +1,220 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later
++ * Private editor artifacts under FACS. Ordinary documents use normal open().
++ * Never fall back to mode bits when the Peios security API is unavailable.
++ */
++#ifdef ENABLE_PEIOS
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#else
++#define _GNU_SOURCE 1
++#endif
++#include "peios.h"
++#include <peios/file.h>
++#include <peios/security.h>
++#include <peios/token.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/random.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++/* Reject policy we cannot prove private. In particular, an owner SID alone
++ * does not exclude a second principal with data or WRITE_DAC access. */
++static int private_policy(int fd, const void *user, size_t user_len, int directory)
++{
++    const uint32_t parts = KACS_SECINFO_OWNER | KACS_SECINFO_DACL;
++    ssize_t size = peios_fd_get_sd(fd, parts, NULL, 0);
++    void *bytes;
++    peios_sd_view sd;
++    peios_acl_view acl;
++    peios_ace_view ace;
++    const void *sid;
++    size_t sid_len;
++    int valid = 0;
++    if (size <= 0)
++        return -1;
++    bytes = malloc((size_t)size);
++    if (!bytes)
++        return -1;
++    size = peios_fd_get_sd(fd, parts, bytes, (size_t)size);
++    if (size > 0 && peios_sd_parse(bytes, (size_t)size, &sd) == 0 &&
++        (peios_sd_view_control(&sd) & KACS_SD_DACL_PROTECTED) &&
++        peios_sd_view_owner(&sd, &sid, &sid_len) == 0 &&
++        peios_sid_equal(user, user_len, sid, sid_len) &&
++        peios_sd_view_dacl(&sd, &acl) == 0 && peios_acl_view_count(&acl) == 1 &&
++        peios_acl_view_ace(&acl, 0, &ace) == 0 &&
++        peios_ace_view_type(&ace) == KACS_ACE_TYPE_ACCESS_ALLOWED &&
++        peios_ace_view_flags(&ace) == (directory ?
++            KACS_ACE_FLAG_OBJECT_INHERIT | KACS_ACE_FLAG_CONTAINER_INHERIT : 0) &&
++        peios_access_map_generic(peios_ace_view_mask(&ace), &peios_file_generic_mapping) ==
++            peios_access_map_generic(KACS_ACCESS_GENERIC_ALL, &peios_file_generic_mapping) &&
++        peios_ace_view_sid(&ace, &sid, &sid_len) == 0 &&
++        peios_sid_equal(user, user_len, sid, sid_len))
++        valid = 1;
++    free(bytes);
++    if (!valid) {
++        errno = EACCES;
++        return -1;
++    }
++    return 0;
++}
++
++int nano_private_open(const char *path, int flags, int directory)
++{
++    unsigned char user[PEIOS_SID_MAX_BYTES];
++    ssize_t user_len;
++    int token, fd = -1, saved;
++    peios_acl_builder *acl = NULL;
++    peios_sd_builder *sd = NULL;
++    struct stat st;
++    struct peios_open_params params = {
++        .desired_access = KACS_FILE_READ_ATTRIBUTES | KACS_ACCESS_READ_CONTROL |
++            (!directory && (flags & O_ACCMODE) != O_RDONLY ? KACS_ACCESS_SYNCHRONIZE : 0) |
++            (directory ? KACS_FILE_TRAVERSE :
++             ((flags & O_ACCMODE) == O_RDONLY ? KACS_FILE_READ_DATA :
++              (flags & O_ACCMODE) == O_WRONLY ? KACS_FILE_WRITE_DATA :
++              KACS_FILE_READ_DATA | KACS_FILE_WRITE_DATA)),
++        .disposition = KACS_DISPOSITION_OPEN,
++        .options = directory ? KACS_CREATE_OPT_DIRECTORY : 0,
++        .flags = AT_SYMLINK_NOFOLLOW,
++    };
++    /* No cached UID-derived identity: use this thread's effective token. */
++    token = peios_token_open_self(0, KACS_TOKEN_QUERY);
++    if (token < 0)
++        return -1;
++    user_len = peios_token_user(token, user, sizeof(user));
++    saved = errno;
++    close(token);
++    errno = saved;
++    if (user_len <= 0)
++        return -1;
++    if (flags & O_CREAT) {
++        size_t acl_len;
++        const void *acl_bytes;
++        acl = peios_acl_builder_new();
++        sd = peios_sd_builder_new();
++        if (!acl || !sd)
++            goto done;
++        peios_acl_builder_allow(acl, user, (size_t)user_len, KACS_ACCESS_GENERIC_ALL,
++            directory ? KACS_ACE_FLAG_OBJECT_INHERIT | KACS_ACE_FLAG_CONTAINER_INHERIT : 0);
++        acl_bytes = peios_acl_builder_bytes(acl, &acl_len);
++        if (!acl_bytes)
++            goto done;
++        peios_sd_builder_owner(sd, user, (size_t)user_len);
++        peios_sd_builder_dacl(sd, acl_bytes, acl_len);
++        peios_sd_builder_control(sd, KACS_SD_DACL_PROTECTED, 0);
++        /* Leave SACL/label construction to the kernel. No restore/security
++         * privilege and no copying of an edited document's privileged SD. */
++        params.sd = peios_sd_builder_bytes(sd, &params.sd_len);
++        if (!params.sd)
++            goto done;
++        params.disposition = KACS_DISPOSITION_CREATE;
++        fd = peios_file_open(AT_FDCWD, path, &params, NULL);
++        if (fd >= 0 || errno != EEXIST || (flags & O_EXCL))
++            goto opened;
++        params.sd = NULL;
++        params.sd_len = 0;
++        params.disposition = KACS_DISPOSITION_OPEN;
++    }
++    fd = peios_file_open(AT_FDCWD, path, &params, NULL);
++opened:
++    if (fd >= 0) {
++        if (fstat(fd, &st) < 0)
++            goto invalid;
++        if (directory ? !S_ISDIR(st.st_mode) :
++                        (!S_ISREG(st.st_mode) || st.st_nlink != 1)) {
++            errno = EACCES;
++            goto invalid;
++        }
++        if (private_policy(fd, user, (size_t)user_len, directory) < 0 ||
++            fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
++            goto invalid;
++        /* Crucially, inspect the opened object before truncating it. */
++        if ((flags & O_TRUNC) && ftruncate(fd, 0) < 0)
++            goto invalid;
++    }
++    goto done;
++invalid:
++    saved = errno;
++    close(fd);
++    fd = -1;
++    errno = saved;
++done:
++    saved = errno;
++    peios_sd_builder_free(sd);
++    peios_acl_builder_free(acl);
++    errno = saved;
++    return fd;
++}
++
++int nano_private_mkdir(const char *path)
++{
++    /* A trailing slash would make a terminal symlink into an intermediate
++     * component, defeating AT_SYMLINK_NOFOLLOW. */
++    char *name = strdup(path);
++    size_t len;
++    int fd, saved;
++    if (!name)
++        return -1;
++    len = strlen(name);
++    while (len > 1 && name[len - 1] == '/')
++        name[--len] = '\0';
++    fd = nano_private_open(name, O_RDONLY | O_CREAT, 1);
++    saved = errno;
++    free(name);
++    if (fd >= 0)
++        close(fd);
++    errno = saved;
++    return fd < 0 ? -1 : 0;
++}
++
++int nano_private_mkstemps(char *path, int suffix)
++{
++    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
++    size_t len = strlen(path);
++    unsigned char random[6];
++    char *slot;
++    if (suffix < 0 || len < (size_t)suffix + 6 ||
++        memcmp(path + len - suffix - 6, "XXXXXX", 6)) {
++        errno = EINVAL;
++        return -1;
++    }
++    slot = path + len - suffix - 6;
++    for (int attempt = 0; attempt < 128; attempt++) {
++        size_t have = 0;
++        while (have < sizeof(random)) {
++            ssize_t got = getrandom(random + have, sizeof(random) - have, 0);
++            if (got < 0 && errno == EINTR)
++                continue;
++            if (got <= 0)
++                return -1;
++            have += (size_t)got;
++        }
++        for (size_t i = 0; i < sizeof(random); i++)
++            slot[i] = alphabet[random[i] % (sizeof(alphabet) - 1)];
++        int fd = nano_private_open(path, O_RDWR | O_CREAT | O_EXCL, 0);
++        if (fd >= 0 || errno != EEXIST)
++            return fd;
++    }
++    errno = EEXIST;
++    return -1;
++}
++
++FILE *nano_private_fopen(const char *path, const char *mode)
++{
++    int fd = nano_private_open(path, mode[0] == 'r' ? O_RDONLY :
++                                O_WRONLY | O_CREAT | O_TRUNC, 0);
++    FILE *stream;
++    int saved;
++    if (fd < 0)
++        return NULL;
++    stream = fdopen(fd, mode);
++    saved = errno;
++    if (!stream)
++        close(fd);
++    errno = saved;
++    return stream;
++}
++#endif
+--- a/src/peios.h
++++ b/src/peios.h
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++#ifndef NANO_PEIOS_H
++#define NANO_PEIOS_H
++#include <stdio.h>
++int nano_private_open(const char *path, int flags, int directory);
++int nano_private_mkdir(const char *path);
++int nano_private_mkstemps(char *path, int suffix);
++FILE *nano_private_fopen(const char *path, const char *mode);
++#endif
+--- a/src/utils.c
++++ b/src/utils.c
+@@ -37,7 +37,11 @@
+ 
+ #ifdef HAVE_PWD_H
+ 		/* When $HOME is unset, or when we're root, try the database. */
+-		if (homenv == NULL || geteuid() == ROOT_UID) {
++		if (homenv == NULL
++#ifndef ENABLE_PEIOS
++				|| geteuid() == ROOT_UID
++#endif
++		) {
+ 			const struct passwd *userage = getpwuid(geteuid());
+ 
+ 			if (userage)

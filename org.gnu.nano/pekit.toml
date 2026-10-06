@@ -1,0 +1,65 @@
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+[source.url]
+url = "https://www.nano-editor.org/dist/v{{major}}/nano-{{version}}.tar.xz"
+listing_url = "https://www.nano-editor.org/dist/latest/"
+file_regex = 'nano-[0-9]+\.[0-9]+(?:\.[0-9]+)?\.tar\.xz'
+root = "nano-{{version}}"
+extract = true
+versions = ">= 9.2"
+
+# Benno Schulenberg's full key, obtained from GNU's official keyring.
+[source.url.signature]
+url = "{{source_url}}.asc"
+of = "artifact"
+key_files = ["keys/benno-schulenberg.asc"]
+fingerprints = ["168E6F4297BFD7A79AFD4496514BBE2EB8E1961F"]
+
+[build.main]
+command = '''
+set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.gnu.nano"
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS"
+export LIBS="-lpeios"
+autoreconf -fi
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/config.sub"
+cd "$PEKIT_OUT"
+"$SRC/configure" --prefix=/usr --bindir=/usr/bin --sysconfdir=/etc --mandir=/usr/share/man --enable-utf8 --disable-rpath --disable-maintainer-mode
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+mkdir -p "$PEKIT_OUT/usr/etc"
+printf '%s\n' 'include "/usr/share/nano/*.nanorc"' > "$PEKIT_OUT/usr/etc/nanorc"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} \;
+rm -rf "$PEKIT_OUT/usr/share/info"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.nano "$PEKIT_OUT/usr"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
+"org.gnu.ncurses-devel" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.gzip" = "*"
+"org.pkgconf.pkgconf-devel" = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+make -C "$PEKIT_MAIN_OUT" -j"$(nproc)" check
+cc -o "$PEKIT_OUT/pty-drive" "$PEKIT_WORKSPACE_ROOT/_pkgtools_/pty-drive.c"
+sh "$PEKIT_RECIPE_ROOT/tests/test-installed.sh" "$PEKIT_MAIN_OUT/usr/bin/nano" "$PEKIT_OUT/pty-drive"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
+"org.gnu.ncurses-devel" = "*"

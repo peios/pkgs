@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "9.2"
+  url = "https://www.nano-editor.org/dist/v9/nano-9.2.tar.xz"
+  sha256 = "05ecb99247b782e8a5b3a25ed4101dd034b0236902f7449bc9795b717642f7e9"
+  signature_key = "168e6f4297bfd7a79afd4496514bbe2eb8e1961f"
+  locked_at = "2026-09-27T18:14:54Z"
