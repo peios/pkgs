@@ -1,0 +1,66 @@
+out_dir = "out"
+# Follow stable even-minor BIND releases; odd-minor development branches are
+# deliberately excluded. Only dig and its versioned internal shared libraries are shipped.
+[source.url]
+url = "https://downloads.isc.org/isc/bind9/{{version}}/bind-{{version}}.tar.xz"
+listing_url = "https://downloads.isc.org/isc/bind9/"
+file_regex = 'href="(?P<version>[0-9]+\.[0-9]*[02468]\.[0-9]+)/"'
+# BIND tarballs contain internal hardlinks. Materialize them inside the worker
+# using Python's data filter, which rejects links escaping the extraction root.
+extract = false
+versions = ">= 9.20.26"
+[source.url.signature]
+url = "{{source_url}}.asc"
+of = "artifact"
+key_files = ["keys/isc-release.asc"]
+fingerprints = ["706B6C28620E76F91D11F7DF510A642A06C52CEC"]
+[build.main]
+command = '''
+set -eu
+python3 "$PEKIT_RECIPE_ROOT/tools/unpack.py" "$(pwd)" "$PEKIT_OUT/source" "$PEKIT_VERSION"
+SRC="$PEKIT_OUT/source/bind-$PEKIT_VERSION"
+mkdir -p "$PEKIT_OUT/licenses"
+cp "$SRC/LICENSE" "$SRC/COPYRIGHT" "$PEKIT_OUT/licenses/"
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.isc.bind-utils"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/config.sub"
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --enable-shared --disable-static --disable-doh --disable-chroot --without-gssapi --without-libidn2 --without-libxml2 --without-json-c --without-readline --without-jemalloc --without-cmocka --disable-dnstap
+make -C lib -j"$(nproc)"
+make -C bin/dig -j"$(nproc)" dig
+mkdir -p "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/man/man1"
+cp bin/dig/.libs/dig "$PEKIT_OUT/usr/bin/"
+mkdir -p "$PEKIT_OUT/usr/lib/x86_64-linux-peios"
+make -C lib install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr/lib" -name "*.la" -delete
+find "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/lib" -type f \( -name dig -o -name "*.so*" \) -exec patchelf --remove-rpath {} +
+python3 "$PEKIT_RECIPE_ROOT/tools/man.py" "$SRC/bin/dig/dig.rst" "$PEKIT_OUT/usr/share/man/man1/dig.1.gz"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.isc.bind-utils "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"org.kernel.libcap-devel" = "*"
+"org.nixos.patchelf" = "*"
+"dev.peios.build-essentials-c" = "*"
+"org.libuv.libuv-devel" = "*"
+"org.lttng.urcu-devel" = "*"
+"org.openssl.openssl-devel" = "*"
+"io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.perl.perl" = "*"
+"io.sourceforge.docutils.docutils" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+LD_LIBRARY_PATH="$PEKIT_MAIN_OUT/usr/lib/x86_64-linux-peios" python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT/usr/bin/dig"
+'''
+[test.dependencies.peipkg]
+"org.kernel.libcap" = "*"
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"org.libuv.libuv" = "*"
+"org.lttng.urcu" = "*"
+"org.openssl.libssl" = "*"
+"io.github.zlib-ng.zlib-ng-compat" = "*"

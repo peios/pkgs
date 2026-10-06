@@ -1,0 +1,9 @@
+[package]
+name = "org.libuv.libuv-debugsource"
+description = "libuv debug sources"
+[dependencies]
+"org.libuv.libuv-debuginfo" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.libuv.libuv-debugsource/LICENSE"
+"@source:LICENSE-extra" = "usr/share/licenses/org.libuv.libuv-debugsource/LICENSE-extra"
+":usr/src/debug/**" = "usr/src/debug"

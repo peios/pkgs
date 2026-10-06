@@ -1,0 +1,43 @@
+out_dir = "out"
+# Only ss is selected; ip/tc/bridge do not become parallel netd policy owners.
+[source.url]
+url = "https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-{{version}}.tar.xz"
+listing_url = "https://www.kernel.org/pub/linux/utils/net/iproute2/"
+file_regex = 'iproute2-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'
+root = "iproute2-{{version}}"
+extract = true
+versions = ">= 7.2.0"
+[source.url.signature]
+url = "https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-{{version}}.tar.sign"
+of = "decompressed"
+key_files = ["keys/stephen-hemminger.asc"]
+fingerprints = ["9F6FC345B05BE7E766B83C8F80A77F6095CDE47E"]
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.kernel.iproute2"
+# Pin optional integrations off: ss needs only the native libc and netlink.
+# Upstream configure otherwise sniffs whatever headers happen to be present.
+make CC=cc HOSTCC=cc PKG_CONFIG=false SUBDIRS="lib misc" TARGETS=ss -j"$(nproc)"
+mkdir -p "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/man/man8"
+cp misc/ss "$PEKIT_OUT/usr/bin/"
+gzip -9n -c man/man8/ss.8 > "$PEKIT_OUT/usr/share/man/man8/ss.8.gz"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.kernel.iproute2 "$PEKIT_OUT/usr/bin/ss"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.bison" = "*"
+"io.github.westes.flex" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT/usr/bin/ss"
+'''
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+

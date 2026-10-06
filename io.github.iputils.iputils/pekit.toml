@@ -1,0 +1,42 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://github.com/iputils/iputils/releases/download/{{major}}{{minor}}{{patch}}/iputils-{{major}}{{minor}}{{patch}}.tar.xz"
+listing_url = "https://api.github.com/repos/iputils/iputils/releases?per_page=100"
+file_regex = 'iputils-(?P<major>[0-9]{4})(?P<minor>[0-9]{2})(?P<patch>[0-9]{2})\.tar\.xz'
+root = "iputils-{{major}}{{minor}}{{patch}}"
+extract = true
+versions = ">= 2025.06.05"
+[source.url.signature]
+url = "{{source_url}}.asc"
+of = "artifact"
+key_files = ["keys/petr-vorel.asc"]
+fingerprints = ["2016FEA4858B1C36B32E833AC0DEC2EE72F33A5F"]
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/io.github.iputils.iputils"
+meson setup "$PEKIT_OUT/build" --prefix=/usr --bindir=bin --buildtype=plain -DUSE_CAP=false -DUSE_IDN=false -DUSE_GETTEXT=false -DBUILD_ARPING=true -DBUILD_CLOCKDIFF=false -DNO_SETCAP_OR_SUID=true -DINSTALL_SYSTEMD_UNITS=false -DBUILD_HTML_MANS=false
+meson compile -C "$PEKIT_OUT/build"
+DESTDIR="$PEKIT_OUT" meson install -C "$PEKIT_OUT/build"
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/iputils"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} +
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" io.github.iputils.iputils "$PEKIT_OUT/usr/bin"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"com.mesonbuild.meson" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"
+'''
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"com.mesonbuild.meson" = "*"

@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "7.2.0"
+  url = "https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-7.2.0.tar.xz"
+  sha256 = "4c2fa124c2cf0afd7ca34d1eeacba6ba048a56f6374e2aab93dafbdbd4eea9c0"
+  signature_key = "9f6fc345b05be7e766b83c8f80a77f6095cde47e"
+  locked_at = "2026-09-27T18:59:29Z"

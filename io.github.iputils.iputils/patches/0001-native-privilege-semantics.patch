@@ -1,0 +1,120 @@
+Description: Use caller token and unprivileged limits without cosmetic UID changes
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/ping/ping_common.c
++++ b/ping/ping_common.c
+@@ -98,106 +98,13 @@
+ 	exit(2);
+ }
+ 
+-void limit_capabilities(struct ping_rts *rts)
+-{
+-#ifdef HAVE_LIBCAP
+-	cap_t cap_cur_p;
+-	cap_t cap_p;
+-	cap_flag_value_t cap_ok;
+-
+-	cap_cur_p = cap_get_proc();
+-	if (!cap_cur_p)
+-		error(-1, errno, "cap_get_proc");
+-	cap_p = cap_init();
+-	if (!cap_p)
+-		error(-1, errno, "cap_init");
+-	cap_ok = CAP_CLEAR;
+-	cap_get_flag(cap_cur_p, CAP_NET_ADMIN, CAP_PERMITTED, &cap_ok);
+-	if (cap_ok != CAP_CLEAR)
+-		cap_set_flag(cap_p, CAP_PERMITTED, 1, &rts->cap_admin, CAP_SET);
+-	cap_ok = CAP_CLEAR;
+-	cap_get_flag(cap_cur_p, CAP_NET_RAW, CAP_PERMITTED, &cap_ok);
+-	if (cap_ok != CAP_CLEAR)
+-		cap_set_flag(cap_p, CAP_PERMITTED, 1, &rts->cap_raw, CAP_SET);
+-	if (cap_set_proc(cap_p) < 0)
+-		error(-1, errno, "cap_set_proc");
+-	if (prctl(PR_SET_KEEPCAPS, 1) < 0)
+-		error(-1, errno, "prctl");
+-	if (setuid(getuid()) < 0)
+-		error(-1, errno, "setuid");
+-	if (prctl(PR_SET_KEEPCAPS, 0) < 0)
+-		error(-1, errno, "prctl");
+-	cap_free(cap_p);
+-	cap_free(cap_cur_p);
+-#else
+-	euid = geteuid();
+-#endif
+-	rts->uid = getuid();
+-#ifndef HAVE_LIBCAP
+-	if (seteuid(rts->uid))
+-		error(-1, errno, "setuid");
+-#endif
+-}
+-
+-#ifdef HAVE_LIBCAP
+-int modify_capability(cap_value_t cap, cap_flag_value_t on)
+-{
+-	cap_t cap_p = cap_get_proc();
+-	cap_flag_value_t cap_ok;
+-	int rc = -1;
+-
+-	if (!cap_p) {
+-		error(0, errno, "cap_get_proc");
+-		goto out;
+-	}
+-
+-	cap_ok = CAP_CLEAR;
+-	cap_get_flag(cap_p, cap, CAP_PERMITTED, &cap_ok);
+-	if (cap_ok == CAP_CLEAR) {
+-		rc = on ? -1 : 0;
+-		goto out;
+-	}
+-
+-	cap_set_flag(cap_p, CAP_EFFECTIVE, 1, &cap, on);
+-
+-	if (cap_set_proc(cap_p) < 0) {
+-		error(0, errno, "cap_set_proc");
+-		goto out;
+-	}
+-
+-	cap_free(cap_p);
+-	cap_p = NULL;
+-
+-	rc = 0;
+-out:
+-	if (cap_p)
+-		cap_free(cap_p);
+-	return rc;
+-}
+-#else
+-int modify_capability(int on)
+-{
+-	if (seteuid(on ? euid : getuid())) {
+-		error(0, errno, "seteuid");
+-		return -1;
+-	}
+-
+-	return 0;
+-}
+-#endif
+-
+-void drop_capabilities(void)
+-{
+-#ifdef HAVE_LIBCAP
+-	cap_t cap = cap_init();
+-	if (cap_set_proc(cap) < 0)
+-		error(-1, errno, "cap_set_proc");
+-	cap_free(cap);
+-#else
+-	if (setuid(getuid()))
+-		error(-1, errno, "setuid");
+-#endif
+-}
++/* Peios runs this command with the caller's token and grants no authority.
++ * POSIX UID transitions cannot lower or raise that token. Apply the ordinary
++ * user's rate limits regardless of the projected compatibility UID.
++ */
++void limit_capabilities(struct ping_rts *rts) { rts->uid = 1; }
++int modify_capability(int on) { (void)on; return 0; }
++void drop_capabilities(void) { }
+ 
+ /* Fills all the outpack, excluding ICMP header, but _including_
+  * timestamp area with supplied pattern.

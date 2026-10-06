@@ -1,0 +1,61 @@
+out_dir = "out"
+[source.url]
+url = "https://dist.libuv.org/dist/v{{version}}/libuv-v{{version}}.tar.gz"
+listing_url = "https://dist.libuv.org/dist/"
+file_regex = 'v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)/'
+root = "libuv-v{{version}}"
+extract = true
+versions = ">= 1.53.0"
+[source.url.signature]
+url = "{{source_url}}.sign"
+of = "artifact"
+key_files = ["keys/release.asc"]
+fingerprints = ["612F0EAD9401622379DF4402F28C3C8DA33C03BE"]
+[build.main]
+command = '''
+set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.libuv.libuv"
+sh autogen.sh
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/config.sub"
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --disable-static 
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/info"
+if [ -d "$PEKIT_OUT/usr/share/man" ]; then
+  find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} +
+  find "$PEKIT_OUT/usr/share/man" -type l | while read -r link; do
+    target=$(readlink "$link")
+    ln -s "$target.gz" "$link.gz"
+    rm "$link"
+  done
+fi
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.libuv.libuv "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+make -C "$PEKIT_MAIN_OUT/build" -j"$(nproc)" test/run-tests
+cd "$PEKIT_MAIN_OUT/build"
+for case in timer async tcp_ping_pong udp_send_and_recv fs_poll; do ./test/run-tests "$case"; done
+'''
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"

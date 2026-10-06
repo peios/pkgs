@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "9.20.29"
+  url = "https://downloads.isc.org/isc/bind9/9.20.29/bind-9.20.29.tar.xz"
+  sha256 = "587029508b3b1b43229fae416c97e5543aba45809cefaca98a5004a02a5736c1"
+  signature_key = "706b6c28620e76f91d11f7df510a642a06c52cec"
+  locked_at = "2026-09-27T19:12:58Z"

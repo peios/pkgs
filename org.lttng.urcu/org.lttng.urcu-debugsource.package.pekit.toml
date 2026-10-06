@@ -1,0 +1,12 @@
+[package]
+name = "org.lttng.urcu-debugsource"
+description = "urcu debug sources"
+[dependencies]
+"org.lttng.urcu-debuginfo" = "= {{release}}"
+[files]
+"@source:LICENSE.md" = "usr/share/licenses/org.lttng.urcu-debugsource/LICENSE.md"
+"@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.lttng.urcu-debugsource/LGPL-2.1-or-later.txt"
+"@source:LICENSES/MIT.txt" = "usr/share/licenses/org.lttng.urcu-debugsource/MIT.txt"
+"@source:LICENSES/BSD-2-Clause.txt" = "usr/share/licenses/org.lttng.urcu-debugsource/BSD-2-Clause.txt"
+"@source:LICENSES/LicenseRef-Boehm-GC.txt" = "usr/share/licenses/org.lttng.urcu-debugsource/LicenseRef-Boehm-GC.txt"
+":usr/src/debug/**" = "usr/src/debug"

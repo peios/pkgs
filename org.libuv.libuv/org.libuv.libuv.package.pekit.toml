@@ -1,0 +1,7 @@
+[package]
+name = "org.libuv.libuv"
+description = "Asynchronous I/O library"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.libuv.libuv/LICENSE"
+"@source:LICENSE-extra" = "usr/share/licenses/org.libuv.libuv/LICENSE-extra"
+":usr/lib/x86_64-linux-peios/*.so.*" = "usr/lib/x86_64-linux-peios"

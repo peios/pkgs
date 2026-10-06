@@ -1,0 +1,8 @@
+[package]
+name = "org.freedesktop.libbsd-debugsource"
+description = "libbsd debug sources"
+[dependencies]
+"org.freedesktop.libbsd-debuginfo" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.freedesktop.libbsd-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

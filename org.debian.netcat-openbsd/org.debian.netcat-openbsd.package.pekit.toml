@@ -1,0 +1,9 @@
+side_effects = ["man-db"]
+[package]
+name = "org.debian.netcat-openbsd"
+description = "TCP and UDP connection utility"
+
+[files]
+"@source:debian/copyright" = "usr/share/licenses/org.debian.netcat-openbsd/copyright"
+":usr/bin/nc" = "usr/bin/nc"
+":usr/share/man/man1/nc.1.gz" = "usr/share/man/man1/nc.1.gz"

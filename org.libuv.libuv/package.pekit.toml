@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "MIT AND ISC AND BSD-2-Clause AND BSD-3-Clause"
+license_class = "free"
+homepage = "https://libuv.org/"

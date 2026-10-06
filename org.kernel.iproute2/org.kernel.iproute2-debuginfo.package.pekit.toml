@@ -1,0 +1,10 @@
+[package]
+name = "org.kernel.iproute2-debuginfo"
+description = "Socket inspection utility debug symbols"
+
+[dependencies]
+"org.kernel.iproute2" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.iproute2-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

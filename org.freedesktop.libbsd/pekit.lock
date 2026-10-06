@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "0.12.2"
+  url = "https://libbsd.freedesktop.org/releases/libbsd-0.12.2.tar.xz"
+  sha256 = "b88cc9163d0c652aaf39a99991d974ddba1c3a9711db8f1b5838af2a14731014"
+  signature_key = "4f3e74f436050c10f5696574b972bf3ea4ae57a3"
+  locked_at = "2026-09-27T19:12:21Z"

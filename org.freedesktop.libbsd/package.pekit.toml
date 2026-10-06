@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "BSD-2-Clause AND BSD-3-Clause AND BSD-4-Clause-UC AND ISC AND MIT AND Beerware"
+license_class = "free"
+homepage = "https://libbsd.freedesktop.org/"

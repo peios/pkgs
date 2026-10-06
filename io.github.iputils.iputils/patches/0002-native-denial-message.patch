@@ -1,0 +1,17 @@
+Description: Explain raw ICMP denial without suggesting setuid or file capabilities
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/ping/ping.c
++++ b/ping/ping.c
+@@ -209,8 +209,8 @@
+ 	}
+ 
+ 	if (requisite) {
+-		if (socktype == SOCK_RAW && geteuid() != 0)
+-			error(0, 0, _("=> missing cap_net_raw+p capability or setuid?"));
++		if (socktype == SOCK_RAW)
++			error(0, 0, _("=> raw ICMP needs explicit Peios authority; ordinary echo uses datagram sockets"));
+ 
+ 		exit(2);
+ 	}

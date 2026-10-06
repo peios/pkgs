@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "2025.06.05"
+  url = "https://github.com/iputils/iputils/releases/download/20250605/iputils-20250605.tar.xz"
+  sha256 = "6f213700dbf96b5cc4499ca70cb15ecd69c09f405b06785bb4a1a10b572b6276"
+  signature_key = "2016fea4858b1c36b32e833ac0dec2ee72f33a5f"
+  locked_at = "2026-09-27T19:00:13Z"

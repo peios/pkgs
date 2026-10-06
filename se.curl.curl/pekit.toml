@@ -21,6 +21,9 @@ out_dir = "out"
 [source_package]
 license = "curl AND ISC AND BSD-4-Clause-UC AND X11 AND FSFUL AND FSFULLR AND (GPL-2.0-or-later WITH Autoconf-exception-generic) AND (GPL-2.0-or-later WITH Libtool-exception) AND (GPL-3.0-or-later WITH Autoconf-exception-generic-3.0)"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://curl.se/download/curl-{{version}}.tar.xz"
 listing_url = "https://curl.se/download/"
@@ -50,6 +53,8 @@ PREFIX="$PEKIT_OUT/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
 # Preserve physical DWARF paths until debugedit collects the source files.
+export CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS"
+export LIBS="${LIBS:-} -lpeios"
 export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/se.curl.curl"
 mkdir -p "$BUILD"
 cd "$BUILD"
@@ -112,6 +117,7 @@ mv "$PREFIX/lib/debug" "$PREFIX/lib/debug-libcurl"
 '''
 
 [build.main.dependencies.peipkg]
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
 "dev.peios.build-essentials-c" = "*"
 "org.openssl.openssl-devel" = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
@@ -130,6 +136,44 @@ BUILD="$STAGE/build"
 PREFIX="$STAGE/usr"
 LIBDIR="$PREFIX/lib/x86_64-linux-peios"
 CURL="$PREFIX/bin/curl"
+
+# The build worker runs Linux, so cannot exercise native FACS syscalls.
+# Compile the portable branch for upstream protocol regression coverage; the
+# installed Peios payload is checked below and by the native FACS VM gate.
+SRC=$(pwd)
+BUILD="$PEKIT_OUT/portable-tests"
+mkdir -p "$BUILD"
+cd "$BUILD"
+"$SRC/configure" \
+  LDFLAGS="$LDFLAGS -Wl,-z,ibtplt" \
+  --prefix=/usr \
+  --bindir=/usr/bin \
+  --libdir=/usr/lib/x86_64-linux-peios \
+  --mandir=/usr/share/man \
+  --disable-static \
+  --disable-silent-rules \
+  --enable-threaded-resolver \
+  --enable-ipv6 \
+  --with-openssl \
+  --with-zlib \
+  --with-zstd \
+  --without-ca-bundle \
+  --without-ca-path \
+  --with-ca-fallback \
+  --without-libpsl \
+  --without-nghttp2 \
+  --without-ngtcp2 \
+  --without-nghttp3 \
+  --without-brotli \
+  --without-libidn2 \
+  --without-libssh2 \
+  --without-libgsasl \
+  --without-gssapi \
+  --without-librtmp \
+  --disable-ldap \
+  --disable-ldaps
+
+make -j"$(nproc)"
 
 # Upstream's suite against the built tree, skipping only the tests upstream
 # itself marks flaky or timing-dependent. Tests needing servers Peios does not
@@ -174,6 +218,7 @@ done
 '''
 
 [test.dependencies.peipkg]
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
 "dev.peios.build-essentials-c" = "*"
 "org.openssl.openssl-devel" = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"

@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "0.15.7"
+  url = "https://lttng.org/files/urcu/userspace-rcu-0.15.7.tar.bz2"
+  sha256 = "2556b83adc0f9b3ac8024e613e17d014d04c4c49110604ce55fcb14eae32edd3"
+  signature_key = "2a0b4ed915f2d3fa45f5b16217280a9781186acf"
+  locked_at = "2026-09-27T19:04:59Z"

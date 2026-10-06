@@ -1,0 +1,10 @@
+side_effects = ["man-db"]
+[package]
+name = "io.github.iputils.iputils"
+description = "ICMP echo and path diagnostics"
+
+[files]
+"@source:Documentation/LICENSE.BSD3" = "usr/share/licenses/io.github.iputils.iputils/LICENSE.BSD3"
+"@source:Documentation/LICENSE.GPL2" = "usr/share/licenses/io.github.iputils.iputils/LICENSE.GPL2"
+":usr/bin/*" = "usr/bin"
+":usr/share/man/man8/*.gz" = "usr/share/man/man8"

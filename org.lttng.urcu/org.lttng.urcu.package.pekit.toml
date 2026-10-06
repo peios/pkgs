@@ -1,0 +1,10 @@
+[package]
+name = "org.lttng.urcu"
+description = "Userspace read-copy-update library"
+[files]
+"@source:LICENSE.md" = "usr/share/licenses/org.lttng.urcu/LICENSE.md"
+"@source:LICENSES/LGPL-2.1-or-later.txt" = "usr/share/licenses/org.lttng.urcu/LGPL-2.1-or-later.txt"
+"@source:LICENSES/MIT.txt" = "usr/share/licenses/org.lttng.urcu/MIT.txt"
+"@source:LICENSES/BSD-2-Clause.txt" = "usr/share/licenses/org.lttng.urcu/BSD-2-Clause.txt"
+"@source:LICENSES/LicenseRef-Boehm-GC.txt" = "usr/share/licenses/org.lttng.urcu/LicenseRef-Boehm-GC.txt"
+":usr/lib/x86_64-linux-peios/*.so.*" = "usr/lib/x86_64-linux-peios"

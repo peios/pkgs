@@ -1,0 +1,10 @@
+[package]
+name = "org.debian.netcat-openbsd-debugsource"
+description = "TCP and UDP connection utility debug sources"
+
+[dependencies]
+"org.debian.netcat-openbsd-debuginfo" = "= {{release}}"
+
+[files]
+"@source:debian/copyright" = "usr/share/licenses/org.debian.netcat-openbsd-debugsource/copyright"
+":usr/src/debug/**" = "usr/src/debug"

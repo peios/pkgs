@@ -1,0 +1,103 @@
+Description: Create private curl state atomically with native FACS descriptors
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/lib/curl_fopen.c
++++ b/lib/curl_fopen.c
+@@ -81,20 +81,83 @@
+  * file. if 'tempname' is non-NULL, it needs a rename after the file is
+  * written.
+  */
++#ifdef ENABLE_PEIOS
++#include <peios/file.h>
++#include <peios/security.h>
++#include <peios/token.h>
++
++/* Cookie, HSTS and Alt-Svc state is private to the effective principal.
++ * Create the protected descriptor atomically: mode bits cannot make a file
++ * private under FACS. Do not open/truncate the destination before staging.
++ */
++static int peios_state_create(const char *path)
++{
++  unsigned char user[PEIOS_SID_MAX_BYTES];
++  ssize_t userlen;
++  int token, fd = -1, saved;
++  peios_acl_builder *acl = NULL;
++  peios_sd_builder *sd = NULL;
++  const void *aclbytes;
++  size_t aclsize;
++  struct peios_open_params args = {
++    .desired_access = KACS_FILE_WRITE_DATA | KACS_ACCESS_SYNCHRONIZE,
++    .disposition = KACS_DISPOSITION_CREATE,
++    .flags = AT_SYMLINK_NOFOLLOW
++  };
++  token = peios_token_open_self(0, KACS_TOKEN_QUERY);
++  if(token < 0)
++    return -1;
++  userlen = peios_token_user(token, user, sizeof(user));
++  saved = errno;
++  close(token);
++  errno = saved;
++  if(userlen <= 0)
++    return -1;
++  acl = peios_acl_builder_new();
++  sd = peios_sd_builder_new();
++  if(!acl || !sd)
++    goto done;
++  peios_acl_builder_allow(acl, user, (size_t)userlen, KACS_ACCESS_GENERIC_ALL, 0);
++  aclbytes = peios_acl_builder_bytes(acl, &aclsize);
++  if(!aclbytes)
++    goto done;
++  peios_sd_builder_owner(sd, user, (size_t)userlen);
++  peios_sd_builder_dacl(sd, aclbytes, aclsize);
++  peios_sd_builder_control(sd, KACS_SD_DACL_PROTECTED, 0);
++  args.sd = peios_sd_builder_bytes(sd, &args.sd_len);
++  if(!args.sd)
++    goto done;
++  fd = peios_file_open(AT_FDCWD, path, &args, NULL);
++  if(fd >= 0 && fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
++    saved = errno;
++    close(fd);
++    unlink(path);
++    fd = -1;
++    errno = saved;
++  }
++done:
++  saved = errno;
++  peios_sd_builder_free(sd);
++  peios_acl_builder_free(acl);
++  errno = saved;
++  return fd;
++}
++#endif
++
+ CURLcode Curl_fopen(struct Curl_easy *data, const char *filename,
+                     FILE **fh, char **tempname)
+ {
+   CURLcode result = CURLE_WRITE_ERROR;
+   unsigned char randbuf[41];
+   char *tempstore = NULL;
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(ENABLE_PEIOS)
+   curlx_struct_stat sb;
+ #endif
+   int fd = -1;
+   char *dir = NULL;
+   *tempname = NULL;
+ 
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(ENABLE_PEIOS)
+   *fh = curlx_fopen(filename, FOPEN_WRITETEXT);
+   if(!*fh)
+     goto fail;
+@@ -130,7 +193,9 @@
+   }
+ 
+   result = CURLE_WRITE_ERROR;
+-#ifdef _WIN32
++#ifdef ENABLE_PEIOS
++  fd = peios_state_create(tempstore);
++#elif defined(_WIN32)
+   fd = curlx_open(tempstore, _O_WRONLY | _O_CREAT | _O_EXCL,
+                   _S_IREAD | _S_IWRITE);
+ #elif (defined(ANDROID) || defined(__ANDROID__)) && \

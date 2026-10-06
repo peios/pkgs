@@ -1,0 +1,8 @@
+[package]
+name = "org.freedesktop.libmd-debuginfo"
+description = "libmd debug symbols"
+[dependencies]
+"org.freedesktop.libmd" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.freedesktop.libmd-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

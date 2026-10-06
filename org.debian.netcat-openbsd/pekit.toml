@@ -1,0 +1,45 @@
+out_dir = "out"
+# Debian maintains the portable OpenBSD source. Its signed release tag covers
+# both the upstream snapshot and the reviewed Linux/libbsd portability patches.
+# Map 1.238-1 to 1.238.1 so future Debian revisions sort monotonically.
+[source.git]
+url = "https://salsa.debian.org/debian/netcat-openbsd.git"
+ref = "debian/{{major}}.{{minor}}-{{patch}}"
+tag_regex = '^debian/(?P<major>[0-9]+)\.(?P<minor>[0-9]+)-(?P<patch>[0-9]+)$'
+versions = ">= 1.238.1"
+[source.git.signature]
+object = "tag"
+key_files = ["keys/guilhem-moulin.asc"]
+fingerprints = ["7420DF86BCE15A458DCE997639278DA8109E6244"]
+[build.main]
+command = '''
+set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+while read -r patch; do patch -p1 < "debian/patches/$patch"; done < debian/patches/series
+make CC=cc CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.debian.netcat-openbsd" LDFLAGS="${LDFLAGS:?}" -j"$(nproc)"
+mkdir -p "$PEKIT_OUT/usr/bin" "$PEKIT_OUT/usr/share/man/man1"
+cp nc "$PEKIT_OUT/usr/bin/nc"
+gzip -9n -c nc.1 > "$PEKIT_OUT/usr/share/man/man1/nc.1.gz"
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.debian.netcat-openbsd "$PEKIT_OUT/usr/bin/nc"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.freedesktop.libbsd-devel" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.patch" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT/usr/bin/nc"
+'''
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"
+"org.freedesktop.libbsd" = "*"

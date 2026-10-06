@@ -1,0 +1,11 @@
+[package]
+name = "org.libuv.libuv-devel"
+description = "libuv development files"
+[dependencies]
+"org.libuv.libuv" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/org.libuv.libuv-devel/LICENSE"
+"@source:LICENSE-extra" = "usr/share/licenses/org.libuv.libuv-devel/LICENSE-extra"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/*.so" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"

@@ -1,0 +1,6 @@
+[package]
+name = "org.freedesktop.libbsd"
+description = "BSD compatibility library"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.freedesktop.libbsd/COPYING"
+":usr/lib/x86_64-linux-peios/*.so.*" = "usr/lib/x86_64-linux-peios"

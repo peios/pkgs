@@ -1,0 +1,61 @@
+out_dir = "out"
+[source.url]
+url = "https://libbsd.freedesktop.org/releases/libbsd-{{version}}.tar.xz"
+listing_url = "https://libbsd.freedesktop.org/releases/"
+file_regex = 'libbsd-(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.tar\.xz'
+root = "libbsd-{{version}}"
+extract = true
+versions = ">= 0.12.2"
+[source.url.signature]
+url = "{{source_url}}.asc"
+of = "artifact"
+key_files = ["keys/release.asc"]
+fingerprints = ["4F3E74F436050C10F5696574B972BF3EA4AE57A3"]
+[build.main]
+command = '''
+set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.freedesktop.libbsd"
+
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/config-sub-peios.sh" "$SRC/build-aux/config.sub"
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --disable-static 
+make -j"$(nproc)"
+make install DESTDIR="$PEKIT_OUT"
+find "$PEKIT_OUT/usr" -name '*.la' -delete
+rm -rf "$PEKIT_OUT/usr/share/doc" "$PEKIT_OUT/usr/share/info"
+if [ -d "$PEKIT_OUT/usr/share/man" ]; then
+  find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} +
+  find "$PEKIT_OUT/usr/share/man" -type l | while read -r link; do
+    target=$(readlink "$link")
+    ln -s "$target.gz" "$link.gz"
+    rm "$link"
+  done
+fi
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.freedesktop.libbsd "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"
+"org.freedesktop.libmd-devel" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+make -C "$PEKIT_MAIN_OUT/build" -j"$(nproc)" check
+'''
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.gnu.gzip" = "*"
+"org.pkgconf.pkgconf" = "*"
+"org.gnu.autoconf" = "*"
+"org.gnu.automake" = "*"
+"org.gnu.libtool" = "*"
+"org.freedesktop.libmd-devel" = "*"

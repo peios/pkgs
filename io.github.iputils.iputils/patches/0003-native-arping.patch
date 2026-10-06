@@ -1,0 +1,103 @@
+Description: Keep native authority for ARP diagnostics (PEI-1190)
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/arping.c
++++ b/arping.c
+@@ -147,93 +147,9 @@
+ 	exit(2);
+ }
+ 
+-#ifdef HAVE_LIBCAP
+-static void limit_capabilities(struct run_state *ctl)
+-{
+-	cap_t cap_p;
+-
+-	cap_p = cap_get_proc();
+-	if (!cap_p)
+-		error(-1, errno, "cap_get_proc");
+-
+-	cap_get_flag(cap_p, CAP_NET_RAW, CAP_PERMITTED, &ctl->cap_raw);
+-
+-	if (ctl->cap_raw != CAP_CLEAR) {
+-		if (cap_clear(cap_p) < 0)
+-			error(-1, errno, "cap_clear");
+-
+-		cap_set_flag(cap_p, CAP_PERMITTED, 1, caps, CAP_SET);
+-
+-		if (cap_set_proc(cap_p) < 0) {
+-			error(0, errno, "cap_set_proc");
+-			if (errno != EPERM)
+-				exit(-1);
+-		}
+-	}
+-
+-	if (prctl(PR_SET_KEEPCAPS, 1) < 0)
+-		error(-1, errno, "prctl");
+-
+-	if (setuid(getuid()) < 0)
+-		error(-1, errno, "setuid");
+-
+-	if (prctl(PR_SET_KEEPCAPS, 0) < 0)
+-		error(-1, errno, "prctl");
+-
+-	cap_free(cap_p);
+-}
+-
+-static int modify_capability_raw(struct run_state *ctl, int on)
+-{
+-	cap_t cap_p;
+-
+-	if (ctl->cap_raw != CAP_SET)
+-		return on ? -1 : 0;
+-
+-	cap_p = cap_get_proc();
+-	if (!cap_p)
+-		error(-1, errno, "cap_get_proc");
+-
+-	cap_set_flag(cap_p, CAP_EFFECTIVE, 1, caps, on ? CAP_SET : CAP_CLEAR);
+-
+-	if (cap_set_proc(cap_p) < 0)
+-		error(-1, errno, "cap_set_proc");
+-
+-	cap_free(cap_p);
+-	return 0;
+-}
+-
+-static void drop_capabilities(void)
+-{
+-	cap_t cap_p = cap_init();
+-
+-	if (!cap_p)
+-		error(-1, errno, "cap_init");
+-
+-	if (cap_set_proc(cap_p) < 0)
+-		error(-1, errno, "cap_set_proc");
+-
+-	cap_free(cap_p);
+-}
+-#else	/* HAVE_LIBCAP */
+-static void limit_capabilities(struct run_state *ctl)
+-{
+-	ctl->euid = geteuid();
+-}
+-
+-static int modify_capability_raw(struct run_state *ctl, int on)
+-{
+-	if (setuid(on ? ctl->euid : getuid()))
+-		error(-1, errno, "setuid");
+-	return 0;
+-}
+-
+-static void drop_capabilities(void)
+-{
+-	if (setuid(getuid()) < 0)
+-		error(-1, errno, "setuid");
+-}
+-#endif	/* HAVE_LIBCAP */
++static void limit_capabilities(struct run_state *ctl) { (void)ctl; }
++static int modify_capability_raw(struct run_state *ctl, int on) { (void)ctl; (void)on; return 0; }
++static void drop_capabilities(void) { /* Native token remains the caller's. */ }
+ 
+ static inline int enable_capability_raw(struct run_state *ctl)
+ {

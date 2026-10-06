@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "LGPL-2.1-or-later AND MIT AND BSD-2-Clause AND LicenseRef-Boehm-GC"
+license_class = "free"
+homepage = "https://liburcu.org/"

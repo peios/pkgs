@@ -1,0 +1,12 @@
+side_effects = ["man-db"]
+[package]
+name = "org.freedesktop.libmd-devel"
+description = "libmd development files"
+[dependencies]
+"org.freedesktop.libmd" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.freedesktop.libmd-devel/COPYING"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/*.so" = "usr/lib/x86_64-linux-peios"
+":usr/lib/x86_64-linux-peios/pkgconfig/**" = "usr/lib/x86_64-linux-peios/pkgconfig"
+":usr/share/man/**" = "usr/share/man"

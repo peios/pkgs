@@ -1,0 +1,8 @@
+[package]
+name = "org.freedesktop.libmd-debugsource"
+description = "libmd debug sources"
+[dependencies]
+"org.freedesktop.libmd-debuginfo" = "= {{release}}"
+[files]
+"@source:COPYING" = "usr/share/licenses/org.freedesktop.libmd-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

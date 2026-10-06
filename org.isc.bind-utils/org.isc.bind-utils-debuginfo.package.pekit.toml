@@ -1,0 +1,11 @@
+[package]
+name = "org.isc.bind-utils-debuginfo"
+description = "DNS query diagnostic client debug symbols"
+
+[dependencies]
+"org.isc.bind-utils" = "= {{release}}"
+
+[files]
+":licenses/LICENSE" = "usr/share/licenses/org.isc.bind-utils-debuginfo/LICENSE"
+":licenses/COPYRIGHT" = "usr/share/licenses/org.isc.bind-utils-debuginfo/COPYRIGHT"
+":usr/lib/debug/**" = "usr/lib/debug"

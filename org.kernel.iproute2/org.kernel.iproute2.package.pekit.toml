@@ -1,0 +1,9 @@
+side_effects = ["man-db"]
+[package]
+name = "org.kernel.iproute2"
+description = "Socket inspection utility"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.kernel.iproute2/COPYING"
+":usr/bin/ss" = "usr/bin/ss"
+":usr/share/man/man8/ss.8.gz" = "usr/share/man/man8/ss.8.gz"

@@ -1,0 +1,11 @@
+[package]
+name = "io.github.iputils.iputils-debuginfo"
+description = "ICMP echo and path diagnostics debug symbols"
+
+[dependencies]
+"io.github.iputils.iputils" = "= {{release}}"
+
+[files]
+"@source:Documentation/LICENSE.BSD3" = "usr/share/licenses/io.github.iputils.iputils-debuginfo/LICENSE.BSD3"
+"@source:Documentation/LICENSE.GPL2" = "usr/share/licenses/io.github.iputils.iputils-debuginfo/LICENSE.GPL2"
+":usr/lib/debug/**" = "usr/lib/debug"

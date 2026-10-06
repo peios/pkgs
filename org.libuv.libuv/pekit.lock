@@ -1,0 +1,13 @@
+# pekit.lock — machine-written by pekit; records pinned source inputs.
+# Do not edit by hand. For ordinary URL/Git sources, accept changed bytes with:
+#   pekit lock --repin --version <version>
+# Tracked-path Git histories are append-only; discover their next version with --latest.
+
+schema = 1
+
+[[source]]
+  version = "1.53.0"
+  url = "https://dist.libuv.org/dist/v1.53.0/libuv-v1.53.0.tar.gz"
+  sha256 = "cb0d6dd2128d5a95bd242c6cc982a24fe608fa93da57b6b4ec763b0018c53e64"
+  signature_key = "612f0ead9401622379df4402f28c3c8da33c03be"
+  locked_at = "2026-09-27T19:05:00Z"

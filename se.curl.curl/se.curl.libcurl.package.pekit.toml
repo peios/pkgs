@@ -11,6 +11,7 @@ license     = "curl AND ISC"
 [replaces]
 
 [dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
 "org.gnu.glibc"                    = ">= 2.43"
 "org.openssl.libssl"               = ">= 3.5"
 "org.openssl.libcrypto"            = ">= 3.5"

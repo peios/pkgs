@@ -1,0 +1,11 @@
+side_effects = ["man-db"]
+[package]
+name = "org.isc.bind-utils"
+description = "DNS query diagnostic client"
+
+[files]
+":licenses/LICENSE" = "usr/share/licenses/org.isc.bind-utils/LICENSE"
+":licenses/COPYRIGHT" = "usr/share/licenses/org.isc.bind-utils/COPYRIGHT"
+":usr/bin/dig" = "usr/bin/dig"
+":usr/share/man/man1/dig.1.gz" = "usr/share/man/man1/dig.1.gz"
+":usr/lib/x86_64-linux-peios/*-*.so" = "usr/lib/x86_64-linux-peios"

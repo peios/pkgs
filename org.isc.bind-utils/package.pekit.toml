@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "MPL-2.0 AND ISC AND BSD-3-Clause"
+license_class = "free"
+homepage = "https://www.isc.org/bind/"
