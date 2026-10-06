@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-version      = "2026.8-5"
+version      = "2026.8-6"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -221,7 +221,10 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.gxwi-disk-manager" = ">= 0.0.1-1"
 "dev.peios.gxwi-services-manager" = ">= 0.0.1-1"
 "dev.peios.gxwi-task-manager" = ">= 0.0.1-1"
-"dev.peios.gxwi-event-viewer" = ">= 0.0.1-1"
+"dev.peios.gxwi-event-viewer" = ">= 0.0.2-1"
+# The terminal and the text editor, which fenesh's default dock pins.
+"dev.peios.peiterm" = ">= 0.0.1-1"
+"dev.peios.peitor" = ">= 0.0.1-1"
 "dev.peios.gxwi-registry-editor" = ">= 0.0.1-1"
 "dev.peios.gxwi-security-policy" = ">= 0.0.1-1"
 "dev.peios.gxwi-system-settings" = ">= 0.0.1-1"
@@ -233,6 +236,119 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # not approve the unauthenticated listener for a future production profile;
 # such a profile requires a separate least-privilege exposure design.
 "dev.peios.pnpd" = ">= 0.6.1-1"
+
+# Python, for scripting and the Python-based kernel tools (Bedrock).
+"org.python.python3" = ">= 3.14.7-1"
+"org.python.python3-libs" = ">= 3.14.7-1"
+
+# CPU microcode for early loading (Bedrock). Both packages build the early
+# initramfs payload, so they belong in the initramfs root, like every other
+# edge that feeds the initramfs.
+"com.amd.amd-ucode" = { constraint = ">= 2026.09.10-1", root = "initramfs" }
+"com.intel.intel-ucode" = { constraint = ">= 2026.08.12-1", root = "initramfs" }
+
+# Kernel and performance tools from the PKM tree (Bedrock). Their daemons --
+# thermal-engine, freefall, the Hyper-V tools -- install but are not enabled.
+# perf and thermometer are left out: both need libraries no package provides.
+"dev.peios.cpupower" = ">= 0.21.0-alpha11-1"
+"dev.peios.turbostat" = ">= 0.21.0-alpha11-1"
+"dev.peios.x86-energy-perf-policy" = ">= 0.21.0-alpha11-1"
+"dev.peios.intel-speed-select" = ">= 0.21.0-alpha11-1"
+"dev.peios.bootconfig" = ">= 0.21.0-alpha11-1"
+"dev.peios.cgroup-tools" = ">= 0.21.0-alpha11-1"
+"dev.peios.mm-tools" = ">= 0.21.0-alpha11-1"
+"dev.peios.getdelays" = ">= 0.21.0-alpha11-1"
+"dev.peios.rtla" = ">= 0.21.0-alpha11-1"
+"dev.peios.rv" = ">= 0.21.0-alpha11-1"
+"dev.peios.latency-collector" = ">= 0.21.0-alpha11-1"
+"dev.peios.kvm-stat" = ">= 0.21.0-alpha11-1"
+"dev.peios.usbip" = ">= 0.21.0-alpha11-1"
+"dev.peios.gpio-utils" = ">= 0.21.0-alpha11-1"
+"dev.peios.iio-utils" = ">= 0.21.0-alpha11-1"
+"dev.peios.thermal-engine" = ">= 0.21.0-alpha11-1"
+"dev.peios.tmon" = ">= 0.21.0-alpha11-1"
+"dev.peios.freefall" = ">= 0.21.0-alpha11-1"
+"dev.peios.hv" = ">= 0.21.0-alpha11-1"
+
+# Debugging running programs and inspecting binaries (Bedrock). No compilers:
+# Peios does not build code on the machine itself.
+"org.gnu.gdb" = ">= 17.2-1"
+"org.gnu.gdb-gdbserver" = ">= 17.2-1"
+"org.sourceware.elfutils" = ">= 0.196-1"
+"org.capstone-engine.capstone" = ">= 5.0.9-1"
+
+# System administration (Bedrock). ncurses brings terminfo, tput and clear.
+"cz.ucw.pciutils" = ">= 3.15.0-1"
+"io.github.numactl.numactl" = ">= 2.0.19-1"
+"org.kernel.libcap-tools" = ">= 2.78-1"
+"io.github.thom311.libnl-tools" = ">= 3.12.0-1"
+"org.kernel.util-linux-extra" = ">= 2.42.3-1"
+"org.kernel.util-linux-getopt" = ">= 2.42.3-1"
+"org.kernel.util-linux-hexdump" = ">= 2.42.3-1"
+"org.kernel.util-linux-schedutils" = ">= 2.42.3-1"
+"org.kernel.util-linux-script" = ">= 2.42.3-1"
+"org.gnu.which" = ">= 2.25-1"
+"org.gnu.bc" = ">= 1.08.2-1"
+"org.gnu.cpio" = ">= 2.15-1"
+"org.gnu.ncurses" = ">= 6.6-1"
+
+# File and text extras (Bedrock).
+"org.tukaani.xz-utils" = ">= 5.8.4-1"
+"org.gnu.gzip-utils" = ">= 1.15-1"
+"com.facebook.zstd-utils" = ">= 1.5.7-1"
+"com.facebook.zstd-pzstd" = ">= 1.5.7-1"
+"org.pcre.pcre2-tools" = ">= 10.48-1"
+"io.github.libexpat.expat-tools" = ">= 2.8.5-1"
+"org.gnome.libxml2-utils" = ">= 2.15.4-1"
+"org.gnome.libxslt-utils" = ">= 1.1.45-1"
+
+# Networking extras (Bedrock). netbase supplies /etc/services, /etc/protocols
+# and /etc/ethertypes, which getservbyname and friends read.
+"org.debian.netbase" = ">= 6.6-1"
+"org.samba.rsync-ssl" = ">= 3.5.1-2"
+"org.samba.rrsync" = ">= 3.5.1-2"
+
+# Compatibility runtimes for third-party software (Bedrock).
+"org.openssl.openssl3" = ">= 3.5.8-1"
+"org.gnu.glibc-gconv-extra" = ">= 2.44-1"
+
+# Perl, for git's Perl-based commands, OpenSSL's CA scripts and admin
+# scripting (Bedrock).
+"org.perl.perl" = ">= 5.44.0-1"
+"org.perl.perl-modules" = ">= 5.44.0-1"
+"org.openssl.openssl-perl" = ">= 4.0.2-1"
+
+# Version control and package composition (Bedrock).
+"com.git-scm.git" = ">= 2.55.0-1"
+"dev.peios.peipkg-compose" = ">= 0.1.9-1"
+
+# Optional features: installed means available in Feature Manager; each stays
+# off until enabled (Bedrock).
+"dev.peios.feat-dynamic-boot" = ">= 1.1.0-1"
+
+# Banner text (Bedrock).
+"org.figlet.figlet" = ">= 2.2.5-1"
+
+# Locale data for the most widely used languages (Bedrock), so System
+# Settings' language list is real beyond C.UTF-8. The other glibc langpacks
+# stay installable on demand.
+"org.gnu.glibc-langpack-en" = ">= 2.44-1"
+"org.gnu.glibc-langpack-de" = ">= 2.44-1"
+"org.gnu.glibc-langpack-fr" = ">= 2.44-1"
+"org.gnu.glibc-langpack-es" = ">= 2.44-1"
+"org.gnu.glibc-langpack-it" = ">= 2.44-1"
+"org.gnu.glibc-langpack-pt" = ">= 2.44-1"
+"org.gnu.glibc-langpack-nl" = ">= 2.44-1"
+"org.gnu.glibc-langpack-pl" = ">= 2.44-1"
+"org.gnu.glibc-langpack-ru" = ">= 2.44-1"
+"org.gnu.glibc-langpack-uk" = ">= 2.44-1"
+"org.gnu.glibc-langpack-ja" = ">= 2.44-1"
+"org.gnu.glibc-langpack-zh" = ">= 2.44-1"
+"org.gnu.glibc-langpack-ko" = ">= 2.44-1"
+"org.gnu.glibc-langpack-ar" = ">= 2.44-1"
+"org.gnu.glibc-langpack-hi" = ">= 2.44-1"
+"org.gnu.glibc-langpack-tr" = ">= 2.44-1"
+"org.gnu.glibc-langpack-sv" = ">= 2.44-1"
 
 # Device firmware (PEI-466). Unconditional: see above.
 "org.kernel.linux-firmware-iwlwifi"         = ">= 2026.08.10-1"

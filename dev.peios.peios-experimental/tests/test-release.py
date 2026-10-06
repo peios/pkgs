@@ -110,7 +110,9 @@ expected_first_party = {
     "dev.peios.gxwi-disk-manager": ">= 0.0.1-1",
     "dev.peios.gxwi-services-manager": ">= 0.0.1-1",
     "dev.peios.gxwi-task-manager": ">= 0.0.1-1",
-    "dev.peios.gxwi-event-viewer": ">= 0.0.1-1",
+    "dev.peios.gxwi-event-viewer": ">= 0.0.2-1",
+    "dev.peios.peiterm": ">= 0.0.1-1",
+    "dev.peios.peitor": ">= 0.0.1-1",
     "dev.peios.gxwi-registry-editor": ">= 0.0.1-1",
     "dev.peios.gxwi-security-policy": ">= 0.0.1-1",
     "dev.peios.gxwi-system-settings": ">= 0.0.1-1",
@@ -156,6 +158,8 @@ expected_initramfs = {
     "dev.peios.fsbase-stratafs-mount-hooks": ">= 1.0.0-1",
     "dev.peios.kernel-modules-irf": ">= 0.21.0-alpha11-1",
     "dev.peios.prelude": ">= 0.0.7-1",
+    "com.amd.amd-ucode": ">= 2026.09.10-1",
+    "com.intel.intel-ucode": ">= 2026.08.12-1",
 }
 actual_initramfs = {
     name: edge["constraint"]
@@ -197,5 +201,7 @@ for name in (
     "org.debian.whois", "net.es.iperf3",
     "org.dest-unreach.socat", "org.tcpdump.libpcap", "org.tcpdump.tcpdump",
     "nl.bitwizard.mtr", "net.sourceforge.traceroute", "org.nmap.nmap",
+    "org.python.python3", "org.gnu.gdb", "cz.ucw.pciutils", "org.gnu.ncurses",
+    "org.debian.netbase", "com.git-scm.git", "dev.peios.cpupower",
 ):
     assert isinstance(dependencies[name], str) and dependencies[name].startswith(">= "), name
