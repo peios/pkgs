@@ -112,6 +112,14 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 # release.toml is what opts it in, on the installed machine only.
 "dev.peios.oobe" = ">= 0.1.5-1"
 
+# The graphical installer and first-boot setup, drawn as GXWI's overlay so the
+# machine's address opens straight into them (PEI-1203, PEI-1213). They ship
+# beside the terminal surfaces above, with the same lifetimes. The overlay is
+# switched on by the installer-gxwi-overlay seed, which release.toml lists in
+# live_autoapply only: an installed machine never gets it.
+"dev.peios.installer-gxwi" = ">= 0.0.1-1"
+"dev.peios.oobe-gxwi" = ">= 0.0.1-1"
+
 # Boot and init. prelude is the initramfs PID 1 and lives only there.
 "dev.peios.prelude" = { constraint = ">= 0.0.3-1", root = "initramfs" }
 "dev.peios.peinit"  = ">= 0.0.2-1"
@@ -191,13 +199,27 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 "dev.peios.clock" = ">= 0.1.1-1"
 
 # Authenticated SSH access; the deprecated Atrium stack is not shipped.
-"dev.peios.openssh" = ">= 10.5.1-1"
+"dev.peios.openssh" = ">= 10.5.1.2-1"
+"dev.peios.openssh-settings" = ">= 10.5.1.2-1"
 
-# GXWI display server, compositor, desktop shell and file explorer.
-"dev.peios.gxwi" = ">= 0.0.1-1"
-"dev.peios.fenestra" = ">= 0.0.1-1"
-"dev.peios.fenesh" = ">= 0.0.1-1"
-"dev.peios.gexora" = ">= 0.0.1-1"
+# GXWI display server, compositor, desktop shell and file explorer. 0.0.3 is
+# the first gxwi with overlay sessions, which the graphical installer needs.
+"dev.peios.gxwi" = ">= 0.0.3-1"
+"dev.peios.fenestra" = ">= 0.0.3-1"
+"dev.peios.fenesh" = ">= 0.0.3-1"
+"dev.peios.gexora" = ">= 0.0.3-1"
+
+# GXWI's shared dialogs and the management apps (PEI-1218, PEI-1400).
+"dev.peios.gxwi-sd-editor" = ">= 0.0.1-1"
+"dev.peios.gxwi-file-dialog" = ">= 0.0.1-1"
+"dev.peios.gxwi-feature-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-package-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-upgrade-peios" = ">= 0.0.1-1"
+"dev.peios.gxwi-principals-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-my-settings" = ">= 0.0.1-1"
+"dev.peios.gxwi-disk-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-services-manager" = ">= 0.0.1-1"
+"dev.peios.gxwi-task-manager" = ">= 0.0.1-1"
 
 # The PNP viewer (PEI-598): network observation, starting as the packet viewer.
 # Experimental is explicitly the development-machine image, so PNPd is

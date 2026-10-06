@@ -69,10 +69,11 @@ assert registry["autoapply"] == [
     "gxwi-network",
     "fenestra-config",
     "fenesh-config",
+    "security-descriptor-builder",
     "pnpd-service",
     "installerd-service",
 ]
-assert registry["live_autoapply"] == ["lpsd-first-account"]
+assert registry["live_autoapply"] == ["lpsd-first-account", "installer-gxwi-overlay"]
 assert registry["install_autoapply"] == ["oobe-service"]
 
 # The edition is the release manifest, not merely the three files above. Keep
@@ -94,11 +95,24 @@ assert "conflicts" not in recipe
 
 dependencies = recipe["dependencies"]
 expected_first_party = {
-    "dev.peios.gxwi": ">= 0.0.1-1",
-    "dev.peios.fenestra": ">= 0.0.1-1",
-    "dev.peios.fenesh": ">= 0.0.1-1",
-    "dev.peios.gexora": ">= 0.0.1-1",
-    "dev.peios.openssh": ">= 10.5.1-1",
+    "dev.peios.gxwi": ">= 0.0.3-1",
+    "dev.peios.fenestra": ">= 0.0.3-1",
+    "dev.peios.fenesh": ">= 0.0.3-1",
+    "dev.peios.gexora": ">= 0.0.3-1",
+    "dev.peios.gxwi-sd-editor": ">= 0.0.1-1",
+    "dev.peios.gxwi-file-dialog": ">= 0.0.1-1",
+    "dev.peios.gxwi-feature-manager": ">= 0.0.1-1",
+    "dev.peios.gxwi-package-manager": ">= 0.0.1-1",
+    "dev.peios.gxwi-upgrade-peios": ">= 0.0.1-1",
+    "dev.peios.gxwi-principals-manager": ">= 0.0.1-1",
+    "dev.peios.gxwi-my-settings": ">= 0.0.1-1",
+    "dev.peios.gxwi-disk-manager": ">= 0.0.1-1",
+    "dev.peios.gxwi-services-manager": ">= 0.0.1-1",
+    "dev.peios.gxwi-task-manager": ">= 0.0.1-1",
+    "dev.peios.installer-gxwi": ">= 0.0.1-1",
+    "dev.peios.oobe-gxwi": ">= 0.0.1-1",
+    "dev.peios.openssh": ">= 10.5.1.2-1",
+    "dev.peios.openssh-settings": ">= 10.5.1.2-1",
     "dev.peios.authd": ">= 0.0.14-1",
     "dev.peios.authd-live-account": ">= 0.0.14-1",
     "dev.peios.authd-login": ">= 0.0.14-1",

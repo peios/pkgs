@@ -91,7 +91,7 @@ autoapply = [
   # cannot act.
   "timed-service",
   "timed-policy",
-  # The console keyboard layout Machine\System\Console Keymap names; absent,
+  # The console keyboard layout Machine\\System\\Console Keymap names; absent,
   # the built-in US layout.
   "console-keymap",
   # Authenticated remote access replaces the deprecated Atrium listener.
@@ -103,6 +103,9 @@ autoapply = [
   "gxwi-network",
   "fenestra-config",
   "fenesh-config",
+  # The security descriptor builder's defaults, shared by every app that
+  # opens the Permissions editor (dev.peios.gxwi-sd-editor).
+  "security-descriptor-builder",
   # Experimental is the development-machine image, so its PNP viewer service
   # is deliberately enabled. This is not a production-profile policy.
   "pnpd-service",
@@ -121,6 +124,10 @@ live_autoapply = [
   # got the public account, and then crashed the provisioner against it on
   # every subsequent boot. OOBE asks for a real account instead.
   "lpsd-first-account",
+  # Makes the graphical installer GXWI's overlay session, so the medium's
+  # address opens straight into it. Live only: on an installed machine these
+  # values would keep gxwid from ever falling back to the sign-in page.
+  "installer-gxwi-overlay",
 ]
 
 # Seeds only an INSTALLED machine applies. peiso stages these into
