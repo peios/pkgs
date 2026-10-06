@@ -1,0 +1,4 @@
+[allow]
+"source.signature.required" = "Upstream 3.21 has an unsigned release tag and no detached archive signature. The recipe pins SHA-256 published by ESnet over HTTPS; provenance records the URL and reviewed digest. New releases require a reviewed checksum."
+[elf]
+debuginfo = "net.es.iperf3-debuginfo"

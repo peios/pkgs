@@ -3,6 +3,9 @@
 tags = ["bootstrap"]
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://github.com/openssl/openssl/releases/download/openssl-{{version}}/openssl-{{version}}.tar.gz"
 listing_url = "https://openssl-library.org/source/"
@@ -41,7 +44,7 @@ mkdir -p "$BUILD"
 cd "$BUILD"
 # CA.pl and tsget.pl name Perl through the runtime view.
 export HASHBANGPERL=/bin/perl
-CFLAGS="${CFLAGS:?} -Wa,--noexecstack" \
+CFLAGS="${CFLAGS:?} -Wa,--noexecstack -D_GNU_SOURCE -DENABLE_PEIOS" \
 LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
 perl "$SRC/Configure" linux-x86_64 \
   --prefix=/usr \
@@ -50,7 +53,7 @@ perl "$SRC/Configure" linux-x86_64 \
   enable-ec_nistp_64_gcc_128 \
   shared
 
-make -j"$(nproc)"
+make -j"$(nproc)" BIN_EX_LIBS='$(CNF_EX_LIBS) $(EX_LIBS) -lpeios'
 
 make install_sw DESTDIR="$PEKIT_OUT"
 make install_ssldirs DESTDIR="$PEKIT_OUT"
@@ -100,6 +103,17 @@ BIN="$STAGE/usr/bin/openssl"
 CONF="$STAGE/usr/etc/ssl/openssl.cnf"
 SMOKE="$PEKIT_OUT/smoke"
 
+# Host workers cannot execute native FACS syscalls. Build the portable branch
+# for upstream regression coverage; qualify the installed CLI in the native VM.
+BUILD="$PEKIT_OUT/portable-tests"
+mkdir -p "$BUILD"
+cd "$BUILD"
+CFLAGS="${CFLAGS:?} -Wa,--noexecstack" \
+LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt" \
+perl "$SRC/Configure" linux-x86_64 --prefix=/usr \
+  --libdir=lib/x86_64-linux-peios --openssldir=/etc/ssl \
+  enable-ec_nistp_64_gcc_128 shared
+make -j"$(nproc)"
 test "$(make -C "$BUILD" list-tests | wc -l)" -gt 200
 # Peios host lookup is resolvd-only; offline workers run no resolver service.
 # These three socket fixtures use localhost only as a local connection address.
@@ -172,7 +186,7 @@ printf abc | OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" \
   'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 
 mkdir -p "$SMOKE"
-OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" req \
+OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$BUILD" "$BUILD/apps/openssl" req \
   -x509 -newkey rsa:2048 -nodes -subj /CN=pekit.openssl.test -days 1 \
   -keyout "$SMOKE/key.pem" -out "$SMOKE/cert.pem"
 OPENSSL_CONF="$CONF" LD_LIBRARY_PATH="$STAGED_LIBDIR" "$BIN" verify \
@@ -228,6 +242,7 @@ done
 "org.gnu.sed"                  = "*"
 
 [build.main.dependencies.peipkg]
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
 "org.gnu.gzip" = "*"
 "dev.peios.build-essentials-c"   = "*"
 "org.sourceware.debugedit"            = "*"

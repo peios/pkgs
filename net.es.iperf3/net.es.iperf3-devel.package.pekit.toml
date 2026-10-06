@@ -1,0 +1,10 @@
+[package]
+name = "net.es.iperf3-devel"
+description = "iperf3 development headers and linker files"
+[dependencies]
+"net.es.iperf3-libs" = "= {{release}}"
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.es.iperf3-devel/LICENSE"
+":usr/include/**" = "usr/include"
+":usr/lib/x86_64-linux-peios/libiperf.so" = "usr/lib/x86_64-linux-peios/libiperf.so"
+":usr/share/man/man3/**" = "usr/share/man/man3"

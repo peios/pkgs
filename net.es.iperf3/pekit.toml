@@ -1,0 +1,50 @@
+out_dir = "out"
+[source]
+patches = "patches"
+[source.url]
+url = "https://downloads.es.net/pub/iperf/iperf-{{version}}.tar.gz"
+listing_url = "https://downloads.es.net/pub/iperf/"
+file_regex = 'iperf-(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)?)\.tar\.gz'
+versions = ">= 3.21"
+root = "iperf-{{version}}"
+extract = true
+[source.url.checksum]
+"3.21" = "sha256:656e4405ebd620121de7ceca3eaf43a88f79ea1b857d041a6a0b1314801acdd8"
+[build.main]
+command = '''set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+CPPFLAGS="${CPPFLAGS:-} -DENABLE_PEIOS -D_GNU_SOURCE" LIBS="-lpeios" \
+CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/net.es.iperf3" \
+"$SRC/configure" --prefix=/usr --libdir=/usr/lib/x86_64-linux-peios --disable-static --disable-profiling --without-sctp --with-openssl=/usr
+make -j"$(nproc)" LDFLAGS="${LDFLAGS:?} -Wl,-z,ibtplt"
+make install DESTDIR="$PEKIT_OUT"
+patchelf --remove-rpath "$PEKIT_OUT/usr/bin/iperf3"
+cp "$SRC/src/public.pem" "$SRC/src/private.pem" "$PEKIT_OUT/build/src/"
+rm -f "$PEKIT_OUT/usr/lib/x86_64-linux-peios/libiperf.la"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} \;
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" net.es.iperf3 "$PEKIT_OUT/usr"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
+"org.openssl.openssl-devel" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = '''set -eu
+make -C "$PEKIT_MAIN_OUT/build" check
+python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT"
+'''
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"dev.peios.libpeios-devel" = ">= 0.5.4-1"
+"org.openssl.openssl-devel" = "*"
+"org.git.kernel.dash" = "*"
+"org.gnu.make" = "*"
+"org.python.python3" = "*"
+"dev.peios.libpeios" = ">= 0.5.4-1"
+"org.openssl.libcrypto" = "*"

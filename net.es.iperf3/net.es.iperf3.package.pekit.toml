@@ -1,0 +1,12 @@
+side_effects = ["man-db"]
+[package]
+name = "net.es.iperf3"
+description = "Network throughput measurement client and server"
+
+[dependencies]
+"net.es.iperf3-libs" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.es.iperf3/LICENSE"
+":usr/bin/iperf3" = "usr/bin/iperf3"
+":usr/share/man/man1/**" = "usr/share/man/man1"

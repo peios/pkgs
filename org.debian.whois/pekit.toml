@@ -1,0 +1,36 @@
+out_dir = "out"
+[source.git]
+url = "https://github.com/rfc1036/whois.git"
+ref = "v{{version}}"
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+versions = ">= 5.6.6"
+[source.git.signature]
+object = "tag"
+key_files = ["keys/marco-ditri.asc"]
+fingerprints = ["6791403B68AE2690517C42EAE6FFF1E38DC968B0"]
+[build.main]
+command = '''set -eu
+SRC=$(pwd)
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+mkdir -p "$PEKIT_OUT/build"
+cp -a "$SRC/." "$PEKIT_OUT/build/"
+cd "$PEKIT_OUT/build"
+# No IDN library is currently packaged. Accept ASCII/A-label names explicitly;
+# never let the build worker's incidental pkg-config packages choose features.
+make -j"$(nproc)" whois pos PKG_CONFIG=false HAVE_ICONV=1 CONFIG_FILE=/etc/whois.conf CFLAGS="${CFLAGS:?} -fmacro-prefix-map=$ROOT=/usr/src/debug/org.debian.whois" LDFLAGS="${LDFLAGS:?}"
+make install-whois install-pos DESTDIR="$PEKIT_OUT" PKG_CONFIG=false
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} \;
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.debian.whois "$PEKIT_OUT/usr/bin/whois"
+'''
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.perl.perl" = "*"
+"org.gnu.gettext" = "*"
+"org.gnu.gzip" = "*"
+[test]
+needs = ["main"]
+gate = true
+command = 'python3 "$PEKIT_RECIPE_ROOT/tests/installed.py" "$PEKIT_MAIN_OUT/usr/bin/whois"'
+[test.dependencies.peipkg]
+"org.git.kernel.dash" = "*"
+"org.python.python3" = "*"

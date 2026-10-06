@@ -1,0 +1,10 @@
+[package]
+name = "net.es.iperf3-debugsource"
+description = "Debug sources"
+
+[dependencies]
+"net.es.iperf3-debuginfo" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.es.iperf3-debugsource/LICENSE"
+":usr/src/debug/**" = "usr/src/debug"

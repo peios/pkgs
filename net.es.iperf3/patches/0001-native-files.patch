@@ -1,0 +1,239 @@
+Description: Native private output and anonymous payload buffers (PEI-1188)
+Author: Peios maintainers <packaging@peios.org>
+Forwarded: not-needed
+
+--- a/src/iperf_api.c
++++ b/src/iperf_api.c
+@@ -4779,6 +4779,138 @@
+ }
+ 
+ /**************************************************************************/
++#ifdef ENABLE_PEIOS
++#include <peios/file.h>
++#include <peios/security.h>
++#include <peios/token.h>
++static int iperf_private_existing(int fd, const void *user, size_t userlen)
++{
++    unsigned char bytes[65535];
++    struct stat st;
++    peios_sd_view sd;
++    peios_acl_view acl;
++    peios_ace_view ace;
++    const void *sid;
++    size_t sidlen;
++    unsigned i;
++    ssize_t n;
++
++    if (fstat(fd, &st) < 0)
++        return 0;
++    if (!S_ISREG(st.st_mode) || st.st_nlink != 1)
++        goto refuse;
++    n = peios_fd_get_sd(fd, KACS_SECINFO_OWNER | KACS_SECINFO_DACL,
++        bytes, sizeof(bytes));
++    if (n < 0)
++        return 0;
++    if (peios_sd_parse(bytes, n, &sd) < 0
++        || !(peios_sd_view_control(&sd) & KACS_SD_DACL_PROTECTED)
++        || peios_sd_view_owner(&sd, &sid, &sidlen) < 0
++        || !peios_sid_equal(sid, sidlen, user, userlen)
++        || peios_sd_view_dacl(&sd, &acl) < 0)
++        goto refuse;
++    for (i = 0; i < peios_acl_view_count(&acl); i++) {
++        if (peios_acl_view_ace(&acl, i, &ace) < 0
++            || peios_ace_view_type(&ace) != KACS_ACE_TYPE_ACCESS_ALLOWED
++            || peios_ace_view_flags(&ace) != 0
++            || peios_ace_view_sid(&ace, &sid, &sidlen) < 0
++            || !peios_sid_equal(sid, sidlen, user, userlen))
++            goto refuse;
++    }
++    return 1;
++refuse:
++    errno = EACCES;
++    return 0;
++}
++
++static int iperf_private_fd(const char *filename, char mode)
++{
++    unsigned char user[PEIOS_SID_MAX_BYTES];
++    ssize_t userlen;
++    peios_acl_builder *acl = NULL;
++    peios_sd_builder *sd = NULL;
++    const void *aclbytes;
++    size_t aclsize;
++    int token, fd = -1, saved;
++    struct peios_open_params args = {
++        .desired_access = KACS_FILE_WRITE_DATA | KACS_FILE_APPEND_DATA
++            | KACS_FILE_READ_ATTRIBUTES | KACS_ACCESS_READ_CONTROL
++            | KACS_ACCESS_SYNCHRONIZE,
++        .disposition = KACS_DISPOSITION_CREATE,
++        .flags = AT_SYMLINK_NOFOLLOW
++    };
++
++    token = peios_token_open_self(0, KACS_TOKEN_QUERY);
++    if (token < 0)
++        return -1;
++    userlen = peios_token_user(token, user, sizeof(user));
++    saved = errno;
++    close(token);
++    errno = saved;
++    if (userlen <= 0)
++        return -1;
++    acl = peios_acl_builder_new();
++    sd = peios_sd_builder_new();
++    if (acl == NULL || sd == NULL)
++        goto end;
++    peios_acl_builder_allow(acl, user, userlen, KACS_ACCESS_GENERIC_ALL, 0);
++    aclbytes = peios_acl_builder_bytes(acl, &aclsize);
++    if (aclbytes == NULL)
++        goto end;
++    peios_sd_builder_owner(sd, user, userlen);
++    peios_sd_builder_dacl(sd, aclbytes, aclsize);
++    peios_sd_builder_control(sd, KACS_SD_DACL_PROTECTED, 0);
++    args.sd = peios_sd_builder_bytes(sd, &args.sd_len);
++    if (args.sd == NULL)
++        goto end;
++    fd = peios_file_open(AT_FDCWD, filename, &args, NULL);
++    if (fd < 0 && errno == EEXIST) {
++        int anchor = open(filename, O_PATH | O_NOFOLLOW | O_CLOEXEC);
++        struct stat st;
++        char proc[64];
++        if (anchor < 0)
++            goto end;
++        if (fstat(anchor, &st) < 0 || !S_ISREG(st.st_mode) || st.st_nlink != 1) {
++            close(anchor);
++            errno = EACCES;
++            goto end;
++        }
++        /* Reopen this exact regular inode, avoiding FIFO/device opens and
++         * pathname substitution. FACS authorizes this ordinary open too. */
++        snprintf(proc, sizeof(proc), "/proc/self/fd/%d", anchor);
++        fd = open(proc, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
++        saved = errno;
++        close(anchor);
++        errno = saved;
++        if (fd >= 0 && !iperf_private_existing(fd, user, userlen))
++            goto bad_fd;
++    }
++    if (fd >= 0) {
++        if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
++            goto bad_fd;
++        if (mode == 'a') {
++            int flags = fcntl(fd, F_GETFL);
++            if (flags < 0 || fcntl(fd, F_SETFL, flags | O_APPEND) < 0)
++                goto bad_fd;
++        } else if (ftruncate(fd, 0) < 0) {
++            goto bad_fd;
++        }
++    }
++    goto end;
++bad_fd:
++    saved = errno;
++    close(fd);
++    fd = -1;
++    errno = saved;
++end:
++    saved = errno;
++    peios_sd_builder_free(sd);
++    peios_acl_builder_free(acl);
++    errno = saved;
++    return fd;
++}
++#endif
++
+ struct iperf_stream *
+ iperf_new_stream(struct iperf_test *test, int s, int sender)
+ {
+@@ -4786,6 +4918,7 @@
+     int ret = 0;
+     int size;
+ 
++    #ifndef ENABLE_PEIOS
+     char template[1024];
+     if (test->tmp_template) {
+         snprintf(template, sizeof(template) / sizeof(char), "%s", test->tmp_template);
+@@ -4808,6 +4941,7 @@
+         snprintf(template, sizeof(template) / sizeof(char), "%s/iperf3.XXXXXX", tempdir);
+     }
+ 
++    #endif
+     sp = (struct iperf_stream *) malloc(sizeof(struct iperf_stream));
+     if (!sp) {
+         i_errno = IECREATESTREAM;
+@@ -4830,19 +4964,26 @@
+     TAILQ_INIT(&sp->result->interval_results);
+ 
+     /* Create and randomize the buffer */
++#ifdef ENABLE_PEIOS
++    /* Never expose even an empty handle to a future payload buffer by name. */
++    sp->buffer_fd = memfd_create("iperf-buffer", MFD_CLOEXEC);
++#else
+     sp->buffer_fd = mkstemp(template);
++#endif
+     if (sp->buffer_fd == -1) {
+         i_errno = IECREATESTREAM;
+         free(sp->result);
+         free(sp);
+         return NULL;
+     }
++#ifndef ENABLE_PEIOS
+     if (unlink(template) < 0) {
+         i_errno = IECREATESTREAM;
+         free(sp->result);
+         free(sp);
+         return NULL;
+     }
++#endif
+     size = test->settings->blksize;
+     if (test->protocol->id == Pudp && test->settings->gso && (size < test->settings->gso_bf_size))
+         size = test->settings->gso_bf_size;
+@@ -4872,7 +5013,12 @@
+     sp->rcv = test->protocol->recv;
+ 
+     if (test->diskfile_name != (char*) 0) {
+-	sp->diskfile_fd = open(test->diskfile_name, sender ? O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC), S_IRUSR|S_IWUSR);
++	sp->diskfile_fd =
++#ifdef ENABLE_PEIOS
++            sender ? open(test->diskfile_name, O_RDONLY) : iperf_private_fd(test->diskfile_name, 'w');
++#else
++            open(test->diskfile_name, sender ? O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC), S_IRUSR|S_IWUSR);
++#endif
+ 	if (sp->diskfile_fd == -1) {
+ 	    i_errno = IEFILE;
+             munmap(sp->buffer, sp->test->settings->blksize);
+@@ -5198,7 +5344,9 @@
+ 	/* See if the file already exists and we can read it. */
+ 	fd = open(test->pidfile, O_RDONLY, 0);
+ 	if (fd >= 0) {
+-	    if (read(fd, buf, sizeof(buf) - 1) >= 0) {
++	    ssize_t count = read(fd, buf, sizeof(buf) - 1);
++	    if (count >= 0) {
++                buf[count] = 0;
+ 
+ 		/* We read some bytes, see if they correspond to a valid PID */
+ 		pid_t pid;
+@@ -5233,7 +5381,12 @@
+ 	 * File didn't exist, we couldn't read it, or it didn't correspond to
+ 	 * a running process.  Try to create it.
+ 	 */
+-	fd = open(test->pidfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR|S_IWUSR);
++	fd =
++#ifdef ENABLE_PEIOS
++            iperf_private_fd(test->pidfile, 'w');
++#else
++            open(test->pidfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR|S_IWUSR);
++#endif
+ 	if (fd < 0) {
+ 	    return -1;
+ 	}
+--- a/src/iperf_auth.c
++++ b/src/iperf_auth.c
+@@ -427,8 +427,7 @@
+     }
+ 
+     if (enable_debug) {
+-        printf("Auth Token Content:\n%s\n", plaintext);
+-        printf("Auth Token Credentials:\n--> %s %s\n", s_username, s_password);
++        printf("Authentication token decoded\n");
+     }
+     *username = s_username;
+     *password = s_password;

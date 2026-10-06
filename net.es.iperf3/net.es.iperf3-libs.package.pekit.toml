@@ -1,0 +1,10 @@
+[package]
+name = "net.es.iperf3-libs"
+description = "iperf3 measurement library"
+[dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
+# glibc loads the unwinder dynamically when iperf cancels worker threads.
+"org.gnu.gcc-libgcc" = "*"
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.es.iperf3-libs/LICENSE"
+":usr/lib/x86_64-linux-peios/libiperf.so.*" = "usr/lib/x86_64-linux-peios"

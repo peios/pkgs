@@ -7,6 +7,7 @@ description = "Cryptography and TLS command-line toolkit"
 [provides]
 
 [dependencies]
+"dev.peios.libpeios" = ">= 0.5.4-1"
 "org.gnu.glibc"                   = ">= 2.43"
 "org.openssl.libcrypto" = "= {{release}}"
 "org.openssl.libssl"    = "= {{release}}"

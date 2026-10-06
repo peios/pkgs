@@ -1,0 +1,10 @@
+[package]
+name = "org.debian.whois-debugsource"
+description = "Debug sources"
+
+[dependencies]
+"org.debian.whois-debuginfo" = "= {{release}}"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.debian.whois-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

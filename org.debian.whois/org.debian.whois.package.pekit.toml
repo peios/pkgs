@@ -1,0 +1,11 @@
+side_effects = ["man-db"]
+[package]
+name = "org.debian.whois"
+description = "Query domain and IP address registration records"
+
+[files]
+"@source:COPYING" = "usr/share/licenses/org.debian.whois/COPYING"
+":usr/bin/whois" = "usr/bin/whois"
+":usr/share/man/man1/**" = "usr/share/man/man1"
+":usr/share/man/man5/**" = "usr/share/man/man5"
+":usr/share/locale/**" = "usr/share/locale"

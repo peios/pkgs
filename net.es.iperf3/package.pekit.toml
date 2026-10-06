@@ -1,0 +1,7 @@
+format = "peipkg"
+[package]
+version = "{{version}}-1"
+architecture = "x86_64"
+license = "BSD-3-Clause-LBNL AND MIT AND BSD-3-Clause AND BSD-2-Clause"
+license_class = "free"
+homepage = "https://software.es.net/iperf/"

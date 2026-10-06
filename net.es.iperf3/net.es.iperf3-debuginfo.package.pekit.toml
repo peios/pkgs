@@ -1,0 +1,10 @@
+[package]
+name = "net.es.iperf3-debuginfo"
+description = "Debugging symbols"
+
+[dependencies]
+"net.es.iperf3" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.es.iperf3-debuginfo/LICENSE"
+":usr/lib/debug/**" = "usr/lib/debug"
