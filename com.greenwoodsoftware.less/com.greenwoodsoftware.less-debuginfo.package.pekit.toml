@@ -1,0 +1,12 @@
+
+[package]
+name = "com.greenwoodsoftware.less-debuginfo"
+description = "Less terminal pager debugging symbols"
+
+[dependencies]
+"com.greenwoodsoftware.less" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.greenwoodsoftware.less-debuginfo/LICENSE"
+"@source:COPYING" = "usr/share/licenses/com.greenwoodsoftware.less-debuginfo/COPYING"
+":usr/lib/debug/**" = "usr/lib/debug"

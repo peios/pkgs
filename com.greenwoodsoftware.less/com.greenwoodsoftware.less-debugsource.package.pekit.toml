@@ -1,0 +1,12 @@
+
+[package]
+name = "com.greenwoodsoftware.less-debugsource"
+description = "Less terminal pager debug sources"
+
+[dependencies]
+"com.greenwoodsoftware.less-debuginfo" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.greenwoodsoftware.less-debugsource/LICENSE"
+"@source:COPYING" = "usr/share/licenses/com.greenwoodsoftware.less-debugsource/COPYING"
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,16 @@
+
+[package]
+name = "com.greenwoodsoftware.less"
+description = "Interactive terminal pager"
+
+[dependencies]
+"com.greenwoodsoftware.less-common" = "= {{release}}"
+"org.gnu.ncurses-libs" = "*"
+"org.git.kernel.dash" = "*"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.greenwoodsoftware.less/LICENSE"
+"@source:COPYING" = "usr/share/licenses/com.greenwoodsoftware.less/COPYING"
+":usr/bin/less" = "usr/bin/less"
+":usr/libexec/less/lessecho" = "usr/libexec/less/lessecho"
+":usr/libexec/less/less-osc8-open" = "usr/libexec/less/less-osc8-open"

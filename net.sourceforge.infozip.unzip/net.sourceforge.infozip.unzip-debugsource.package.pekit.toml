@@ -1,0 +1,11 @@
+
+[package]
+name = "net.sourceforge.infozip.unzip-debugsource"
+description = "Info-ZIP unzip debug sources"
+
+[dependencies]
+"net.sourceforge.infozip.unzip-debuginfo" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.sourceforge.infozip.unzip-debugsource/LICENSE"
+":usr/src/debug/**" = "usr/src/debug"

@@ -1,0 +1,46 @@
+out_dir = "out"
+
+[source]
+patches = "patches"
+
+# Debian mirrors the original Info-ZIP release bytes. Upstream has not issued
+# a newer stable release; keep a soft floor and follow new originals if added.
+[source.url]
+url = "https://deb.debian.org/debian/pool/main/u/unzip/unzip_{{version}}.orig.tar.gz"
+listing_url = "https://deb.debian.org/debian/pool/main/u/unzip/"
+file_regex = 'unzip_[0-9]+\.[0-9]+(?:\.[0-9]+)?\.orig\.tar\.gz'
+versions = ">= 6.0"
+root = "unzip60"
+extract = true
+
+[build.main]
+command = '''
+set -eu
+ROOT=$(dirname "$(dirname "$PEKIT_OUT")")
+export CFLAGS="${CFLAGS:?} -std=gnu17 -fmacro-prefix-map=$ROOT=/usr/src/debug/net.sourceforge.infozip.unzip"
+cp -a . "$PEKIT_OUT/build"
+cd "$PEKIT_OUT/build"
+make -f unix/Makefile -j"$(nproc)" D_USE_BZ2=-DUSE_BZIP2 L_BZ2=-lbz2 CC=gcc LF2="$LDFLAGS" CF="$CFLAGS -I. -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DLARGE_FILE_SUPPORT -DUNICODE_SUPPORT -DUNICODE_WCHAR -DUTF8_MAYBE_NATIVE -DNO_LCHMOD -DDATE_FORMAT=DF_YMD -DUSE_BZIP2 -DIZ_HAVE_UXUIDGID -DNOMEMCPY -DNO_WORKING_ISPRINT" unzips
+make -f unix/Makefile install prefix="$PEKIT_OUT/usr" MANDIR="$PEKIT_OUT/usr/share/man/man1"
+find "$PEKIT_OUT/usr/share/man" -type f -exec gzip -9n {} \;
+sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" net.sourceforge.infozip.unzip "$PEKIT_OUT/usr"
+'''
+
+[build.main.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.sourceware.bzip2-devel" = "*"
+"org.gnu.gzip" = "*"
+
+[test]
+needs = ["main"]
+gate = true
+command = '''
+set -eu
+cd "$PEKIT_MAIN_OUT/build"
+make -f unix/Makefile check
+python3 "$PEKIT_RECIPE_ROOT/tests/test-tools.py" "$PEKIT_MAIN_OUT/usr/bin" "$PEKIT_OUT"
+'''
+
+[test.dependencies.peipkg]
+"dev.peios.build-essentials-c" = "*"
+"org.python.python3" = "*"

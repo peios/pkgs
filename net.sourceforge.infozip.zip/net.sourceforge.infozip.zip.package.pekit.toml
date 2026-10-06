@@ -1,0 +1,14 @@
+
+[package]
+name = "net.sourceforge.infozip.zip"
+description = "Info-ZIP zip"
+
+[dependencies]
+"net.sourceforge.infozip.zip-common" = "= {{release}}"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.sourceforge.infozip.zip/LICENSE"
+":usr/bin/zip" = "usr/bin/zip"
+":usr/bin/zipcloak" = "usr/bin/zipcloak"
+":usr/bin/zipnote" = "usr/bin/zipnote"
+":usr/bin/zipsplit" = "usr/bin/zipsplit"

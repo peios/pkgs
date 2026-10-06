@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "Info-ZIP publishes no detached release signature. The original archive is mirrored by Debian; its initial bytes and imported patches were verified against the signed Debian dsc retained under patches/. Pekit locks its SHA-256 for subsequent builds."

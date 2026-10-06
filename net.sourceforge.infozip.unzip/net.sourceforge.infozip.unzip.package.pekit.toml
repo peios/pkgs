@@ -1,0 +1,19 @@
+
+[package]
+name = "net.sourceforge.infozip.unzip"
+description = "Info-ZIP unzip"
+
+[dependencies]
+"net.sourceforge.infozip.unzip-common" = "= {{release}}"
+"org.git.kernel.dash" = "*"
+"org.gnu.grep" = "*"
+"org.gnu.sed" = "*"
+"dev.peios.peiosutils" = "*"
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.sourceforge.infozip.unzip/LICENSE"
+":usr/bin/unzip" = "usr/bin/unzip"
+":usr/bin/funzip" = "usr/bin/funzip"
+":usr/bin/unzipsfx" = "usr/bin/unzipsfx"
+":usr/bin/zipinfo" = "usr/bin/zipinfo"
+":usr/bin/zipgrep" = "usr/bin/zipgrep"

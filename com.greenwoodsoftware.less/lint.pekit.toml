@@ -1,0 +1,2 @@
+[allow]
+"source.signature.required" = "PEI-1179: Jack approved less-only DSA/SHA-1 compatibility. GPG verified the retained upstream signature with the pinned key; Pekit rejects DSA. Each accepted release must have an explicit SHA-256 checksum entry; provenance/README.md records verification."

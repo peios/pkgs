@@ -1,0 +1,12 @@
+side_effects = ["man-db"]
+
+[package]
+name = "net.sourceforge.infozip.unzip-common"
+description = "Info-ZIP unzip manuals"
+architecture = "noarch"
+
+[dependencies]
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/net.sourceforge.infozip.unzip-common/LICENSE"
+":usr/share/man/**" = "usr/share/man"

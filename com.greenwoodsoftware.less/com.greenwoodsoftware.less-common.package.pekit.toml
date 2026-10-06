@@ -1,0 +1,13 @@
+side_effects = ["man-db"]
+
+[package]
+name = "com.greenwoodsoftware.less-common"
+description = "Less terminal pager manuals"
+architecture = "noarch"
+
+[dependencies]
+
+[files]
+"@source:LICENSE" = "usr/share/licenses/com.greenwoodsoftware.less-common/LICENSE"
+"@source:COPYING" = "usr/share/licenses/com.greenwoodsoftware.less-common/COPYING"
+":usr/share/man/**" = "usr/share/man"
