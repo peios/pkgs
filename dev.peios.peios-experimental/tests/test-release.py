@@ -131,7 +131,7 @@ expected_initramfs = {
     "dev.peios.coldplug-irf": ">= 1.0.0-1",
     "dev.peios.fsbase-irf": ">= 1.0.0-1",
     "dev.peios.fsbase-stratafs-mount-hooks": ">= 1.0.0-1",
-    "dev.peios.kernel-modules-irf": ">= 0.20.1-rc13-1",
+    "dev.peios.kernel-modules-irf": ">= 0.21.0-alpha2-1",
     "dev.peios.prelude": ">= 0.0.3-1",
 }
 actual_initramfs = {
@@ -159,3 +159,20 @@ historical_first_party_names = {
 assert historical_first_party_names.isdisjoint(dependencies)
 
 assert "dev.peios.atrium" not in dependencies
+
+# Operator tools must be explicit system-root dependencies. ELF library edges
+# cannot provide tar's external compressors or less's interactive command.
+for name in (
+    "org.gnu.grep", "org.gnu.sed", "org.gnu.tar", "org.gnu.gawk",
+    "org.gnu.findutils", "org.gnu.diffutils", "org.gnu.gzip", "org.tukaani.xz",
+    "com.facebook.zstd", "org.sourceware.bzip2", "com.darwinsys.file",
+    "com.greenwoodsoftware.less", "net.sourceforge.infozip.zip",
+    "net.sourceforge.infozip.unzip", "org.gnu.nano",
+    "se.curl.curl", "io.github.iputils.iputils", "org.kernel.iproute2",
+    "org.isc.bind-utils", "org.debian.netcat-openbsd",
+    "org.samba.rsync", "org.openssl.openssl",
+    "org.debian.whois", "net.es.iperf3",
+    "org.dest-unreach.socat", "org.tcpdump.libpcap", "org.tcpdump.tcpdump",
+    "nl.bitwizard.mtr", "net.sourceforge.traceroute", "org.nmap.nmap",
+):
+    assert isinstance(dependencies[name], str) and dependencies[name].startswith(">= "), name
