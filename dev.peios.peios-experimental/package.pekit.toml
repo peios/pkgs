@@ -2,7 +2,7 @@ format = "peipkg"
 
 [package]
 name         = "dev.peios.peios-experimental"
-version      = "2026.8-6"
+version      = "2026.8-7"
 architecture = "noarch"
 description  = "Peios Experimental edition: the base system and its OS release identity"
 license      = "MIT"
@@ -63,7 +63,7 @@ message = "To upgrade Peios use the `upgrade-peios` command."
 
 # Base userspace. peios-install is part of every Peios, not of the live
 # medium: an installed system can install another.
-"dev.peios.peiosutils" = ">= 0.8.17-1"
+"dev.peios.peiosutils" = ">= 0.8.18-1"
 "dev.peios.libpeios"   = ">= 0.5.8-1"
 "org.gnu.glibc-bin"    = ">= 2.44-1" # locale tools and compiled C.UTF-8
 "org.git.kernel.dash"  = ">= 0.5.13.5-1"
