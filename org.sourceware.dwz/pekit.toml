@@ -99,11 +99,15 @@ if grep -Eq '^(FAIL|XPASS|UNRESOLVED|ERROR|KPASS):' "$SUM"; then
   exit 1
 fi
 grep -E '^UNSUPPORTED:' "$SUM" || true
-# 68 cases: natively 64 pass; the four unsupported need gold (not packaged)
-# or a zstd-capable binutils (PEI-1171). Guard against a harness or toolchain
-# change silently skipping more.
+# PEI-1171: both zstd cases must execute, not silently become unsupported.
+# A total alone could hide their loss behind newly added unrelated cases.
+for case in compressed-debug-sections-zstd compressed-debug-sections-zstd-dedup; do
+  grep -Fx "PASS: $case.sh" "$SUM"
+done
+# 68 cases: natively 66 pass; only the two gold cases remain unsupported.
+# Guard against a harness or toolchain change silently skipping more.
 pass=$(sed -n 's/^# of expected passes[[:space:]]*//p' "$SUM")
-test "${pass:-0}" -ge 64
+test "${pass:-0}" -ge 66
 
 # Installed command: optimise a -g program in place, keep valid DWARF, and
 # build a multifile shared between two executables.
