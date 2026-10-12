@@ -33,6 +33,7 @@ command = '''
 set -eu
 sh -n src/peios-install.sh
 sh tests/test-peios-install.sh
+sh tests/test-medium-packages.sh
 sh -n "$PEKIT_MAIN_OUT/usr/bin/peios-install"
 src_sum=$(sha256sum src/peios-install.sh)
 src_sum=${src_sum%% *}
