@@ -43,6 +43,8 @@ usage: $progname --yes ESP_PARTITION ROOT_PARTITION
 
 Install the running system onto a disk. EVERYTHING NAMED IS ERASED. --yes is
 required; there is no interactive confirmation.
+Run this legacy installer from a SYSTEM session. For ordinary console or
+browser installation, use the current installer backed by installerd.
 
   ESP_PARTITION   EFI system partition, formatted FAT32 (e.g. /dev/vdb1)
   ROOT_PARTITION  root filesystem, formatted ext4      (e.g. /dev/vdb2)

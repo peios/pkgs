@@ -44,9 +44,12 @@ not paths through
 .BR /dev/disk/by-id .
 The EFI system and root partitions must differ and must not be mounted.
 .SH REQUIREMENTS
-Run from a Peios system with the permissions required to partition, format,
-mount, copy protected files, and update the registry. The installer does not
-perform a Unix user-ID check.
+Run this legacy installer from a SYSTEM session. Direct installation from an
+administrator session is not supported: its ordinary file copy must read
+SYSTEM-only source files and preserve their security metadata. For ordinary
+console or browser installation, use the current installer backed by
+.BR installerd .
+The script does not perform a Unix user-ID check.
 The installation medium must configure the
 .B peios-medium
 package repository and supply the disk-boot packages.
