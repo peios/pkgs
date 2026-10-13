@@ -570,10 +570,14 @@ echo "$progname: replacing the live-boot packages with disk-boot"
 # about to become one. Its .repo file came across with the copy; §6.5.2 permits
 # a non-interactive ceremony precisely because the anchor was supplied through
 # a configured channel — here, baked into the image.
-# The checkpoint remains if any operation fails. Both package roots are
-# queried before removal; retries omit packages already removed. The medium
-# repository is removed even after a failed transaction. --allow-stale is
-# confined to this read-only medium's fixed repository during disk-boot install.
+#
+# If any package operation fails, the checkpoint and the medium repository's
+# configuration stay on the target, so a retry can resume. Both package roots
+# are queried before removal; retries omit packages already removed. Once the
+# swap succeeds the medium repository is removed: the medium will not be there
+# when the target boots, and a configured repository nobody can reach would
+# demand refreshes that can never succeed. --allow-stale is confined to this
+# read-only medium's fixed repository during the disk-boot install.
 finish_medium_packages "$ROOT_MNT" || die "could not finish the target's medium-only package cleanup"
 
 # --- cmdline -----------------------------------------------------------------
