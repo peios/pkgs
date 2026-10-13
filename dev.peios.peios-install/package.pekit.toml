@@ -12,7 +12,7 @@ side_effects = ["man-db"]
 
 [package]
 name         = "dev.peios.peios-install"
-version      = "0.3.0-1"
+version      = "0.3.1-1"
 architecture = "noarch"
 description  = "Install the running Peios system onto a disk, partitioning it if asked"
 license      = "MIT"

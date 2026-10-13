@@ -123,6 +123,105 @@ is_mounted_device() {
     return 1
 }
 
+# The image declares temporary packages; the installer knows only the two
+# supported roots. The exact header lets a future format fail before removal.
+validate_medium_packages() (
+    LC_ALL=C
+    export LC_ALL
+    mp_seen=' '
+    {
+        IFS= read -r mp_header || die "empty medium-only package list"
+        [ "$mp_header" = peios-medium-packages-v1 ] || die "unsupported medium-only package list format"
+        while read -r mp_scope mp_name mp_extra || [ -n "$mp_scope$mp_name$mp_extra" ]; do
+            [ -n "$mp_scope$mp_name$mp_extra" ] || continue
+            case "$mp_scope" in root|initramfs) ;; *) die "invalid medium-only package root: $mp_scope" ;; esac
+            [ -z "$mp_extra" ] || die "extra fields in medium-only package list"
+            case "$mp_name" in
+                ''|[!A-Za-z0-9]*|*[!A-Za-z0-9._+-]*) die "invalid medium-only package name: $mp_name" ;;
+            esac
+            case "$mp_seen" in *" $mp_scope:$mp_name "*) die "duplicate medium-only package entry: $mp_name" ;; esac
+            mp_seen="$mp_seen$mp_scope:$mp_name "
+        done
+    } < "$1"
+)
+
+# `list` must succeed: a broken database is not an absent package. The human
+# listing's first column is the name (including orphaned rows). Pure shell:
+# the base image has no grep, awk or JSON utility.
+remove_medium_scope() (
+    mr_root=$1 mr_names=$2 mr_listing=$3
+    [ -n "$mr_names" ] || return 0
+    [ "$mr_listing" != 'no packages are installed' ] || return 0
+    set --
+    while read -r mr_installed mr_rest; do
+        for mr_wanted in $mr_names; do
+            [ "$mr_installed" != "$mr_wanted" ] || set -- "$@" "$mr_wanted"
+        done
+    done <<END_PACKAGES
+$mr_listing
+END_PACKAGES
+    [ "$#" -gt 0 ] || return 0
+    peipkg --root "$mr_root" uninstall --yes "$@" || die "could not remove medium-only packages from $mr_root"
+)
+
+apply_medium_packages() (
+    ma_root=$1 ma_file=$2
+    ma_system='' ma_irf=''
+    {
+        IFS= read -r ma_header
+        while read -r ma_scope ma_name ma_extra || [ -n "$ma_scope$ma_name$ma_extra" ]; do
+            case "$ma_scope" in
+                root) ma_system="$ma_system $ma_name" ;;
+                initramfs) ma_irf="$ma_irf $ma_name" ;;
+            esac
+        done
+    } < "$ma_file"
+    ma_system_list='' ma_irf_list=''
+    if [ -n "$ma_system" ]; then
+        ma_system_list=$(peipkg --root "$ma_root" list) || die "could not list target packages"
+    fi
+    if [ -n "$ma_irf" ]; then
+        ma_irf_list=$(peipkg --root "$ma_root/boot/initramfs" list) || die "could not list target initramfs packages"
+    fi
+    remove_medium_scope "$ma_root" "$ma_system" "$ma_system_list" || return 1
+    remove_medium_scope "$ma_root/boot/initramfs" "$ma_irf" "$ma_irf_list" || return 1
+    peipkg --root "$ma_root" install dev.peios.disk-boot --yes --allow-stale || die "could not install dev.peios.disk-boot into the target"
+)
+
+write_medium_checkpoint() (
+    mc_file=$1; shift
+    mkdir -p "${mc_file%/*}" || die "could not create installation checkpoint directory"
+    printf '%s\n' "$@" > "$mc_file.tmp" || die "could not write installation checkpoint"
+    mv "$mc_file.tmp" "$mc_file" || die "could not stage installation checkpoint"
+)
+
+finish_medium_packages() (
+    fm_root=$1
+    fm_file="$fm_root/lcl/policy/medium-only-packages"
+    if [ ! -e "$fm_file" ]; then
+        write_medium_checkpoint "$fm_file" peios-medium-packages-v1 \
+            'root dev.peios.live-boot' 'initramfs dev.peios.live-boot-irf' || return 1
+    fi
+    {
+        IFS= read -r fm_header || die "empty medium-only package list"
+        if [ "$fm_header" = peios-medium-packages-complete-v1 ]; then
+            if IFS= read -r fm_extra || [ -n "$fm_extra" ]; then
+                die "invalid completed installation checkpoint"
+            fi
+        fi
+    } < "$fm_file"
+    if [ "$fm_header" != peios-medium-packages-complete-v1 ]; then
+        validate_medium_packages "$fm_file" || return 1
+        peipkg --root "$fm_root" repo add "$MEDIUM_REPO" || die "could not establish trust in $MEDIUM_REPO on the target"
+        apply_medium_packages "$fm_root" "$fm_file" || return 1
+        # repo remove deletes its configuration before its database entry.
+        # A cleanup retry must not need repo add or installation again.
+        write_medium_checkpoint "$fm_file" peios-medium-packages-complete-v1 || return 1
+    fi
+    peipkg --root "$fm_root" repo remove "$MEDIUM_REPO" || return 1
+    rm "$fm_file" || die "could not remove completed installation checkpoint"
+)
+
 # The security descriptor stamped on the new root at format time. Byte-for-byte
 # what the live system's root carries: SYSTEM and BUILTIN\Administrators
 # GenericAll, Everyone read+execute, every ACE inheritable. Deliberately the
@@ -471,29 +570,15 @@ echo "$progname: replacing the live-boot packages with disk-boot"
 # about to become one. Its .repo file came across with the copy; §6.5.2 permits
 # a non-interactive ceremony precisely because the anchor was supplied through
 # a configured channel — here, baked into the image.
-peipkg --root "$ROOT_MNT" repo add "$MEDIUM_REPO"     || die "could not establish trust in $MEDIUM_REPO on the target"
-
-peipkg --root "$ROOT_MNT" uninstall dev.peios.live-boot --yes     || die "could not remove dev.peios.live-boot from the target"
-peipkg --root "$ROOT_MNT/boot/initramfs" uninstall dev.peios.live-boot-irf --yes     || die "could not remove dev.peios.live-boot-irf from the target's initramfs"
-
-# --allow-stale: a medium is a read-only artifact whose indexes are fixed at
-# manufacture, so re-fetching them returns the same index_version and the same
-# generated_at — which the peipkg specification defines as a refresh that made no
-# progress. An image older than the 30-day trusted age is therefore genuinely
-# stale and cannot become fresh. Saying so here, at the one operation that
-# knows the staleness is expected, beats disabling the check permanently in the
-# repository's configuration.
-peipkg --root "$ROOT_MNT" install dev.peios.disk-boot --yes --allow-stale     || die "could not install dev.peios.disk-boot into the target"
-
-# The medium will not be there when the target boots, and a configured
-# repository nobody can reach is worse than none: once past its trusted age
-# every install and upgrade on the installed machine would demand a refresh
-# that can never succeed. Removing it leaves disk-boot ORPHANED in the §6.5.7
-# sense — its originating repository is gone, so peipkg will refuse to upgrade
-# it until a reachable repository claims it. That is an accurate description of
-# a machine installed from a medium, and a far smaller problem than a
-# repository that poisons every operation.
-peipkg --root "$ROOT_MNT" repo remove "$MEDIUM_REPO"     || die "could not remove $MEDIUM_REPO from the target"
+#
+# If any package operation fails, the checkpoint and the medium repository's
+# configuration stay on the target, so a retry can resume. Both package roots
+# are queried before removal; retries omit packages already removed. Once the
+# swap succeeds the medium repository is removed: the medium will not be there
+# when the target boots, and a configured repository nobody can reach would
+# demand refreshes that can never succeed. --allow-stale is confined to this
+# read-only medium's fixed repository during the disk-boot install.
+finish_medium_packages "$ROOT_MNT" || die "could not finish the target's medium-only package cleanup"
 
 # --- cmdline -----------------------------------------------------------------
 # The template supplies everything stable; root= is the per-install part and

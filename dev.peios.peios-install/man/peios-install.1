@@ -13,6 +13,11 @@ peios-install \- install the running Peios system onto a disk
 formats the selected EFI system partition as FAT32 and the root partition as
 ext4, copies the running system, and replaces the target's live-boot packages
 with disk-boot packages from the installation medium.
+It also removes packages declared temporary by that medium, including dwed
+when peiso selected it for DWE. Explicit extra packages are retained.
+The removal list remains on an interrupted target until the package swap
+succeeds, so boot repair can finish the cleanup. Media predating the list
+retain the historical live-boot-only package swap.
 It rebuilds the target initramfs and writes a unified kernel image to
 .B EFI/BOOT/BOOTX64.EFI
 on the EFI system partition. No firmware boot entry is created.
@@ -69,6 +74,17 @@ Change inherited credentials before treating the installed system as secure.
 .TP
 .B /run/peios-install
 Working directory containing the target root and EFI partition mountpoints.
+.TP
+.B /lcl/policy/medium-only-packages
+The copied medium's versioned removal list and package-swap checkpoint.
+The first line is peios-medium-packages-v1; each remaining nonempty line
+names root or initramfs followed by one package name. Unknown formats and
+invalid entries are refused before package commands run.
+After the package swap succeeds, the installer replaces the list with the
+single line peios-medium-packages-complete-v1 before removing the medium
+repository. A retry of this state performs only repository and checkpoint
+cleanup. Package-operation failures preserve the original list and repository
+configuration for a retry.
 .TP
 .B /lcl/etc/boot/cmdline
 Kernel command line generated in the target from its disk-boot template and
