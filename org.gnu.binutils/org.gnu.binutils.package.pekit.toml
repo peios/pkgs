@@ -27,6 +27,8 @@ description = "GNU binary utilities (assembler, linker, object tools)"
 "org.gnu.glibc" = ">= 2.43"
 # libbfd links libz.so.1 (compressed debug sections).
 "io.github.zlib-ng.zlib-ng-compat" = ">= 2.3.3"
+# libbfd also reads and writes Zstandard-compressed debug sections.
+"com.facebook.zstd-libs" = "*"
 
 [files]
 # License texts are supplied once by the runtime package; every sibling has an

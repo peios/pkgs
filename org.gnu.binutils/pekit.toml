@@ -87,6 +87,8 @@ cd "$PEKIT_OUT"
 #   --with-sysroot=/        : the shipped ld searches the real root at run time.
 #   --with-system-zlib      : link the root's libz (zlib-ng compat), not a
 #       bundled copy — matches the declared zlib-devel build dependency.
+#   --with-zstd             : require Zstandard debug-section support.
+#       Missing development inputs must fail configure, not silently disable it.
 #   --without-debuginfod    : org.sourceware.elfutils is built with
 #       --disable-libdebuginfod, so no libdebuginfod exists to link against.
 #   --enable-plugins        : ld plugin API (gcc LTO needs the linker plugin).
@@ -116,7 +118,7 @@ cd "$PEKIT_OUT"
   --enable-shared --enable-plugins --enable-deterministic-archives \
   --enable-default-execstack=no --enable-relro --enable-new-dtags \
   --enable-default-hash-style=gnu --enable-cet --enable-64-bit-bfd \
-  --with-system-zlib --without-debuginfod --disable-nls --disable-werror
+  --with-system-zlib --with-zstd --without-debuginfod --disable-nls --disable-werror
 make -j"$(nproc)"
 make install DESTDIR="$PEKIT_OUT"
 # gprofng-display-html is a Perl program upstream starts with /usr/bin/env;
@@ -177,6 +179,8 @@ sh "$PEKIT_WORKSPACE_ROOT/_pkgtools_/split-debug" org.gnu.binutils "$PEKIT_OUT/u
 "org.perl.perl" = "*"
 # --with-system-zlib links the root's libz rather than binutils' bundled copy.
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"org.pkgconf.pkgconf" = "*"
 # libsframe compiles its unit tests only when configure finds dejagnu.h.
 "org.gnu.dejagnu-devel" = "*"
 
@@ -189,6 +193,8 @@ file = "*"
 patchelf = "*"
 perl = "*"
 zlib1g-dev = "*"
+libzstd-dev = "*"
+pkgconf = "*"
 dejagnu = "*"
 
 [test]
@@ -267,6 +273,35 @@ for name in gp-archive gp-collect-app gp-display-html gp-display-src gp-display-
     exit 1
   }
 done
+# PEI-1171: test the installed objcopy and ld, not the build root's tools.
+# Enough DWARF to ensure compression saves space (BFD may leave tiny sections
+# uncompressed). Check the ELF compression type, then compare decompressed
+# bytes with each operation's uncompressed output. Native cc already emits
+# zlib-compressed DWARF, so explicitly decompress the reference too.
+{
+  echo 'struct point { long x, y; };'
+  i=0
+  while [ "$i" -lt 100 ]; do
+    echo "struct point f$i(struct point p) { p.x += $i; return p; }"
+    i=$((i + 1))
+  done
+} > "$SMOKE/debug.c"
+cc -g -O0 -c "$SMOKE/debug.c" -o "$SMOKE/debug.o"
+"$BIN/objcopy" --compress-debug-sections=zstd "$SMOKE/debug.o" "$SMOKE/objcopy.zstd.o"
+"$BIN/objcopy" --decompress-debug-sections "$SMOKE/debug.o" "$SMOKE/objcopy.plain.o"
+"$BIN/ld" -r --compress-debug-sections=zstd "$SMOKE/debug.o" -o "$SMOKE/ld.zstd.o"
+"$BIN/ld" -r --compress-debug-sections=none "$SMOKE/debug.o" -o "$SMOKE/ld.plain.o"
+for tool in objcopy ld; do
+  "$BIN/readelf" -x .debug_info "$SMOKE/$tool.zstd.o" > "$SMOKE/$tool.header"
+  # Elf64_Chdr: little-endian ch_type=ELFCOMPRESS_ZSTD (2), reserved=0.
+  grep -E '0x00000000[[:space:]]+02000000[[:space:]]+00000000' "$SMOKE/$tool.header"
+  "$BIN/objcopy" --decompress-debug-sections "$SMOKE/$tool.zstd.o" "$SMOKE/$tool.expanded.o"
+  "$BIN/objcopy" --dump-section .debug_info="$SMOKE/$tool.expanded.info" "$SMOKE/$tool.expanded.o"
+  "$BIN/objcopy" --dump-section .debug_info="$SMOKE/$tool.plain.info" "$SMOKE/$tool.plain.o"
+  cmp "$SMOKE/$tool.plain.info" "$SMOKE/$tool.expanded.info"
+  "$BIN/readelf" --debug-dump=info "$SMOKE/$tool.zstd.o" > "$SMOKE/$tool.dwarf"
+  grep -F 'point' "$SMOKE/$tool.dwarf"
+done
 rm -rf "$SMOKE"
 '''
 
@@ -279,6 +314,8 @@ rm -rf "$SMOKE"
 "org.gnu.dejagnu-devel" = "*"
 "dev.peios.build-essentials-c++" = "*"
 "io.github.zlib-ng.zlib-ng-compat-devel" = "*"
+"com.facebook.zstd-devel" = "*"
+"org.pkgconf.pkgconf" = "*"
 "org.perl.perl" = "*"
 "com.darwinsys.file" = "*"
 "org.git.kernel.dash" = "*"
@@ -288,12 +325,15 @@ rm -rf "$SMOKE"
 "org.gnu.grep" = "*"
 "org.gnu.sed" = "*"
 "io.github.zlib-ng.zlib-ng-compat" = "*"
+"com.facebook.zstd-libs" = "*"
 
 [test.dependencies.apt]
 dejagnu = "*"
 build-essential = "*"
 "g++" = "*"
 zlib1g-dev = "*"
+libzstd-dev = "*"
+pkgconf = "*"
 perl = "*"
 file = "*"
 dash = "*"
@@ -303,3 +343,4 @@ gawk = "*"
 grep = "*"
 sed = "*"
 zlib1g = "*"
+libzstd1 = "*"
