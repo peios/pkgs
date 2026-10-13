@@ -25,16 +25,19 @@
 tags = ["bootstrap"]
 out_dir = "out"
 
+[source]
+patches = "patches"
+
 [source.url]
 url         = "https://download.qemu.org/qemu-{{version}}.tar.xz"
 listing_url = "https://download.qemu.org/"
 file_regex  = 'qemu-[0-9]+\.[0-9]+\.[0-9]+\.tar\.xz'
-# Unpacked by the build, not by Pekit: the tarball's EDK2 tree carries a
-# symlink out of the source root (roms/edk2/EmulatorPkg/Unix/Host/
-# X11IncludeHack -> /usr/include/X11), which Pekit's extractor rightly
-# refuses. The build leaves roms/edk2 out, since UEFI firmware is not built
-# or installed; the corresponding-source package carries the tarball whole.
-extract     = false
+# EDK2's escaping X11IncludeHack symlink is in a subtree we do not build
+# or install. Exclude that subtree before extraction; the corresponding-source
+# package still carries the complete, authenticated upstream tarball.
+extract     = true
+root        = "qemu-{{version}}"
+exclude     = ["roms/edk2"]
 # Soft maintenance floor. Stable releases are followed automatically; the
 # emulator and boot gates below catch a release that changes the contract.
 versions    = ">= 11.1.0"
@@ -59,18 +62,9 @@ DATA="$PREFIX/share/qemu"
 LICENSES="$PREFIX/share/licenses/org.qemu.qemu-system-x86"
 
 mkdir -p "$WORK"
-tar -C "$WORK" -xf "qemu-$PEKIT_VERSION.tar.xz" \
-  --exclude="qemu-$PEKIT_VERSION/roms/edk2"
-# The recipe's patches/series is applied here, in series order, rather than
-# through [source] patches: pekit applies that series to the materialised
-# source, which with extract = false holds only the tarball. Like pekit's
-# own application, this is strict (no fuzz) and any failure stops the build.
-sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$PEKIT_RECIPE_ROOT/patches/series" \
-  | while IFS= read -r p; do
-      [ -n "$p" ] || continue
-      patch -d "$SRC" -p1 --fuzz=0 --no-backup-if-mismatch \
-        < "$PEKIT_RECIPE_ROOT/patches/$p"
-    done
+# Pekit has already extracted and patched the source. Keep a work copy for
+# generated files and split-debug's existing source-prefix mapping.
+cp -a . "$SRC"
 
 # configure hands its own flags to meson; pass the distribution's through it
 # once rather than also through the environment meson reads.
