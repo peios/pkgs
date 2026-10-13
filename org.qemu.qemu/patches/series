@@ -1,3 +1,2 @@
-# Peios QEMU patch series, applied in order by the build after it unpacks
-# the release tarball (see [build.main] in pekit.toml for why not by pekit).
+# Peios QEMU patch series, applied by Pekit during source materialisation.
 0001-configure-without-pip.patch  # configure's venv uses the system meson and distlib; Peios ships no pip
